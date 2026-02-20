@@ -1,0 +1,127 @@
+﻿@model IdentityService.Core.Models.ManagePermissionsViewModel
+@{
+    ViewData["Title"] = "Manage Permissions";
+}
+
+<div class="d-flex justify-content-end align-items-center mb-3 mt-3">
+    <a asp-action="Index" class="btn btn-outline-secondary">
+        <i class="ti ti-arrow-left me-1"></i> Back to List
+    </a>
+</div>
+
+<form asp-action="ManagePermissions" method="post">
+    <input type="hidden" asp-for="ApplicationRoleId" />
+    <input type="hidden" asp-for="RoleName" />
+    <input type="hidden" asp-for="ApplicationName" />
+
+    @if (!Model.PermissionGroups.Any())
+    {
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            No permissions found in the system. Please make sure permissions are properly defined.
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            @* <div class="card-status-top bg_app_color_burgundy"></div> *@
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h2>Permissions for @Model.RoleName Role in the @Model.ApplicationName Application</h2>
+                    <h6 class="card-subtitle my-1 text-body-secondary">Manage Role Permissions</h6>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-sm btn-dark me-2" id="selectAll">Select All</button>
+                    <button type="button" class="btn btn-sm btn-dark" id="deselectAll">Deselect All</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    @foreach (var group in Model.PermissionGroups)
+                    {
+                        <div class="col-md-6 mb-4">
+                            <div class="card bg-secondary-lt h-100">
+                                @* <div class="card-status-top bg-danger"></div> *@
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h3 class="card-title">@group.GroupName</h3>
+                                    @* <h6 class="mb-0">@group.GroupName</h6> card-status-start *@
+                                    <div>
+                                        <button type="button" class="btn btn-sm btn-outline-primary select-group"
+                                                data-group="@group.GroupName">
+                                            Select All
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary deselect-group"
+                                                data-group="@group.GroupName">
+                                            Deselect All
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body permissions-group" data-group="@group.GroupName">
+                                    @for (int i = 0; i < group.Permissions.Count; i++)
+                                    {
+                                        <div class="form-check mb-2">
+                                            <input type="hidden" name="PermissionGroups[@Model.PermissionGroups.IndexOf(group)].GroupName" value="@group.GroupName" />
+                                            <input type="hidden" name="PermissionGroups[@Model.PermissionGroups.IndexOf(group)].Permissions[@i].Name" value="@group.Permissions[i].Name" />
+                                            <input type="hidden" name="PermissionGroups[@Model.PermissionGroups.IndexOf(group)].Permissions[@i].DisplayName" value="@group.Permissions[i].DisplayName" />
+
+                                            <input class="form-check-input permission-checkbox" type="checkbox"
+                                                   name="PermissionGroups[@Model.PermissionGroups.IndexOf(group)].Permissions[@i].IsSelected"
+                                                   value="true"
+                                            @(group.Permissions[i].IsSelected ? "checked" : "")
+                                                   id="permission_@(group.Permissions[i].Name.Replace(".", "_"))" />
+
+                                            <label class="form-check-label" for="permission_@(group.Permissions[i].Name.Replace(".", "_"))">
+                                                @group.Permissions[i].DisplayName
+                                            </label>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <button type="submit" class="btn btn-success">
+                    <i class="ti ti-folder me-1"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    }
+</form>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Select All button for a specific group
+            document.querySelectorAll('.select-group').forEach(button => {
+                button.addEventListener('click', function () {
+                    const groupName = this.getAttribute('data-group');
+                    document.querySelectorAll(`.permissions-group[data-group="${groupName}"] .permission-checkbox`)
+                        .forEach(checkbox => checkbox.checked = true);
+                });
+            });
+
+            // Deselect All button for a specific group
+            document.querySelectorAll('.deselect-group').forEach(button => {
+                button.addEventListener('click', function () {
+                    const groupName = this.getAttribute('data-group');
+                    document.querySelectorAll(`.permissions-group[data-group="${groupName}"] .permission-checkbox`)
+                        .forEach(checkbox => checkbox.checked = false);
+                });
+            });
+
+            // Select All button (global)
+            document.getElementById('selectAll').addEventListener('click', function () {
+                document.querySelectorAll('.permission-checkbox').forEach(checkbox => {
+                    checkbox.checked = true;
+                });
+            });
+
+            // Deselect All button (global)
+            document.getElementById('deselectAll').addEventListener('click', function () {
+                document.querySelectorAll('.permission-checkbox').forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+            });
+        });
+    </script>
+}

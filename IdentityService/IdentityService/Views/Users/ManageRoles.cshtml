@@ -1,0 +1,108 @@
+﻿@model UserRoleManagementViewModel
+@{
+    ViewData["Title"] = "Manage User Roles";
+}
+<div class="d-flex justify-content-end align-items-center mb-3 mt-3">
+    <a asp-action="Index" class="btn btn-outline-secondary">
+        <i class="ti ti-arrow-left me-1"></i> Back to List
+    </a>
+</div>
+
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+
+                <div>
+                    <h2>@Model.UserName</h2>
+                    <h6 class="card-subtitle my-1 text-body-secondary">
+                        Manage roles for user: <strong>@Model.UserName</strong>
+
+                    </h6>
+                </div>
+
+                <div>
+                    <button type="button" class="btn btn-outline-warning btn-sm" id="selectAll">Select All</button>
+                    <button type="button" class="btn btn-outline-warning btn-sm ms-2" id="deselectAll">Deselect All</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <form asp-action="ManageRoles" method="post">
+                    <input type="hidden" asp-for="UserId" />
+                    <input type="hidden" asp-for="UserName" />
+
+                    @foreach (var application in Model.ApplicationRolesByApplications)
+                    {
+                        <h3>@application.Key</h3>
+                        <div class="list-group mb-3">
+                            @{
+                                for (int i = 0; i < application.Value.Count; i++)
+                                {
+                                    <div class="list-group-item">
+                                        <input type="hidden" asp-for="ApplicationRolesByApplications[application.Key][i].ApplicationRoleId" />
+                                        <input type="hidden" asp-for="ApplicationRolesByApplications[application.Key][i].RoleName" />
+
+                                        <div class="form-check">
+                                            <input class="form-check-input role-checkbox" type="checkbox"
+                                                   asp-for="ApplicationRolesByApplications[application.Key][i].IsSelected"
+                                                   id="role_@Model.ApplicationRolesByApplications[application.Key][i].ApplicationRoleId" />
+                                            <label class="form-check-label" for="role_@Model.ApplicationRolesByApplications[application.Key][i].ApplicationRoleId">
+                                                @Model.ApplicationRolesByApplications[application.Key][i].RoleName
+                                            </label>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    }
+                    <div class="list-group mb-3">
+                        @* @for (int i = 0; i < Model.UserApplicationRoles.Count; i++)
+                        {
+                            <div class="list-group-item">
+                                <input type="hidden" asp-for="UserApplicationRoles[i].Id" />
+                                <input type="hidden" asp-for="UserApplicationRoles[i].ApplicationRole" />
+
+                                <div class="form-check">
+                                    <input class="form-check-input role-checkbox" type="checkbox"
+                                           asp-for="Roles[i].IsSelected"
+                                           id="role_@Model.Roles[i].RoleId" />
+                                    <label class="form-check-label" for="role_@Model.Roles[i].RoleId">
+                                        @Model.Roles[i].RoleName
+                                    </label>
+                                </div>
+                            </div>
+                        } *@
+
+                        
+                    </div>
+
+                    <button type="submit" class="btn btn-success btn-block">
+                        <i class="ti ti-folder me-1"></i>Save Changes
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Select All button
+            document.getElementById('selectAll').addEventListener('click', function () {
+                document.querySelectorAll('.role-checkbox').forEach(checkbox => {
+                    checkbox.checked = true;
+                });
+            });
+
+            // Deselect All button
+            document.getElementById('deselectAll').addEventListener('click', function () {
+                document.querySelectorAll('.role-checkbox').forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+            });
+        });
+    </script>
+}

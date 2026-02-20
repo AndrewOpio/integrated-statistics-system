@@ -1,0 +1,85 @@
+﻿@{
+    Layout = "_LayoutLogin";
+}
+
+<!-- Right Sign-in Card -->
+<div class="col-lg-5 col-12 d-flex justify-content-center justify-content-lg-end align-items-center">
+    <div class="card rounded shadow-lg col-12 col-sm-10 col-md-8 col-lg-12">
+        <div class="card-body">
+            <div class="d-lg-none text-center mb-4">
+                <div class="align-items-center justify-content-center mb-5">
+                    <img class="img-fluid" src="/img/bou.png" alt="" width="75" height="75">
+                    <p class="mb-0 text-dark display-3 fw-regular">Aswam</p>
+                </div>
+            </div>
+
+
+            <div class="sign-in-header mb-4">
+                <p class="display-5 mb-2">Sign In</p>
+            </div>
+            <form asp-action="Index" method="post" class="form">
+                <div asp-validation-summary="All" class="text-danger"></div>
+                <div class="form-floating">
+                    <input type="text" id="username" name="username" class="form-control" placeholder="Username" autocomplete="off" required>
+                    <label for="floatingInput">Username</label>
+                    <span class="text-danger"></span>
+                </div>
+                <div class="form-floating my-3">
+                    <input type="password" class="form-control" placeholder="Password" id="password" name="password" required>
+                    <label for="floatingPassword">Password</label>
+                    <span class="text-danger"></span>
+                </div>
+                <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+                <div class="form-group">
+                    <button type="submit" class="form-control btn btn-primary-crimson rounded submit px-3">
+                        Sign In
+                    </button>
+                    <span class="text-danger small">@ViewBag.Error</span>
+                </div>
+            </form>
+            <hr class="my-3">
+            <div class="alert alert-warning small d-flex align-items-start" role="alert">
+                <i class="ti ti-alert-triangle me-2 mt-1"></i>
+                <p class="mb-0">THIS IS A PRIVATE COMPUTER SYSTEM. It is for authorized use only. By accessing this system, you are consenting to system monitoring for law enforcement purposes. Unauthorized access or use may subject you to criminal prosecution and penalties</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* <div class="container">
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Login to Genesis Portal</h3>
+                </div>
+                <div class="card-body">
+                    @if (ViewBag.Error != null)
+                    {
+                        <div class="alert alert-danger">@ViewBag.Error</div>
+                    }
+
+                    <form method="post" asp-action="Login">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="username" name="username"
+                                   placeholder="admin" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="password" name="password"
+                                   placeholder="password123" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Login</button>
+                    </form>
+
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            Demo credentials: admin / password123
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div> *@

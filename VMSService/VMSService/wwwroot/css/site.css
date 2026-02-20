@@ -1,0 +1,36 @@
+html {
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+/*.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}*/
+
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  background-color: #f8f9fa;
+  margin-bottom: 60px;
+}
+
+.bg-crimson {
+    --bs-bg-opacity: 1;
+    background-color: #b31b34 !important;
+}
+
+.account-dropdown-item {
+    padding: .5rem 1rem;
+}
+
+.breadcrumb-item a:hover {
+    text-decoration: underline
+}

@@ -1,0 +1,59 @@
+############################
+# Build results
+############################
+bin/
+obj/
+out/
+publish/
+*.deps.json
+*.runtimeconfig.json
+
+############################
+# User-specific files
+############################
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+
+############################
+# Visual Studio / VS Code
+############################
+.vs/
+.vscode/
+.idea/
+
+############################
+# Logs
+############################
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+############################
+# OS files
+############################
+.DS_Store
+Thumbs.db
+
+############################
+# Environment files
+############################
+.env
+.env.*
+appsettings.Development.json
+appsettings.json
+secrets.json
+
+############################
+# ASP.NET Core
+############################
+wwwroot/lib/
+wwwroot/dist/
+node_m_
+
+ProductService/
+OrderService/

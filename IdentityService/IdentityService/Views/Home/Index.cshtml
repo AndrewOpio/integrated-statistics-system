@@ -1,0 +1,36 @@
+﻿@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="container mt-5">
+    <h2>User Management Dashboard</h2>
+    <div class="row mt-4">
+        <div class="col-md-6 p-2">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">User Management</h5>
+                    <p class="card-text">Manage system users, create accounts, and assign roles.</p>
+                    <a asp-controller="Users" asp-action="Index" class="btn btn-crimson">Manage Users</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 p-2">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Role Management</h5>
+                    <p class="card-text">Create and manage user roles and permissions.</p>
+                    <a asp-controller="Roles" asp-action="Index" class="btn btn-crimson">Manage Roles</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 p-2">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Application Management</h5>
+                    <p class="card-text">Create and manage applications/services.</p>
+                    <a asp-controller="Applications" asp-action="Index" class="btn btn-crimson">Manage Applications</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

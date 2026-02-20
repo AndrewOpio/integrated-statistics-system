@@ -1,0 +1,145 @@
+@model UserViewModel
+
+@{
+    ViewData["title"] = "User";
+    // var title =  Model.Id == null ? "Create User Account" : "Update User Account";
+    var action = Model.Id == null ? "Create" : "Update";
+}
+
+<div class="container">
+    <div class="d-flex justify-content-end align-items-center mb-3 mt-3">
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="ti ti-arrow-left me-1"></i> Back to List
+        </a>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2>@ViewData["title"]</h2>
+
+                        @* <h2>@action Application User</h2> *@
+                        <h6 class="card-subtitle my-1 text-body-secondary">
+                            @if (Model.Id == null)
+                            {
+                                <span>Create a new user account.</span>
+                            }
+                            else
+                            {
+                                <span>Update existing user account details.</span>
+                            }
+                        </h6>
+                    </div>
+                </div>
+
+                <form asp-action="@action" method="post">
+                    <input type="hidden" asp-for="Id" />
+                    <div class="card-body">
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                        @if (Model.Id != null)
+                        {
+                            <!-- Edit Mode -->
+                            <div class="form-floating mb-3">
+                                <input type="text" asp-for="UserName" class="form-control bg-light"
+                                       readonly placeholder="Username">
+                                <label asp-for="UserName">Username</label>
+                                <div class="form-text text-muted">
+                                    <i class="ti ti-lock-square-rounded text-muted me-1"></i>
+                                    Username cannot be changed as it must match Active Directory.
+                                </div>
+                                <span asp-validation-for="UserName" class="text-danger"></span>
+                            </div>
+                            <div class="form-floating mb-3">
+                                <input type="text" asp-for="Title" class="form-control bg-light"
+                                       placeholder="Title" required>
+                                <label asp-for="Title">Title</label>
+                                <span asp-validation-for="Title" class="text-danger"></span>
+                            </div>
+                            <div class="form-floating mb-3">
+                                <input type="date" asp-for="EndDate" class="form-control bg-light"
+                                       placeholder="End Date" required>
+                                <label asp-for="EndDate">End Date</label>
+                                <span asp-validation-for="EndDate" class="text-danger"></span>
+                            </div>
+                            <!-- IsActive toggle switch -->
+                            <div class="form-group mb-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" asp-for="IsActive" role="switch"
+                                               id="flexSwitchIsActive" style="width: 3em; height: 1.5em;">
+                                        <label class="form-check-label ms-2 fw-medium" asp-for="IsActive">
+                                            <span id="statusText" class="ms-1">
+                                                <span class="text-success" id="activeText">Active</span>
+                                                <span class="text-danger d-none" id="inactiveText">Inactive</span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <span asp-validation-for="IsActive" class="text-danger d-block mt-1"></span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="form-floating mb-3">
+                                <input type="text" asp-for="UserName" class="form-control"
+                                       placeholder="Username" required>
+                                <label asp-for="UserName">Username</label>
+                                <small class="form-text text-muted">
+                                    Please enter a username that exists on Active Directory.
+                                </small>
+                                <span asp-validation-for="UserName" class="text-danger"></span>
+                            </div>
+                            <div class="form-floating mb-3">
+                                <input type="text" asp-for="Title" class="form-control bg-light"
+                                       placeholder="Title" required>
+                                <label asp-for="Title">Title</label>
+                                <span asp-validation-for="Title" class="text-danger"></span>
+                            </div>
+                            <div class="form-floating mb-3">
+                                <input type="date" asp-for="EndDate" class="form-control bg-light"
+                                       placeholder="End Date" required>
+                                <label asp-for="EndDate">End Date</label>
+                                <span asp-validation-for="EndDate" class="text-danger"></span>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="card-footer d-flex justify-content-between">
+                        <button type="submit" class="btn btn-success">
+                            <i class="ti ti-folder me-1"></i>Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const toggle = document.getElementById('flexSwitchIsActive');
+            const activeText = document.getElementById('activeText');
+            const inactiveText = document.getElementById('inactiveText');
+
+            function updateLabel() {
+                if (toggle.checked) {
+                    activeText.classList.remove('d-none');
+                    inactiveText.classList.add('d-none');
+                } else {
+                    activeText.classList.add('d-none');
+                    inactiveText.classList.remove('d-none');
+                }
+            }
+
+            // Initialize
+            updateLabel();
+
+            // Update on change
+            toggle.addEventListener('change', updateLabel);
+        });
+    </script>
+}

@@ -1,0 +1,58 @@
+@model VMSService.Core.Models.CurrencyVendors.CurrencyVendorViewModel
+
+@{
+    ViewData["Title"] = "Create Currency Vendor";
+}
+
+<div class="row">
+    <div class="col-12 col-lg-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header">
+                <h2 class="fs-5 fw-bold mb-0">Create New Currency Vendor</h2>
+            </div>
+            <div class="card-body">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <form asp-action="Create" method="post">
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="Name">Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" asp-for="Name" required placeholder="Enter vendor name">
+                        <span asp-validation-for="Name" class="text-danger small d-block mt-1"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="Description">Description</label>
+                        <textarea class="form-control" asp-for="Description" rows="4" placeholder="Enter description"></textarea>
+                        <span asp-validation-for="Description" class="text-danger small d-block mt-1"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="Country">Country <span class="text-danger">*</span></label>
+                        <select class="form-select" asp-for="Country" asp-items="@Model.CountryList" required>
+                        </select>
+                        <span asp-validation-for="Country" class="text-danger small d-block mt-1"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="VendorTypeId">Vendor Type <span class="text-danger">*</span></label>
+                        <select class="form-select" asp-for="VendorTypeId" asp-items="@Model.VendorTypeList" required>
+                        </select>
+                        <span asp-validation-for="VendorTypeId" class="text-danger small d-block mt-1"></span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-check me-1"></i>Save
+                        </button>
+                        <a asp-action="Index" class="btn btn-secondary">
+                            <i class="ti ti-arrow-left me-1"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

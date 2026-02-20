@@ -1,0 +1,66 @@
+# Use this to run all microservices together
+services:
+  identity-service:
+    build: 
+      context: ./IdentityService
+      dockerfile: ./IdentityService/Dockerfile
+    ports:
+      - "5000:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+    networks:
+      - microservices-network
+
+  product-service:
+    build: 
+      context: ./ProductService
+      dockerfile: ./ProductService/Dockerfile
+    ports:
+      - "5001:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+    depends_on:
+      - identity-service
+    networks:
+      - microservices-network
+
+  order-service:
+    build: 
+      context: ./OrderService
+      dockerfile: ./OrderService/Dockerfile
+    ports:
+      - "5002:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+    depends_on:
+      - identity-service
+    networks:
+      - microservices-network
+
+  gateway:
+    build: 
+      context: ./GatewayService
+      dockerfile: ./GatewayService/Dockerfile
+    ports:
+      - "5005:80"
+    volumes:
+      - gateway-keys:/keys
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+    depends_on:
+      - identity-service
+      - product-service
+      - order-service
+    networks:
+      - microservices-network
+
+volumes:
+  gateway-keys:
+
+networks:
+  microservices-network:
+    driver: bridge

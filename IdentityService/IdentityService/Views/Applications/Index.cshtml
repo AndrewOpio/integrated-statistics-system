@@ -1,0 +1,81 @@
+﻿@model IEnumerable<ApplicationViewModel>
+
+@{
+    ViewData["Title"] = "Applications";
+}
+
+<div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <h3>Applications</h3>
+            <h6 class="card-subtitle my-1 text-body-secondary">Manage applications/services in Aswam</h6>
+        </div>
+        @* <permission name="@SystemPermissions.Roles.CreateRole"> *@
+            <a asp-action="Create" class="btn btn-crimson btn-md">
+                <i class="ti ti-plus ti-light"></i> Register Application
+            </a>
+        @* </permission> *@
+    </div>
+
+    <div class="card-body">
+    @if (!Model.Any())
+    {
+        
+        <div class="alert alert-info">
+            <i class="ti ti-info-circle me-2"></i>
+            No applications have been added yet. Use the "Register Application" button to add the first application.
+        </div>
+        
+    } else
+    {
+        <table id="applicationsTable" class="table table-hover table-striped align-middle w-100 datatable">
+            <thead>
+                <tr>
+                    <th>
+                        @Html.DisplayNameFor(model => model.Name)
+                    </th>
+                    <th>
+                        @Html.DisplayNameFor(model => model.Description)
+                    </th>
+                    <th>
+                        @Html.DisplayNameFor(model => model.Acronym)
+                    </th>
+                    <th>
+                        @Html.DisplayNameFor(model => model.Status)
+                    </th>
+                    <th>
+                        @Html.DisplayNameFor(model => model.Url)
+                    </th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>
+                            @Html.DisplayFor(modelItem => item.Name)
+                        </td>
+                        <td>
+                            @Html.DisplayFor(modelItem => item.Description)
+                        </td>
+                        <td>
+                            @Html.DisplayFor(modelItem => item.Acronym)
+                        </td>
+                        <td>
+                            @Html.DisplayFor(modelItem => item.Status)
+                        </td>
+                        <td>
+                            @Html.DisplayFor(modelItem => item.Url)
+                        </td>
+                        <td>
+                            <a asp-action="Edit" asp-route-id="@item.Id">Edit</a> |
+                            @* <a asp-action="Details" asp-route-id="@item.Id">Details</a> | *@
+                            <a asp-action="Delete" asp-route-id="@item.Id">Delete</a>
+                        </td>
+                    </tr>
+                }
+        </table>
+    }
+    </div>
+</div>

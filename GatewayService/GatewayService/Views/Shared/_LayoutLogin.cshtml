@@ -1,0 +1,43 @@
+﻿<!DOCTYPE html>
+<html lang="en" data-coreui-theme="light">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] Login - Aswam </title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/tabler.min.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/theme_styles.min.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <div class="main-container w-100">
+        <div class="content-wrapper">
+            <!--  Body Wrapper -->
+            <div class="container-fluid h-100">
+                <div class="row h-100 align-items-center justify-content-between px-lg-4 mx-0">
+
+                    <!-- Left Content - Hidden on smaller screens -->
+                    <div class="col-lg-6 d-none d-lg-flex text-white mb-4 mb-lg-0 flex-column justify-content-center text-center text-lg-start">
+                        <div class="d-flex align-items-center mb-1 justify-content-center justify-content-lg-start">
+                            <img class="img-fluid me-3" src="/img/bou.png" alt="" width="75" height="75">
+                            <h1 class="mb-0 text-dark">Bank of Uganda</h1>
+                        </div>
+                        <div class="display-3 mb-0 text-center text-lg-start fw-normal">
+                            Aswam
+                        </div>
+                    </div>
+
+                    @RenderBody()
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

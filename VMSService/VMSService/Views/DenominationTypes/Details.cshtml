@@ -1,0 +1,36 @@
+@model VMSService.Core.Models.DenominationTypes.DenominationTypeViewModel
+
+@{
+    ViewData["Title"] = "Denomination Type Details";
+}
+
+<div class="row">
+    <div class="col-12 col-lg-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header pb-4">
+                <div class="d-flex flex-column">
+                    <span class="text-muted small mb-2">Denomination Type Profile</span>
+                    <h2 class="fs-4 fw-bold mb-0">@Model.Name</h2>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <div class="field">
+                    <span class="d-block text-muted small mb-2 text-uppercase">Name</span>
+                    <span class="d-block fw-normal">@Model.Name</span>
+                </div>
+            </div>
+
+            <div class="card-footer bg-transparent border-top pt-3">
+                <div class="d-flex gap-2">
+                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">
+                        <i class="ti ti-pencil me-1"></i>Edit
+                    </a>
+                    <a asp-action="Index" class="btn btn-secondary">
+                        <i class="ti ti-arrow-left me-1"></i>Back
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
