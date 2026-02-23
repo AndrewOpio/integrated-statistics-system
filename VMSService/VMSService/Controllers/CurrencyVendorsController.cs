@@ -94,6 +94,7 @@ namespace VMSService.Web.Controllers
         // POST: CurrencyVendors/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Breadcrumb("Create", FromController = typeof(CurrencyVendorsController), FromAction = nameof(Index))]
         public async Task<IActionResult> Create(CurrencyVendorViewModel model)
         {
             if (!ModelState.IsValid)
@@ -182,6 +183,7 @@ namespace VMSService.Web.Controllers
         // POST: CurrencyVendors/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Breadcrumb("Edit", FromController = typeof(CurrencyVendorsController), FromAction = nameof(Index))]
         public async Task<IActionResult> Edit(int id, CurrencyVendorViewModel model)
         {
             if (id != model.Id)
@@ -280,6 +282,7 @@ namespace VMSService.Web.Controllers
         // POST: CurrencyVendors/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
+        [Breadcrumb("Delete", FromController = typeof(CurrencyVendorsController), FromAction = nameof(Index))]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             try

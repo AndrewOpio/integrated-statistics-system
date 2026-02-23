@@ -14,7 +14,7 @@ namespace VMSService.Core.Repositories.DenominationTypes
 
         public async Task<ICollection<DenominationType>> FindAll()
         {
-            return await _db.DenominationTypes.ToListAsync();
+            return await _db.DenominationTypes.Where(x => x.IsDeleted == false).ToListAsync();
         }
 
         public async Task<DenominationType> FindById(int id)

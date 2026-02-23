@@ -1,0 +1,223 @@
+@model VMSService.Core.Models.ApprovedCurrencyProcurements.ApprovedCurrencyProcurementsViewModel
+
+@{
+    ViewData["Title"] = "Create Approved Currency Procurement";
+}
+
+<div class="row">
+    <div class="col-12 col-lg-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header">
+                <h2 class="fs-5 fw-bold mb-0">Create New Approved Currency Procurement</h2>
+            </div>
+            <div class="card-body">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <form asp-action="Create" method="post" enctype="multipart/form-data" id="createForm">
+                    <input type="number" class="form-control" asp-for="Amount" required hidden>
+                    
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="Amount">Total Approved Amount <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="AmountText" placeholder="Enter amount" readonly>
+                        <span asp-validation-for="Amount" class="text-danger small d-block mt-1"></span>
+                    </div>
+
+                    <!-- Denominations Section -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <label class="form-label fw-bold mb-0">Denominations</label>
+                            <button type="button" class="btn btn-sm btn-primary" id="addDenominationBtn">
+                                <i class="ti ti-plus me-1"></i>Add Denomination
+                            </button>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-centered table-nowrap mb-0 rounded table-bordered" id="denominationsTable">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th class="fw-bold">Denomination</th>
+                                        <th class="fw-bold">Amount</th>
+                                        <th class="fw-bold text-center" style="width: 50px;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="denominationsBody">
+                                    <!-- Rows will be added here dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <input type="hidden" id="denominationCount" value="0">
+                        <span id="denominationsError" class="text-danger small d-block mt-1" style="display: none;"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="AttachmentFile">Board Approval Attachment</label>
+                        <input type="file" class="form-control" id="AttachmentFile" name="AttachmentFile" accept=".pdf,application/pdf">
+                        <span asp-validation-for="AttachmentFile" class="text-danger small d-block mt-1"></span>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-check me-1"></i>Save
+                        </button>
+                        <a asp-action="Index" class="btn btn-secondary">
+                            <i class="ti ti-arrow-left me-1"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function () {
+        let denominationCount = 0;
+        let denominations = [];
+
+        const $addDenominationBtn = $('#addDenominationBtn');
+        const $denominationsBody = $('#denominationsBody');
+        const $denominationCount = $('#denominationCount');
+        const $denominationsError = $('#denominationsError');
+        const plainAmountInput = document.getElementById("Amount");
+        const amountTextInput = document.getElementById("AmountText");
+
+        // Populate denominations data from ViewBag
+        @if (ViewBag.Denominations != null)
+        {
+            <text>
+            const denominationsData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.Denominations));
+            denominations = denominationsData;
+            </text>
+        }
+
+        $addDenominationBtn.on('click', function () {
+            addDenominationRow();
+        });
+
+        function addDenominationRow(denominationId = '', amount = '') {
+            const rowIndex = denominationCount++;
+            const denomSelectId = `DenominationId_${rowIndex}`;
+            const amountInputId = `Amount_${rowIndex}`;
+
+            let denominationOptions = '<option value="">-- Select Denomination --</option>';
+            denominations.forEach(function (denom) {
+                denominationOptions += `<option value="${denom.Id}" data-value="${denom.Value}">${denom.Name}</option>`;
+            });
+
+            const html = `
+                <tr class="denomination-row" data-row-index="${rowIndex}">
+                    <td>
+                        <select class="form-select form-select-sm denomination-select" id="${denomSelectId}" name="ApprovedCurrencyDenominations[${rowIndex}].DenominationId" required>
+                            ${denominationOptions}
+                        </select>
+                    </td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm denomination-amount" id="${amountInputId}" 
+                               name="ApprovedCurrencyDenominations[${rowIndex}].Amount" placeholder="0" required>
+                        <input type="hidden" name="ApprovedCurrencyDenominations[${rowIndex}].Count" value="0">
+                    </td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-denomination-btn">
+                            <i class="ti ti-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+
+            $denominationsBody.append(html);
+
+            // Set initial values if provided
+            if (denominationId) {
+                $(`#${denomSelectId}`).val(denominationId);
+            }
+            if (amount) {
+                $(`#${amountInputId}`).val(parseFloat(amount).toLocaleString("en-US", {minimumFractionDigits: 0, maximumFractionDigits: 2}));
+            }
+
+            // Attach event handlers to the new row
+            attachDenominationRowHandlers($denominationsBody.find(`[data-row-index="${rowIndex}"]`));
+        }
+
+        function attachDenominationRowHandlers($row) {
+            const $amountInput = $row.find('.denomination-amount');
+            const $removeBtn = $row.find('.remove-denomination-btn');
+
+            // Format amount input and calculate total
+            $amountInput.on('input', function (e) {
+                formatAmountInput(this);
+                calculateTotalAmount();
+            });
+
+            // Remove row and recalculate total
+            $removeBtn.on('click', function (e) {
+                e.preventDefault();
+                $row.fadeOut(200, function () {
+                    $(this).remove();
+                    calculateTotalAmount();
+                });
+            });
+        }
+
+        function formatAmountInput(input) {
+            let raw = input.value.replace(/[^0-9.]/g, "");
+            const parts = raw.split(".");
+            if (parts.length > 2) {
+                raw = parts[0] + "." + parts.slice(1).join("");
+            }
+            const number = parseFloat(raw);
+            if (!isNaN(number)) {
+                input.value = number.toLocaleString("en-US", {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 2
+                });
+            } else {
+                input.value = "";
+            }
+        }
+
+        function calculateTotalAmount() {
+            let total = 0;
+
+            // Get all denomination amount inputs and sum them
+            $denominationsBody.find('.denomination-amount').each(function () {
+                const value = $(this).val();
+                if (value) {
+                    // Remove commas and parse
+                    const numValue = parseFloat(value.replace(/,/g, ''));
+                    if (!isNaN(numValue)) {
+                        total += numValue;
+                    }
+                }
+            });
+
+            // Update the main amount input
+            amountTextInput.value = total.toLocaleString("en-US", {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2
+            });
+
+            // Update the hidden input
+            plainAmountInput.value = total || 0;
+        }
+
+        // Form validation
+        $('#createForm').on('submit', function (e) {
+            const rows = $denominationsBody.find('.denomination-row').length;
+            if (rows === 0) {
+                e.preventDefault();
+                $denominationsError.text('Please add at least one denomination').show();
+                return false;
+            }
+            $denominationsError.hide();
+        });
+    });
+</script>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

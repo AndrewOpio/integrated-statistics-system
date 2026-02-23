@@ -15,8 +15,11 @@ namespace VMSService.Core.Repositories.ExpectedCurrencies
         public async Task<ICollection<ExPrintMint>> FindAll()
         {
             return await _db.ExPrintMints
+                .Where(x => x.IsDeleted == false)
                 .Include(x => x.CurrentStatus)
                 .Include(x => x.CurrencyVendor)
+                .Include(x => x.CurrencyVendor.VendorType)
+                .Include(x => x.ApprovedCurrencyProcurement)
                 .Include(x => x.Denomination)
                 .ToListAsync();
         }
@@ -26,6 +29,8 @@ namespace VMSService.Core.Repositories.ExpectedCurrencies
             return await _db.ExPrintMints
                 .Include(x => x.CurrentStatus)
                 .Include(x => x.CurrencyVendor)
+                .Include(x => x.CurrencyVendor.VendorType)
+                .Include(x => x.ApprovedCurrencyProcurement)
                 .Include(x => x.Denomination)
                 .FirstOrDefaultAsync(x => x.Id == id);
         }

@@ -14,7 +14,7 @@ namespace VMSService.Core.Repositories.CurrencyVendors
 
         public async Task<ICollection<CurrencyVendor>> FindAll()
         {
-            return await _db.CurrencyVendors
+            return await _db.CurrencyVendors.Where(x => x.IsDeleted == false)
                 .Include(x => x.VendorType)
                 .ToListAsync();
         }

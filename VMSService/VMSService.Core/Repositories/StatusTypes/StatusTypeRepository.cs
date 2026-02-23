@@ -39,5 +39,12 @@ namespace VMSService.Core.Repositories.StatusTypes
             _db.StatusTypes.Update(model);
             return await Save();
         }
+
+        public async Task<StatusType> FindByName(string name, string category)
+        {
+            return await _db.StatusTypes
+                .Where(x => x.Name == name && x.Category == category)
+                .FirstOrDefaultAsync();
+        }
     }
 }

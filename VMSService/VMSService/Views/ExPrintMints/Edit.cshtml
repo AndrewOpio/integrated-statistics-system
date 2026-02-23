@@ -1,0 +1,436 @@
+@model VMSService.Core.Models.ExPrintMints.ExPrintMintViewModel
+
+@{
+    ViewData["Title"] = "Edit Expected Stock";
+}
+
+<div class="row">
+    <div class="col-12 col-lg-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header">
+                <h2 class="fs-5 fw-bold mb-0">Edit Expected Stock</h2>
+            </div>
+            <div class="card-body">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <form asp-action="Edit" method="post" enctype="multipart/form-data" id="editForm">
+                    <input type="hidden" asp-for="Id">
+                    <input type="hidden" asp-for="Attachment">
+                    <input type="hidden" asp-for="CurrentStatusId">
+
+                    <!-- Section 1: Basic Information -->
+                    <div class="form-section mb-4 shadow">
+                        <div class="mb-3 pb-2 border-bottom">
+                            <small class="fw-bold text-muted mb-0 text-uppercase">
+                                <i class="ti ti-info-circle me-2"></i>Basic Information
+                            </small>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="ExPrintMintReference">Reference <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" asp-for="ExPrintMintReference" placeholder="e.g., EPM-2024-001" required>
+                                <small class="text-muted d-block mt-1">Unique identifier for this stock shipment</small>
+                                <span asp-validation-for="ExPrintMintReference" class="text-danger small d-block mt-1"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="VendorTypeId">Vendor Type <span class="text-danger">*</span></label>
+                                <select class="form-select" id="VendorTypeId" required>
+                                    <option value="">-- Select Vendor Type --</option>
+                                    @if (ViewBag.VendorTypes != null)
+                                    {
+                                        @foreach (var vendorType in ViewBag.VendorTypes)
+                                        {
+                                            <option value="@vendorType.Id" data-name="@vendorType.Name">@vendorType.Name</option>
+                                        }
+                                    }
+                                </select>
+                                <small class="text-muted d-block mt-1">Vendors will be filtered based on selected type</small>
+                                <span class="text-danger small d-block mt-1" id="vendorTypeError"></span>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="DeliveryDate">Delivery Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" asp-for="DeliveryDate" required>
+                                <span asp-validation-for="DeliveryDate" class="text-danger small d-block mt-1"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="CurrencyVendorId">Currency Vendor <span class="text-danger">*</span></label>
+                                <select class="form-select" asp-for="CurrencyVendorId" id="CurrencyVendorId" required>
+                                    <option value="">-- Select Vendor --</option>
+                                    @if (ViewBag.CurrencyVendors != null)
+                                    {
+                                        @foreach (var vendor in ViewBag.CurrencyVendors)
+                                        {
+                                            <option value="@vendor.Id" data-vendor-type="@vendor.VendorType?.Id">@vendor.Name</option>
+                                        }
+                                    }
+                                </select>
+                                <span asp-validation-for="CurrencyVendorId" class="text-danger small d-block mt-1"></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" asp-for="ApprovedCurrencyProcurementId">Approved Currency Procurement <span class="text-danger">*</span></label>
+                            <select class="form-select" asp-for="ApprovedCurrencyProcurementId" id="ApprovedCurrencyProcurementId" required>
+                                <option value="">-- Select Approved Currency Procurement --</option>
+                                @if (ViewBag.ApprovedCurrencyProcurements != null)
+                                {
+                                    @foreach (var proc in ViewBag.ApprovedCurrencyProcurements)
+                                    {
+                                        <option value="@proc.Id">@proc.Amount</option>
+                                    }
+                                }
+                            </select>
+                            <span class="text-danger small d-block mt-1" id="approvedCurrencyError"></span>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Denomination & Stock Details -->
+                    <div class="form-section mb-4 shadow">
+                        <div class="mb-3 pb-2 border-bottom">
+                            <small class="fw-bold text-muted mb-0 text-uppercase">
+                                <i class="ti ti-package me-2"></i>Denomination & Stock Details
+                            </small>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="DenominationId">Denomination <span class="text-danger">*</span></label>
+                                <select class="form-select" asp-for="DenominationId" required>
+                                    <option value="">-- Select Denomination --</option>
+                                    @if (ViewBag.Denominations != null)
+                                    {
+                                        @foreach (var denom in ViewBag.Denominations)
+                                        {
+                                            <option value="@denom.Id">@denom.Name</option>
+                                        }
+                                    }
+                                </select>
+                                <span asp-validation-for="DenominationId" class="text-danger small d-block mt-1"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="NumberOfPieces">Number of Pieces <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" asp-for="NumberOfPieces" placeholder="Enter number of pieces" required>
+                                <span asp-validation-for="NumberOfPieces" class="text-danger small d-block mt-1"></span>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="ValueTest">Value <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="ValueTest" placeholder="0" required>
+                            <small class="text-muted d-block mt-1">Value will be formatted with commas</small>
+                            <span class="text-danger small d-block mt-1" id="valueError"></span>
+                            <!-- Hidden input for actual value submission -->
+                            <input type="hidden" asp-for="Value" id="Value">
+                            <span asp-validation-for="Value" class="text-danger small d-block mt-1"></span>
+                        </div>
+                    </div>
+
+                    <!-- Section 3: Box Number Details (Only for Printer) -->
+                    <div class="form-section mb-4 shadow" id="boxNumberDetailSection" style="display: none;">
+                        <div class="mb-3 pb-2 border-bottom">
+                            <small class="fw-bold text-muted mb-0 text-uppercase">
+                                <i class="ti ti-box me-2"></i>Box Number Details
+                            </small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" asp-for="BoxNumberPrefix">Box Number Prefix</label>
+                            <input type="text" class="form-control" asp-for="BoxNumberPrefix" placeholder="Enter box number prefix">
+                            <small class="text-muted d-block mt-1">Prefix used before box numbers</small>
+                            <span asp-validation-for="BoxNumberPrefix" class="text-danger small d-block mt-1"></span>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="BoxNumberRangeStart">Box Number Range Start</label>
+                                <input type="number" class="form-control" asp-for="BoxNumberRangeStart" placeholder="Enter start range">
+                                <span asp-validation-for="BoxNumberRangeStart" class="text-danger small d-block mt-1"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="BoxNumberRangeEnd">Box Number Range End</label>
+                                <input type="number" class="form-control" asp-for="BoxNumberRangeEnd" placeholder="Enter end range">
+                                <span asp-validation-for="BoxNumberRangeEnd" class="text-danger small d-block mt-1"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 4: Serial Number Details (Only for Printer) -->
+                    <div class="form-section mb-4 shadow" id="serialNumberDetailSection" style="display: none;">
+                        <div class="mb-3 pb-2 border-bottom">
+                            <small class="fw-bold text-muted mb-0 text-uppercase">
+                                <i class="ti ti-barcode me-2"></i>Serial Number Details
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" asp-for="SerialNumberPrefix">Serial Number Prefix</label>
+                            <input type="text" class="form-control" asp-for="SerialNumberPrefix" placeholder="Enter serial number prefix">
+                            <small class="text-muted d-block mt-1">Prefix used before serial numbers</small>
+                            <span asp-validation-for="SerialNumberPrefix" class="text-danger small d-block mt-1"></span>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="SerialNumberRangeStart">Serial Number Range Start</label>
+                                <input type="number" class="form-control" asp-for="SerialNumberRangeStart" placeholder="Enter start range">
+                                <span asp-validation-for="SerialNumberRangeStart" class="text-danger small d-block mt-1"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="SerialNumberRangeEnd">Serial Number Range End</label>
+                                <input type="number" class="form-control" asp-for="SerialNumberRangeEnd" placeholder="Enter end range">
+                                <span asp-validation-for="SerialNumberRangeEnd" class="text-danger small d-block mt-1"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 5: Documentation -->
+                    <div class="form-section mb-4 shadow">
+                        <div class="mb-3 pb-2 border-bottom">
+                            <small class="fw-bold text-muted mb-0 text-uppercase">
+                                <i class="ti ti-file me-2"></i>Documentation
+                            </small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" asp-for="AttachmentFile">Attachment (PDF)</label>
+                            @if (!string.IsNullOrEmpty(Model.Attachment))
+                            {
+                                <div class="mb-2">
+                                    <a href="@Url.Action("ViewAttachment", "ExPrintMints", new { id = Model.Id })" target="_blank" class="btn btn-outline-primary btn-sm">
+                                        <i class="ti ti-file-type-pdf me-1"></i>Current Attachment
+                                    </a>
+                                </div>
+                            }
+                            <input type="file" class="form-control" id="AttachmentFile" name="AttachmentFile" accept=".pdf,application/pdf">
+                            <small class="text-muted d-block mt-2"><i class="ti ti-info-circle me-1"></i>Accepted formats: PDF only. Max size: 10MB</small>
+                            <span asp-validation-for="AttachmentFile" class="text-danger small d-block mt-1"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Form Actions -->
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-check me-1"></i>Save Changes
+                        </button>
+                        <a asp-action="Index" class="btn btn-secondary">
+                            <i class="ti ti-arrow-left me-1"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function () {
+        // Store vendors data grouped by vendor type
+        const vendorsData = {};
+        @if (ViewBag.CurrencyVendors != null)
+        {
+            <text>
+            const allVendors = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.CurrencyVendors));
+            allVendors.forEach(function(vendor) {
+                const vendorTypeId = vendor.VendorTypeId;
+                if (vendorTypeId) {
+                    if (!vendorsData[vendorTypeId]) {
+                        vendorsData[vendorTypeId] = [];
+                    }
+                    vendorsData[vendorTypeId].push(vendor);
+                }
+            });
+            </text>
+        }
+
+        // Initialize form with current values
+        function initializeForm() {
+            const currentVendorId = $('#CurrencyVendorId').val();
+            
+            if (currentVendorId) {
+                // Find the vendor type of the current vendor
+                const $currentOption = $(`#CurrencyVendorId option[value="${currentVendorId}"]`);
+                const currentVendorType = $currentOption.data('vendor-type');
+                
+                if (currentVendorType) {
+                    $('#VendorTypeId').val(currentVendorType);
+                    triggerVendorTypeChange();
+                }
+            }
+
+            // Initialize Value display
+            const currentValue = $('#Value').val();
+            if (currentValue) {
+                const formattedValue = parseFloat(currentValue).toLocaleString('en-US', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 2
+                });
+                $('#ValueTest').val(formattedValue);
+            }
+        }
+
+        // Handle Vendor Type Selection
+        $('#VendorTypeId').on('change', triggerVendorTypeChange);
+
+        function triggerVendorTypeChange() {
+            const selectedVendorTypeId = $('#VendorTypeId').val();
+            const selectedVendorTypeName = $('#VendorTypeId').find('option:selected').data('name');
+            const $vendorSelect = $('#CurrencyVendorId');
+            const $boxNumberSection = $('#boxNumberDetailSection');
+            const $serialNumberSection = $('#serialNumberDetailSection');
+
+            // Clear vendor select but keep current value
+            const currentVendorId = $vendorSelect.val();
+            $vendorSelect.html('<option value="">-- Select Vendor --</option>');
+
+            // Show/Hide Box Number and Serial Number sections based on Vendor Type
+            if (selectedVendorTypeName && selectedVendorTypeName.toLowerCase() === 'printer') {
+                $boxNumberSection.slideDown(300);
+                $serialNumberSection.slideDown(300);
+                
+                // Make fields required
+                $('#boxNumberDetailSection input, #boxNumberDetailSection select').prop('required', true);
+                $('#serialNumberDetailSection input, #serialNumberDetailSection select').prop('required', true);
+            } else {
+                $boxNumberSection.slideUp(300);
+                $serialNumberSection.slideUp(300);
+                
+                // Remove required attribute
+                $('#boxNumberDetailSection input, #boxNumberDetailSection select').prop('required', false);
+                $('#serialNumberDetailSection input, #serialNumberDetailSection select').prop('required', false);
+                
+                // Clear the fields
+                $('#boxNumberDetailSection input, #boxNumberDetailSection select').val('');
+                $('#serialNumberDetailSection input, #serialNumberDetailSection select').val('');
+            }
+
+            if (selectedVendorTypeId) {
+                // Filter and populate vendors
+                const filteredVendors = vendorsData[selectedVendorTypeId] || [];
+                
+                if (filteredVendors.length > 0) {
+                    filteredVendors.forEach(function(vendor) {
+                        $vendorSelect.append(
+                            `<option value="${vendor.Id}">${vendor.Name}</option>`
+                        );
+                    });
+                    $('#vendorTypeError').text('').hide();
+                    
+                    // Restore previous selection if still available
+                    if (currentVendorId) {
+                        $vendorSelect.val(currentVendorId);
+                    }
+                } else {
+                    $('#vendorTypeError').text('No vendors available for this type').show();
+                }
+            }
+        }
+
+        // Handle Value Input Formatting
+        $('#ValueTest').on('input', function() {
+            let input = $(this).val();
+            
+            // Remove all non-numeric characters except decimal point
+            let sanitized = input.replace(/[^\d.]/g, '');
+            
+            // Prevent multiple decimal points
+            const parts = sanitized.split('.');
+            if (parts.length > 2) {
+                sanitized = parts[0] + '.' + parts.slice(1).join('');
+            }
+
+            // Format with commas
+            if (sanitized) {
+                const [wholePart, decimalPart] = sanitized.split('.');
+                const formattedWhole = wholePart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                const formatted = decimalPart !== undefined ? 
+                    `${formattedWhole}.${decimalPart}` : 
+                    formattedWhole;
+                
+                $(this).val(formatted);
+            }
+
+            // Update hidden input with unformatted value
+            const numericValue = parseFloat(sanitized) || 0;
+            $('#Value').val(numericValue);
+        });
+
+        // Handle paste events to format immediately
+        $('#ValueTest').on('paste', function() {
+            const $this = $(this);
+            setTimeout(function() {
+                $this.trigger('input');
+            }, 10);
+        });
+
+        // Form submission - ensure Value is set
+        $('#editForm').on('submit', function(e) {
+            const valueTest = $('#ValueTest').val();
+            
+            if (!valueTest) {
+                e.preventDefault();
+                $('#valueError').text('Value is required').show();
+                return false;
+            }
+
+            // Ensure hidden input has the numeric value
+            const numericValue = parseFloat(valueTest.replace(/,/g, '')) || 0;
+            $('#Value').val(numericValue);
+
+            // Validate Vendor Type if used
+            const vendorTypeId = $('#VendorTypeId').val();
+            if (!vendorTypeId && $('#CurrencyVendorId').val() === '') {
+                e.preventDefault();
+                $('#vendorTypeError').text('Please select a vendor type').show();
+                return false;
+            }
+
+            // Validate Box Number fields if section is visible
+            if ($('#boxNumberDetailSection').is(':visible')) {
+                const boxPrefix = $('[name="BoxNumberPrefix"]').val();
+                const boxStart = $('[name="BoxNumberRangeStart"]').val();
+                const boxEnd = $('[name="BoxNumberRangeEnd"]').val();
+
+                if (!boxPrefix || !boxStart || !boxEnd) {
+                    e.preventDefault();
+                    alert('Please fill all Box Number fields');
+                    return false;
+                }
+            }
+
+            // Validate Serial Number fields if section is visible
+            if ($('#serialNumberDetailSection').is(':visible')) {
+                const serialPrefix = $('[name="SerialNumberPrefix"]').val();
+                const serialStart = $('[name="SerialNumberRangeStart"]').val();
+                const serialEnd = $('[name="SerialNumberRangeEnd"]').val();
+
+                if (!serialPrefix || !serialStart || !serialEnd) {
+                    e.preventDefault();
+                    alert('Please fill all Serial Number fields');
+                    return false;
+                }
+            }
+
+            $('#valueError').text('').hide();
+        });
+
+        // Clear error on valid input
+        $('#ValueTest').on('focus', function() {
+            $('#valueError').text('').hide();
+        });
+
+        // Initialize form on page load
+        initializeForm();
+    });
+</script>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

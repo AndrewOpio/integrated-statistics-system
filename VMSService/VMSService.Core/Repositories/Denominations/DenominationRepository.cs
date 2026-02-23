@@ -14,7 +14,7 @@ namespace VMSService.Core.Repositories.Denominations
 
         public async Task<ICollection<Denomination>> FindAll()
         {
-            return await _db.Denominations
+            return await _db.Denominations.Where(x => x.IsDeleted == false)
                 .Include(x => x.DenominationType)
                 .ToListAsync();
         }

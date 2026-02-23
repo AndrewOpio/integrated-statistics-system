@@ -22465,7 +22465,7 @@ textarea.form-control-lg {
 }
 
 .sidebar .nav-link {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     vertical-align: middle;
     padding: .55rem .75rem;
     border-radius: .5rem
@@ -27143,7 +27143,7 @@ label {
 
 .table td, .table th {
     font-size: .875rem;
-    white-space: nowrap
+    white-space: inherit
 }
 
 .table.user-table thead th {

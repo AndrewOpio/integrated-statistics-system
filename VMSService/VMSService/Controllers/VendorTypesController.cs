@@ -72,6 +72,7 @@ namespace VMSService.Web.Controllers
         // POST: VendorTypes/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Breadcrumb("Create", FromController = typeof(VendorTypesController), FromAction = nameof(Index))]
         public async Task<IActionResult> Create(VendorTypeViewModel model)
         {
             if (!ModelState.IsValid)
@@ -143,6 +144,7 @@ namespace VMSService.Web.Controllers
         // POST: VendorTypes/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Breadcrumb("Edit", FromController = typeof(VendorTypesController), FromAction = nameof(Index))]
         public async Task<IActionResult> Edit(int id, VendorTypeViewModel model)
         {
             if (id != model.Id)
@@ -225,6 +227,7 @@ namespace VMSService.Web.Controllers
         // POST: VendorTypes/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
+        [Breadcrumb("Delete", FromController = typeof(VendorTypesController), FromAction = nameof(Index))]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             try

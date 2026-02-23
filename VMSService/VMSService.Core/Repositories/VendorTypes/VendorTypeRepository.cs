@@ -14,7 +14,7 @@ namespace VMSService.Core.Repositories.VendorTypes
 
         public async Task<ICollection<VendorType>> FindAll()
         {
-            return await _db.VendorTypes.ToListAsync();
+            return await _db.VendorTypes.Where(x => x.IsDeleted == false).ToListAsync();
         }
 
         public async Task<VendorType> FindById(int id)

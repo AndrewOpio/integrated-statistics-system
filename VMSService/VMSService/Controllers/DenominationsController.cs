@@ -88,6 +88,7 @@ namespace VMSService.Web.Controllers
         // POST: Denominations/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Breadcrumb("Create", FromController = typeof(DenominationsController), FromAction = nameof(Index))]
         public async Task<IActionResult> Create(DenominationViewModel model)
         {
             if (!ModelState.IsValid)
@@ -174,6 +175,7 @@ namespace VMSService.Web.Controllers
         // POST: Denominations/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Breadcrumb("Edit", FromController = typeof(DenominationsController), FromAction = nameof(Index))]
         public async Task<IActionResult> Edit(int id, DenominationViewModel model)
         {
             if (id != model.Id)
@@ -269,6 +271,7 @@ namespace VMSService.Web.Controllers
         // POST: Denominations/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
+        [Breadcrumb("Delete", FromController = typeof(DenominationsController), FromAction = nameof(Index))]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             try

@@ -428,6 +428,60 @@ namespace VMSService.Data.Migrations
                     b.ToTable("ExPrintMintStatusHistory");
                 });
 
+            modelBuilder.Entity("VMSService.Data.Entities.ReceivedStock", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BoxNumberPrefix")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("BoxNumberRangeEnd")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("BoxNumberRangeStart")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CurrentStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("DateDelivered")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("ExPrintMintId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("NumberOfPieces")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SerialNumberPrefix")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("SerialNumberRangeEnd")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SerialNumberRangeStart")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Value")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CurrentStatusId");
+
+                    b.HasIndex("ExPrintMintId");
+
+                    b.ToTable("ReceivedStock");
+                });
+
             modelBuilder.Entity("VMSService.Data.Entities.StatusType", b =>
                 {
                     b.Property<int>("Id")
@@ -639,6 +693,25 @@ namespace VMSService.Data.Migrations
                     b.Navigation("NewStatus");
 
                     b.Navigation("OldStatus");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.ReceivedStock", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.StatusType", "CurrentStatus")
+                        .WithMany()
+                        .HasForeignKey("CurrentStatusId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("VMSService.Data.Entities.ExPrintMint", "ExPrintMint")
+                        .WithMany()
+                        .HasForeignKey("ExPrintMintId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CurrentStatus");
+
+                    b.Navigation("ExPrintMint");
                 });
 #pragma warning restore 612, 618
         }

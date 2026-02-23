@@ -1,0 +1,360 @@
+@model VMSService.Core.Models.ExPrintMints.ExPrintMintViewModel
+
+@{
+    ViewData["Title"] = "Expected Stock Details";
+}
+
+<div class="row">
+    <div class="col-12">
+        <!-- Header Section -->
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header bg-gradient">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h2 class="fs-5 fw-bold mb-0 text-primary">
+                            <i class="ti ti-package me-2"></i>Expected Stock Details
+                        </h2>
+                    </div>
+                    <div class="col text-end">
+                        <span class="badge bg-light text-dark">
+                            <i class="ti ti-info-circle me-1"></i>ID: @Model.Id
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body bg-light py-4">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h4 class="mb-1">@Model.ExPrintMintReference</h4>
+                        <p class="text-muted mb-0">
+                            <i class="ti ti-calendar me-1"></i>
+                            Delivery Date: <strong>@Model.DeliveryDate.ToString("dddd, MMMM dd, yyyy")</strong>
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        @if (Model.CurrencyVendor?.VendorType?.Name == "Printer")
+                        {
+                            <span class="badge bg-primary me-2">
+                                <i class="ti ti-tag me-1"></i>ExPrint
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-primary me-2">
+                                <i class="ti ti-tag me-1"></i>ExMint
+                            </span>
+                        }
+                        @if (Model.CurrentStatus != null)
+                        {
+                            <div class="d-inline-flex align-items-center gap-2">
+                                <span class="badge bg-info">
+                                    <i class="ti ti-badge me-1"></i>@Model.CurrentStatus.Name
+                                </span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Left Column -->
+            <div class="col-lg-6">
+                <!-- Vendor & Procurement Information -->
+                <div class="card border-0 shadow mb-4">
+                    <div class="card-header bg-white border-bottom no-after">
+                        <h6 class="card-title mb-0">
+                            <i class="ti ti-building me-2 text-primary"></i>Vendor Information
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-4">
+                            <small class="text-muted text-uppercase fw-semibold d-block mb-1">Vendor</small>
+                            <p class="mb-0 fw-bold">
+                                @if (Model.CurrencyVendor != null)
+                                {
+                                    <i class="ti ti-building me-1 text-primary"></i>@Model.CurrencyVendor.Name
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </p>
+                        </div>
+
+                        <div class="mb-4">
+                            <small class="text-muted text-uppercase fw-semibold d-block mb-1">Approved Currency Procurement</small>
+                            <p class="mb-0 fw-bold">
+                                @if (Model.ApprovedCurrencyProcurement != null)
+                                {
+                                    <i class="ti ti-file-check me-1 text-success"></i>@Model.ApprovedCurrencyProcurement.Amount.ToString("N2")
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Denomination Details -->
+                <div class="card border-0 shadow mb-4">
+                    <div class="card-header bg-white border-bottom no-after">
+                        <h6 class="card-title mb-0">
+                            <i class="ti ti-coins me-2 text-info"></i>Denomination Information
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-4">
+                            <small class="text-muted text-uppercase fw-semibold d-block mb-1">Denomination</small>
+                            <p class="mb-0 fw-bold">
+                                @if (Model.Denomination != null)
+                                {
+                                    <i class="ti ti-coin me-1 text-info"></i>@Model.Denomination.Name
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </p>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-6 mb-4">
+                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Number of Pieces</small>
+                                <p class="mb-0 fw-bold fs-6">@Model.NumberOfPieces</p>
+                            </div>
+                            <div class="col-6 mb-4">
+                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Total Value</small>
+                                <p class="mb-0 fw-bold fs-6 text-success">@Model.Value.ToString("N0")</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="col-lg-6">
+                <!-- Box Number Details -->
+                <div class="card border-0 shadow mb-4">
+                    <div class="card-header bg-white border-bottom no-after">
+                        <h6 class="card-title mb-0">
+                            <i class="ti ti-box me-2 text-warning"></i>Box Number Details
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-4">
+                            <small class="text-muted text-uppercase fw-semibold d-block mb-1">Prefix</small>
+                            <p class="mb-0 fw-bold">
+                                @if (!string.IsNullOrEmpty(Model.BoxNumberPrefix))
+                                {
+                                    <span class="badge bg-warning">@Model.BoxNumberPrefix</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </p>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-6 mb-4">
+                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Range Start</small>
+                                <p class="mb-0 fw-bold">
+                                    @if (Model.BoxNumberRangeStart.HasValue)
+                                    {
+                                        <span>@Model.BoxNumberRangeStart</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </p>
+                            </div>
+                            <div class="col-6 mb-4">
+                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Range End</small>
+                                <p class="mb-0 fw-bold">
+                                    @if (Model.BoxNumberRangeEnd.HasValue)
+                                    {
+                                        <span>@Model.BoxNumberRangeEnd</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </p>
+                            </div>
+                        </div>
+
+                        @if (Model.BoxNumberRangeStart.HasValue && Model.BoxNumberRangeEnd.HasValue)
+                        {
+                            <div class="alert alert-light mb-0" role="alert">
+                                <small class="text-muted">
+                                    <i class="ti ti-info-circle me-1"></i>
+                                    Box Range: @Model.BoxNumberPrefix@Model.BoxNumberRangeStart - @Model.BoxNumberPrefix@Model.BoxNumberRangeEnd
+                                </small>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Serial Number Details -->
+                <div class="card border-0 shadow mb-4">
+                    <div class="card-header bg-white border-bottom no-after">
+                        <h6 class="card-title mb-0">
+                            <i class="ti ti-barcode me-2 text-danger"></i>Serial Number Details
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-4">
+                            <small class="text-muted text-uppercase fw-semibold d-block mb-1">Prefix</small>
+                            <p class="mb-0 fw-bold">
+                                @if (!string.IsNullOrEmpty(Model.SerialNumberPrefix))
+                                {
+                                    <span class="badge bg-danger">@Model.SerialNumberPrefix</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </p>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-6 mb-4">
+                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Range Start</small>
+                                <p class="mb-0 fw-bold">
+                                    @if (Model.SerialNumberRangeStart.HasValue)
+                                    {
+                                        <span>@Model.SerialNumberRangeStart</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </p>
+                            </div>
+                            <div class="col-6 mb-4">
+                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Range End</small>
+                                <p class="mb-0 fw-bold">
+                                    @if (Model.SerialNumberRangeEnd.HasValue)
+                                    {
+                                        <span>@Model.SerialNumberRangeEnd</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </p>
+                            </div>
+                        </div>
+
+                        @if (Model.SerialNumberRangeStart.HasValue && Model.SerialNumberRangeEnd.HasValue)
+                        {
+                            <div class="alert alert-light mb-0" role="alert">
+                                <small class="text-muted">
+                                    <i class="ti ti-info-circle me-1"></i>
+                                    Serial Range: @Model.SerialNumberPrefix@Model.SerialNumberRangeStart - @Model.SerialNumberPrefix@Model.SerialNumberRangeEnd
+                                </small>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Attachment Section -->
+        @if (!string.IsNullOrEmpty(Model.Attachment))
+        {
+            <div class="card border-0 shadow mb-4">
+                <div class="card-header bg-white border-bottom no-after">
+                    <h6 class="card-title mb-0">
+                        <i class="ti ti-file-pdf me-2 text-danger"></i>Documentation
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between p-3 bg-light rounded">
+                        <div class="d-flex align-items-center">
+                            <i class="ti ti-file-type-pdf fs-2 text-danger me-3"></i>
+                            <div>
+                                <p class="mb-0 fw-bold">PDF Attachment</p>
+                                <small class="text-muted">Click to view the attached document</small>
+                            </div>
+                        </div>
+                        <a href="@Url.Action("ViewAttachment", "ExPrintMints", new { id = Model.Id })" target="_blank" class="btn btn-outline-danger btn-sm">
+                            <i class="ti ti-external-link me-1"></i>View/Download
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Action Buttons -->
+        <div class="card border-0 shadow">
+            <div class="card-body bg-light">
+                <div class="d-flex gap-2 flex-wrap">
+                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">
+                        <i class="ti ti-edit me-1"></i>Edit
+                    </a>
+                    <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger">
+                        <i class="ti ti-trash me-1"></i>Delete
+                    </a>
+                    <a asp-action="Index" class="btn btn-secondary ms-auto">
+                        <i class="ti ti-arrow-left me-1"></i>Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-gradient {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .card {
+        transition: all 0.3s ease;
+    }
+
+    /* .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    } */
+
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .card-title {
+        color: #2d3748;
+        margin: 0;
+        font-weight: 600;
+    }
+
+    .badge {
+        font-size: 0.85rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.85rem;
+    }
+
+    .alert-light {
+        background-color: #f0f4ff;
+        border-color: #d0deff;
+        border-left: 4px solid #0d6efd;
+    }
+    
+    .no-after::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 0;
+        background: unset;
+    }
+</style>

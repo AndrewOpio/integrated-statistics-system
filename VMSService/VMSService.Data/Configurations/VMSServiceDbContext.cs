@@ -23,6 +23,7 @@ namespace VMSService.Data.Configurations
         public DbSet<StatusType> StatusTypes { get; set; }
         public DbSet<ApprovedCurrencyStatusHistory> ApprovedCurrencyStatusHistory { get; set; }
         public DbSet<ExPrintMintStatusHistory> ExPrintMintStatusHistory { get; set; }
+        public DbSet<ReceivedStock> ReceivedStock { get; set; }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
@@ -35,14 +36,8 @@ namespace VMSService.Data.Configurations
 
                 if (entry.State == EntityState.Added)
                 {
-                    // Only set if not already set (allow manual override)
-                    if (entity.CreatedBy == null)
-                    {
-                        entity.CreatedBy = user;
-                        entity.CreatedDate = now;
-                    }
-
-                    // Always update modified fields for new entities
+                    entity.CreatedBy = user;
+                    entity.CreatedDate = now;
                     entity.ModifiedBy = user;
                     entity.ModifiedDate = now;
                 }
