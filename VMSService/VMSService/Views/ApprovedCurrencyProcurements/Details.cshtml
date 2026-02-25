@@ -1,31 +1,33 @@
 @model VMSService.Core.Models.ApprovedCurrencyProcurements.ApprovedCurrencyProcurementsViewModel
+@using VMSService.Core.Static
 
 @{
     ViewData["Title"] = "Approved Currency Procurement Details";
+    var userRoles = string.Join(", ", User.FindAll("appRole").Where(c => c.Value.StartsWith("VMS:")).Select(c => c.Value.Split(":")[1]).ToList());
+    // var userRole = User.FindFirst(VMSService.Core.Static.SystemPolicy.ClaimType.AppRole)?.Value ?? "";
 }
 
 <div class="row">
-    <div class="col-12 col-lg-12">
-        <div class="card border-0 shadow mb-4">
-            <div class="card-header pb-4">
-                <div class="d-flex flex-column">
-                    <span class="text-muted small mb-2">Approved Currency Procurement Profile</span>
-                    <h2 class="fs-4 fw-bold mb-3">@Model.Amount.ToString("N0")</h2>
-                    @if (Model.CurrentStatus != null && !string.IsNullOrEmpty(Model.CurrentStatus.Name))
-                    {
+    <div class="col-12">
+        <div class="card border-0 shadow mb-3">
+            <div class="card-header pb-4 bg-light">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="d-flex flex-column">
+                        <span class="text-muted small mb-2">Approved Currency Procurement</span>
+                        <h2 class="fs-4 fw-bold mb-3">UGX @Model.Amount.ToString("N0")</h2>
                         <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
                             <span class="badge bg-info">
-                                <i class="ti ti-badge me-1"></i>@Model.CurrentStatus.Name
+                                <i class="ti ti-badge me-1"></i>@Model.CurrentStatus?.Name
                             </span>
                         </div>
-                    }
+                    </div>
                 </div>
             </div>
 
             <div class="card-body">
                 <div class="field mb-4">
                     <span class="d-block text-muted small mb-2 text-uppercase">Total Approved Amount</span>
-                    <span class="d-block fw-normal">@Model.Amount.ToString("N0")</span>
+                    <span class="d-block fw-normal">UGX @Model.Amount.ToString("N0")</span>
                 </div>
 
                 <!-- Denominations Section -->
@@ -37,7 +39,8 @@
                                 <thead class="thead-light">
                                     <tr>
                                         <th class="fw-bold">Denomination</th>
-                                        <th class="fw-bold">Amount</th>
+                                        <th class="fw-bold">Number of Pieces</th>
+                                        <th class="fw-bold">Amount (UGX)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -46,6 +49,9 @@
                                         <tr>
                                             <td>
                                                 <span>@denomination.Denomination?.Name</span>
+                                            </td>
+                                            <td>
+                                                <span>@denomination.NumberOfPieces.ToString("N0")</span>
                                             </td>
                                             <td>
                                                 <span>@denomination.Amount.ToString("N0")</span>
@@ -77,14 +83,14 @@
                 {
                     <div class="field">
                         <span class="d-block text-muted small mb-2 text-uppercase">Attachment</span>
-                        <a asp-controller="ApprovedCurrencyProcurements" asp-action="ViewAttachment" asp-route-id="@Model.Id" target="_blank" class="text-primary">
-                            <i class="ti ti-external-link me-1"></i>View Attachment
+                        <a asp-controller="ApprovedCurrencyProcurements" asp-action="ViewAttachment" asp-route-id="@Model.Id" target="_blank" class="btn btn-outline-tertiary">
+                            <i class="ti ti-file-type-pdf me-1 fs-5"></i>View Attachment
                         </a>
                     </div>
                 }
             </div>
 
-            <div class="card-footer bg-transparent border-top pt-3">
+            @* <div class="card-footer bg-transparent border-top pt-3">
                 <div class="d-flex gap-2">
                     <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">
                         <i class="ti ti-pencil me-1"></i>Edit
@@ -93,7 +99,154 @@
                         <i class="ti ti-arrow-left me-1"></i>Back
                     </a>
                 </div>
+            </div> *@
+            <!-- Action Buttons -->
+            <div class="d-flex gap-2 mb-4">
+                @if (userRoles.Contains(SystemPolicy.Roles.ContractManager))
+                {
+                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">
+                        <i class="ti ti-edit me-1"></i>Edit
+                    </a>
+                }
+                <a asp-action="Index" class="btn btn-secondary">
+                    <i class="ti ti-arrow-left me-1"></i>Back to List
+                </a>
             </div>
         </div>
     </div>
 </div>
+
+
+<!-- Status History Section -->
+<div class="card border-0 shadow">
+    <div class="card-header bg-white border-bottom no-after">
+        <h6 class="card-title mb-0">
+            <i class="ti ti-history me-2 text-secondary"></i>Status Change History
+        </h6>
+    </div>
+    <div class="card-body">
+        @if (Model.StatusHistory != null && Model.StatusHistory.Any())
+        {
+            <div class="timeline">
+                @foreach (var history in Model.StatusHistory.OrderByDescending(x => x.ChangedAt))
+                {
+                    <div class="timeline-item mb-4">
+                        <div class="d-flex gap-3">
+                            <div class="timeline-marker">
+                                <i class="ti ti-circle-check text-success"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">
+                                            <strong>@history.OldStatus?.Name</strong>
+                                            <i class="ti ti-arrow-right text-muted"></i>
+                                            <strong>@history.NewStatus?.Name</strong>
+                                        </h6>
+                                        <small class="text-muted">
+                                            By: <strong>@history.ChangedBy</strong>
+                                        </small>
+                                    </div>
+                                    <small class="text-muted">
+                                        @history.ChangedAt.ToString("dd/MMM/yyyy HH:mm:ss")
+                                    </small>
+                                </div>
+                                @if (!string.IsNullOrEmpty(history.Remarks))
+                                {
+                                    <div class="mt-2 p-2 bg-white rounded border">
+                                        <small class="d-block">@history.Remarks</small>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="text-muted text-center py-3">
+                <i class="ti ti-inbox me-2"></i>No status changes yet.
+            </p>
+        }
+    </div>
+</div>
+   
+
+<!-- Workflow Actions Section -->
+@if (Model.AvailableTransitions.Any())
+{
+    <div class="card border-0 bg-light mb-4 shadow-sm">
+        <div class="card-header bg-white border-bottom no-after">
+            <h6 class="card-title mb-0">
+                <i class="ti ti-checkbox me-2 text-primary"></i>Available Actions
+            </h6>
+        </div>
+        <div class="card-body">
+            @foreach (var transition in Model.AvailableTransitions)
+            {
+                <form method="post" asp-action="ExecuteAction" asp-route-id="@Model.Id" class="mb-3" id="form_@transition.ActionName">
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Comments
+                            @if (transition.RequiresComments)
+                            {
+                                <span class="text-danger">*</span>
+                            }
+                        </label>
+                        <textarea class="form-control"
+                          name="remarks"
+                          rows="3"
+                          placeholder="Enter your comments..."
+                          required="@transition.RequiresComments"></textarea>
+                        <small class="text-muted d-block mt-1">
+                            @if (transition.ActionName == "Verify")
+                            {
+                                <span>Provide your verification comments.</span>
+                            }
+                            else if (transition.ActionName == "Reject")
+                            {
+                                <span>Explain why you are rejecting this procurement.</span>
+                            }
+                            else if (transition.ActionName == "Resubmit")
+                            {
+                                <span>Explain what changes were made.</span>
+                            }
+                        </small>
+                    </div>
+
+                    <input type="hidden" name="actionName" value="@transition.ActionName" />
+                    <button type="submit" class="btn @transition.ButtonClass">
+                        <i class="ti ti-check me-1"></i>@transition.DisplayLabel
+                    </button>
+                </form>
+            }
+        </div>
+    </div>
+}
+
+<style>
+    .timeline {
+        position: relative;
+        padding-left: 0;
+    }
+
+    .timeline-item {
+        position: relative;
+    }
+
+    .timeline-marker {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background-color: #f0f0f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+        .timeline-marker i {
+            font-size: 16px;
+        }
+</style>

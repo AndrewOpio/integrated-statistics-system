@@ -5,5 +5,6 @@ namespace VMSService.Core.Repositories.ApprovedCurrencyStatusHistories
 {
     public interface IApprovedCurrencyStatusHistoryRepository : IRepositoryBase<ApprovedCurrencyStatusHistory, int>
     {
+        Task<ICollection<ApprovedCurrencyStatusHistory>> FindByApprovedCurrencyId(int approvedCurrencyProcurementId);
     }
 }

@@ -17,5 +17,6 @@
         public int CurrentStatusId { get; set; }
         public StatusType CurrentStatus { get; set; }
         public bool IsDeleted { get; set; }
+        public bool IsPartial { get; set; }
     }
 }

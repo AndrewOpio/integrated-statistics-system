@@ -37,6 +37,7 @@
                                 <thead class="thead-light">
                                     <tr>
                                         <th class="fw-bold">Denomination</th>
+                                        <th class="fw-bold">Number of Pieces</th>
                                         <th class="fw-bold">Amount</th>
                                         <th class="fw-bold text-center" style="width: 50px;">Actions</th>
                                     </tr>
@@ -97,9 +98,10 @@
             addDenominationRow();
         });
 
-        function addDenominationRow(denominationId = '', amount = '') {
+        function addDenominationRow(denominationId = '', pieces = '', amount = '') {
             const rowIndex = denominationCount++;
             const denomSelectId = `DenominationId_${rowIndex}`;
+            const piecesInputId = `Pieces_${rowIndex}`;
             const amountInputId = `Amount_${rowIndex}`;
 
             let denominationOptions = '<option value="">-- Select Denomination --</option>';
@@ -115,9 +117,13 @@
                         </select>
                     </td>
                     <td>
+                        <input type="text" class="form-control form-control-sm denomination-pieces" id="${piecesInputId}" 
+                               placeholder="0" required>
+                        <input type="hidden" name="ApprovedCurrencyDenominations[${rowIndex}].NumberOfPieces" id="Count_${rowIndex}" value="0">
+                    </td>
+                    <td>
                         <input type="text" class="form-control form-control-sm denomination-amount" id="${amountInputId}" 
                                name="ApprovedCurrencyDenominations[${rowIndex}].Amount" placeholder="0" required>
-                        <input type="hidden" name="ApprovedCurrencyDenominations[${rowIndex}].Count" value="0">
                     </td>
                     <td class="text-center">
                         <button type="button" class="btn btn-sm btn-outline-danger remove-denomination-btn">
@@ -133,6 +139,9 @@
             if (denominationId) {
                 $(`#${denomSelectId}`).val(denominationId);
             }
+            if (pieces) {
+                $(`#${piecesInputId}`).val(parseInt(pieces).toLocaleString("en-US"));
+            }
             if (amount) {
                 $(`#${amountInputId}`).val(parseFloat(amount).toLocaleString("en-US", {minimumFractionDigits: 0, maximumFractionDigits: 2}));
             }
@@ -142,12 +151,27 @@
         }
 
         function attachDenominationRowHandlers($row) {
+            const $denomSelect = $row.find('.denomination-select');
+            const $piecesInput = $row.find('.denomination-pieces');
             const $amountInput = $row.find('.denomination-amount');
             const $removeBtn = $row.find('.remove-denomination-btn');
+
+            // Format pieces input and calculate amount
+            $piecesInput.on('input', function (e) {
+                formatPiecesInput(this);
+                calculateAmountFromPieces($row);
+                calculateTotalAmount();
+            });
 
             // Format amount input and calculate total
             $amountInput.on('input', function (e) {
                 formatAmountInput(this);
+                calculateTotalAmount();
+            });
+
+            // Calculate count and amount when denomination is selected
+            $denomSelect.on('change', function () {
+                calculateAmountFromPieces($row);
                 calculateTotalAmount();
             });
 
@@ -159,6 +183,24 @@
                     calculateTotalAmount();
                 });
             });
+        }
+
+        function formatPiecesInput(input) {
+            let raw = input.value.replace(/[^0-9]/g, "");
+            const number = parseInt(raw);
+            if (!isNaN(number)) {
+                input.value = number.toLocaleString("en-US");
+                // Sync the numeric value to the hidden NumberOfPieces input
+                const $row = $(input).closest('.denomination-row');
+                const $hiddenInput = $row.find('input[name*=".NumberOfPieces"]');
+                $hiddenInput.val(number);
+            } else {
+                input.value = "";
+                // Clear the hidden input if pieces is empty
+                const $row = $(input).closest('.denomination-row');
+                const $hiddenInput = $row.find('input[name*=".NumberOfPieces"]');
+                $hiddenInput.val(0);
+            }
         }
 
         function formatAmountInput(input) {
@@ -175,6 +217,25 @@
                 });
             } else {
                 input.value = "";
+            }
+        }
+
+        function calculateAmountFromPieces($row) {
+            const $denomSelect = $row.find('.denomination-select');
+            const $piecesInput = $row.find('.denomination-pieces');
+            const $amountInput = $row.find('.denomination-amount');
+            const $countInput = $row.find('input[name*=".Count"]');
+
+            const selectedDenomination = denominations.find(d => d.Id == $denomSelect.val());
+            const pieces = parseInt($piecesInput.val().replace(/,/g, '')) || 0;
+
+            if (selectedDenomination) {
+                const amount = pieces * selectedDenomination.Value;
+                $amountInput.val(amount.toLocaleString("en-US", {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 2
+                }));
+                $countInput.val(pieces);
             }
         }
 
@@ -203,7 +264,7 @@
             plainAmountInput.value = total || 0;
         }
 
-        // Form validation
+        // Form validation and reindexing
         $('#createForm').on('submit', function (e) {
             const rows = $denominationsBody.find('.denomination-row').length;
             if (rows === 0) {
@@ -211,8 +272,25 @@
                 $denominationsError.text('Please add at least one denomination').show();
                 return false;
             }
+
+            // Reindex all denomination rows to ensure continuous indices
+            reindexDenominationRows();
             $denominationsError.hide();
         });
+
+        function reindexDenominationRows() {
+            let newIndex = 0;
+            $denominationsBody.find('.denomination-row').each(function () {
+                const $row = $(this);
+                
+                // Update all name attributes with new index
+                $row.find('select[name*="DenominationId"]').attr('name', `ApprovedCurrencyDenominations[${newIndex}].DenominationId`);
+                $row.find('input[name*="NumberOfPieces"]').attr('name', `ApprovedCurrencyDenominations[${newIndex}].NumberOfPieces`);
+                $row.find('input[name*="Amount"]').attr('name', `ApprovedCurrencyDenominations[${newIndex}].Amount`);
+                
+                newIndex++;
+            });
+        }
     });
 </script>
 

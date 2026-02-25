@@ -16,6 +16,7 @@
                 </div>
                 <form asp-action="Create" method="post">
                     <input type="number" class="form-control" asp-for="Value" required hidden>
+                    <input type="number" class="form-control" asp-for="NumberOfPiecesInABox" required hidden>
                     <div class="mb-3">
                         <label class="form-label" asp-for="Name">Name <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" asp-for="Name" required placeholder="Enter denomination name">
@@ -25,6 +26,11 @@
                         <label class="form-label" asp-for="Value">Value <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="ValueText" placeholder="Enter denomination value">
                         <span asp-validation-for="Value" class="text-danger small d-block mt-1"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="NumberOfPiecesInABox">Number Of Pieces In A Box <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="NumberOfPiecesInABoxText" placeholder="Enter the Number of Pieces in a Box">
+                        <span asp-validation-for="NumberOfPiecesInABox" class="text-danger small d-block mt-1"></span>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" asp-for="DenominationTypeId">Type <span class="text-danger">*</span></label>
@@ -54,16 +60,12 @@
     </div>
 </div>
 
-
 <script>
     const plainValue = document.getElementById("Value");
+    const plainNumberOfPieces = document.getElementById("NumberOfPiecesInABox");
+
+    // Format Value input with commas
     document.getElementById("ValueText").addEventListener("input", function (e) {
-        // let value = e.target.value.replace(/,/g, ""); remove old commas
-        // if (!isNaN(value) && value !== "") {
-        //     e.target.value = parseFloat(value).toLocaleString("en-US");
-        // }
-
-
         // 1. Remove everything except digits and decimal point
         let raw = e.target.value.replace(/[^0-9.]/g, "");
 
@@ -78,16 +80,30 @@
         if (!isNaN(number)) {
             e.target.value = number.toLocaleString("en-US", {
                 minimumFractionDigits: 0,
-                maximumFractionDigits: 2    // <- keep 2 decimals (N2)
+                maximumFractionDigits: 2
             });
         } else {
             e.target.value = "";
         }
 
-
         plainValue.value = number;
     });
 
+    // Format NumberOfPiecesInABox input with commas
+    document.getElementById("NumberOfPiecesInABoxText").addEventListener("input", function (e) {
+        // 1. Remove everything except digits
+        let raw = e.target.value.replace(/[^0-9]/g, "");
+
+        // 2. Format with commas
+        const number = parseInt(raw);
+        if (!isNaN(number)) {
+            e.target.value = number.toLocaleString("en-US");
+        } else {
+            e.target.value = "";
+        }
+
+        plainNumberOfPieces.value = number;
+    });
 </script>
 
 @section Scripts {

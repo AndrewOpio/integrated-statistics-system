@@ -1,13 +1,13 @@
 ﻿using VMSService.Core.Models.ExPrintMints;
 using VMSService.Core.Models.StatusTypes;
 
-namespace VMSService.Data.Entities
+namespace VMSService.Core.Models.ReceivedStocks
 {
     public class ReceivedStockViewModel
     {
         public int Id { get; set; }
         public int ExPrintMintId { get; set; }
-        public ExPrintMintViewModel ExPrintMint { get; set; }
+        public ExPrintMintViewModel? ExPrintMint { get; set; }
         public DateTime DateDelivered { get; set; }
         public int NumberOfPieces { get; set; }
         public decimal Value { get; set; }
@@ -18,7 +18,8 @@ namespace VMSService.Data.Entities
         public int? SerialNumberRangeStart { get; set; }
         public int? SerialNumberRangeEnd { get; set; }
         public int CurrentStatusId { get; set; }
-        public StatusTypeViewModel CurrentStatus { get; set; }
+        public StatusTypeViewModel? CurrentStatus { get; set; }
         public bool IsDeleted { get; set; }
+        public bool IsPartial { get; set; }
     }
 }

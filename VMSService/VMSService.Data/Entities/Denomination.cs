@@ -7,6 +7,7 @@ namespace VMSService.Data.Entities
         public int Id { get; set; }
         public string Name { get; set; }
         public decimal Value { get; set; }
+        public int NumberOfPiecesInABox { get; set; }
         public int DenominationTypeId { get; set; }
         public DenominationType DenominationType { get; set; }
         public bool IsDeleted { get; set; }

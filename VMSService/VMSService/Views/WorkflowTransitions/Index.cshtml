@@ -1,0 +1,113 @@
+@using VMSService.Core.Models.WorkflowTransitions
+@model List<WorkflowTransitionViewModel>
+@{
+    ViewData["Title"] = "Workflow Transitions";
+}
+
+<div class="page-header d-print-none">
+    <div class="row align-items-center">
+        <div class="col">
+            <h4 class="page-title">
+                Workflow Transitions
+            </h4>
+        </div>
+        <div class="col-auto">
+            <a href="@Url.Action("Create", "WorkflowTransitions")" class="btn btn-primary btn-sm">
+                <i class="ti ti-plus"></i> New Transition
+            </a>
+        </div>
+    </div>
+</div>
+
+
+<div class="card p-4">
+    <div class="table-responsive">
+        <table class="table table-centered datatable">
+            <thead class="thead-light">
+                <tr>
+                    <th class="p-0 rounded-start">Entity Type</th>
+                    <th class="p-0">From Status</th>
+                    <th class="p-0">Action</th>
+                    <th class="p-0">To Status</th>
+                    <th class="p-0">Required Role</th>
+                    <th class="p-0">Button Class</th>
+                    <th class="p-0">Comments Required</th>
+                    <th class="p-0">Status</th>
+                    <th class="p-0 rounded-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var transition in Model)
+                    {
+                        <tr>
+                            <td class="px-1">
+                                <span class="badge bg-tertiary">@transition.EntityType</span>
+                            </td>
+                            <td>
+                            <span class="badge bg-info">@transition.FromStatusName</span>
+                            </td>
+                            <td>
+                            <a href="@Url.Action("Details", "WorkflowTransitions", new { id = transition.Id })" class="btn btn-gray-200">
+                                    <strong>@transition.ActionName</strong>
+                                    <br />
+                                    <small class="text-muted">@transition.DisplayLabel</small>
+                                </a>
+                            </td>
+                            <td>
+                                <span class="badge bg-success">@transition.ToStatusName</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-tertiary">@transition.RequiredRole</span>
+                            </td>
+                            <td>
+                            <span class="badge" style="background-color: var(--bs-@(transition.ButtonClass.Replace("btn-", "")));">
+                                    @transition.ButtonClass
+                                </span>
+                            </td>
+                            <td>
+                                @if (transition.RequiresComments)
+                                {
+                                    <span class="badge badge-pill bg-danger">Yes</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-pill bg-success">No</span>
+                                }
+                            </td>
+                            <td>
+                                @if (transition.IsActive)
+                                {
+                                    <span class="badge badge-pill bg-success">Active</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-pill bg-secondary">Inactive</span>
+                                }
+                            </td>
+                            <td>
+                                @* <div class="btn-list flex-nowrap">
+                                    <a href="@Url.Action("Edit", "WorkflowTransitions", new { id = transition.Id })" class="btn btn-icon btn-ghost-primary" title="Edit">
+                                        <i class="ti ti-edit"></i>
+                                    </a>
+                                    <a href="@Url.Action("Delete", "WorkflowTransitions", new { id = transition.Id })" class="btn btn-icon btn-ghost-danger" title="Delete">
+                                        <i class="ti ti-trash"></i>
+                                    </a>
+                                </div> *@
+                                <div class="btn-group" role="group">
+                                    <a asp-action="Details" asp-route-id="@transition.Id" class="btn btn-sm btn-outline-info" title="View Details">
+                                        <i class="ti ti-eye"></i>
+                                    </a>
+                                <a asp-action="Edit" asp-route-id="@transition.Id" class="btn btn-sm btn-outline-primary" title="Edit">
+                                        <i class="ti ti-edit"></i>
+                                    </a>
+                                <a asp-action="Delete" asp-route-id="@transition.Id" class="btn btn-sm btn-outline-danger" title="Delete">
+                                        <i class="ti ti-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+            </tbody>
+        </table>
+    </div>
+</div>

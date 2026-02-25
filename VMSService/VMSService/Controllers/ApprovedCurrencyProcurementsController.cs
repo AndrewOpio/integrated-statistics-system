@@ -5,11 +5,15 @@ using SmartBreadcrumbs.Attributes;
 using VMSService.Controllers;
 using VMSService.Core.Models.ApprovedCurrencyDenominations;
 using VMSService.Core.Models.ApprovedCurrencyProcurements;
+using VMSService.Core.Models.ApprovedCurrencyStatusHistories;
 using VMSService.Core.Models.Denominations;
+using VMSService.Core.Models.WorkflowTransitions;
 using VMSService.Core.Repositories.ApprovedCurrencyDenominations;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
+using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.StatusTypes;
+using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
 
@@ -21,8 +25,11 @@ namespace VMSService.Web.Controllers
         IMapper _mapper,
         ILogger<ApprovedCurrencyProcurementsController> _logger,
         IApprovedCurrencyDenominationRepository _approvedCurrencyDenominationRepo,
-        IDenominationRepository _denominationRepository) : Controller
+        IDenominationRepository _denominationRepository,
+        IWorkflowService _workflowService,
+        IApprovedCurrencyStatusHistoryRepository _statusHistoryRepository) : Controller
     {
+
         [Breadcrumb("Approved Currency Procurements", FromController = typeof(HomeController), FromAction = nameof(Index))]
         // GET: ApprovedCurrencyProcurements
         public async Task<IActionResult> Index()
@@ -65,8 +72,34 @@ namespace VMSService.Web.Controllers
                 }
 
                 var model = _mapper.Map<ApprovedCurrencyProcurementsViewModel>(approvedCurrencyProcurement);
-                model.ApprovedCurrencyDenominations = _mapper.Map<List<ApprovedCurrencyDenominationViewModel>>(await _approvedCurrencyDenominationRepo.FindByApprovedCurrencyId(id ?? 0));
-                
+                model.ApprovedCurrencyDenominations = _mapper.Map<List<ApprovedCurrencyDenominationViewModel>>(
+                    await _approvedCurrencyDenominationRepo.FindByApprovedCurrencyId(id ?? 0));
+
+                // Get available transitions for current user
+                //var userRole = User.FindFirst(SystemPolicy.ClaimType.AppRole)?.Value ?? "";
+                var userRoles = User.FindAll("appRole")
+                    .Where(c => c.Value.StartsWith("VMS:"))
+                    .Select(c => c.Value.Split(":")[1])
+                    .ToList();
+
+                var availableTransitions = new List<WorkflowTransitionViewModel>();
+                foreach (var userRole in userRoles)
+                {
+                    var transitions = await _workflowService.GetAvailableTransitions(
+                        "ApprovedCurrencyProcurement",
+                        approvedCurrencyProcurement.CurrentStatusId,
+                        userRole);
+                    if (transitions != null)
+                    {
+                        availableTransitions.AddRange(transitions);
+                    }
+                }
+
+                model.AvailableTransitions = availableTransitions.Distinct().ToList();
+
+                model.StatusHistory = _mapper.Map<ICollection<ApprovedCurrencyStatusHistoryViewModel>>(
+                    await _statusHistoryRepository.FindByApprovedCurrencyId(id ?? 0));
+
                 return View(model);
             }
             catch (Exception ex)
@@ -113,7 +146,7 @@ namespace VMSService.Web.Controllers
                 return View(model);
             }
 
-            if(model.AttachmentFile.ContentType != "application/pdf")
+            if (model.AttachmentFile.ContentType != "application/pdf")
             {
                 ModelState.AddModelError("", "Invalid file type");
                 return View(model);
@@ -161,9 +194,7 @@ namespace VMSService.Web.Controllers
                             DenominationId = denomination.DenominationId,
                             ApprovedCurrencyId = newApprovedCurrencyProcurement.Id,
                             Amount = denomination.Amount,
-                            Count = denomination.Denomination != null && denomination.Denomination.Value != 0
-                                    ? (int)(denomination.Amount / denomination.Denomination.Value)
-                                    : 0
+                            NumberOfPieces = denomination.NumberOfPieces
                         };
 
                         await _approvedCurrencyDenominationRepo.Create(newApprovedCurrencyDenomination);
@@ -213,9 +244,9 @@ namespace VMSService.Web.Controllers
                 {
                     return NotFound();
                 }
-                
+
                 ViewBag.Denominations = _mapper.Map<List<DenominationViewModel>>(await _denominationRepository.FindAll());
-                
+
                 var model = _mapper.Map<ApprovedCurrencyProcurementsViewModel>(approvedCurrencyProcurement);
                 model.ApprovedCurrencyDenominations = _mapper.Map<List<ApprovedCurrencyDenominationViewModel>>(await _approvedCurrencyDenominationRepo.FindByApprovedCurrencyId(id ?? 0));
                 return View(model);
@@ -304,7 +335,7 @@ namespace VMSService.Web.Controllers
                     // Properly update the ApprovedCurrencyDenominations, delete removed ones and update existing ones and create new ones
                     var existingDenominations = await _approvedCurrencyDenominationRepo.FindByApprovedCurrencyId(approvedCurrencyProcurement.Id);
                     var modelDenominationIds = model.ApprovedCurrencyDenominations.Where(d => d.Id != 0).Select(d => d.Id).ToList();
-                    
+
                     // Delete denominations that are no longer in the model
                     foreach (var existingDenom in existingDenominations)
                     {
@@ -325,9 +356,7 @@ namespace VMSService.Web.Controllers
                                 DenominationId = denomination.DenominationId,
                                 ApprovedCurrencyId = approvedCurrencyProcurement.Id,
                                 Amount = denomination.Amount,
-                                Count = denomination.Denomination != null && denomination.Denomination.Value != 0
-                                   ? (int)(denomination.Amount / denomination.Denomination.Value)
-                                   : 0
+                                NumberOfPieces = denomination.NumberOfPieces
                             };
 
                             await _approvedCurrencyDenominationRepo.Create(newApprovedCurrencyDenomination);
@@ -337,9 +366,7 @@ namespace VMSService.Web.Controllers
                             ApprovedCurrencyDenomination approvedCurrencyDenomination = await _approvedCurrencyDenominationRepo.FindById(denomination.Id);
                             approvedCurrencyDenomination.Amount = denomination.Amount;
                             approvedCurrencyDenomination.DenominationId = denomination.DenominationId;
-                            approvedCurrencyDenomination.Count = denomination.Denomination != null && denomination.Denomination.Value != 0
-                                ? (int)(denomination.Amount / denomination.Denomination.Value)
-                                : 0;
+                            approvedCurrencyDenomination.NumberOfPieces = denomination.NumberOfPieces;
 
                             await _approvedCurrencyDenominationRepo.Update(approvedCurrencyDenomination);
                         }
@@ -360,7 +387,7 @@ namespace VMSService.Web.Controllers
                 ModelState.AddModelError("", "Failed to update approved currency procurement. An unexpected error occurred.");
                 TempData["Error"] = ex.Message;
             }
-            
+
             return View(model);
         }
 
@@ -459,12 +486,57 @@ namespace VMSService.Web.Controllers
                 var bytes = System.IO.File.ReadAllBytes(path);
 
                 return File(bytes, "application/pdf");
-            } catch(Exception ex)
+            }
+            catch (Exception ex)
             {
                 _logger.LogError(ex, "Error viewing attachment for approved currency procurement with id {ApprovedCurrencyProcurementId}", id);
                 TempData["Error"] = "An error occurred while viewing the approved currency procurement attachment. Please try again.";
             }
             return RedirectToAction(nameof(Index));
+        }
+
+        // Add generic transition action
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ExecuteAction(int id, string actionName, string remarks)
+        {
+            try
+            {
+                var procurement = await _approvedCurrencyProcurementRepository.FindById(id);
+                if (procurement == null)
+                {
+                    TempData["Error"] = "Procurement not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "System";
+                var userRole = User.FindFirst(SystemPolicy.ClaimType.AppRole)?.Value ?? "";
+
+                bool isExecuted = await _workflowService.ExecuteTransition(
+                    "ApprovedCurrencyProcurement",
+                    id,
+                    procurement.CurrentStatusId,
+                    actionName,
+                    userId,
+                    userRole,
+                    remarks);
+
+                if (isExecuted)
+                {
+                    TempData["Success"] = $"Procurement {actionName} successfully!";
+                }
+                else
+                {
+                    TempData["Error"] = $"Failed to execute {actionName} action. You may not have permission or the action is not valid for current status.";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing action {Action} on procurement {Id}", actionName, id);
+                TempData["Error"] = "An error occurred while executing the action.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id });
         }
     }
 }

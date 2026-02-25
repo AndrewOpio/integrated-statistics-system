@@ -41,7 +41,7 @@
                 } *@
 
                 <div class="table-responsive">
-                    <table class="table table-centered table-nowrap mb-0 rounded">
+                    <table class="table table-centered mb-0 rounded datatable">
                         <thead class="thead-light">
                             <tr>
                                 <th class="border-0 rounded-start">#</th>
@@ -49,7 +49,7 @@
                                 <th class="border-0">Vendor</th>
                                 <th class="border-0">Denomination</th>
                                 <th class="border-0">Delivery Date</th>
-                                <th class="border-0">Value</th>
+                                <th class="border-0">Value (UGX)</th>
                                 <th class="border-0">Type</th>
                                 <th class="border-0">Status</th>
                                 <th class="border-0 rounded-end">Actions</th>
@@ -88,7 +88,7 @@
                                         </td>
                                         <td>@item.DeliveryDate.ToString("dd/MMM/yyyy")</td>
                                         <td>
-                                            <span class="text-success fw-bold">@item.Value.ToString("N0")</span>
+                                            <span class="fw-bold">@item.Value.ToString("N0")</span>
                                         </td>
                                         <td>
                                             <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">

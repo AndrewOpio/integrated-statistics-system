@@ -46,5 +46,15 @@ namespace VMSService.Core.Repositories.ApprovedCurrencyStatusHistories
             _db.ApprovedCurrencyStatusHistory.Update(model);
             return await Save();
         }
+
+        public async Task<ICollection<ApprovedCurrencyStatusHistory>> FindByApprovedCurrencyId(int approvedCurrencyProcurementId)
+        {
+            return await _db.ApprovedCurrencyStatusHistory
+                .Where(x => x.ApprovedCurrencyProcurementId == approvedCurrencyProcurementId)
+                .Where(x => !x.IsDeleted)
+                .Include(x => x.OldStatus)
+                .Include(x => x.NewStatus)
+                .ToListAsync();
+        }
     }
 }

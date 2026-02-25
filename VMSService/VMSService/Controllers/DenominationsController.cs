@@ -209,6 +209,7 @@ namespace VMSService.Web.Controllers
                 denomination.Name = model.Name;
                 denomination.Value = model.Value;
                 denomination.DenominationTypeId = model.DenominationTypeId;
+                denomination.NumberOfPiecesInABox = model.NumberOfPiecesInABox;
 
                 bool isUpdated = await _denominationRepository.Update(denomination);
                 if (isUpdated)

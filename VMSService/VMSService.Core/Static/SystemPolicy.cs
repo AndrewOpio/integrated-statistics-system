@@ -6,8 +6,9 @@
         {
             public const string ContractManager = "Contract Manager";
             public const string VerificationOfficer = "VerificationOfficer";
-            public const string StockVerifier = "StockVerifier"; // Assitant Branch Manager
-            public const string StockApprover = "StockApprover"; // Branch Manager
+            public const string StockVerifier = "StockVerifier"; 
+            public const string StockApprover = "StockApprover"; 
+            public const string CurrencyApprover = "CurrencyApprover";
             public const string Director = "Director";
         }
 
@@ -21,8 +22,9 @@
         {
             public const string ContractManager = "VMS:Contract Manager";
             public const string VerificationOfficer = "VMS:Verification Officer";
-            public const string StockVerifier = "VMS:Stock Verifier"; // Assitant Branch Manager
-            public const string StockApprover = "VMS:Stock Approver"; // Branch Manager
+            public const string StockVerifier = "VMS:Stock Verifier";
+            public const string StockApprover = "VMS:Stock Approver";
+            public const string CurrencyApprover = "VMS:Currency Approver";
             public const string Director = "VMS:Director";
         }
     }

@@ -1,0 +1,312 @@
+@using VMSService.Core.Models.WorkflowTransitions
+@model WorkflowTransitionViewModel
+@{
+    ViewData["Title"] = "Workflow Transition Details";
+}
+
+<div class="container-xl">
+    <!-- Page title -->
+    <div class="page-header d-print-none">
+        <div class="row align-items-center">
+            <div class="col">
+                <h2 class="page-title">
+                    Workflow Transition Details
+                </h2>
+            </div>
+            <div class="col-auto">
+                <div class="btn-list">
+                    <a href="@Url.Action("Edit", "WorkflowTransitions", new { id = Model.Id })" class="btn btn-primary">
+                        <i class="ti ti-edit"></i> Edit
+                    </a>
+                    <a href="@Url.Action("Index", "WorkflowTransitions")" class="btn btn-secondary">
+                        <i class="ti ti-arrow-left"></i> Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="page-wrapper">
+    <div class="container-xl">
+        <div class="row row-deck row-cards">
+            <!-- Main Details Card -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            Transition: <strong>@Model.ActionName</strong>
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <!-- Entity Type -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label text-muted">Entity Type</label>
+                                <p class="mb-0">
+                                    <span class="badge badge-outline badge-blue">@Model.EntityType</span>
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted">Status</label>
+                                <p class="mb-0">
+                                    @if (Model.IsActive)
+                                    {
+                                        <span class="badge badge-pill badge-success">Active</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-pill badge-secondary">Inactive</span>
+                                    }
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Status Transition Flow -->
+                        <div class="mb-4">
+                            <label class="form-label text-muted">Status Transition Flow</label>
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="badge badge-outline p-3">
+                                    <i class="ti ti-point-filled me-2"></i>
+                                    <strong>@Model.FromStatusName</strong>
+                                </div>
+                                <div>
+                                    <i class="ti ti-arrow-right" style="font-size: 1.5rem;"></i>
+                                </div>
+                                <div class="badge badge-outline badge-green p-3">
+                                    <i class="ti ti-point-filled me-2"></i>
+                                    <strong>@Model.ToStatusName</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <!-- Action Details -->
+                        <h4 class="mb-3">Action Configuration</h4>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label text-muted">Action Name</label>
+                                <p class="mb-0">
+                                    <code>@Model.ActionName</code>
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted">Display Label</label>
+                                <p class="mb-0">
+                                    <strong>@Model.DisplayLabel</strong>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label text-muted">Required Role</label>
+                                <p class="mb-0">
+                                    <span class="badge">@Model.RequiredRole</span>
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted">Button Class</label>
+                                <p class="mb-0">
+                                    <span class="badge badge-outline">@Model.ButtonClass</span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Comments Requirement -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label text-muted">Comments Required</label>
+                                <p class="mb-0">
+                                    @if (Model.RequiresComments)
+                                    {
+                                        <span class="badge badge-pill badge-danger">
+                                            <i class="ti ti-check me-1"></i> Yes
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-pill badge-success">
+                                            <i class="ti ti-x me-1"></i> No
+                                        </span>
+                                    }
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Button Preview Card -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Button Preview</h3>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-3">This is how the button will appear to users:</p>
+                        <button class="btn @Model.ButtonClass" disabled>
+                            @Model.DisplayLabel
+                        </button>
+                        @if (Model.RequiresComments)
+                        {
+                            <p class="text-muted mt-3 small">
+                                <i class="ti ti-info-circle me-1"></i>
+                                Users will be prompted to enter comments/remarks when clicking this button.
+                            </p>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Card -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Transition Summary</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="space-y-4">
+                            <!-- Quick Info -->
+                            <div>
+                                <h4 class="text-sm mb-2">Quick Info</h4>
+                                <div class="text-sm space-y-2">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="text-muted">Transition ID:</span>
+                                        <strong>#@Model.Id</strong>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span class="text-muted">Entity Type:</span>
+                                        <strong>@Model.EntityType</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr />
+
+                            <!-- Flow Details -->
+                            <div>
+                                <h4 class="text-sm mb-2">Flow Details</h4>
+                                <div class="text-sm space-y-2">
+                                    <div>
+                                        <span class="text-muted">From:</span><br />
+                                        <span class="badge badge-outline">@Model.FromStatusName</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-muted">To:</span><br />
+                                        <span class="badge badge-outline badge-green">@Model.ToStatusName</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-muted">Via Action:</span><br />
+                                        <code>@Model.ActionName</code>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr />
+
+                            <!-- Permission Details -->
+                            <div>
+                                <h4 class="text-sm mb-2">Permission Details</h4>
+                                <div class="text-sm space-y-2">
+                                    <div>
+                                        <span class="text-muted">Required Role:</span><br />
+                                        <span class="badge">@Model.RequiredRole</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr />
+
+                            <!-- Configuration -->
+                            <div>
+                                <h4 class="text-sm mb-2">Configuration</h4>
+                                <div class="text-sm space-y-2">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="text-muted">Comments Required:</span>
+                                        @if (Model.RequiresComments)
+                                        {
+                                            <i class="ti ti-check text-success"></i>
+                                        }
+                                        else
+                                        {
+                                            <i class="ti ti-x text-danger"></i>
+                                        }
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span class="text-muted">Active:</span>
+                                        @if (Model.IsActive)
+                                        {
+                                            <i class="ti ti-check text-success"></i>
+                                        }
+                                        else
+                                        {
+                                            <i class="ti ti-x text-danger"></i>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr />
+
+                            <!-- UI Configuration -->
+                            <div>
+                                <h4 class="text-sm mb-2">UI Configuration</h4>
+                                <div class="text-sm space-y-2">
+                                    <div>
+                                        <span class="text-muted">Button Class:</span><br />
+                                        <code>@Model.ButtonClass</code>
+                                    </div>
+                                    <div>
+                                        <span class="text-muted">Display Label:</span><br />
+                                        <em>@Model.DisplayLabel</em>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions Card -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h3 class="card-title">Actions</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="space-y-2">
+                            <a href="@Url.Action("Edit", "WorkflowTransitions", new { id = Model.Id })" class="btn btn-primary w-100">
+                                <i class="ti ti-edit me-2"></i> Edit Transition
+                            </a>
+                            <a href="@Url.Action("Delete", "WorkflowTransitions", new { id = Model.Id })" class="btn btn-danger w-100">
+                                <i class="ti ti-trash me-2"></i> Delete Transition
+                            </a>
+                            <a href="@Url.Action("Index", "WorkflowTransitions")" class="btn btn-secondary w-100">
+                                <i class="ti ti-arrow-left me-2"></i> Back to List
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Optional: Add copy-to-clipboard functionality for code elements
+        document.querySelectorAll('code').forEach(element => {
+            element.style.cursor = 'pointer';
+            element.title = 'Click to copy';
+            element.addEventListener('click', function() {
+                const text = this.textContent;
+                navigator.clipboard.writeText(text).then(() => {
+                    const originalText = this.textContent;
+                    this.textContent = 'Copied!';
+                    setTimeout(() => {
+                        this.textContent = originalText;
+                    }, 2000);
+                });
+            });
+        });
+    </script>
+}

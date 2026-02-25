@@ -243,7 +243,7 @@ namespace VMSService.Web.Controllers
             ViewBag.VendorTypes = _mapper.Map<List<VendorTypeViewModel>>(await _vendorTypeRepository.FindAll());
             ViewBag.ApprovedCurrencyProcurements = _mapper.Map<List<ApprovedCurrencyProcurementsViewModel>>(await _approvedCurrencyProcurementRepo.FindAll());
 
-            if (!ModelState.IsValid && !(ModelState.ErrorCount == 1 && ModelState["Attachment"]?.ValidationState == ModelValidationState.Invalid))
+            if (!ModelState.IsValid && !(ModelState.ErrorCount == 1 && ModelState["AttachmentFile"]?.ValidationState == ModelValidationState.Invalid))
             {
                 var errors = ModelState.Values.SelectMany(v => v.Errors);
                 foreach (var error in errors)
@@ -277,7 +277,7 @@ namespace VMSService.Web.Controllers
                 exPrintMint.SerialNumberRangeStart = model.SerialNumberRangeStart;
                 exPrintMint.SerialNumberRangeEnd = model.SerialNumberRangeEnd;
 
-                if (model.Attachment != null && model.AttachmentFile.ContentType != "application/pdf")
+                if (model.AttachmentFile != null && model.AttachmentFile.ContentType != "application/pdf")
                 {
                     ModelState.AddModelError("", "Invalid file type");
                     return View(model);

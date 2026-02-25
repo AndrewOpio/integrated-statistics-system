@@ -7,8 +7,10 @@ using VMSService.Core.Models.Denominations;
 using VMSService.Core.Models.DenominationTypes;
 using VMSService.Core.Models.ExPrintMints;
 using VMSService.Core.Models.ExPrintMintStatusHistories;
+using VMSService.Core.Models.ReceivedStocks;
 using VMSService.Core.Models.StatusTypes;
 using VMSService.Core.Models.VendorTypes;
+using VMSService.Core.Models.WorkflowTransitions;
 using VMSService.Data.Entities;
 
 namespace VMSService.Core.Mappings
@@ -28,6 +30,7 @@ namespace VMSService.Core.Mappings
             CreateMap<ApprovedCurrencyStatusHistory, ApprovedCurrencyStatusHistoryViewModel>().ReverseMap();
             CreateMap<StatusType, StatusTypeViewModel>().ReverseMap();
             CreateMap<ReceivedStock, ReceivedStockViewModel>().ReverseMap();
+            CreateMap<WorkflowTransition, WorkflowTransitionViewModel>().ReverseMap();
         }
     }
 }

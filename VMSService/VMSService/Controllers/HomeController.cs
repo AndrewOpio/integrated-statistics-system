@@ -30,5 +30,12 @@ namespace VMSService.Controllers
         {
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
+
+        public IActionResult Logout()
+        {
+            Response.Cookies.Delete("AuthToken");
+            Response.Cookies.Delete("Username");
+            return Redirect("https://localhost:7204");
+        }
     }
 }

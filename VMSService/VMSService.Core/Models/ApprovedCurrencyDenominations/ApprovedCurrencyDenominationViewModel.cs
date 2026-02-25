@@ -10,7 +10,7 @@ namespace VMSService.Core.Models.ApprovedCurrencyDenominations
         public DenominationViewModel? Denomination { get; set; }
         public int ApprovedCurrencyId { get; set; }
         public ApprovedCurrencyProcurementsViewModel? ApprovedCurrency { get; set; }
-        public int Count { get; set; }
+        public int NumberOfPieces { get; set; }
         public decimal Amount { get; set; } // = denomination_value * count
     }
 }

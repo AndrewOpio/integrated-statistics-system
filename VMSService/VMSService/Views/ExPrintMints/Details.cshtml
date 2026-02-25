@@ -7,7 +7,7 @@
 <div class="row">
     <div class="col-12">
         <!-- Header Section -->
-        <div class="card border-0 shadow mb-4">
+        <div class="card border-0 shadow mb-3">
             <div class="card-header bg-gradient">
                 <div class="row align-items-center">
                     <div class="col">
@@ -22,10 +22,10 @@
                     </div>
                 </div>
             </div>
-            <div class="card-body bg-light py-4">
+            <div class="card-body bg-light">
                 <div class="row align-items-center">
                     <div class="col-md-8">
-                        <h4 class="mb-1">@Model.ExPrintMintReference</h4>
+                        <h5 class="mb-1">@Model.ExPrintMintReference</h5>
                         <p class="text-muted mb-0">
                             <i class="ti ti-calendar me-1"></i>
                             Delivery Date: <strong>@Model.DeliveryDate.ToString("dddd, MMMM dd, yyyy")</strong>
@@ -61,7 +61,7 @@
             <!-- Left Column -->
             <div class="col-lg-6">
                 <!-- Vendor & Procurement Information -->
-                <div class="card border-0 shadow mb-4">
+                <div class="card border-0 shadow mb-3">
                     <div class="card-header bg-white border-bottom no-after">
                         <h6 class="card-title mb-0">
                             <i class="ti ti-building me-2 text-primary"></i>Vendor Information
@@ -87,7 +87,9 @@
                             <p class="mb-0 fw-bold">
                                 @if (Model.ApprovedCurrencyProcurement != null)
                                 {
-                                    <i class="ti ti-file-check me-1 text-success"></i>@Model.ApprovedCurrencyProcurement.Amount.ToString("N2")
+                                    <i class="ti ti-file-check me-1 text-success"></i>
+                                    <span class="me-1">UGX</span>
+                                    @Model.ApprovedCurrencyProcurement.Amount.ToString("N0")
                                 }
                                 else
                                 {
@@ -99,7 +101,7 @@
                 </div>
 
                 <!-- Denomination Details -->
-                <div class="card border-0 shadow mb-4">
+                <div class="card border-0 shadow mb-3">
                     <div class="card-header bg-white border-bottom no-after">
                         <h6 class="card-title mb-0">
                             <i class="ti ti-coins me-2 text-info"></i>Denomination Information
@@ -109,11 +111,14 @@
                         <div class="mb-4">
                             <small class="text-muted text-uppercase fw-semibold d-block mb-1">Denomination</small>
                             <p class="mb-0 fw-bold">
-                                @if (Model.Denomination != null)
+                                @if (Model.Denomination != null && Model.Denomination?.DenominationType?.Name == "Coin")
                                 {
-                                    <i class="ti ti-coin me-1 text-info"></i>@Model.Denomination.Name
+                                    <i class="ti ti-coins me-1 text-info"></i>@Model.Denomination.Name
                                 }
-                                else
+                                else if (Model.Denomination != null && Model.Denomination?.DenominationType?.Name == "Coin")
+                                {
+                                    <i class="ti ti-cash-banknote me-1 text-info"></i>@Model.Denomination.Name
+                                } else
                                 {
                                     <span class="text-muted">-</span>
                                 }
@@ -126,8 +131,8 @@
                                 <p class="mb-0 fw-bold fs-6">@Model.NumberOfPieces</p>
                             </div>
                             <div class="col-6 mb-4">
-                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Total Value</small>
-                                <p class="mb-0 fw-bold fs-6 text-success">@Model.Value.ToString("N0")</p>
+                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Total Value (UGX)</small>
+                                <p class="mb-0 fw-bold fs-6">@Model.Value.ToString("N0")</p>
                             </div>
                         </div>
                     </div>
@@ -137,7 +142,7 @@
             <!-- Right Column -->
             <div class="col-lg-6">
                 <!-- Box Number Details -->
-                <div class="card border-0 shadow mb-4">
+                <div class="card border-0 shadow mb-3">
                     <div class="card-header bg-white border-bottom no-after">
                         <h6 class="card-title mb-0">
                             <i class="ti ti-box me-2 text-warning"></i>Box Number Details
@@ -200,7 +205,7 @@
                 </div>
 
                 <!-- Serial Number Details -->
-                <div class="card border-0 shadow mb-4">
+                <div class="card border-0 shadow mb-3">
                     <div class="card-header bg-white border-bottom no-after">
                         <h6 class="card-title mb-0">
                             <i class="ti ti-barcode me-2 text-danger"></i>Serial Number Details
@@ -267,7 +272,7 @@
         <!-- Attachment Section -->
         @if (!string.IsNullOrEmpty(Model.Attachment))
         {
-            <div class="card border-0 shadow mb-4">
+            <div class="card border-0 shadow mb-3">
                 <div class="card-header bg-white border-bottom no-after">
                     <h6 class="card-title mb-0">
                         <i class="ti ti-file-pdf me-2 text-danger"></i>Documentation
@@ -291,7 +296,7 @@
         }
 
         <!-- Action Buttons -->
-        <div class="card border-0 shadow">
+        <div class="card border-0 shadow mb-1">
             <div class="card-body bg-light">
                 <div class="d-flex gap-2 flex-wrap">
                     <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">
@@ -328,7 +333,13 @@
     .card-header {
         background-color: #f8f9fa;
         border-bottom: 1px solid #e9ecef;
+        padding: 1rem, 1rem;
     }
+
+    .card-body {
+        padding: 1rem, 1rem;
+    }
+
 
     .card-title {
         color: #2d3748;
@@ -337,7 +348,7 @@
     }
 
     .badge {
-        font-size: 0.85rem;
+        font-size: 0.75rem;
         padding: 0.5rem 0.75rem;
         border-radius: 0.85rem;
     }
@@ -346,15 +357,5 @@
         background-color: #f0f4ff;
         border-color: #d0deff;
         border-left: 4px solid #0d6efd;
-    }
-    
-    .no-after::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 0;
-        background: unset;
     }
 </style>

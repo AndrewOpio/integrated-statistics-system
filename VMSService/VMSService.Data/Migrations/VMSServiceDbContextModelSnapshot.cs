@@ -36,9 +36,6 @@ namespace VMSService.Data.Migrations
                     b.Property<int>("ApprovedCurrencyId")
                         .HasColumnType("int");
 
-                    b.Property<int>("Count")
-                        .HasColumnType("int");
-
                     b.Property<string>("CreatedBy")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -58,6 +55,9 @@ namespace VMSService.Data.Migrations
 
                     b.Property<DateTime>("ModifiedDate")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("NumberOfPieces")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -165,6 +165,40 @@ namespace VMSService.Data.Migrations
                     b.ToTable("ApprovedCurrencyStatusHistory");
                 });
 
+            modelBuilder.Entity("VMSService.Data.Entities.Branch", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Branches");
+                });
+
             modelBuilder.Entity("VMSService.Data.Entities.CurrencyVendor", b =>
                 {
                     b.Property<int>("Id")
@@ -242,6 +276,9 @@ namespace VMSService.Data.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("NumberOfPiecesInABox")
+                        .HasColumnType("int");
 
                     b.Property<decimal>("Value")
                         .HasColumnType("decimal(18,2)");
@@ -458,6 +495,9 @@ namespace VMSService.Data.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsPartial")
+                        .HasColumnType("bit");
+
                     b.Property<int>("NumberOfPieces")
                         .HasColumnType("int");
 
@@ -552,6 +592,72 @@ namespace VMSService.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("VendorTypes");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.WorkflowTransition", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ActionName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ButtonClass")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DisplayLabel")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("FromStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RequiredRole")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("RequiresComments")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("ToStatusId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FromStatusId");
+
+                    b.HasIndex("ToStatusId");
+
+                    b.ToTable("WorkflowTransitions");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ApprovedCurrencyDenomination", b =>
@@ -712,6 +818,25 @@ namespace VMSService.Data.Migrations
                     b.Navigation("CurrentStatus");
 
                     b.Navigation("ExPrintMint");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.WorkflowTransition", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.StatusType", "FromStatus")
+                        .WithMany()
+                        .HasForeignKey("FromStatusId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("VMSService.Data.Entities.StatusType", "ToStatus")
+                        .WithMany()
+                        .HasForeignKey("ToStatusId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FromStatus");
+
+                    b.Navigation("ToStatus");
                 });
 #pragma warning restore 612, 618
         }

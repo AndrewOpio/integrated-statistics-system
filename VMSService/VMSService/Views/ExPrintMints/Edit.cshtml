@@ -7,8 +7,11 @@
 <div class="row">
     <div class="col-12 col-lg-12">
         <div class="card border-0 shadow mb-4">
-            <div class="card-header">
-                <h2 class="fs-5 fw-bold mb-0">Edit Expected Stock</h2>
+            <div class="card-header pb-4">
+                <div class="d-flex flex-column">
+                    <span class="text-muted small mb-2">Edit Expected Stock</span>
+                    <h2 class="fs-4 fw-bold mb-0">Expected Stock - @Model.ExPrintMintReference</h2>
+                </div>
             </div>
             <div class="card-body">
                 <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -139,7 +142,7 @@
                             </small>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label" asp-for="BoxNumberPrefix">Box Number Prefix</label>
+                            <label class="form-label" asp-for="BoxNumberPrefix">Box Number Prefix <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" asp-for="BoxNumberPrefix" placeholder="Enter box number prefix">
                             <small class="text-muted d-block mt-1">Prefix used before box numbers</small>
                             <span asp-validation-for="BoxNumberPrefix" class="text-danger small d-block mt-1"></span>
@@ -147,13 +150,13 @@
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label class="form-label" asp-for="BoxNumberRangeStart">Box Number Range Start</label>
+                                <label class="form-label" asp-for="BoxNumberRangeStart">Box Number Range Start <span class="text-danger">*</span></label>
                                 <input type="number" class="form-control" asp-for="BoxNumberRangeStart" placeholder="Enter start range">
                                 <span asp-validation-for="BoxNumberRangeStart" class="text-danger small d-block mt-1"></span>
                             </div>
 
                             <div class="col-md-6 mb-3">
-                                <label class="form-label" asp-for="BoxNumberRangeEnd">Box Number Range End</label>
+                                <label class="form-label" asp-for="BoxNumberRangeEnd">Box Number Range End <span class="text-danger">*</span></label>
                                 <input type="number" class="form-control" asp-for="BoxNumberRangeEnd" placeholder="Enter end range">
                                 <span asp-validation-for="BoxNumberRangeEnd" class="text-danger small d-block mt-1"></span>
                             </div>
@@ -169,20 +172,20 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label" asp-for="SerialNumberPrefix">Serial Number Prefix</label>
+                            <label class="form-label" asp-for="SerialNumberPrefix">Serial Number Prefix <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" asp-for="SerialNumberPrefix" placeholder="Enter serial number prefix">
                             <small class="text-muted d-block mt-1">Prefix used before serial numbers</small>
                             <span asp-validation-for="SerialNumberPrefix" class="text-danger small d-block mt-1"></span>
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label class="form-label" asp-for="SerialNumberRangeStart">Serial Number Range Start</label>
+                                <label class="form-label" asp-for="SerialNumberRangeStart">Serial Number Range Start <span class="text-danger">*</span></label>
                                 <input type="number" class="form-control" asp-for="SerialNumberRangeStart" placeholder="Enter start range">
                                 <span asp-validation-for="SerialNumberRangeStart" class="text-danger small d-block mt-1"></span>
                             </div>
 
                             <div class="col-md-6 mb-3">
-                                <label class="form-label" asp-for="SerialNumberRangeEnd">Serial Number Range End</label>
+                                <label class="form-label" asp-for="SerialNumberRangeEnd">Serial Number Range End <span class="text-danger">*</span></label>
                                 <input type="number" class="form-control" asp-for="SerialNumberRangeEnd" placeholder="Enter end range">
                                 <span asp-validation-for="SerialNumberRangeEnd" class="text-danger small d-block mt-1"></span>
                             </div>
@@ -197,7 +200,7 @@
                             </small>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label" asp-for="AttachmentFile">Attachment (PDF)</label>
+                            <label class="form-label" asp-for="AttachmentFile">Attachment (PDF) <span class="text-danger">*</span></label>
                             @if (!string.IsNullOrEmpty(Model.Attachment))
                             {
                                 <div class="mb-2">

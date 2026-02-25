@@ -1,0 +1,396 @@
+@model VMSService.Core.Models.ReceivedStocks.ReceivedStockViewModel
+
+@{
+    ViewData["Title"] = "Edit Received Stock";
+}
+
+<div class="row">
+    <div class="col-12 col-lg-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header pb-4">
+                <div class="d-flex flex-column">
+                    <span class="text-muted small mb-2">Edit Received Stock</span>
+                    <h2 class="fs-4 fw-bold mb-0">Received Stock - @Model.ExPrintMint.ExPrintMintReference</h2>
+                </div>
+            </div>
+            <div class="card-body">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <form asp-action="Edit" method="post" enctype="multipart/form-data" id="editForm">
+                    <input type="hidden" asp-for="Id">
+                    <input type="hidden" asp-for="CurrentStatusId">
+
+                    <!-- Section 1: Expected Stock Information -->
+                    <div class="form-section mb-4 shadow">
+                        <div class="mb-3 pb-2 border-bottom">
+                            <small class="fw-bold text-muted mb-0 text-uppercase">
+                                <i class="ti ti-info-circle me-2"></i>Expected Stock Information
+                            </small>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label" asp-for="ExPrintMintId">Expected Stock <span class="text-danger">*</span></label>
+                                <select class="form-select" asp-for="ExPrintMintId" id="ExPrintMintId" required>
+                                    <option value="">-- Select Expected Stock --</option>
+                                    @if (ViewBag.ExPrintMints != null)
+                                    {
+                                        @foreach (var exPrintMint in ViewBag.ExPrintMints)
+                                        {
+                                            <option value="@exPrintMint.Id" 
+                                                    data-reference="@exPrintMint.ExPrintMintReference"
+                                                    data-vendor="@exPrintMint.CurrencyVendor?.Name"
+                                                    data-denomination="@exPrintMint.Denomination?.Name"
+                                                    data-delivery-date="@exPrintMint.DeliveryDate.ToString("dd/MMM/yyyy")"
+                                                    data-number-of-pieces="@exPrintMint.NumberOfPieces.ToString("N0")"
+                                                    data-value="@exPrintMint.Value.ToString("N0")"
+                                                    data-denomination-value="@exPrintMint.Denomination?.Value">
+                                                @exPrintMint.ExPrintMintReference | @exPrintMint.Value.ToString("N0")/= | @exPrintMint.DeliveryDate.ToString("dd/MMM/yyyy")
+                                            </option>
+                                        }
+                                    }
+                                </select>
+                                <small class="text-muted d-block mt-1">Select the expected stock that has been received</small>
+                                <span asp-validation-for="ExPrintMintId" class="text-danger small d-block mt-1"></span>
+                            </div>
+                        </div>
+
+                        <!-- Expected Stock Summary Card -->
+                        <div id="exPrintMintSummary" style="display: none;">
+                            <div class="card border-0 bg-light mb-3">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Reference</small>
+                                                <p class="mb-0 fw-bold" id="summaryReference">-</p>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Vendor</small>
+                                                <p class="mb-0 fw-bold" id="summaryVendor">
+                                                    <i class="ti ti-building me-1 text-primary"></i><span id="vendorName">-</span>
+                                                </p>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Denomination</small>
+                                                <p class="mb-0 fw-bold" id="summaryDenomination">
+                                                    <i class="ti ti-cash-banknote me-1 text-info"></i><span id="denominationName">-</span>
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Expected Delivery Date</small>
+                                                <p class="mb-0 fw-bold" id="summaryDeliveryDate">
+                                                    <i class="ti ti-calendar me-1 text-warning"></i><span id="deliveryDate">-</span>
+                                                </p>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Expected Number of Pieces</small>
+                                                <p class="mb-0 fw-bold" id="summaryNumberOfPieces">
+                                                    <span id="numberOfPieces">-</span>
+                                                </p>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Expected Value (UGX)</small>
+                                                <p class="mb-0 fw-bold" id="summaryValue">
+                                                    <span id="value">-</span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Received Stock Details -->
+                    <div class="form-section mb-4 shadow">
+                        <div class="mb-3 pb-2 border-bottom">
+                            <small class="fw-bold text-muted mb-0 text-uppercase">
+                                <i class="ti ti-package me-2"></i>Received Stock Details
+                            </small>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="DateDelivered">Date Delivered <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" asp-for="DateDelivered" required>
+                                <span asp-validation-for="DateDelivered" class="text-danger small d-block mt-1"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="NumberOfPieces">Number of Pieces <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="NumberOfPiecesText" placeholder="Enter number of pieces" required>
+                                <input type="hidden" asp-for="NumberOfPieces" id="NumberOfPieces">
+                                <span asp-validation-for="NumberOfPieces" class="text-danger small d-block mt-1"></span>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="ValueTest">Value <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="ValueTest" placeholder="0" disabled>
+                                <small class="text-muted d-block mt-1">Automatically calculated based on pieces and denomination value</small>
+                                <span class="text-danger small d-block mt-1" id="valueError"></span>
+                                <!-- Hidden input for actual value submission -->
+                                <input type="hidden" asp-for="Value" id="Value">
+                                <span asp-validation-for="Value" class="text-danger small d-block mt-1"></span>
+                            </div>
+                        </div>
+
+                        <!-- Partial Delivery Checkbox -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="form-check form-check-md">
+                                    <input type="checkbox" class="form-check-input" asp-for="IsPartial" id="IsPartial">
+                                    <label class="form-check-label fw-semibold" for="IsPartial">
+                                        <i class="ti ti-info-circle me-1"></i>
+                                        Partial Delivery
+                                        <small class="text-muted d-block mt-1">
+                                            Check this if this delivery is a partial fulfillment of the expected stock
+                                        </small>
+                                    </label>
+                                </div>
+                                <span asp-validation-for="IsPartial" class="text-danger small d-block mt-1"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 3: Box Number Details -->
+                    <div class="form-section mb-4 shadow">
+                        <div class="mb-3 pb-2 border-bottom">
+                            <small class="fw-bold text-muted mb-0 text-uppercase">
+                                <i class="ti ti-box me-2"></i>Box Number Details
+                            </small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" asp-for="BoxNumberPrefix">Box Number Prefix <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" asp-for="BoxNumberPrefix" placeholder="Enter box number prefix">
+                            <small class="text-muted d-block mt-1">Prefix used before box numbers</small>
+                            <span asp-validation-for="BoxNumberPrefix" class="text-danger small d-block mt-1"></span>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="BoxNumberRangeStart">Box Number Range Start <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" asp-for="BoxNumberRangeStart" placeholder="Enter start range">
+                                <span asp-validation-for="BoxNumberRangeStart" class="text-danger small d-block mt-1"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="BoxNumberRangeEnd">Box Number Range End <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" asp-for="BoxNumberRangeEnd" placeholder="Enter end range">
+                                <span asp-validation-for="BoxNumberRangeEnd" class="text-danger small d-block mt-1"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 4: Serial Number Details -->
+                    <div class="form-section mb-4 shadow">
+                        <div class="mb-3 pb-2 border-bottom">
+                            <small class="fw-bold text-muted mb-0 text-uppercase">
+                                <i class="ti ti-barcode me-2"></i>Serial Number Details
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" asp-for="SerialNumberPrefix">Serial Number Prefix <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" asp-for="SerialNumberPrefix" placeholder="Enter serial number prefix">
+                            <small class="text-muted d-block mt-1">Prefix used before serial numbers</small>
+                            <span asp-validation-for="SerialNumberPrefix" class="text-danger small d-block mt-1"></span>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="SerialNumberRangeStart">Serial Number Range Start <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" asp-for="SerialNumberRangeStart" placeholder="Enter start range">
+                                <span asp-validation-for="SerialNumberRangeStart" class="text-danger small d-block mt-1"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="SerialNumberRangeEnd">Serial Number Range End <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" asp-for="SerialNumberRangeEnd" placeholder="Enter end range">
+                                <span asp-validation-for="SerialNumberRangeEnd" class="text-danger small d-block mt-1"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Form Actions -->
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-check me-1"></i>Save Changes
+                        </button>
+                        <a asp-action="Index" class="btn btn-secondary">
+                            <i class="ti ti-arrow-left me-1"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function () {
+        const $exPrintMintSelect = $('#ExPrintMintId');
+        const $summaryCard = $('#exPrintMintSummary');
+        const $numberOfPiecesText = $('#NumberOfPiecesText');
+        const $numberOfPieces = $('#NumberOfPieces');
+        const $valueTest = $('#ValueTest');
+        const $value = $('#Value');
+
+        // Initialize summary and Number of Pieces display if editing
+        function initializeForm() {
+            const currentExPrintMintId = $exPrintMintSelect.val();
+            const currentNumberOfPieces = parseInt($numberOfPieces.val()) || 0;
+            const currentValue = $value.val();
+
+            if (currentExPrintMintId) {
+                const selectedOption = $exPrintMintSelect.find('option:selected');
+                
+                // Update summary with selected data
+                $('#summaryReference').text(selectedOption.data('reference'));
+                $('#vendorName').text(selectedOption.data('vendor'));
+                $('#denominationName').text(selectedOption.data('denomination'));
+                $('#deliveryDate').text(selectedOption.data('delivery-date'));
+                $('#numberOfPieces').text(selectedOption.data('number-of-pieces'));
+                $('#value').text(selectedOption.data('value'));
+                
+                // Show summary card
+                $summaryCard.show();
+            }
+
+            // Initialize Number of Pieces display
+            if (currentNumberOfPieces > 0) {
+                $numberOfPiecesText.val(currentNumberOfPieces.toLocaleString('en-US'));
+            }
+
+            // Initialize Value display
+            if (currentValue) {
+                const formattedValue = parseFloat(currentValue).toLocaleString('en-US', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                });
+                $valueTest.val(formattedValue);
+            }
+        }
+
+        // Handle ExPrintMint selection change
+        $exPrintMintSelect.on('change', function() {
+            const selectedOption = $(this).find('option:selected');
+            
+            if ($(this).val()) {
+                // Update summary with selected data
+                $('#summaryReference').text(selectedOption.data('reference'));
+                $('#vendorName').text(selectedOption.data('vendor'));
+                $('#denominationName').text(selectedOption.data('denomination'));
+                $('#deliveryDate').text(selectedOption.data('delivery-date'));
+                $('#numberOfPieces').text(selectedOption.data('number-of-pieces'));
+                $('#value').text(selectedOption.data('value'));
+                
+                // Show summary card
+                $summaryCard.slideDown(300);
+
+                // Recalculate value when ExPrintMint changes
+                calculateValue();
+            } else {
+                // Hide summary card if no selection
+                $summaryCard.slideUp(300);
+                // Clear value calculation
+                $valueTest.val('');
+                $value.val('');
+            }
+        });
+
+        // Handle Number of Pieces formatting
+        $numberOfPiecesText.on('input', function() {
+            let input = $(this).val();
+            
+            // Remove all non-numeric characters
+            let sanitized = input.replace(/[^0-9]/g, '');
+            
+            const number = parseInt(sanitized);
+            if (!isNaN(number)) {
+                // Format with commas
+                $(this).val(number.toLocaleString('en-US'));
+                // Update hidden input with numeric value
+                $numberOfPieces.val(number);
+            } else {
+                $(this).val('');
+                $numberOfPieces.val('');
+            }
+
+            // Recalculate value when pieces change
+            calculateValue();
+        });
+
+        // Handle paste events for Number of Pieces
+        $numberOfPiecesText.on('paste', function() {
+            const $this = $(this);
+            setTimeout(function() {
+                $this.trigger('input');
+            }, 10);
+        });
+
+        // Calculate value based on pieces and denomination value
+        function calculateValue() {
+            const selectedExPrintMintId = $exPrintMintSelect.val();
+            const numberOfPieces = parseInt($numberOfPieces.val()) || 0;
+
+            if (selectedExPrintMintId && numberOfPieces > 0) {
+                // Get the denomination value from the selected option's data attribute
+                const selectedOption = $exPrintMintSelect.find('option:selected');
+                let expectedDenominationValue = selectedOption.data('denomination-value');
+
+                // Calculate total value for received pieces
+                const calculatedValue = numberOfPieces * expectedDenominationValue;
+
+                // Format and display value
+                $valueTest.val(calculatedValue.toLocaleString('en-US', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                }));
+
+                // Set hidden input
+                $value.val(calculatedValue);
+            } else {
+                $valueTest.val('');
+                $value.val('');
+            }
+        }
+
+        // Form submission - ensure values are set
+        $('#editForm').on('submit', function(e) {
+            const numberOfPieces = $numberOfPieces.val();
+            
+            if (!numberOfPieces || numberOfPieces === '0') {
+                e.preventDefault();
+                $('#numberOfPiecesText').focus();
+                alert('Please enter the number of pieces received');
+                return false;
+            }
+
+            const calculatedValue = $value.val();
+            if (!calculatedValue || calculatedValue === '0') {
+                e.preventDefault();
+                alert('Value could not be calculated. Please ensure a valid ExPrintMint is selected and pieces are entered');
+                return false;
+            }
+        });
+
+        // Initialize form on page load
+        initializeForm();
+    });
+</script>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}
