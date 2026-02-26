@@ -19,6 +19,7 @@ using VMSService.Core.Repositories.DenominationTypes;
 using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.ReceivedStocks;
+using VMSService.Core.Repositories.ReceivedStockStatusHistories;
 using VMSService.Core.Repositories.StatusTypes;
 using VMSService.Core.Repositories.VendorTypes;
 using VMSService.Core.Repositories.WorkflowTransitions;
@@ -137,6 +138,7 @@ builder.Services.AddScoped<ICurrencyVendorRepository, CurrencyVendorRepository>(
 builder.Services.AddScoped<IReceivedStockRepository, ReceivedStockRepository>();
 builder.Services.AddScoped<IWorkflowTransitionRepository, WorkflowTransitionRepository>();
 builder.Services.AddScoped<IWorkflowService, WorkflowService>();
+builder.Services.AddScoped<IReceivedStockStatusHistoryRepository, ReceivedStockStatusHistoryRepository>();
 
 // Add SmartBreadcrumbs
 builder.Services.AddBreadcrumbs(Assembly.GetExecutingAssembly(), options =>

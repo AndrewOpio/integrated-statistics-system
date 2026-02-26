@@ -8,6 +8,7 @@ using VMSService.Core.Models.DenominationTypes;
 using VMSService.Core.Models.ExPrintMints;
 using VMSService.Core.Models.ExPrintMintStatusHistories;
 using VMSService.Core.Models.ReceivedStocks;
+using VMSService.Core.Models.ReceivedStockStatusHistories;
 using VMSService.Core.Models.StatusTypes;
 using VMSService.Core.Models.VendorTypes;
 using VMSService.Core.Models.WorkflowTransitions;
@@ -31,6 +32,7 @@ namespace VMSService.Core.Mappings
             CreateMap<StatusType, StatusTypeViewModel>().ReverseMap();
             CreateMap<ReceivedStock, ReceivedStockViewModel>().ReverseMap();
             CreateMap<WorkflowTransition, WorkflowTransitionViewModel>().ReverseMap();
+            CreateMap<ReceivedStockStatusHistory, ReceivedStockStatusHistoryViewModel>().ReverseMap();
         }
     }
 }

@@ -37,8 +37,9 @@
                                 <thead class="thead-light">
                                     <tr>
                                         <th class="fw-bold">Denomination</th>
-                                        <th class="fw-bold">Number of Pieces</th>
+                                        <th class="fw-bold">Currency Vendor</th>
                                         <th class="fw-bold">Amount</th>
+                                        <th class="fw-bold">Number of Pieces</th>
                                         <th class="fw-bold text-center" style="width: 50px;">Actions</th>
                                     </tr>
                                 </thead>
@@ -77,6 +78,7 @@
     $(document).ready(function () {
         let denominationCount = 0;
         let denominations = [];
+        let currencyVendors = [];
 
         const $addDenominationBtn = $('#addDenominationBtn');
         const $denominationsBody = $('#denominationsBody');
@@ -85,7 +87,7 @@
         const plainAmountInput = document.getElementById("Amount");
         const amountTextInput = document.getElementById("AmountText");
 
-        // Populate denominations data from ViewBag
+        // Populate denominations and currency vendors data from ViewBag
         @if (ViewBag.Denominations != null)
         {
             <text>
@@ -94,19 +96,33 @@
             </text>
         }
 
+        @if (ViewBag.CurrencyVendors != null)
+        {
+            <text>
+            const currencyVendorsData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.CurrencyVendors));
+            currencyVendors = currencyVendorsData;
+            </text>
+        }
+
         $addDenominationBtn.on('click', function () {
             addDenominationRow();
         });
 
-        function addDenominationRow(denominationId = '', pieces = '', amount = '') {
+        function addDenominationRow(denominationId = '', vendorId = '', amount = '', pieces = '') {
             const rowIndex = denominationCount++;
             const denomSelectId = `DenominationId_${rowIndex}`;
-            const piecesInputId = `Pieces_${rowIndex}`;
+            const vendorSelectId = `CurrencyVendorId_${rowIndex}`;
             const amountInputId = `Amount_${rowIndex}`;
+            const piecesInputId = `Pieces_${rowIndex}`;
 
             let denominationOptions = '<option value="">-- Select Denomination --</option>';
             denominations.forEach(function (denom) {
                 denominationOptions += `<option value="${denom.Id}" data-value="${denom.Value}">${denom.Name}</option>`;
+            });
+
+            let vendorOptions = '<option value="">-- Select Vendor --</option>';
+            currencyVendors.forEach(function (vendor) {
+                vendorOptions += `<option value="${vendor.Id}">${vendor.Name}</option>`;
             });
 
             const html = `
@@ -117,13 +133,19 @@
                         </select>
                     </td>
                     <td>
-                        <input type="text" class="form-control form-control-sm denomination-pieces" id="${piecesInputId}" 
-                               placeholder="0" required>
-                        <input type="hidden" name="ApprovedCurrencyDenominations[${rowIndex}].NumberOfPieces" id="Count_${rowIndex}" value="0">
+                        <select class="form-select form-select-sm vendor-select" id="${vendorSelectId}" name="ApprovedCurrencyDenominations[${rowIndex}].CurrencyVendorId" required>
+                            ${vendorOptions}
+                        </select>
                     </td>
                     <td>
                         <input type="text" class="form-control form-control-sm denomination-amount" id="${amountInputId}" 
-                               name="ApprovedCurrencyDenominations[${rowIndex}].Amount" placeholder="0" required>
+                               placeholder="0" required>
+                        <input type="hidden" name="ApprovedCurrencyDenominations[${rowIndex}].Amount" id="Amount_Hidden_${rowIndex}" value="0">
+                    </td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm denomination-pieces" id="${piecesInputId}" 
+                               placeholder="0" readonly>
+                        <input type="hidden" name="ApprovedCurrencyDenominations[${rowIndex}].NumberOfPieces" id="Pieces_Hidden_${rowIndex}" value="0">
                     </td>
                     <td class="text-center">
                         <button type="button" class="btn btn-sm btn-outline-danger remove-denomination-btn">
@@ -139,11 +161,14 @@
             if (denominationId) {
                 $(`#${denomSelectId}`).val(denominationId);
             }
-            if (pieces) {
-                $(`#${piecesInputId}`).val(parseInt(pieces).toLocaleString("en-US"));
+            if (vendorId) {
+                $(`#${vendorSelectId}`).val(vendorId);
             }
             if (amount) {
                 $(`#${amountInputId}`).val(parseFloat(amount).toLocaleString("en-US", {minimumFractionDigits: 0, maximumFractionDigits: 2}));
+            }
+            if (pieces) {
+                $(`#${piecesInputId}`).val(parseInt(pieces).toLocaleString("en-US"));
             }
 
             // Attach event handlers to the new row
@@ -152,26 +177,21 @@
 
         function attachDenominationRowHandlers($row) {
             const $denomSelect = $row.find('.denomination-select');
-            const $piecesInput = $row.find('.denomination-pieces');
+            const $vendorSelect = $row.find('.vendor-select');
             const $amountInput = $row.find('.denomination-amount');
+            const $piecesInput = $row.find('.denomination-pieces');
             const $removeBtn = $row.find('.remove-denomination-btn');
 
-            // Format pieces input and calculate amount
-            $piecesInput.on('input', function (e) {
-                formatPiecesInput(this);
-                calculateAmountFromPieces($row);
-                calculateTotalAmount();
-            });
-
-            // Format amount input and calculate total
+            // Format amount input and calculate pieces
             $amountInput.on('input', function (e) {
                 formatAmountInput(this);
+                calculatePiecesFromAmount($row);
                 calculateTotalAmount();
             });
 
-            // Calculate count and amount when denomination is selected
+            // Calculate pieces when denomination is selected
             $denomSelect.on('change', function () {
-                calculateAmountFromPieces($row);
+                calculatePiecesFromAmount($row);
                 calculateTotalAmount();
             });
 
@@ -183,24 +203,6 @@
                     calculateTotalAmount();
                 });
             });
-        }
-
-        function formatPiecesInput(input) {
-            let raw = input.value.replace(/[^0-9]/g, "");
-            const number = parseInt(raw);
-            if (!isNaN(number)) {
-                input.value = number.toLocaleString("en-US");
-                // Sync the numeric value to the hidden NumberOfPieces input
-                const $row = $(input).closest('.denomination-row');
-                const $hiddenInput = $row.find('input[name*=".NumberOfPieces"]');
-                $hiddenInput.val(number);
-            } else {
-                input.value = "";
-                // Clear the hidden input if pieces is empty
-                const $row = $(input).closest('.denomination-row');
-                const $hiddenInput = $row.find('input[name*=".NumberOfPieces"]');
-                $hiddenInput.val(0);
-            }
         }
 
         function formatAmountInput(input) {
@@ -220,22 +222,25 @@
             }
         }
 
-        function calculateAmountFromPieces($row) {
+        function calculatePiecesFromAmount($row) {
             const $denomSelect = $row.find('.denomination-select');
-            const $piecesInput = $row.find('.denomination-pieces');
             const $amountInput = $row.find('.denomination-amount');
-            const $countInput = $row.find('input[name*=".Count"]');
+            const $piecesInput = $row.find('.denomination-pieces');
+            const $amountHidden = $row.find('input[name*=".Amount"]');
+            const $piecesHidden = $row.find('input[name*=".NumberOfPieces"]');
 
             const selectedDenomination = denominations.find(d => d.Id == $denomSelect.val());
-            const pieces = parseInt($piecesInput.val().replace(/,/g, '')) || 0;
+            const amount = parseFloat($amountInput.val().replace(/,/g, '')) || 0;
 
-            if (selectedDenomination) {
-                const amount = pieces * selectedDenomination.Value;
-                $amountInput.val(amount.toLocaleString("en-US", {
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 2
-                }));
-                $countInput.val(pieces);
+            if (selectedDenomination && selectedDenomination.Value > 0) {
+                const pieces = Math.floor(amount / selectedDenomination.Value);
+                $piecesInput.val(pieces.toLocaleString("en-US"));
+                $piecesHidden.val(pieces);
+                $amountHidden.val(amount);
+            } else {
+                $piecesInput.val('0');
+                $piecesHidden.val(0);
+                $amountHidden.val(amount);
             }
         }
 
@@ -285,8 +290,9 @@
                 
                 // Update all name attributes with new index
                 $row.find('select[name*="DenominationId"]').attr('name', `ApprovedCurrencyDenominations[${newIndex}].DenominationId`);
-                $row.find('input[name*="NumberOfPieces"]').attr('name', `ApprovedCurrencyDenominations[${newIndex}].NumberOfPieces`);
-                $row.find('input[name*="Amount"]').attr('name', `ApprovedCurrencyDenominations[${newIndex}].Amount`);
+                $row.find('select[name*="CurrencyVendorId"]').attr('name', `ApprovedCurrencyDenominations[${newIndex}].CurrencyVendorId`);
+                $row.find('input[name*=".Amount"]').attr('name', `ApprovedCurrencyDenominations[${newIndex}].Amount`);
+                $row.find('input[name*=".NumberOfPieces"]').attr('name', `ApprovedCurrencyDenominations[${newIndex}].NumberOfPieces`);
                 
                 newIndex++;
             });

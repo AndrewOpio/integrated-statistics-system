@@ -1,8 +1,13 @@
 using AutoMapper;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.Extensions.Logging;
 using VMSService.Core.Models.WorkflowTransitions;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
+using VMSService.Core.Repositories.ExpectedCurrencies;
+using VMSService.Core.Repositories.ExPrintMintStatusHistories;
+using VMSService.Core.Repositories.ReceivedStocks;
+using VMSService.Core.Repositories.ReceivedStockStatusHistories;
 using VMSService.Core.Repositories.WorkflowTransitions;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
@@ -14,7 +19,11 @@ namespace VMSService.Core.Services.Workflows
         IApprovedCurrencyProcurementRepository _procurementRepository,
         IApprovedCurrencyStatusHistoryRepository _statusHistoryRepository,
         IMapper _mapper,
-        ILogger<WorkflowService> _logger) : IWorkflowService
+        ILogger<WorkflowService> _logger,
+        IExPrintMintRepository _exPrintMintRepository,
+        IReceivedStockRepository _receivedStockRepository,
+        IExPrintMintStatusHistoryRepository _exPrintMintStatusHistoryRepository,
+        IReceivedStockStatusHistoryRepository _receivedStockStatusHistoryRepository ) : IWorkflowService
     {
         public async Task<ICollection<WorkflowTransitionViewModel>> GetAvailableTransitions(
             string entityType, int currentStatusId, string userRole)
@@ -41,7 +50,7 @@ namespace VMSService.Core.Services.Workflows
 
         public async Task<bool> ExecuteTransition(
             string entityType, int entityId, int currentStatusId, 
-            string actionName, string userId, string userRole, string remarks)
+            string actionName, string userId, List<string> userRoles, string remarks)
         {
             try
             {
@@ -56,15 +65,15 @@ namespace VMSService.Core.Services.Workflows
                 }
 
                 // Verify user role matches transition requirement
-                if (transition.RequiredRole != userRole)
+                if (!userRoles.Contains(transition.RequiredRole))
                 {
                     _logger.LogWarning("User {UserId} with role {Role} attempted transition requiring role {RequiredRole}", 
-                        userId, userRole, transition.RequiredRole);
+                        userId, userRoles, transition.RequiredRole);
                     return false;
                 }
 
                 // Handle ApprovedCurrencyProcurement transitions
-                if (entityType == "ApprovedCurrencyProcurement")
+                if (entityType == StatusConstants.Entity.ApprovedCurrencyProcurement)
                 {
                     var procurement = await _procurementRepository.FindById(entityId);
                     if (procurement == null)
@@ -88,7 +97,7 @@ namespace VMSService.Core.Services.Workflows
                         OldStatusId = procurement.CurrentStatusId,
                         NewStatusId = transition.ToStatusId,
                         ChangedBy = userId,
-                        ChangedAt = DateTime.UtcNow,
+                        ChangedAt = DateTime.Now,
                         Remarks = remarks,
                         IsDeleted = false
                     };
@@ -105,6 +114,18 @@ namespace VMSService.Core.Services.Workflows
                     return true;
                 }
 
+                // Handle ExPrintMint transitions
+                if (entityType == StatusConstants.Entity.ExPrintMint)
+                {
+                    return await HandleExPrintMintTransitions(entityId, currentStatusId, actionName, userId, remarks, transition);
+                }
+
+                // Handle ReceivedStock transitions
+                if (entityType == StatusConstants.Entity.ReceivedStock)
+                {
+                    return await HandleReceivedStockTransitions(entityId, currentStatusId, actionName, userId, remarks, transition);
+                }
+
                 return false;
             }
             catch (Exception ex)
@@ -113,6 +134,92 @@ namespace VMSService.Core.Services.Workflows
                     entityType, entityId, actionName);
                 return false;
             }
+        }
+
+        private async Task<bool> HandleExPrintMintTransitions(int entityId, int currentStatusId, string actionName,
+            string userId, string remarks, WorkflowTransition transition)
+        {
+            
+            var exPrintMint = await _exPrintMintRepository.FindById(entityId);
+            if (exPrintMint == null)
+            {
+                _logger.LogWarning("Expected Stock {Id} not found", entityId);
+                return false;
+            }
+
+            // Verify current status matches
+            if (exPrintMint.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Expected Stock {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, exPrintMint.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            // Create status history record
+            var statusHistory = new ExPrintMintStatusHistory
+            {
+                ExPrintMintId = entityId,
+                OldStatusId = exPrintMint.CurrentStatusId,
+                NewStatusId = transition.ToStatusId,
+                ChangedBy = userId,
+                ChangedAt = DateTime.Now,
+                Remarks = remarks,
+                IsDeleted = false
+            };
+
+            await _exPrintMintStatusHistoryRepository.Create(statusHistory);
+
+            // Update procurement status
+            exPrintMint.CurrentStatusId = transition.ToStatusId;
+            await _exPrintMintRepository.Update(exPrintMint);
+
+            _logger.LogInformation("Expected Stock {Id} transitioned from status {From} to {To} by user {UserId} with action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, userId, actionName);
+
+            return true;
+        }
+
+        private async Task<bool> HandleReceivedStockTransitions(int entityId, int currentStatusId, string actionName,
+            string userId, string remarks, WorkflowTransition transition)
+        {
+
+            var receivedStock = await _receivedStockRepository.FindById(entityId);
+            if (receivedStock == null)
+            {
+                _logger.LogWarning("Received Stock {Id} not found", entityId);
+                return false;
+            }
+
+            // Verify current status matches
+            if (receivedStock.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Received Stock {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, receivedStock.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            // Create status history record
+            var statusHistory = new ReceivedStockStatusHistory
+            {
+                ReceivedStockId = entityId,
+                OldStatusId = receivedStock.CurrentStatusId,
+                NewStatusId = transition.ToStatusId,
+                ChangedBy = userId,
+                ChangedAt = DateTime.Now,
+                Remarks = remarks,
+                IsDeleted = false
+            };
+
+            await _receivedStockStatusHistoryRepository.Create(statusHistory);
+
+            // Update procurement status
+            receivedStock.CurrentStatusId = transition.ToStatusId;
+            await _receivedStockRepository.Update(receivedStock);
+
+            _logger.LogInformation("Received Stock {Id} transitioned from status {From} to {To} by user {UserId} with action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, userId, actionName);
+
+            return true;
         }
     }
 }

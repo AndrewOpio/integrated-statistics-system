@@ -1,8 +1,11 @@
 using Microsoft.AspNetCore.Http;
 using VMSService.Core.Models.ApprovedCurrencyProcurements;
+using VMSService.Core.Models.ApprovedCurrencyStatusHistories;
 using VMSService.Core.Models.CurrencyVendors;
 using VMSService.Core.Models.Denominations;
+using VMSService.Core.Models.ExPrintMintStatusHistories;
 using VMSService.Core.Models.StatusTypes;
+using VMSService.Core.Models.WorkflowTransitions;
 
 namespace VMSService.Core.Models.ExPrintMints
 {
@@ -30,5 +33,8 @@ namespace VMSService.Core.Models.ExPrintMints
         public StatusTypeViewModel? CurrentStatus { get; set; }
         public IFormFile AttachmentFile { get; set; }
         public bool IsDeleted { get; set; }
+        public int NumberOfBoxes { get; set; }
+        public ICollection<ExPrintMintStatusHistoryViewModel>? StatusHistory { get; set; } = new List<ExPrintMintStatusHistoryViewModel>();
+        public ICollection<WorkflowTransitionViewModel>? AvailableTransitions { get; set; } = new List<WorkflowTransitionViewModel>();
     }
 }

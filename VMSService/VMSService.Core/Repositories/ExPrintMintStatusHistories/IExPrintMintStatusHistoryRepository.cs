@@ -5,5 +5,6 @@ namespace VMSService.Core.Repositories.ExPrintMintStatusHistories
 {
     public interface IExPrintMintStatusHistoryRepository : IRepositoryBase<ExPrintMintStatusHistory, int>
     {
+        Task<ICollection<ExPrintMintStatusHistory>> FindByExPrintMintId(int exPrintMintId);
     }
 }

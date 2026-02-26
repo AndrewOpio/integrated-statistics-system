@@ -43,28 +43,28 @@
                             <td class="px-1">
                                 <span class="badge bg-tertiary">@transition.EntityType</span>
                             </td>
-                            <td>
-                            <span class="badge bg-info">@transition.FromStatusName</span>
+                            <td class="px-1">
+                                <span class="badge bg-info">@transition.FromStatusName</span>
                             </td>
-                            <td>
-                            <a href="@Url.Action("Details", "WorkflowTransitions", new { id = transition.Id })" class="btn btn-gray-200">
+                            <td class="px-1">
+                                <a href="@Url.Action("Details", "WorkflowTransitions", new { id = transition.Id })" class="btn btn-gray-200">
                                     <strong>@transition.ActionName</strong>
                                     <br />
                                     <small class="text-muted">@transition.DisplayLabel</small>
                                 </a>
                             </td>
-                            <td>
+                            <td class="px-1">
                                 <span class="badge bg-success">@transition.ToStatusName</span>
                             </td>
-                            <td>
+                            <td class="px-1">
                                 <span class="badge bg-tertiary">@transition.RequiredRole</span>
                             </td>
-                            <td>
-                            <span class="badge" style="background-color: var(--bs-@(transition.ButtonClass.Replace("btn-", "")));">
+                            <td class="px-1">
+                                <span class="badge" style="background-color: var(--bs-@(transition.ButtonClass.Replace("btn-", "")));">
                                     @transition.ButtonClass
                                 </span>
                             </td>
-                            <td>
+                            <td class="px-1">
                                 @if (transition.RequiresComments)
                                 {
                                     <span class="badge badge-pill bg-danger">Yes</span>
@@ -74,7 +74,7 @@
                                     <span class="badge badge-pill bg-success">No</span>
                                 }
                             </td>
-                            <td>
+                            <td class="px-1">
                                 @if (transition.IsActive)
                                 {
                                     <span class="badge badge-pill bg-success">Active</span>
@@ -84,7 +84,7 @@
                                     <span class="badge badge-pill bg-secondary">Inactive</span>
                                 }
                             </td>
-                            <td>
+                            <td class="px-1">
                                 @* <div class="btn-list flex-nowrap">
                                     <a href="@Url.Action("Edit", "WorkflowTransitions", new { id = transition.Id })" class="btn btn-icon btn-ghost-primary" title="Edit">
                                         <i class="ti ti-edit"></i>

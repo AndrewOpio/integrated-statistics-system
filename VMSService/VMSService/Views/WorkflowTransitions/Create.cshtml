@@ -30,10 +30,10 @@
                     <!-- Entity Type -->
                     <div class="mb-3">
                         <label class="form-label" for="EntityType">Entity Type <span class="text-danger">*</span></label>
-                        <select asp-for="EntityType" class="form-select" required>
+                        <select asp-for="EntityType" id="EntityType" class="form-select" required>
                             <option value="">-- Select Entity Type --</option>
                             <option value="ApprovedCurrencyProcurement">Approved Currency Procurement</option>
-                            <option value="ExPrintMint">Ex Print Mint</option>
+                            <option value="ExPrintMint">ExPrint and ExMint</option>
                             <option value="ReceivedStock">Received Stock</option>
                         </select>
                         <span asp-validation-for="EntityType" class="invalid-feedback"></span>
@@ -42,11 +42,11 @@
                     <!-- From Status -->
                     <div class="mb-3">
                         <label class="form-label" for="FromStatusId">From Status <span class="text-danger">*</span></label>
-                        <select asp-for="FromStatusId" class="form-select" required>
+                        <select asp-for="FromStatusId" id="FromStatusId" class="form-select" required>
                             <option value="">-- Select Status --</option>
-                            @foreach (var status in (List<StatusTypeViewModel>)ViewBag.FromStatuses)
+                            @foreach (var status in (List<StatusTypeViewModel>)ViewBag.AllStatuses)
                             {
-                                <option value="@status.Id">@status.Name - @status.Category</option>
+                                <option value="@status.Id" data-category="@status.Category">@status.Name - @status.Category</option>
                             }
                         </select>
                         <span asp-validation-for="FromStatusId" class="invalid-feedback"></span>
@@ -55,11 +55,11 @@
                     <!-- To Status -->
                     <div class="mb-3">
                         <label class="form-label" for="ToStatusId">To Status <span class="text-danger">*</span></label>
-                        <select asp-for="ToStatusId" class="form-select" required>
+                        <select asp-for="ToStatusId" id="ToStatusId" class="form-select" required>
                             <option value="">-- Select Status --</option>
-                            @foreach (var status in (List<StatusTypeViewModel>)ViewBag.ToStatuses)
+                            @foreach (var status in (List<StatusTypeViewModel>)ViewBag.AllStatuses)
                             {
-                                <option value="@status.Id">@status.Name - @status.Category</option>
+                                <option value="@status.Id" data-category="@status.Category">@status.Name - @status.Category</option>
                             }
                         </select>
                         <span asp-validation-for="ToStatusId" class="invalid-feedback"></span>
@@ -148,6 +148,66 @@
         </div>
     </div>
 </div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function () {
+        // Map entity types to their categories
+        const entityTypeMapping = {
+            'ApprovedCurrencyProcurement': 'Approved Currency Procurement',
+            'ExPrintMint': 'ExPrint and ExMint',
+            'ReceivedStock': 'Received Stock'
+        };
+
+        const $entityTypeSelect = $('#EntityType');
+        const $fromStatusSelect = $('#FromStatusId');
+        const $toStatusSelect = $('#ToStatusId');
+
+        // Store all status options
+        const allFromStatusOptions = $fromStatusSelect.find('option').clone();
+        const allToStatusOptions = $toStatusSelect.find('option').clone();
+
+        // Function to filter status options based on entity type
+        function filterStatusOptions() {
+            const selectedEntityType = $entityTypeSelect.val();
+            const selectedCategory = entityTypeMapping[selectedEntityType];
+
+            if (!selectedEntityType) {
+                // Reset to all options
+                $fromStatusSelect.html(allFromStatusOptions.clone());
+                $toStatusSelect.html(allToStatusOptions.clone());
+            } else {
+                // Filter from status options
+                const filteredFromOptions = allFromStatusOptions.filter(function () {
+                    const $option = $(this);
+                    const category = $option.data('category');
+                    return category === selectedCategory || $option.val() === ''; // Include the placeholder
+                });
+                $fromStatusSelect.html(filteredFromOptions.clone());
+
+                // Filter to status options
+                const filteredToOptions = allToStatusOptions.filter(function () {
+                    const $option = $(this);
+                    const category = $option.data('category');
+                    return category === selectedCategory || $option.val() === ''; // Include the placeholder
+                });
+                $toStatusSelect.html(filteredToOptions.clone());
+            }
+
+            // Reset selections
+            $fromStatusSelect.val('');
+            $toStatusSelect.val('');
+        }
+
+        // Handle Entity Type change
+        $entityTypeSelect.on('change', function () {
+            filterStatusOptions();
+        });
+
+        // Initialize on page load
+        filterStatusOptions();
+    });
+</script>
 
 @section Scripts {
     @{

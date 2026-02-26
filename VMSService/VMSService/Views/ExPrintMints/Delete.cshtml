@@ -86,12 +86,12 @@
 
                         <div class="field mb-4">
                             <span class="d-block text-muted small mb-2 text-uppercase">Number of Pieces</span>
-                            <span class="d-block fw-normal">@Model.NumberOfPieces</span>
+                            <span class="d-block fw-normal">@Model.NumberOfPieces.ToString("N0")</span>
                         </div>
 
                         <div class="field">
                             <span class="d-block text-muted small mb-2 text-uppercase">Total Value (UGX)</span>
-                            <span class="d-block fw-normal text-success fw-bold">@Model.Value.ToString("N2")</span>
+                            <span class="d-block fw-normal text-success fw-bold">@Model.Value.ToString("N0")</span>
                         </div>
                     </div>
                 </div>
@@ -156,7 +156,8 @@
             </div>
 
             <div class="card-footer bg-transparent border-top pt-3">
-                <form asp-action="DeleteConfirmed" asp-route-id="@Model.Id" method="post" class="d-inline">
+                <form asp-action="Delete" method="post" class="d-inline">
+                    <input type="hidden" asp-for="Id">
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-danger">
                             <i class="ti ti-trash me-1"></i>Confirm Delete

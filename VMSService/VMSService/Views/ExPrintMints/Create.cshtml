@@ -27,7 +27,7 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label" asp-for="ExPrintMintReference">Reference <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" asp-for="ExPrintMintReference" placeholder="e.g., EPM-2024-001" required>
+                                <input type="text" class="form-control" asp-for="ExPrintMintReference" placeholder="Enter Reference" required>
                                 <small class="text-muted d-block mt-1">Unique identifier for this stock shipment</small>
                                 <span asp-validation-for="ExPrintMintReference" class="text-danger small d-block mt-1"></span>
                             </div>
@@ -79,7 +79,7 @@
                                 {
                                     @foreach (var proc in ViewBag.ApprovedCurrencyProcurements)
                                     {
-                                        <option value="@proc.Id" data-name="@proc.Amount">@proc.Amount</option>
+                                        <option value="@proc.Id" data-name="@proc.Amount"><span>#PR</span>@proc.Id - @proc.Amount.ToString("N0")</option>
                                     }
                                 }
                             </select>
@@ -98,13 +98,13 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label" asp-for="DenominationId">Denomination <span class="text-danger">*</span></label>
-                                <select class="form-select" asp-for="DenominationId" required>
+                                <select class="form-select" asp-for="DenominationId" id="DenominationId" required>
                                     <option value="">-- Select Denomination --</option>
                                     @if (ViewBag.Denominations != null)
                                     {
                                         @foreach (var denom in ViewBag.Denominations)
                                         {
-                                            <option value="@denom.Id">@denom.Name</option>
+                                            <option value="@denom.Id" data-denomination-value="@denom.Value" data-pieces-in-box="@denom.NumberOfPiecesInABox">@denom.Name</option>
                                         }
                                     }
                                 </select>
@@ -112,19 +112,27 @@
                             </div>
 
                             <div class="col-md-6 mb-3">
-                                <label class="form-label" asp-for="NumberOfPieces">Number of Pieces <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control" asp-for="NumberOfPieces" placeholder="Enter number of pieces" required>
-                                <span asp-validation-for="NumberOfPieces" class="text-danger small d-block mt-1"></span>
+                                <label class="form-label" for="AmountText">Amount <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="AmountText" placeholder="Enter amount" required>
+                                <input type="hidden" asp-for="Value" id="Value">
+                                <span asp-validation-for="Value" class="text-danger small d-block mt-1"></span>
                             </div>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label" for="ValueTest">Value <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="ValueTest" placeholder="0" required>
-                            <small class="text-muted d-block mt-1">Value will be formatted with commas</small>
-                            <span class="text-danger small d-block mt-1" id="valueError"></span>
-                            <!-- Hidden input for actual value submission -->
-                            <input type="hidden" asp-for="Value" id="Value">
-                            <span asp-validation-for="Value" class="text-danger small d-block mt-1"></span>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="NumberOfPiecesText">Number of Pieces <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="NumberOfPiecesText" placeholder="0" readonly>
+                                <input type="hidden" asp-for="NumberOfPieces" id="NumberOfPieces">
+                                <small class="text-muted d-block mt-1">Automatically calculated based on amount and denomination value</small>
+                                <span asp-validation-for="NumberOfPieces" class="text-danger small d-block mt-1"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="NumberOfBoxesText">Number of Boxes <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="NumberOfBoxesText" placeholder="0" readonly>
+                                <small class="text-muted d-block mt-1">Automatically calculated based on pieces and box capacity</small>
+                            </div>
                         </div>
                     </div>
 
@@ -242,6 +250,13 @@
             </text>
         }
 
+        const $denominationSelect = $('#DenominationId');
+        const $amountText = $('#AmountText');
+        const $value = $('#Value');
+        const $numberOfPiecesText = $('#NumberOfPiecesText');
+        const $numberOfPieces = $('#NumberOfPieces');
+        const $numberOfBoxesText = $('#NumberOfBoxesText');
+
         // Handle Vendor Type Selection
         $('#VendorTypeId').on('change', function() {
             const selectedVendorTypeId = $(this).val();
@@ -294,12 +309,12 @@
             $vendorSelect.val('');
         });
 
-        // Handle Value Input Formatting
-        $('#ValueTest').on('input', function() {
+        // Handle Amount formatting
+        $amountText.on('input', function() {
             let input = $(this).val();
             
-            // Remove all non-numeric characters except decimal point
-            let sanitized = input.replace(/[^\d.]/g, '');
+            // Remove all non-numeric characters except decimal
+            let sanitized = input.replace(/[^0-9.]/g, '');
             
             // Prevent multiple decimal points
             const parts = sanitized.split('.');
@@ -307,49 +322,82 @@
                 sanitized = parts[0] + '.' + parts.slice(1).join('');
             }
 
-            // Format with commas
-            if (sanitized) {
-                const [wholePart, decimalPart] = sanitized.split('.');
-                const formattedWhole = wholePart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                const formatted = decimalPart !== undefined ? 
-                    `${formattedWhole}.${decimalPart}` : 
-                    formattedWhole;
-                
-                $(this).val(formatted);
+            const number = parseFloat(sanitized);
+            if (!isNaN(number)) {
+                // Format with commas and 0 decimal places
+                $(this).val(number.toLocaleString('en-US', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                }));
+                // Update hidden input with numeric value
+                $value.val(number);
+            } else {
+                $(this).val('');
+                $value.val('');
             }
 
-            // Update hidden input with unformatted value
-            const numericValue = parseFloat(sanitized) || 0;
-            $('#Value').val(numericValue);
+            // Recalculate when amount changes
+            calculatePiecesAndBoxes();
         });
 
-        // Handle paste events to format immediately
-        $('#ValueTest').on('paste', function() {
+        // Handle paste events for Amount
+        $amountText.on('paste', function() {
             const $this = $(this);
             setTimeout(function() {
                 $this.trigger('input');
             }, 10);
         });
 
-        // Form submission - ensure Value is set
+        // Handle Denomination selection change - recalculate
+        $denominationSelect.on('change', function() {
+            calculatePiecesAndBoxes();
+        });
+
+        // Calculate pieces and boxes based on amount and denomination
+        function calculatePiecesAndBoxes() {
+            const selectedDenominationId = $denominationSelect.val();
+            const amount = parseFloat($value.val()) || 0;
+
+            if (selectedDenominationId && amount > 0) {
+                // Get the denomination data from the selected option
+                const selectedOption = $denominationSelect.find('option:selected');
+                const denominationValue = parseFloat(selectedOption.data('denomination-value')) || 0;
+                const piecesInBox = parseInt(selectedOption.data('pieces-in-box')) || 1;
+
+                // Calculate number of pieces: amount / denominationValue
+                const numberOfPieces = Math.floor(amount / denominationValue);
+
+                // Calculate number of boxes: numberOfPieces / piecesInBox
+                const numberOfBoxes = Math.ceil(numberOfPieces / piecesInBox);
+
+                // Display formatted pieces
+                $numberOfPiecesText.val(numberOfPieces.toLocaleString('en-US'));
+                $numberOfPieces.val(numberOfPieces);
+
+                // Display formatted boxes
+                $numberOfBoxesText.val(numberOfBoxes.toLocaleString('en-US'));
+            } else {
+                $numberOfPiecesText.val('0');
+                $numberOfPieces.val('0');
+                $numberOfBoxesText.val('0');
+            }
+        }
+
+        // Form submission - ensure values are set
         $('#createForm').on('submit', function(e) {
-            const valueTest = $('#ValueTest').val();
+            const amount = $value.val();
             
-            if (!valueTest) {
+            if (!amount || amount === '0') {
                 e.preventDefault();
-                $('#valueError').text('Value is required').show();
+                $amountText.focus();
+                alert('Please enter a valid amount');
                 return false;
             }
 
-            // Ensure hidden input has the numeric value
-            const numericValue = parseFloat(valueTest.replace(/,/g, '')) || 0;
-            $('#Value').val(numericValue);
-
-            // Validate Vendor Type if used
-            const vendorTypeId = $('#VendorTypeId').val();
-            if (!vendorTypeId && $('#CurrencyVendorId').val() === '') {
+            const numberOfPieces = $numberOfPieces.val();
+            if (!numberOfPieces || numberOfPieces === '0') {
                 e.preventDefault();
-                $('#vendorTypeError').text('Please select a vendor type').show();
+                alert('Amount must be greater than 0. Please enter a valid amount');
                 return false;
             }
 
@@ -369,7 +417,7 @@
             // Validate Serial Number fields if section is visible
             if ($('#serialNumberSection').is(':visible')) {
                 const serialPrefix = $('[name="SerialNumberPrefix"]').val();
-                const serialStart = $('name="SerialNumberRangeStart"]').val();
+                const serialStart = $('[name="SerialNumberRangeStart"]').val();
                 const serialEnd = $('[name="SerialNumberRangeEnd"]').val();
 
                 if (!serialPrefix || !serialStart || !serialEnd) {
@@ -378,13 +426,11 @@
                     return false;
                 }
             }
-
-            $('#valueError').text('').hide();
         });
 
         // Clear error on valid input
-        $('#ValueTest').on('focus', function() {
-            $('#valueError').text('').hide();
+        $amountText.on('focus', function() {
+            // Clear any error messages if needed
         });
     });
 </script>

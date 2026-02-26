@@ -12,5 +12,7 @@ namespace VMSService.Data.Entities
         public int NumberOfPieces { get; set; }
         public decimal Amount { get; set; } // = denomination_value * count
         public bool IsDeleted { get; set; }
+        public int CurrencyVendorId { get; set; }   
+        public CurrencyVendor CurrencyVendor { get; set; }
     }
 }

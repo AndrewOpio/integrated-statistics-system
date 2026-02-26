@@ -78,3 +78,7 @@ body {
     height: 0;
     background: unset;
 }
+
+.more-rounded {
+    border-radius: 1rem !important;
+}

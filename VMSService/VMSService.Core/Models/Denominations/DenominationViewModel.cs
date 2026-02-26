@@ -1,4 +1,5 @@
 using VMSService.Core.Models.DenominationTypes;
+using VMSService.Data.Entities;
 
 namespace VMSService.Core.Models.Denominations
 {
@@ -10,5 +11,7 @@ namespace VMSService.Core.Models.Denominations
         public int NumberOfPiecesInABox { get; set; }
         public int DenominationTypeId { get; set; }
         public DenominationTypeViewModel? DenominationType { get; set; }
+        public int CurrencyVendorId { get; set; }
+        public CurrencyVendor? CurrencyVendor { get; set; }
     }
 }

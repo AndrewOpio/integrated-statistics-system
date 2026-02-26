@@ -2,12 +2,16 @@ using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using SmartBreadcrumbs.Attributes;
 using VMSService.Controllers;
+using VMSService.Core.Models.ApprovedCurrencyStatusHistories;
 using VMSService.Core.Models.ExPrintMints;
 using VMSService.Core.Models.ReceivedStocks;
-using VMSService.Core.Models.StatusTypes;
+using VMSService.Core.Models.ReceivedStockStatusHistories;
+using VMSService.Core.Models.WorkflowTransitions;
 using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ReceivedStocks;
+using VMSService.Core.Repositories.ReceivedStockStatusHistories;
 using VMSService.Core.Repositories.StatusTypes;
+using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
 
@@ -18,7 +22,9 @@ namespace VMSService.Web.Controllers
         IExPrintMintRepository _exPrintMintRepository,
         IStatusTypeRepository _statusTypeRepository,
         IMapper _mapper,
-        ILogger<ReceivedStocksController> _logger) : Controller
+        ILogger<ReceivedStocksController> _logger,
+        IWorkflowService _workflowService,
+        IReceivedStockStatusHistoryRepository _statusHistoryRepository) : Controller
     {
         [Breadcrumb("Received Stock", FromController = typeof(HomeController), FromAction = nameof(Index))]
         // GET: ReceivedStocks
@@ -62,6 +68,31 @@ namespace VMSService.Web.Controllers
                 }
 
                 var model = _mapper.Map<ReceivedStockViewModel>(receivedStock);
+
+                // Get available transitions for current user
+                var userRoles = User.FindAll("appRole")
+                    .Where(c => c.Value.StartsWith("VMS:"))
+                    .Select(c => c.Value.Split(":")[1])
+                    .ToList();
+
+                var availableTransitions = new List<WorkflowTransitionViewModel>();
+                foreach (var userRole in userRoles)
+                {
+                    var transitions = await _workflowService.GetAvailableTransitions(
+                        StatusConstants.Entity.ReceivedStock,
+                        receivedStock.CurrentStatusId,
+                        userRole);
+                    if (transitions != null)
+                    {
+                        availableTransitions.AddRange(transitions);
+                    }
+                }
+
+                model.AvailableTransitions = availableTransitions.Distinct().ToList();
+
+                model.StatusHistory = _mapper.Map<ICollection<ReceivedStockStatusHistoryViewModel>>(
+                    await _statusHistoryRepository.FindAll());
+
                 return View(model);
             }
             catch (Exception ex)
@@ -111,7 +142,7 @@ namespace VMSService.Web.Controllers
 
             try
             {
-                StatusType status = await _statusTypeRepository.FindByName(StatusConstants.ReceivedStock.PendingConfirmation, StatusConstants.Category.ReceivedStock);
+                StatusType status = await _statusTypeRepository.FindByName(StatusConstants.ReceivedStock.Draft, StatusConstants.Category.ReceivedStock);
                 model.CurrentStatusId = status.Id;
 
                 ReceivedStock newReceivedStock = _mapper.Map<ReceivedStock>(model);
@@ -317,6 +348,53 @@ namespace VMSService.Web.Controllers
             }
 
             return RedirectToAction(nameof(Index));
+        }
+
+        // Add generic transition action
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ExecuteAction(int id, string actionName, string remarks)
+        {
+            try
+            {
+                var receivedStock = await _receivedStockRepository.FindById(id);
+                if (receivedStock == null)
+                {
+                    TempData["Error"] = "Received Stock not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "System";
+                var userRoles = User.FindAll("appRole")
+                    .Where(c => c.Value.StartsWith("VMS:"))
+                    .Select(c => c.Value.Split(":")[1])
+                    .ToList();
+
+                bool isExecuted = await _workflowService.ExecuteTransition(
+                    StatusConstants.Entity.ReceivedStock,
+                    id,
+                    receivedStock.CurrentStatusId,
+                    actionName,
+                    userId,
+                    userRoles,
+                    remarks);
+
+                if (isExecuted)
+                {
+                    TempData["Success"] = $"Review completed successfully!";
+                }
+                else
+                {
+                    TempData["Error"] = $"Failed to execute {actionName} action. You may not have permission or the action is not valid for current status.";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing action {Action} on Received Stock {Id}", actionName, id);
+                TempData["Error"] = "An error occurred while executing the action.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id });
         }
     }
 }

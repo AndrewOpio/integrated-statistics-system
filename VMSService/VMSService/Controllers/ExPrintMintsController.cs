@@ -6,14 +6,18 @@ using VMSService.Controllers;
 using VMSService.Core.Models.ApprovedCurrencyProcurements;
 using VMSService.Core.Models.CurrencyVendors;
 using VMSService.Core.Models.Denominations;
+using VMSService.Core.Models.ExPrintMintStatusHistories;
 using VMSService.Core.Models.ExPrintMints;
 using VMSService.Core.Models.VendorTypes;
+using VMSService.Core.Models.WorkflowTransitions;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.CurrencyVendors;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.ExpectedCurrencies;
+using VMSService.Core.Repositories.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.StatusTypes;
 using VMSService.Core.Repositories.VendorTypes;
+using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
 
@@ -27,7 +31,9 @@ namespace VMSService.Web.Controllers
         ICurrencyVendorRepository _currencyVendorRepository,
         IDenominationRepository _denominationRepository,
         IVendorTypeRepository _vendorTypeRepository,
-        IApprovedCurrencyProcurementRepository _approvedCurrencyProcurementRepo) : Controller
+        IApprovedCurrencyProcurementRepository _approvedCurrencyProcurementRepo,
+        IWorkflowService _workflowService,
+        IExPrintMintStatusHistoryRepository _statusHistoryRepository) : Controller
     {
         [Breadcrumb("Expected Stock", FromController = typeof(HomeController), FromAction = nameof(Index))]
         // GET: ExPrintMints
@@ -70,7 +76,32 @@ namespace VMSService.Web.Controllers
                     return NotFound();
                 }
 
-                var model = _mapper.Map<ExPrintMintViewModel>(exPrintMint);
+                ExPrintMintViewModel model = _mapper.Map<ExPrintMintViewModel>(exPrintMint);
+
+                // Get available transitions for current user
+                var userRoles = User.FindAll("appRole")
+                    .Where(c => c.Value.StartsWith("VMS:"))
+                    .Select(c => c.Value.Split(":")[1])
+                    .ToList();
+
+                var availableTransitions = new List<WorkflowTransitionViewModel>();
+                foreach (var userRole in userRoles)
+                {
+                    var transitions = await _workflowService.GetAvailableTransitions(
+                        StatusConstants.Entity.ExPrintMint,
+                        exPrintMint.CurrentStatusId,
+                        userRole);
+                    if (transitions != null)
+                    {
+                        availableTransitions.AddRange(transitions);
+                    }
+                }
+
+                model.AvailableTransitions = availableTransitions.Distinct().ToList();
+
+                model.StatusHistory = _mapper.Map<ICollection<ExPrintMintStatusHistoryViewModel>>(
+                    await _statusHistoryRepository.FindByExPrintMintId(id ?? 0));
+
                 return View(model);
             }
             catch (Exception ex)
@@ -160,7 +191,7 @@ namespace VMSService.Web.Controllers
                     model.Attachment = filePath;
                 }
 
-                StatusType status = await _statusTypeRepository.FindByName(StatusConstants.ExPrintMint.PendingVerification, StatusConstants.Category.ExPrintMint);
+                StatusType status = await _statusTypeRepository.FindByName(StatusConstants.ExPrintMint.Draft, StatusConstants.Category.ExPrintMint);
                 model.CurrentStatusId = status.Id;
 
                 ExPrintMint newExPrintMint = _mapper.Map<ExPrintMint>(model);
@@ -434,6 +465,53 @@ namespace VMSService.Web.Controllers
                 TempData["Error"] = "An error occurred while viewing the Expected Stock attachment. Please try again.";
             }
             return RedirectToAction(nameof(Index));
+        }
+
+        // Add generic transition action
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ExecuteAction(int id, string actionName, string remarks)
+        {
+            try
+            {
+                var exPrintMint = await _exPrintMintRepository.FindById(id);
+                if (exPrintMint == null)
+                {
+                    TempData["Error"] = "Expected Stock not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "System";
+                var userRoles = User.FindAll("appRole")
+                    .Where(c => c.Value.StartsWith("VMS:"))
+                    .Select(c => c.Value.Split(":")[1])
+                    .ToList();
+
+                bool isExecuted = await _workflowService.ExecuteTransition(
+                    StatusConstants.Entity.ExPrintMint,
+                    id,
+                    exPrintMint.CurrentStatusId,
+                    actionName,
+                    userId,
+                    userRoles,
+                    remarks);
+
+                if (isExecuted)
+                {
+                    TempData["Success"] = $"Review completed successfully!";
+                }
+                else
+                {
+                    TempData["Error"] = $"Failed to execute {actionName} action. You may not have permission or the action is not valid for current status.";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing action {Action} on Expected Stock {Id}", actionName, id);
+                TempData["Error"] = "An error occurred while executing the action.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id });
         }
     }
 }

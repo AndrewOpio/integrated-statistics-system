@@ -25,5 +25,6 @@ namespace VMSService.Data.Entities
         public int CurrentStatusId { get; set; }
         public StatusType CurrentStatus { get; set; }
         public bool IsDeleted { get; set; }
+        public int NumberOfBoxes { get; set; }
     }
 }

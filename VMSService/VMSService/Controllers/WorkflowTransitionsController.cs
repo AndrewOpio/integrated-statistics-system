@@ -52,8 +52,7 @@ namespace VMSService.Web.Controllers
             try
             {
                 var statuses = await _statusTypeRepository.FindAll();
-                ViewBag.FromStatuses = _mapper.Map<List<StatusTypeViewModel>>(statuses);
-                ViewBag.ToStatuses = _mapper.Map<List<StatusTypeViewModel>>(statuses);
+                ViewBag.AllStatuses = _mapper.Map<List<StatusTypeViewModel>>(statuses);
                 ViewBag.ButtonClasses = new List<string> 
                 { 
                     "btn-success", 
@@ -393,33 +392,33 @@ namespace VMSService.Web.Controllers
         }
 
         [Breadcrumb("Details", FromController = typeof(WorkflowTransitionsController), FromAction = nameof(Index))]
-public async Task<IActionResult> Details(int? id)
-{
-    if (id == null)
-    {
-        return NotFound();
-    }
-
-    try
-    {
-        var transition = await _workflowTransitionRepository.FindById(id.Value);
-        if (transition == null)
+        public async Task<IActionResult> Details(int? id)
         {
-            return NotFound();
+            if (id == null)
+            {
+                return NotFound();
+            }
+
+            try
+            {
+                var transition = await _workflowTransitionRepository.FindById(id.Value);
+                if (transition == null)
+                {
+                    return NotFound();
+                }
+
+                var model = _mapper.Map<WorkflowTransitionViewModel>(transition);
+                model.FromStatusName = transition.FromStatus?.Name;
+                model.ToStatusName = transition.ToStatus?.Name;
+
+                return View(model);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving workflow transition details with id {WorkflowTransitionId}", id);
+                TempData["Error"] = "An error occurred while retrieving the workflow transition. Please try again.";
+                return RedirectToAction(nameof(Index));
+            }
         }
-
-        var model = _mapper.Map<WorkflowTransitionViewModel>(transition);
-        model.FromStatusName = transition.FromStatus?.Name;
-        model.ToStatusName = transition.ToStatus?.Name;
-
-        return View(model);
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error retrieving workflow transition details with id {WorkflowTransitionId}", id);
-        TempData["Error"] = "An error occurred while retrieving the workflow transition. Please try again.";
-        return RedirectToAction(nameof(Index));
-    }
-}
     }
 }

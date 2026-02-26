@@ -18,5 +18,6 @@
         public StatusType CurrentStatus { get; set; }
         public bool IsDeleted { get; set; }
         public bool IsPartial { get; set; }
+        public int NumberOfBoxes { get; set; }
     }
 }

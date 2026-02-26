@@ -12,6 +12,6 @@ namespace VMSService.Core.Services.Workflows
         /// <summary>
         /// Execute a workflow transition
         /// </summary>
-        Task<bool> ExecuteTransition(string entityType, int entityId, int currentStatusId, string actionName, string userId, string userRole, string remarks);
+        Task<bool> ExecuteTransition(string entityType, int entityId, int currentStatusId, string actionName, string userId, List<string> userRoles, string remarks);
     }
 }

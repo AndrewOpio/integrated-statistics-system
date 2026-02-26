@@ -46,5 +46,14 @@ namespace VMSService.Core.Repositories.ExPrintMintStatusHistories
             _db.ExPrintMintStatusHistory.Update(model);
             return await Save();
         }
+
+        public async Task<ICollection<ExPrintMintStatusHistory>> FindByExPrintMintId(int exPrintMintId)
+        {
+            return await _db.ExPrintMintStatusHistory.Where(x => x.ExPrintMintId == exPrintMintId && x.IsDeleted == false)
+                .Include(x => x.ExPrintMint)
+                .Include(x => x.OldStatus)
+                .Include(x => x.NewStatus)
+                .ToListAsync();
+        }
     }
 }

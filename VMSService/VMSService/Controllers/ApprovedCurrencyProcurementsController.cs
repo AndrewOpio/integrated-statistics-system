@@ -6,11 +6,13 @@ using VMSService.Controllers;
 using VMSService.Core.Models.ApprovedCurrencyDenominations;
 using VMSService.Core.Models.ApprovedCurrencyProcurements;
 using VMSService.Core.Models.ApprovedCurrencyStatusHistories;
+using VMSService.Core.Models.CurrencyVendors;
 using VMSService.Core.Models.Denominations;
 using VMSService.Core.Models.WorkflowTransitions;
 using VMSService.Core.Repositories.ApprovedCurrencyDenominations;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
+using VMSService.Core.Repositories.CurrencyVendors;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.StatusTypes;
 using VMSService.Core.Services.Workflows;
@@ -27,7 +29,8 @@ namespace VMSService.Web.Controllers
         IApprovedCurrencyDenominationRepository _approvedCurrencyDenominationRepo,
         IDenominationRepository _denominationRepository,
         IWorkflowService _workflowService,
-        IApprovedCurrencyStatusHistoryRepository _statusHistoryRepository) : Controller
+        IApprovedCurrencyStatusHistoryRepository _statusHistoryRepository,
+        ICurrencyVendorRepository _currencyVendorRepository) : Controller
     {
 
         [Breadcrumb("Approved Currency Procurements", FromController = typeof(HomeController), FromAction = nameof(Index))]
@@ -86,7 +89,7 @@ namespace VMSService.Web.Controllers
                 foreach (var userRole in userRoles)
                 {
                     var transitions = await _workflowService.GetAvailableTransitions(
-                        "ApprovedCurrencyProcurement",
+                        StatusConstants.Entity.ApprovedCurrencyProcurement,
                         approvedCurrencyProcurement.CurrentStatusId,
                         userRole);
                     if (transitions != null)
@@ -117,6 +120,7 @@ namespace VMSService.Web.Controllers
             try
             {
                 ViewBag.Denominations = _mapper.Map<List<DenominationViewModel>>(await _denominationRepository.FindAll());
+                ViewBag.CurrencyVendors = _mapper.Map<List<CurrencyVendorViewModel>>(await _currencyVendorRepository.FindAll());
                 return View(new ApprovedCurrencyProcurementsViewModel());
             }
             catch (Exception ex)
@@ -134,6 +138,7 @@ namespace VMSService.Web.Controllers
         public async Task<IActionResult> Create(ApprovedCurrencyProcurementsViewModel model)
         {
             ViewBag.Denominations = _mapper.Map<List<DenominationViewModel>>(await _denominationRepository.FindAll());
+            ViewBag.CurrencyVendors = _mapper.Map<List<CurrencyVendorViewModel>>(await _currencyVendorRepository.FindAll());
             if (!ModelState.IsValid)
             {
                 var errors = ModelState.Values.SelectMany(v => v.Errors);
@@ -179,7 +184,7 @@ namespace VMSService.Web.Controllers
 
                 model.BoardApprovalAttachment = filePath;
 
-                StatusType status = await _statusTypeRepository.FindByName(StatusConstants.ApprovedCurrencyProcurement.PendingVerification, StatusConstants.Category.ApprovedCurrencyProcurement);
+                StatusType status = await _statusTypeRepository.FindByName(StatusConstants.ApprovedCurrencyProcurement.Draft, StatusConstants.Category.ApprovedCurrencyProcurement);
                 model.CurrentStatusId = status.Id;
 
                 ApprovedCurrencyProcurement newApprovedCurrencyProcurement = _mapper.Map<ApprovedCurrencyProcurement>(model);
@@ -194,7 +199,8 @@ namespace VMSService.Web.Controllers
                             DenominationId = denomination.DenominationId,
                             ApprovedCurrencyId = newApprovedCurrencyProcurement.Id,
                             Amount = denomination.Amount,
-                            NumberOfPieces = denomination.NumberOfPieces
+                            NumberOfPieces = denomination.NumberOfPieces,
+                            CurrencyVendorId = denomination.CurrencyVendorId
                         };
 
                         await _approvedCurrencyDenominationRepo.Create(newApprovedCurrencyDenomination);
@@ -246,6 +252,7 @@ namespace VMSService.Web.Controllers
                 }
 
                 ViewBag.Denominations = _mapper.Map<List<DenominationViewModel>>(await _denominationRepository.FindAll());
+                ViewBag.CurrencyVendors = _mapper.Map<List<CurrencyVendorViewModel>>(await _currencyVendorRepository.FindAll());
 
                 var model = _mapper.Map<ApprovedCurrencyProcurementsViewModel>(approvedCurrencyProcurement);
                 model.ApprovedCurrencyDenominations = _mapper.Map<List<ApprovedCurrencyDenominationViewModel>>(await _approvedCurrencyDenominationRepo.FindByApprovedCurrencyId(id ?? 0));
@@ -271,6 +278,7 @@ namespace VMSService.Web.Controllers
             }
 
             ViewBag.Denominations = _mapper.Map<List<DenominationViewModel>>(await _denominationRepository.FindAll());
+            ViewBag.CurrencyVendors = _mapper.Map<List<CurrencyVendorViewModel>>(await _currencyVendorRepository.FindAll());
 
             if (!ModelState.IsValid && !(ModelState.ErrorCount == 1 && ModelState["AttachmentFile"]?.ValidationState == ModelValidationState.Invalid))
             {
@@ -356,7 +364,8 @@ namespace VMSService.Web.Controllers
                                 DenominationId = denomination.DenominationId,
                                 ApprovedCurrencyId = approvedCurrencyProcurement.Id,
                                 Amount = denomination.Amount,
-                                NumberOfPieces = denomination.NumberOfPieces
+                                NumberOfPieces = denomination.NumberOfPieces,
+                                CurrencyVendorId = denomination.CurrencyVendorId
                             };
 
                             await _approvedCurrencyDenominationRepo.Create(newApprovedCurrencyDenomination);
@@ -367,6 +376,7 @@ namespace VMSService.Web.Controllers
                             approvedCurrencyDenomination.Amount = denomination.Amount;
                             approvedCurrencyDenomination.DenominationId = denomination.DenominationId;
                             approvedCurrencyDenomination.NumberOfPieces = denomination.NumberOfPieces;
+                            approvedCurrencyDenomination.CurrencyVendorId = denomination.CurrencyVendorId;
 
                             await _approvedCurrencyDenominationRepo.Update(approvedCurrencyDenomination);
                         }
@@ -510,20 +520,25 @@ namespace VMSService.Web.Controllers
                 }
 
                 var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "System";
-                var userRole = User.FindFirst(SystemPolicy.ClaimType.AppRole)?.Value ?? "";
+                //var userRole = User.FindFirst(SystemPolicy.ClaimType.AppRole)?.Value ?? "";
+                var userRoles = User.FindAll("appRole")
+                    .Where(c => c.Value.StartsWith("VMS:"))
+                    .Select(c => c.Value.Split(":")[1])
+                    .ToList();
 
                 bool isExecuted = await _workflowService.ExecuteTransition(
-                    "ApprovedCurrencyProcurement",
+                    StatusConstants.Entity.ApprovedCurrencyProcurement,
                     id,
                     procurement.CurrentStatusId,
                     actionName,
                     userId,
-                    userRole,
+                    userRoles,
                     remarks);
 
                 if (isExecuted)
                 {
-                    TempData["Success"] = $"Procurement {actionName} successfully!";
+                    //TempData["Success"] = $"Procurement {actionName} successfully!";
+                    TempData["Success"] = $"Review completed successfully!";
                 }
                 else
                 {
