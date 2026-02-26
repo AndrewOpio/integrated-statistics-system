@@ -193,21 +193,21 @@ namespace IdentityService.Web.Controllers
             try
             {
                 // Remove applicationRoles that are no longer selected
-                //foreach (var userApplicationRole in userApplicationRoles)
-                //{
-                //    foreach (var applicationRoleList in model.ApplicationRolesByApplications.Values)
-                //    {
-                //        if (!applicationRoleList.Any(r => r.IsSelected && r.RoleName == userApplicationRole.ApplicationRole.Role.Name))
-                //        {
-                //            bool isDeleted = await _userAppRoleRepo.Delete(userApplicationRole.Id);
-                //            if (!isDeleted)
-                //            {
-                //                _logger.LogError($"Failed to remove role {userApplicationRole.ApplicationRole.Role.Name} from user {user.UserName}.");
-                //                TempData["Error"] = $"Failed to remove role {userApplicationRole.ApplicationRole.Role.Name} from user {user.UserName}. Please try again";
-                //            }
-                //        }
-                //    }
-                //}
+                foreach (var userApplicationRole in userApplicationRoles)
+                {
+                    foreach (var applicationRoleList in model.ApplicationRolesByApplications.Values)
+                    {
+                        if (!applicationRoleList.Any(r => r.IsSelected && r.RoleName == userApplicationRole.ApplicationRole.Role.Name))
+                        {
+                            bool isDeleted = await _userAppRoleRepo.Delete(userApplicationRole.Id);
+                            if (!isDeleted)
+                            {
+                                _logger.LogError($"Failed to remove role {userApplicationRole.ApplicationRole.Role.Name} from user {user.UserName}.");
+                                TempData["Error"] = $"Failed to remove role {userApplicationRole.ApplicationRole.Role.Name} from user {user.UserName}. Please try again";
+                            }
+                        }
+                    }
+                }
 
                 foreach (var applicationRoleList in model.ApplicationRolesByApplications.Values)
                 {

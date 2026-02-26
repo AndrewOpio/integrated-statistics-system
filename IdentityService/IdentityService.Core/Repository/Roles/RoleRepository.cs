@@ -11,7 +11,7 @@ namespace IdentityService.Core.Repository.Roles
     {
         public async Task<bool> Create(Role model)
         {
-            //model.Id = Guid.NewGuid().ToString();
+            model.Id = Guid.NewGuid().ToString();
             var result = await _roleManager.CreateAsync(model);
             if (!result.Succeeded)
             {
