@@ -21,8 +21,10 @@ using VMSService.Core.Repositories.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.ReceivedStocks;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
 using VMSService.Core.Repositories.StatusTypes;
+using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Repositories.VendorTypes;
 using VMSService.Core.Repositories.WorkflowTransitions;
+using VMSService.Core.Services.Stocks;
 using VMSService.Core.Services.Workflows;
 using VMSService.Data;
 
@@ -124,6 +126,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
 
+//Add configuration
+var configuration = new ConfigurationBuilder()
+    .AddJsonFile("appsettings.json")
+    .Build();
+
 // Register Repositories
 builder.Services.AddScoped<IVendorTypeRepository, VendorTypeRepository>();
 builder.Services.AddScoped<IStatusTypeRepository, StatusTypeRepository>();
@@ -139,6 +146,23 @@ builder.Services.AddScoped<IReceivedStockRepository, ReceivedStockRepository>();
 builder.Services.AddScoped<IWorkflowTransitionRepository, WorkflowTransitionRepository>();
 builder.Services.AddScoped<IWorkflowService, WorkflowService>();
 builder.Services.AddScoped<IReceivedStockStatusHistoryRepository, ReceivedStockStatusHistoryRepository>();
+builder.Services.AddScoped<IStockLedgerRepository, StockLedgerRepository>();
+builder.Services.AddScoped<IStockLedgerDetailRepository, StockLedgerDetailRepository>();
+
+// Add this in your service registration section
+builder.Services.AddScoped<IStockService, StockService>();
+builder.Services.AddHttpClient<StockService>()
+    .ConfigureHttpClient((sp, client) =>
+    {
+        var configuration = sp.GetRequiredService<IConfiguration>();
+        var baseUrl = configuration["StockApiSettings:BaseUrl"] ?? "https://localhost:7158";
+        client.BaseAddress = new Uri(baseUrl);
+        client.DefaultRequestHeaders.Add("Accept", "application/json");
+    });
+
+// Configure LDAP settings
+builder.Services.Configure<StockAPISettings>(
+    builder.Configuration.GetSection("StockApiSettings"));
 
 // Add SmartBreadcrumbs
 builder.Services.AddBreadcrumbs(Assembly.GetExecutingAssembly(), options =>

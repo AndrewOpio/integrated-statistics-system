@@ -1,4 +1,5 @@
 using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartBreadcrumbs.Attributes;
 using VMSService.Core.Models.StatusTypes;
@@ -9,7 +10,7 @@ using VMSService.Data.Entities;
 
 namespace VMSService.Web.Controllers
 {
-    //[Authorize]
+    [Authorize]
     public class WorkflowTransitionsController : Controller
     {
         private readonly IWorkflowTransitionRepository _workflowTransitionRepository;

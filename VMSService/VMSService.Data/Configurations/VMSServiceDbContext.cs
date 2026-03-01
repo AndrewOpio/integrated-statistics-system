@@ -19,12 +19,11 @@ namespace VMSService.Data.Configurations
         public DbSet<ApprovedCurrencyProcurement> ApprovedCurrencyProcurements { get; set; }
         public DbSet<ExPrintMint> ExPrintMints { get; set; }
         public DbSet<ApprovedCurrencyDenomination> ApprovedCurrencyDenominations { get; set; }
-        public DbSet<DenominationType> DenominationTypes { get; set; }
+        //public DbSet<DenominationType> DenominationTypes { get; set; }
         public DbSet<StatusType> StatusTypes { get; set; }
         public DbSet<ApprovedCurrencyStatusHistory> ApprovedCurrencyStatusHistory { get; set; }
         public DbSet<ExPrintMintStatusHistory> ExPrintMintStatusHistory { get; set; }
         public DbSet<ReceivedStock> ReceivedStock { get; set; }
-        public DbSet<Branch> Branches { get; set; }
         public DbSet<WorkflowTransition> WorkflowTransitions { get; set; }
         public DbSet<ReceivedStockStatusHistory> ReceivedStockStatusHistory { get; set; }
 

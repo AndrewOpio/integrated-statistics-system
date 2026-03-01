@@ -110,12 +110,18 @@
                                                 <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
                                                     <i class="ti ti-eye"></i>
                                                 </a>
-                                                <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
-                                                    <i class="ti ti-edit"></i>
-                                                </a>
-                                                <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger" title="Delete">
-                                                    <i class="ti ti-trash"></i>
-                                                </a>
+                                                @{
+                                                    bool isEditable = item.CurrentStatus?.Name == StatusConstants.ReceivedStock.Draft || item.CurrentStatus?.Name == StatusConstants.ReceivedStock.Returned;
+                                                }
+                                                @if (isEditable)
+                                                {
+                                                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
+                                                        <i class="ti ti-edit"></i>
+                                                    </a>
+                                                    <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger" title="Delete">
+                                                        <i class="ti ti-trash"></i>
+                                                    </a>
+                                                }
                                             </div>
                                         </td>
                                         @{

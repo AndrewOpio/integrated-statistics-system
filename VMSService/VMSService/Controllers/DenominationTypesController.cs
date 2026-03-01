@@ -1,13 +1,16 @@
 using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartBreadcrumbs.Attributes;
 using VMSService.Controllers;
 using VMSService.Core.Models.DenominationTypes;
 using VMSService.Core.Repositories.DenominationTypes;
+using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Data.Entities;
 
 namespace VMSService.Web.Controllers
 {
+    [Authorize]
     public class DenominationTypesController(IDenominationTypeRepository _denominationTypeRepository, IMapper _mapper, ILogger<DenominationTypesController> _logger) : Controller
     {
         [Breadcrumb("Denomination Types", FromController = typeof(HomeController), FromAction = nameof(Index))]

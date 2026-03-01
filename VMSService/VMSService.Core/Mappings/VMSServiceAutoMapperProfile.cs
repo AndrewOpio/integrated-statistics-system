@@ -10,8 +10,10 @@ using VMSService.Core.Models.ExPrintMintStatusHistories;
 using VMSService.Core.Models.ReceivedStocks;
 using VMSService.Core.Models.ReceivedStockStatusHistories;
 using VMSService.Core.Models.StatusTypes;
+using VMSService.Core.Models.StockLedgers;
 using VMSService.Core.Models.VendorTypes;
 using VMSService.Core.Models.WorkflowTransitions;
+using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Data.Entities;
 
 namespace VMSService.Core.Mappings
@@ -33,6 +35,19 @@ namespace VMSService.Core.Mappings
             CreateMap<ReceivedStock, ReceivedStockViewModel>().ReverseMap();
             CreateMap<WorkflowTransition, WorkflowTransitionViewModel>().ReverseMap();
             CreateMap<ReceivedStockStatusHistory, ReceivedStockStatusHistoryViewModel>().ReverseMap();
+
+            // StockLedgerDetail mappings
+            CreateMap<StockLedgerDetail, StockLedgerDetailViewModel>()
+                .ReverseMap();
+
+            CreateMap<StockLedger, StockLedgerViewModel>()
+                .ReverseMap();
+
+            CreateMap<CounterPartyType, CounterPartyTypeViewModel>()
+                .ReverseMap();
+
+            CreateMap<Category, CategoryViewModel>()
+                .ReverseMap();
         }
     }
 }

@@ -1,4 +1,5 @@
 using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartBreadcrumbs.Attributes;
 using VMSService.Controllers;
@@ -10,6 +11,7 @@ using VMSService.Data.Entities;
 
 namespace VMSService.Web.Controllers
 {
+    [Authorize]
     public class CurrencyVendorsController(
         ICurrencyVendorRepository _currencyVendorRepository,
         IVendorTypeRepository _vendorTypeRepository,

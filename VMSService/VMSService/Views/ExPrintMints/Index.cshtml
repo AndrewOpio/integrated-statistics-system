@@ -97,13 +97,13 @@
                                                     <span class="badge bg-primary">
                                                         <i class="ti ti-tag me-1"></i>ExPrint
                                                     </span>
-                                                } else
+                                                }
+                                                else
                                                 {
                                                     <span class="badge bg-primary">
                                                         <i class="ti ti-tag me-1"></i>ExMint
                                                     </span>
                                                 }
-
                                             </div>
                                         </td>
                                         <td>
@@ -127,12 +127,18 @@
                                                 <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
                                                     <i class="ti ti-eye"></i>
                                                 </a>
-                                                <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
-                                                    <i class="ti ti-edit"></i>
-                                                </a>
-                                                @* <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger" title="Delete">
-                                                    <i class="ti ti-trash"></i>
-                                                </a> *@
+                                                @{
+                                                    bool isEditable = item.CurrentStatus?.Name == StatusConstants.ExPrintMint.Draft || item.CurrentStatus?.Name == StatusConstants.ExPrintMint.Returned;
+                                                }
+                                                @if (isEditable)
+                                                {
+                                                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
+                                                        <i class="ti ti-edit"></i>
+                                                    </a>
+                                                    <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger" title="Delete">
+                                                        <i class="ti ti-trash"></i>
+                                                    </a>
+                                                }
                                             </div>
                                         </td>
                                         @{
@@ -144,7 +150,7 @@
                             else
                             {
                                 <tr>
-                                    <td colspan="8" class="text-center py-4 text-muted">
+                                    <td colspan="9" class="text-center py-4 text-muted">
                                         <i class="ti ti-inbox me-2"></i>No expected stock found.
                                     </td>
                                 </tr>

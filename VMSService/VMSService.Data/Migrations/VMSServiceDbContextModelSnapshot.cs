@@ -170,40 +170,6 @@ namespace VMSService.Data.Migrations
                     b.ToTable("ApprovedCurrencyStatusHistory");
                 });
 
-            modelBuilder.Entity("VMSService.Data.Entities.Branch", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("ModifiedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("ModifiedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Branches");
-                });
-
             modelBuilder.Entity("VMSService.Data.Entities.CurrencyVendor", b =>
                 {
                     b.Property<int>("Id")
@@ -290,43 +256,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("DenominationTypeId");
-
                     b.ToTable("Denominations");
-                });
-
-            modelBuilder.Entity("VMSService.Data.Entities.DenominationType", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("ModifiedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("ModifiedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("DenominationTypes");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ExPrintMint", b =>
@@ -800,17 +730,6 @@ namespace VMSService.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("VendorType");
-                });
-
-            modelBuilder.Entity("VMSService.Data.Entities.Denomination", b =>
-                {
-                    b.HasOne("VMSService.Data.Entities.DenominationType", "DenominationType")
-                        .WithMany()
-                        .HasForeignKey("DenominationTypeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("DenominationType");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ExPrintMint", b =>

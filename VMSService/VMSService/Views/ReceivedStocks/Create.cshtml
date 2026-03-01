@@ -39,7 +39,8 @@
                                                     data-delivery-date="@exPrintMint.DeliveryDate.ToString("dd/MMM/yyyy")"
                                                     data-number-of-pieces="@exPrintMint.NumberOfPieces.ToString("N0")"
                                                     data-value="@exPrintMint.Value.ToString("N0")"
-                                                    data-denomination-value="@exPrintMint.Denomination?.Value">
+                                                    data-denomination-value="@exPrintMint.Denomination?.Value"
+                                                    data-pieces-in-box="@exPrintMint.Denomination?.NumberOfPiecesInABox">
                                                 @exPrintMint.ExPrintMintReference | @exPrintMint.Value.ToString("N0")/= | @exPrintMint.DeliveryDate.ToString("dd/MMM/yyyy")
                                             </option>
                                         }
@@ -120,22 +121,26 @@
                             </div>
 
                             <div class="col-md-6 mb-3">
-                                <label class="form-label" asp-for="NumberOfPieces">Number of Pieces <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="NumberOfPiecesText" placeholder="Enter number of pieces" required>
-                                <input type="hidden" asp-for="NumberOfPieces" id="NumberOfPieces">
-                                <span asp-validation-for="NumberOfPieces" class="text-danger small d-block mt-1"></span>
+                                <label class="form-label" for="AmountText">Amount <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="AmountText" placeholder="Enter amount" required>
+                                <input type="hidden" asp-for="Value" id="Value">
+                                <span asp-validation-for="Value" class="text-danger small d-block mt-1"></span>
                             </div>
                         </div>
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label class="form-label" for="ValueTest">Value <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="ValueTest" placeholder="0" disabled>
-                                <small class="text-muted d-block mt-1">Automatically calculated based on pieces and denomination value</small>
-                                <span class="text-danger small d-block mt-1" id="valueError"></span>
-                                <!-- Hidden input for actual value submission -->
-                                <input type="hidden" asp-for="Value" id="Value">
-                                <span asp-validation-for="Value" class="text-danger small d-block mt-1"></span>
+                                <label class="form-label" for="NumberOfPiecesText">Number of Pieces <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="NumberOfPiecesText" placeholder="0" readonly>
+                                <input type="hidden" asp-for="NumberOfPieces" id="NumberOfPieces">
+                                <small class="text-muted d-block mt-1">Automatically calculated based on amount and denomination value</small>
+                                <span asp-validation-for="NumberOfPieces" class="text-danger small d-block mt-1"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="NumberOfBoxesText">Number of Boxes <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="NumberOfBoxesText" placeholder="0" readonly>
+                                <small class="text-muted d-block mt-1">Automatically calculated based on pieces and box capacity</small>
                             </div>
                         </div>
 
@@ -239,24 +244,11 @@
 
         const $exPrintMintSelect = $('#ExPrintMintId');
         const $summaryCard = $('#exPrintMintSummary');
+        const $amountText = $('#AmountText');
+        const $value = $('#Value');
         const $numberOfPiecesText = $('#NumberOfPiecesText');
         const $numberOfPieces = $('#NumberOfPieces');
-        const $valueTest = $('#ValueTest');
-        const $value = $('#Value');
-
-        // Store ExPrintMint data for calculations
-        let exPrintMintsData = {};
-        @if (ViewBag.ExPrintMints != null)
-        {
-            <text>
-            const exPrintMintsArray = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.ExPrintMints));
-            exPrintMintsArray.forEach(function(item) {
-                exPrintMintsData[item.Id] = {
-                    denominationValue: @Html.Raw("item.denomination?.Value || 0")
-                };
-            });
-            </text>
-        }
+        const $numberOfBoxesText = $('#NumberOfBoxesText');
 
         // Handle ExPrintMint selection change
         $exPrintMintSelect.on('change', function() {
@@ -274,102 +266,104 @@
                 // Show summary card
                 $summaryCard.slideDown(300);
 
-                // Recalculate value when ExPrintMint changes
-                calculateValue();
+                // Recalculate when ExPrintMint changes
+                calculatePiecesAndBoxes();
             } else {
                 // Hide summary card if no selection
                 $summaryCard.slideUp(300);
-                // Clear value calculation
-                $valueTest.val('');
+                // Clear calculations
+                $amountText.val('');
                 $value.val('');
+                $numberOfPiecesText.val('0');
+                $numberOfPieces.val('0');
+                $numberOfBoxesText.val('0');
             }
         });
 
-        // Handle Number of Pieces formatting
-        $numberOfPiecesText.on('input', function() {
+        // Handle Amount formatting
+        $amountText.on('input', function() {
             let input = $(this).val();
             
-            // Remove all non-numeric characters
-            let sanitized = input.replace(/[^0-9]/g, '');
+            // Remove all non-numeric characters except decimal
+            let sanitized = input.replace(/[^0-9.]/g, '');
             
-            const number = parseInt(sanitized);
-            if (!isNaN(number)) {
-                // Format with commas
-                $(this).val(number.toLocaleString('en-US'));
-                // Update hidden input with numeric value
-                $numberOfPieces.val(number);
-            } else {
-                $(this).val('');
-                $numberOfPieces.val('');
+            // Prevent multiple decimal points
+            const parts = sanitized.split('.');
+            if (parts.length > 2) {
+                sanitized = parts[0] + '.' + parts.slice(1).join('');
             }
 
-            // Recalculate value when pieces change
-            calculateValue();
+            const number = parseFloat(sanitized);
+            if (!isNaN(number)) {
+                // Format with commas and 0 decimal places
+                $(this).val(number.toLocaleString('en-US', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                }));
+                // Update hidden input with numeric value
+                $value.val(number);
+            } else {
+                $(this).val('');
+                $value.val('');
+            }
+
+            // Recalculate when amount changes
+            calculatePiecesAndBoxes();
         });
 
-        // Handle paste events for Number of Pieces
-        $numberOfPiecesText.on('paste', function() {
+        // Handle paste events for Amount
+        $amountText.on('paste', function() {
             const $this = $(this);
             setTimeout(function() {
                 $this.trigger('input');
             }, 10);
         });
 
-        // Calculate value based on pieces and denomination value
-        function calculateValue() {
+        // Calculate pieces and boxes based on amount and denomination
+        function calculatePiecesAndBoxes() {
             const selectedExPrintMintId = $exPrintMintSelect.val();
-            const numberOfPieces = parseInt($numberOfPieces.val()) || 0;
+            const amount = parseFloat($value.val()) || 0;
 
-            if (selectedExPrintMintId && numberOfPieces > 0) {
-                // Get the denomination value from the selected option's data attribute
+            if (selectedExPrintMintId && amount > 0) {
+                // Get the denomination data from the selected option
                 const selectedOption = $exPrintMintSelect.find('option:selected');
-                let expectedDenominationValue = selectedOption.data('denomination-value');
-                // let expectedPieces = selectedOption.data('number-of-pieces');
+                const denominationValue = parseFloat(selectedOption.data('denomination-value')) || 0;
+                const piecesInBox = parseInt(selectedOption.data('pieces-in-box')) || 1;
 
-                // Handle string with commas or numeric values
-                // expectedValue = typeof expectedValue === 'string' 
-                //     ? parseFloat(expectedValue.replace(/,/g, '')) || 0 
-                //     : parseFloat(expectedValue) || 0;
-                
-                // expectedPieces = typeof expectedPieces === 'string' 
-                //     ? parseInt(expectedPieces.replace(/,/g, '')) || 0 
-                //     : parseInt(expectedPieces) || 0;
+                // Calculate number of pieces: amount / denominationValue
+                const numberOfPieces = Math.floor(amount / denominationValue);
 
-                // Calculate denomination value per piece
-                // const denominationValuePerPiece = expectedPieces > 0 ? expectedValue / expectedPieces : 0;
+                // Calculate number of boxes: numberOfPieces / piecesInBox
+                const numberOfBoxes = Math.ceil(numberOfPieces / piecesInBox);
 
-                // Calculate total value for received pieces
-                const calculatedValue = numberOfPieces * expectedDenominationValue;
+                // Display formatted pieces
+                $numberOfPiecesText.val(numberOfPieces.toLocaleString('en-US'));
+                $numberOfPieces.val(numberOfPieces);
 
-                // Format and display value
-                $valueTest.val(calculatedValue.toLocaleString('en-US', {
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0
-                }));
-
-                // Set hidden input
-                $value.val(calculatedValue);
+                // Display formatted boxes
+                $numberOfBoxesText.val(numberOfBoxes.toLocaleString('en-US'));
             } else {
-                $valueTest.val('');
-                $value.val('');
+                $numberOfPiecesText.val('0');
+                $numberOfPieces.val('0');
+                $numberOfBoxesText.val('0');
             }
         }
 
         // Form submission - ensure values are set
         $('#createForm').on('submit', function(e) {
-            const numberOfPieces = $numberOfPieces.val();
+            const amount = $value.val();
             
-            if (!numberOfPieces || numberOfPieces === '0') {
+            if (!amount || amount === '0') {
                 e.preventDefault();
-                $('#numberOfPiecesText').focus();
-                alert('Please enter the number of pieces received');
+                $amountText.focus();
+                alert('Please enter a valid amount');
                 return false;
             }
 
-            const calculatedValue = $value.val();
-            if (!calculatedValue || calculatedValue === '0') {
+            const numberOfPieces = $numberOfPieces.val();
+            if (!numberOfPieces || numberOfPieces === '0') {
                 e.preventDefault();
-                alert('Value could not be calculated. Please ensure a valid ExPrintMint is selected and pieces are entered');
+                alert('Amount must be greater than 0. Please enter a valid amount');
                 return false;
             }
         });

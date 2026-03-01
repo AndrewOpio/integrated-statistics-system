@@ -1,4 +1,5 @@
 using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using SmartBreadcrumbs.Attributes;
@@ -21,6 +22,7 @@ using VMSService.Data.Entities;
 
 namespace VMSService.Web.Controllers
 {
+    [Authorize]
     public class ApprovedCurrencyProcurementsController(
         IApprovedCurrencyProcurementRepository _approvedCurrencyProcurementRepository,
         IStatusTypeRepository _statusTypeRepository,
@@ -538,7 +540,7 @@ namespace VMSService.Web.Controllers
                 if (isExecuted)
                 {
                     //TempData["Success"] = $"Procurement {actionName} successfully!";
-                    TempData["Success"] = $"Review completed successfully!";
+                    TempData["Success"] = $"Review completed successfully and Notification Sent!";
                 }
                 else
                 {

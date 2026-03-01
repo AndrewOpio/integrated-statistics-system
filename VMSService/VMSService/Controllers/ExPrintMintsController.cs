@@ -8,7 +8,6 @@ using VMSService.Core.Models.CurrencyVendors;
 using VMSService.Core.Models.Denominations;
 using VMSService.Core.Models.ExPrintMintStatusHistories;
 using VMSService.Core.Models.ExPrintMints;
-using VMSService.Core.Models.VendorTypes;
 using VMSService.Core.Models.WorkflowTransitions;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.CurrencyVendors;
@@ -20,9 +19,14 @@ using VMSService.Core.Repositories.VendorTypes;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
+using Microsoft.AspNetCore.Authorization;
+using VMSService.Core.Services.Stocks.StockEntities;
+using VMSService.Core.Services.Stocks;
+using VMSService.Core.Models.DenominationTypes;
 
 namespace VMSService.Web.Controllers
 {
+    [Authorize]
     public class ExPrintMintsController(
         IExPrintMintRepository _exPrintMintRepository,
         IStatusTypeRepository _statusTypeRepository,
@@ -33,7 +37,8 @@ namespace VMSService.Web.Controllers
         IVendorTypeRepository _vendorTypeRepository,
         IApprovedCurrencyProcurementRepository _approvedCurrencyProcurementRepo,
         IWorkflowService _workflowService,
-        IExPrintMintStatusHistoryRepository _statusHistoryRepository) : Controller
+        IExPrintMintStatusHistoryRepository _statusHistoryRepository,
+        IStockService _stockService) : Controller
     {
         [Breadcrumb("Expected Stock", FromController = typeof(HomeController), FromAction = nameof(Index))]
         // GET: ExPrintMints
@@ -42,7 +47,7 @@ namespace VMSService.Web.Controllers
             try
             {
                 var exPrintMints = (await _exPrintMintRepository.FindAll());
-                var model = _mapper.Map<List<ExPrintMintViewModel>>(exPrintMints);
+                var model = _mapper.Map<List<ExPrintMintViewModel>>((List<ExPrintMint>)exPrintMints);
                 return View(model);
             }
             catch (Exception ex)
@@ -102,6 +107,10 @@ namespace VMSService.Web.Controllers
                 model.StatusHistory = _mapper.Map<ICollection<ExPrintMintStatusHistoryViewModel>>(
                     await _statusHistoryRepository.FindByExPrintMintId(id ?? 0));
 
+                DenominationType denominationType = await _stockService.GetDenominationTypeById(model.Denomination.DenominationTypeId);
+
+                model.Denomination.DenominationType = _mapper.Map<DenominationTypeViewModel>(denominationType);
+
                 return View(model);
             }
             catch (Exception ex)
@@ -120,7 +129,7 @@ namespace VMSService.Web.Controllers
             {
                 ViewBag.CurrencyVendors = _mapper.Map<List<CurrencyVendorViewModel>>(await _currencyVendorRepository.FindAll());
                 ViewBag.Denominations = _mapper.Map<List<DenominationViewModel>>(await _denominationRepository.FindAll());
-                ViewBag.VendorTypes = _mapper.Map<List<VendorTypeViewModel>>(await _vendorTypeRepository.FindAll());
+                ViewBag.VendorTypes = _mapper.Map<List<VendorType>>(await _vendorTypeRepository.FindAll());
                 ViewBag.ApprovedCurrencyProcurements = _mapper.Map<List<ApprovedCurrencyProcurementsViewModel>>(await _approvedCurrencyProcurementRepo.FindAll());
                 return View(new ExPrintMintViewModel());
             }
@@ -140,7 +149,7 @@ namespace VMSService.Web.Controllers
         {
             ViewBag.CurrencyVendors = _mapper.Map<List<CurrencyVendorViewModel>>(await _currencyVendorRepository.FindAll());
             ViewBag.Denominations = _mapper.Map<List<DenominationViewModel>>(await _denominationRepository.FindAll());
-            ViewBag.VendorTypes = _mapper.Map<List<VendorTypeViewModel>>(await _vendorTypeRepository.FindAll());
+            ViewBag.VendorTypes = _mapper.Map<List<VendorType>>(await _vendorTypeRepository.FindAll());
             ViewBag.ApprovedCurrencyProcurements = _mapper.Map<List<ApprovedCurrencyProcurementsViewModel>>(await _approvedCurrencyProcurementRepo.FindAll());
 
             if (!ModelState.IsValid)
@@ -244,7 +253,7 @@ namespace VMSService.Web.Controllers
 
                 ViewBag.CurrencyVendors = _mapper.Map<List<CurrencyVendorViewModel>>(await _currencyVendorRepository.FindAll());
                 ViewBag.Denominations = _mapper.Map<List<DenominationViewModel>>(await _denominationRepository.FindAll());
-                ViewBag.VendorTypes = _mapper.Map<List<VendorTypeViewModel>>(await _vendorTypeRepository.FindAll());
+                ViewBag.VendorTypes = _mapper.Map<List<VendorType>>(await _vendorTypeRepository.FindAll());
                 ViewBag.ApprovedCurrencyProcurements = _mapper.Map<List<ApprovedCurrencyProcurementsViewModel>>(await _approvedCurrencyProcurementRepo.FindAll());
                 
                 var model = _mapper.Map<ExPrintMintViewModel>(exPrintMint);
@@ -271,7 +280,7 @@ namespace VMSService.Web.Controllers
 
             ViewBag.CurrencyVendors = _mapper.Map<List<CurrencyVendorViewModel>>(await _currencyVendorRepository.FindAll());
             ViewBag.Denominations = _mapper.Map<List<DenominationViewModel>>(await _denominationRepository.FindAll());
-            ViewBag.VendorTypes = _mapper.Map<List<VendorTypeViewModel>>(await _vendorTypeRepository.FindAll());
+            ViewBag.VendorTypes = _mapper.Map<List<VendorType>>(await _vendorTypeRepository.FindAll());
             ViewBag.ApprovedCurrencyProcurements = _mapper.Map<List<ApprovedCurrencyProcurementsViewModel>>(await _approvedCurrencyProcurementRepo.FindAll());
 
             if (!ModelState.IsValid && !(ModelState.ErrorCount == 1 && ModelState["AttachmentFile"]?.ValidationState == ModelValidationState.Invalid))
@@ -498,7 +507,7 @@ namespace VMSService.Web.Controllers
 
                 if (isExecuted)
                 {
-                    TempData["Success"] = $"Review completed successfully!";
+                    TempData["Success"] = $"Review completed successfully and Notification Sent!";
                 }
                 else
                 {

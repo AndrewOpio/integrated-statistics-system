@@ -17,12 +17,18 @@
                     </div>
                     <div class="col text-end">
                         <div>
-                            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary btn-sm">
-                                <i class="ti ti-edit me-1"></i>Edit
-                            </a>
-                            <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger btn-sm">
-                                <i class="ti ti-trash me-1"></i>Delete
-                            </a>
+                            @{
+                                bool isEditable = Model.CurrentStatus?.Name == StatusConstants.ReceivedStock.Draft || Model.CurrentStatus?.Name == StatusConstants.ReceivedStock.Returned;
+                            }
+                            @if (isEditable)
+                            {
+                                <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary btn-sm">
+                                    <i class="ti ti-edit me-1"></i>Edit
+                                </a>
+                                <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger btn-sm">
+                                    <i class="ti ti-trash me-1"></i>Delete
+                                </a>
+                            }
                             <a asp-action="Index" class="btn btn-secondary btn-sm">
                                 <i class="ti ti-arrow-left me-1"></i>Back to List
                             </a>
@@ -178,11 +184,11 @@
 
                         @if (Model.BoxNumberRangeStart.HasValue && Model.BoxNumberRangeEnd.HasValue)
                         {
-                            <div class="alert alert-light mb-0" role="alert">
-                                <small class="text-muted">
+                            <div class="alert alert-light mb-0 p-3" role="alert">
+                                <span class="fs-6">
                                     <i class="ti ti-info-circle me-1"></i>
                                     Box Range: @Model.BoxNumberPrefix@Model.BoxNumberRangeStart - @Model.BoxNumberPrefix@Model.BoxNumberRangeEnd
-                                </small>
+                                </span>
                             </div>
                         }
                     </div>
@@ -283,11 +289,11 @@
 
                         @if (Model.SerialNumberRangeStart.HasValue && Model.SerialNumberRangeEnd.HasValue)
                         {
-                            <div class="alert alert-light mb-0" role="alert">
-                                <small class="text-muted">
+                            <div class="alert alert-light mb-0 p-3" role="alert">
+                                <span class="fs-6">
                                     <i class="ti ti-info-circle me-1"></i>
                                     Serial Range: @Model.SerialNumberPrefix@Model.SerialNumberRangeStart - @Model.SerialNumberPrefix@Model.SerialNumberRangeEnd
-                                </small>
+                                </span>
                             </div>
                         }
                     </div>

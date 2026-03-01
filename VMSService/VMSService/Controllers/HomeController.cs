@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartBreadcrumbs.Attributes;
 using System.Diagnostics;
@@ -5,6 +6,7 @@ using VMSService.Models;
 
 namespace VMSService.Controllers
 {
+    [Authorize]
     [DefaultBreadcrumb("Dashboard")]
     public class HomeController : Controller
     {

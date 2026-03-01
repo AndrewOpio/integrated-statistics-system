@@ -1,8 +1,8 @@
 using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartBreadcrumbs.Attributes;
 using VMSService.Controllers;
-using VMSService.Core.Models.ApprovedCurrencyStatusHistories;
 using VMSService.Core.Models.ExPrintMints;
 using VMSService.Core.Models.ReceivedStocks;
 using VMSService.Core.Models.ReceivedStockStatusHistories;
@@ -11,12 +11,15 @@ using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ReceivedStocks;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
 using VMSService.Core.Repositories.StatusTypes;
+using VMSService.Core.Repositories.Stocks;
+using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
 
 namespace VMSService.Web.Controllers
 {
+    [Authorize]
     public class ReceivedStocksController(
         IReceivedStockRepository _receivedStockRepository,
         IExPrintMintRepository _exPrintMintRepository,
@@ -24,7 +27,9 @@ namespace VMSService.Web.Controllers
         IMapper _mapper,
         ILogger<ReceivedStocksController> _logger,
         IWorkflowService _workflowService,
-        IReceivedStockStatusHistoryRepository _statusHistoryRepository) : Controller
+        IReceivedStockStatusHistoryRepository _statusHistoryRepository,
+        IStockLedgerRepository _stockLedgerRepository,
+        IStockLedgerDetailRepository _stockLedgerDetailRepository) : Controller
     {
         [Breadcrumb("Received Stock", FromController = typeof(HomeController), FromAction = nameof(Index))]
         // GET: ReceivedStocks
@@ -91,7 +96,7 @@ namespace VMSService.Web.Controllers
                 model.AvailableTransitions = availableTransitions.Distinct().ToList();
 
                 model.StatusHistory = _mapper.Map<ICollection<ReceivedStockStatusHistoryViewModel>>(
-                    await _statusHistoryRepository.FindAll());
+                    await _statusHistoryRepository.FindByReceivedStockId(id ?? 0));
 
                 return View(model);
             }
@@ -369,6 +374,13 @@ namespace VMSService.Web.Controllers
                     .Where(c => c.Value.StartsWith("VMS:"))
                     .Select(c => c.Value.Split(":")[1])
                     .ToList();
+                var username = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value;
+                if (username == null)
+                {
+                    //_logger.LogWarning("Username claim not found for user executing action {Action} on Received Stock {ReceivedStockId}", actionName, id);
+                    TempData["Error"] = "The session ended. Please ";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
 
                 bool isExecuted = await _workflowService.ExecuteTransition(
                     StatusConstants.Entity.ReceivedStock,
@@ -381,7 +393,67 @@ namespace VMSService.Web.Controllers
 
                 if (isExecuted)
                 {
-                    TempData["Success"] = $"Review completed successfully!";
+                    if (actionName.Equals("Confirm"))
+                    {
+                        //Update Stock Position
+                        try
+                        {
+                            var updatedReceivedStock = await _receivedStockRepository.FindById(id);
+
+                            // Create StockLedger entry
+                            var stockLedger = new StockLedger
+                            {
+                                ReferenceCode = receivedStock.ExPrintMint.ExPrintMintReference,
+                                IsIn = true,
+                                CounterPartyId = 1,
+                                CategoryId = 1, //Remove 
+                                Notes = remarks,
+                                CreatedBy = username ?? "unknown",
+                                CreatedDate = DateTime.Now,
+                                ModifiedBy = username ?? "unknown",
+                                ModifiedDate = DateTime.Now,
+                                StockLedgerDetails = new List<StockLedgerDetail>()
+                            };
+
+                            StockLedger createdLedgerRecord = await _stockLedgerRepository.Create(stockLedger);
+
+                            if (createdLedgerRecord != null)
+                            {
+                                // Create StockLedgerDetail entries
+                                for (int i = 0; i < updatedReceivedStock.NumberOfPieces; i++)
+                                {
+                                    var ledgerDetail = new StockLedgerDetail
+                                    {
+                                        StockLedgerId = createdLedgerRecord.Id,
+                                        DenominationId = receivedStock.ExPrintMint.DenominationId,
+                                        Count = receivedStock.NumberOfPieces,
+                                        Values = (int) receivedStock.Value,
+                                        CreatedBy = username ?? "unknown",
+                                        ModifiedBy = username ?? "unknown",
+                                        CreatedDate = DateTime.Now,
+                                        ModifiedDate = DateTime.Now
+                                    };
+
+                                    await _stockLedgerDetailRepository.Create(ledgerDetail);
+                                }
+
+                                _logger.LogInformation("Stock position updated successfully for Received Stock {ReceivedStockId}", id);
+                            }
+                            else
+                            {
+                                _logger.LogWarning("Failed to create stock ledger for Received Stock {ReceivedStockId}", id);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error updating stock position for Received Stock {ReceivedStockId}", id);
+                            TempData["Warning"] = "Action confirmed but stock position update encountered an error. Please verify stock levels.";
+                        }
+                        TempData["Success"] = "Stock Position Updated Successfuly and Notification Sent!";
+                    } else
+                    {
+                        TempData["Success"] = "Review completed successfully and Notification Sent!";
+                    }
                 }
                 else
                 {
