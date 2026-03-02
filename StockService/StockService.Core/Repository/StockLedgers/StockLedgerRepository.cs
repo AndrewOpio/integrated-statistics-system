@@ -6,12 +6,11 @@ namespace StockService.Core.Repository.StockLedgers
 {
     public class StockLedgerRepository(ApplicationDbContext _db) : IStockLedgerRepository
     {
-
         public async Task<ICollection<StockLedger>> FindAllAsync()
         {
             return await _db.StockLedger
                 .Include(cpt => cpt.CounterPartyType)
-                .Include(cp => cp.Category)
+                .Include(st => st.Store)
                 .Include(sl => sl.StockLedgerDetails)
                    .ThenInclude(sld => sld.Denomination)
                 .ToListAsync();
@@ -21,7 +20,7 @@ namespace StockService.Core.Repository.StockLedgers
         {
             return await _db.StockLedger
                 .Include(cpt => cpt.CounterPartyType)
-                .Include(cp => cp.Category)
+                .Include(st => st.Store)
                 .Include(sl => sl.StockLedgerDetails)
                     .ThenInclude(sld => sld.Denomination)
                 .FirstOrDefaultAsync(sl => sl.Id == id);
