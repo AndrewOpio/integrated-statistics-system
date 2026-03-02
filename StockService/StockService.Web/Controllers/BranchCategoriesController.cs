@@ -25,7 +25,7 @@ namespace StockService.Web.Controllers
                 IsDeleted = bc.IsDeleted,
                 Branch =  new BranchDto
                 {
-                    Id = bc.Branch.Id ?? null,
+                    Id = bc.Branch.Id,
                     Name = bc.Branch.Name,
                     IsDeleted = bc.Branch.IsDeleted
                 },

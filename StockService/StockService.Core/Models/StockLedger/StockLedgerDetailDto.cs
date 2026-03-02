@@ -7,7 +7,9 @@ namespace StockService.Core.Models.StockLedger
         public int Id { get; set; }
         public int DenominationId { get; set; }
         public DenominationDto? Denomination { get; set; }
-        public int Count { get; set; }
-        public int Values { get; set; }
+        public int NumberOfPieces { get; set; }
+        public int NumberOfBoxes { get; set; }
+        public int? NumberOfBundles { get; set; }
+        public int Value { get; set; }
     }
 }
