@@ -407,6 +407,7 @@ namespace VMSService.Web.Controllers
                                 IsIn = true,
                                 CounterPartyId = 1,
                                 CategoryId = 1, //Remove 
+                                CounterPartyTypeId = 1,
                                 Notes = remarks,
                                 CreatedBy = username ?? "unknown",
                                 CreatedDate = DateTime.Now,
