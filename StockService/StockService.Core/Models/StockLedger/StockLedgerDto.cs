@@ -1,4 +1,5 @@
 using StockService.Core.Models.CounterPartyTypes;
+using StockService.Web.Models.BranchCategories;
 using StockService.Web.Models.Categories;
 
 namespace StockService.Core.Models.StockLedger
@@ -11,8 +12,8 @@ namespace StockService.Core.Models.StockLedger
         public int CounterPartyTypeId { get; set; }
         public CounterPartyTypeDto? CounterPartyType { get; set; }
         public int CounterPartyId { get; set; }
-        public int CategoryId { get; set; }
-        public CategoryDto? Category { get; set; }
+        public int StoreId { get; set; }
+        public BranchCategoryDto? Store { get; set; }
         public string Notes { get; set; }
         public List<StockLedgerDetailDto> StockLedgerDetails { get; set; }
     }

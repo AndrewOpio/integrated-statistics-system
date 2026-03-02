@@ -33,13 +33,6 @@ namespace StockService.Web.Controllers
                     Name = sl.CounterPartyType.Name
                 },
                 CounterPartyId = sl.CounterPartyId,
-                CategoryId = sl.CategoryId,
-                Category = sl.Category == null ? null : new CategoryDto
-                {
-                    Id = sl.Category.Id,
-                    Name = sl.Category.Name,
-                    Classification = sl.Category.Classification
-                },
                 Notes = sl.Notes,
                 StockLedgerDetails = sl.StockLedgerDetails?.Select(d => new StockLedgerDetailDto
                 {
@@ -58,8 +51,10 @@ namespace StockService.Web.Controllers
                             Name = d.Denomination.DenominationType.Name
                         }
                     },
-                    Count = d.Count,
-                    Values = d.Values
+                    NumberOfPieces = d.NumberOfPieces,
+                    NumberOfBoxes = d.NumberOfBoxes,
+                    NumberOfBundles = d.NumberOfBundles,
+                    Value = d.Value
                 }).ToList() ?? new List<StockLedgerDetailDto>()
             });
             return Ok(result);
@@ -85,13 +80,6 @@ namespace StockService.Web.Controllers
                     Name = item.CounterPartyType.Name
                 },
                 CounterPartyId = item.CounterPartyId,
-                CategoryId = item.CategoryId,
-                Category = item.Category == null ? null : new CategoryDto
-                {
-                    Id = item.Category.Id,
-                    Name = item.Category.Name,
-                    Classification = item.Category.Classification
-                },
                 Notes = item.Notes,
                 StockLedgerDetails = item.StockLedgerDetails?.Select(d => new StockLedgerDetailDto
                 {
@@ -110,8 +98,10 @@ namespace StockService.Web.Controllers
                             Name = d.Denomination.DenominationType.Name
                         }
                     },
-                    Count = d.Count,
-                    Values = d.Values
+                    NumberOfPieces = d.NumberOfPieces,
+                    NumberOfBoxes = d.NumberOfBoxes,
+                    NumberOfBundles = d.NumberOfBundles,
+                    Value = d.Value
                 }).ToList() ?? new List<StockLedgerDetailDto>()
             };
             return Ok(result);
@@ -133,19 +123,13 @@ namespace StockService.Web.Controllers
                     ReferenceCode = created.ReferenceCode,
                     IsIn = created.IsIn,
                     CounterPartyTypeId = created.CounterPartyTypeId,
+                    StoreId = created.StoreId,
                     CounterPartyType = created.CounterPartyType == null ? null : new CounterPartyTypeDto
                     {
                         Id = created.CounterPartyType.Id,
                         Name = created.CounterPartyType.Name
                     },
                     CounterPartyId = created.CounterPartyId,
-                    CategoryId = created.CategoryId,
-                    Category = created.Category == null ? null : new CategoryDto
-                    {
-                        Id = created.Category.Id,
-                        Name = created.Category.Name,
-                        Classification = created.Category.Classification
-                    },
                     Notes = created.Notes,
                     StockLedgerDetails = created.StockLedgerDetails?.Select(d => new StockLedgerDetailDto
                     {
@@ -164,8 +148,10 @@ namespace StockService.Web.Controllers
                                 Name = d.Denomination.DenominationType.Name
                             }
                         },
-                        Count = d.Count,
-                        Values = d.Values
+                        NumberOfPieces = d.NumberOfPieces,
+                        NumberOfBoxes = d.NumberOfBoxes,
+                        NumberOfBundles = d.NumberOfBundles,
+                        Value = d.Value
                     }).ToList() ?? new List<StockLedgerDetailDto>()
                 };
                 return CreatedAtAction(nameof(GetStockLedger), new { id = created.Id }, result);
