@@ -1,6 +1,6 @@
 ﻿using VMSService.Data.AuditColumns;
 
-namespace VMSService.Data.Entities
+namespace VMSService.Core.Services.Stocks.StockEntities
 {
     public class Denomination : AuditableEntity
     {
@@ -9,8 +9,8 @@ namespace VMSService.Data.Entities
         public decimal Value { get; set; }
         public int NumberOfPiecesInABox { get; set; }
         public int DenominationTypeId { get; set; }
-        //public DenominationType? DenominationType { get; set; } = null;
-        public bool IsDeleted { get; set; }
-        //public List<StockLedgerDetail> StockLedgerDetail { get; set; } = new List<StockLedgerDetail>();
+        public bool IsDeleted { get; set; } = false;
+        public DenominationType? DenominationType { get; set; }
+        public ICollection<StockLedgerDetail> StockLedgerDetails { get; set; }
     }
 }

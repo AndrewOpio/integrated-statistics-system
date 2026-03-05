@@ -10,8 +10,10 @@ namespace VMSService.Core.Services.Stocks.StockEntities
         public int CounterPartyTypeId { get; set; }
         public CounterPartyType? CounterPartyType { get; set; }
         public int CounterPartyId { get; set; }
-        public int CategoryId { get; set; }
-        public Category? Category { get; set; }
+        public int StoreId { get; set; }
+        public BranchCategory? Store { get; set; }
+        //public int CategoryId { get; set; }
+        //public Category? Category { get; set; }
         public string Notes { get; set; }
         public ICollection<StockLedgerDetail> StockLedgerDetails { get; set; }
     }

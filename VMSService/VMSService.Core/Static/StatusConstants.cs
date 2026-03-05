@@ -23,7 +23,7 @@
             public const string PendingVerification = "Pending Verification";
             public const string PendingReceipt = "Pending Receipt";
             public const string Returned = "Returned";
-            public const string Received = "Received";
+            public const string Verified = "Verified";
         }
 
         public static class ReceivedStock {

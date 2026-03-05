@@ -82,20 +82,41 @@
                         </h6>
                     </div>
                     <div class="card-body">
-                        <div class="mb-3">
-                            <small class="text-muted text-uppercase fw-semibold d-block mb-1">Reference</small>
-                            <p class="mb-0 fw-bold">
-                                @if (Model.ExPrintMint != null)
-                                {
-                                    <a asp-controller="ExPrintMints" asp-action="Details" asp-route-id="@Model.ExPrintMintId" class="btn btn-gray-200">
-                                        <i class="ti ti-package me-1"></i>@Model.ExPrintMint.ExPrintMintReference
-                                    </a>
-                                }
-                                else
-                                {
-                                    <span class="text-muted">-</span>
-                                }
-                            </p>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Reference</small>
+                                <p class="mb-0 fw-bold">
+                                    @if (Model.ExPrintMint != null)
+                                    {
+                                        <a asp-controller="ExPrintMints" asp-action="Details" asp-route-id="@Model.ExPrintMintId" class="btn btn-gray-200">
+                                            <i class="ti ti-package me-1"></i>@Model.ExPrintMint.ExPrintMintReference
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </p>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Denomination</small>
+                                <p class="mb-0 fw-bold">
+                                    @if (Model.ExPrintMint?.Denomination != null && Model.ExPrintMint?.Denomination?.DenominationType?.Name == "Coin")
+                                    {
+                                        <i class="ti ti-coins me-1 text-info"></i>
+                                        @Model.ExPrintMint.Denomination.Name
+                                    }
+                                    else if (Model.ExPrintMint?.Denomination != null)
+                                    {
+                                        <i class="ti ti-cash-banknote me-1 text-info"></i>
+                                        @Model.ExPrintMint.Denomination.Name
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </p>
+                            </div>
                         </div>
 
                         <div class="mb-4">
@@ -104,24 +125,6 @@
                                 @if (Model.ExPrintMint?.CurrencyVendor != null)
                                 {
                                     <i class="ti ti-building me-1 text-primary"></i>@Model.ExPrintMint.CurrencyVendor.Name
-                                }
-                                else
-                                {
-                                    <span class="text-muted">-</span>
-                                }
-                            </p>
-                        </div>
-
-                        <div class="mb-4">
-                            <small class="text-muted text-uppercase fw-semibold d-block mb-1">Denomination</small>
-                            <p class="mb-0 fw-bold">
-                                @if (Model.ExPrintMint?.Denomination != null && Model.ExPrintMint?.Denomination?.DenominationType?.Name == "Coin")
-                                {
-                                    <i class="ti ti-coins me-1 text-info"></i>@Model.ExPrintMint.Denomination.Name
-                                }
-                                else if (Model.ExPrintMint?.Denomination != null)
-                                {
-                                    <i class="ti ti-cash-banknote me-1 text-info"></i>@Model.ExPrintMint.Denomination.Name
                                 }
                                 else
                                 {
@@ -215,23 +218,28 @@
                                 <p class="mb-0 fw-bold fs-6">@Model.Value.ToString("N0")</p>
                             </div>
                         </div>
-
-                        <div class="mb-4">
-                            <small class="text-muted text-uppercase fw-semibold d-block mb-1">Partial Delivery</small>
-                            <p class="mb-0 fw-bold">
-                                @if (Model.IsPartial)
-                                {
-                                    <span class="badge bg-warning">
-                                        <i class="ti ti-alert-circle me-1"></i>Yes
-                                    </span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-success">
-                                        <i class="ti ti-check me-1"></i>No
-                                    </span>
-                                }
-                            </p>
+                        <div class="row">
+                            <div class="col-6 mb-4">
+                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Number of Boxes</small>
+                                <p class="mb-0 fw-bold fs-6">@Model.NumberOfBoxes.ToString("N0")</p>
+                            </div>
+                            <div class="col-6 mb-4">
+                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Partial Delivery</small>
+                                <p class="mb-0 fw-bold">
+                                    @if (Model.IsPartial)
+                                    {
+                                        <span class="badge bg-warning">
+                                            <i class="ti ti-alert-circle me-1"></i>Yes
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success">
+                                            <i class="ti ti-check me-1"></i>No
+                                        </span>
+                                    }
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -244,22 +252,21 @@
                         </h6>
                     </div>
                     <div class="card-body">
-                        <div class="mb-4">
-                            <small class="text-muted text-uppercase fw-semibold d-block mb-1">Prefix</small>
-                            <p class="mb-0 fw-bold">
-                                @if (!string.IsNullOrEmpty(Model.SerialNumberPrefix))
-                                {
-                                    <span class="badge bg-danger">@Model.SerialNumberPrefix</span>
-                                }
-                                else
-                                {
-                                    <span class="text-muted">-</span>
-                                }
-                            </p>
-                        </div>
-
                         <div class="row">
-                            <div class="col-6 mb-4">
+                            <div class="col-4 mb-4">
+                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Prefix</small>
+                                <p class="mb-0 fw-bold">
+                                    @if (!string.IsNullOrEmpty(Model.SerialNumberPrefix))
+                                    {
+                                        <span class="badge bg-danger">@Model.SerialNumberPrefix</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </p>
+                            </div>
+                            <div class="col-4 mb-4">
                                 <small class="text-muted text-uppercase fw-semibold d-block mb-1">Range Start</small>
                                 <p class="mb-0 fw-bold">
                                     @if (Model.SerialNumberRangeStart.HasValue)
@@ -272,7 +279,7 @@
                                     }
                                 </p>
                             </div>
-                            <div class="col-6 mb-4">
+                            <div class="col-4 mb-4">
                                 <small class="text-muted text-uppercase fw-semibold d-block mb-1">Range End</small>
                                 <p class="mb-0 fw-bold">
                                     @if (Model.SerialNumberRangeEnd.HasValue)

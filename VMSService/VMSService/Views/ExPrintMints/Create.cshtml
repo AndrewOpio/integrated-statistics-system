@@ -51,7 +51,7 @@
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label class="form-label" asp-for="DeliveryDate">Delivery Date <span class="text-danger">*</span></label>
+                                <label class="form-label" asp-for="DeliveryDate">Expected Delivery Date <span class="text-danger">*</span></label>
                                 <input type="date" class="form-control" asp-for="DeliveryDate" required>
                                 <span asp-validation-for="DeliveryDate" class="text-danger small d-block mt-1"></span>
                             </div>
@@ -71,19 +71,35 @@
                                 <span asp-validation-for="CurrencyVendorId" class="text-danger small d-block mt-1"></span>
                             </div>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label" asp-for="ApprovedCurrencyProcurementId">Approved Currency Procurement <span class="text-danger">*</span></label>
-                            <select class="form-select" asp-for="ApprovedCurrencyProcurementId" id="ApprovedCurrencyProcurementId" required>
-                                <option value="">-- Select Approved Currency Procurement --</option>
-                                @if (ViewBag.ApprovedCurrencyProcurements != null)
-                                {
-                                    @foreach (var proc in ViewBag.ApprovedCurrencyProcurements)
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="ApprovedCurrencyProcurementId">Approved Currency Procurement <span class="text-danger">*</span></label>
+                                <select class="form-select" asp-for="ApprovedCurrencyProcurementId" id="ApprovedCurrencyProcurementId" required>
+                                    <option value="">-- Select Approved Currency Procurement --</option>
+                                    @if (ViewBag.ApprovedCurrencyProcurements != null)
                                     {
-                                        <option value="@proc.Id" data-name="@proc.Amount"><span>#PR</span>@proc.Id - @proc.Amount.ToString("N0")</option>
+                                        @foreach (var proc in ViewBag.ApprovedCurrencyProcurements)
+                                        {
+                                            <option value="@proc.Id" data-name="@proc.Amount"><span>#PR</span>@proc.Id - @proc.Amount.ToString("N0")</option>
+                                        }
                                     }
-                                }
-                            </select>
-                            <span class="text-danger small d-block mt-1" id="vendorTypeError"></span>
+                                </select>
+                                @* <span class="text-danger small d-block mt-1" id="vendorTypeError"></span> *@
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="BranchId">Branch<span class="text-danger">*</span></label>
+                                <select class="form-select" asp-for="BranchId" id="CurrencyVendorId" required>
+                                    <option value="">-- Select Branch --</option>
+                                    @if (ViewBag.BranchList != null)
+                                    {
+                                        @foreach (var branch in ViewBag.BranchList)
+                                        {
+                                            <option value="@branch.Id" data-name="@branch.Name">@branch.Name</option>
+                                        }
+                                    }
+                                </select>
+                                <span asp-validation-for="BranchId" class="text-danger small d-block mt-1"></span>
+                            </div>
                         </div>
                     </div>
 
@@ -112,25 +128,27 @@
                             </div>
 
                             <div class="col-md-6 mb-3">
-                                <label class="form-label" for="AmountText">Amount <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="AmountText" placeholder="Enter amount" required>
-                                <input type="hidden" asp-for="Value" id="Value">
-                                <span asp-validation-for="Value" class="text-danger small d-block mt-1"></span>
+                                <label class="form-label" for="NumberOfPiecesText">Number of Pieces <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="NumberOfPiecesText" placeholder="Enter number of pieces" required>
+                                <input type="hidden" asp-for="NumberOfPieces" id="NumberOfPieces">
+                                <small class="text-muted d-block mt-1">Enter the number of currency pieces to be received</small>
+                                <span asp-validation-for="NumberOfPieces" class="text-danger small d-block mt-1"></span>
                             </div>
                         </div>
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label class="form-label" for="NumberOfPiecesText">Number of Pieces <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="NumberOfPiecesText" placeholder="0" readonly>
-                                <input type="hidden" asp-for="NumberOfPieces" id="NumberOfPieces">
-                                <small class="text-muted d-block mt-1">Automatically calculated based on amount and denomination value</small>
-                                <span asp-validation-for="NumberOfPieces" class="text-danger small d-block mt-1"></span>
+                                <label class="form-label" for="AmountText">Amount (Auto-calculated) <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="AmountText" placeholder="0" readonly>
+                                <input type="hidden" asp-for="Value" id="Value">
+                                <small class="text-muted d-block mt-1">Automatically calculated: Pieces × Denomination Value</small>
+                                <span asp-validation-for="Value" class="text-danger small d-block mt-1"></span>
                             </div>
 
                             <div class="col-md-6 mb-3">
-                                <label class="form-label" for="NumberOfBoxesText">Number of Boxes <span class="text-danger">*</span></label>
+                                <label class="form-label" for="NumberOfBoxesText">Number of Boxes (Auto-calculated) <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="NumberOfBoxesText" placeholder="0" readonly>
+                                <input type="hidden" asp-for="NumberOfBoxes" id="NumberOfBoxes">
                                 <small class="text-muted d-block mt-1">Automatically calculated based on pieces and box capacity</small>
                             </div>
                         </div>
@@ -251,11 +269,12 @@
         }
 
         const $denominationSelect = $('#DenominationId');
-        const $amountText = $('#AmountText');
-        const $value = $('#Value');
         const $numberOfPiecesText = $('#NumberOfPiecesText');
         const $numberOfPieces = $('#NumberOfPieces');
+        const $amountText = $('#AmountText');
+        const $value = $('#Value');
         const $numberOfBoxesText = $('#NumberOfBoxesText');
+        const $numberOfBoxes = $('#NumberOfBoxes');
 
         // Handle Vendor Type Selection
         $('#VendorTypeId').on('change', function() {
@@ -309,39 +328,30 @@
             $vendorSelect.val('');
         });
 
-        // Handle Amount formatting
-        $amountText.on('input', function() {
+        // Handle Number of Pieces formatting
+        $numberOfPiecesText.on('input', function() {
             let input = $(this).val();
             
-            // Remove all non-numeric characters except decimal
-            let sanitized = input.replace(/[^0-9.]/g, '');
-            
-            // Prevent multiple decimal points
-            const parts = sanitized.split('.');
-            if (parts.length > 2) {
-                sanitized = parts[0] + '.' + parts.slice(1).join('');
-            }
+            // Remove all non-numeric characters
+            let sanitized = input.replace(/[^0-9]/g, '');
 
-            const number = parseFloat(sanitized);
-            if (!isNaN(number)) {
-                // Format with commas and 0 decimal places
-                $(this).val(number.toLocaleString('en-US', {
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0
-                }));
+            const number = parseInt(sanitized);
+            if (!isNaN(number) && sanitized !== "") {
+                // Format with commas
+                $(this).val(number.toLocaleString('en-US'));
                 // Update hidden input with numeric value
-                $value.val(number);
+                $numberOfPieces.val(number);
             } else {
                 $(this).val('');
-                $value.val('');
+                $numberOfPieces.val('');
             }
 
-            // Recalculate when amount changes
-            calculatePiecesAndBoxes();
+            // Recalculate when pieces change
+            calculateAmountAndBoxes();
         });
 
-        // Handle paste events for Amount
-        $amountText.on('paste', function() {
+        // Handle paste events for Number of Pieces
+        $numberOfPiecesText.on('paste', function() {
             const $this = $(this);
             setTimeout(function() {
                 $this.trigger('input');
@@ -350,54 +360,59 @@
 
         // Handle Denomination selection change - recalculate
         $denominationSelect.on('change', function() {
-            calculatePiecesAndBoxes();
+            calculateAmountAndBoxes();
         });
 
-        // Calculate pieces and boxes based on amount and denomination
-        function calculatePiecesAndBoxes() {
+        // Calculate amount and boxes based on pieces and denomination
+        function calculateAmountAndBoxes() {
             const selectedDenominationId = $denominationSelect.val();
-            const amount = parseFloat($value.val()) || 0;
+            const pieces = parseInt($numberOfPieces.val()) || 0;
 
-            if (selectedDenominationId && amount > 0) {
+            if (selectedDenominationId && pieces > 0) {
                 // Get the denomination data from the selected option
                 const selectedOption = $denominationSelect.find('option:selected');
                 const denominationValue = parseFloat(selectedOption.data('denomination-value')) || 0;
                 const piecesInBox = parseInt(selectedOption.data('pieces-in-box')) || 1;
 
-                // Calculate number of pieces: amount / denominationValue
-                const numberOfPieces = Math.floor(amount / denominationValue);
+                // Calculate amount: pieces * denominationValue
+                const amount = pieces * denominationValue;
 
-                // Calculate number of boxes: numberOfPieces / piecesInBox
-                const numberOfBoxes = Math.ceil(numberOfPieces / piecesInBox);
+                // Calculate number of boxes: pieces / piecesInBox (rounded up)
+                const numberOfBoxes = Math.ceil(pieces / piecesInBox);
 
-                // Display formatted pieces
-                $numberOfPiecesText.val(numberOfPieces.toLocaleString('en-US'));
-                $numberOfPieces.val(numberOfPieces);
+                // Display formatted amount
+                $amountText.val(amount.toLocaleString('en-US', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                }));
+                $value.val(amount);
 
                 // Display formatted boxes
                 $numberOfBoxesText.val(numberOfBoxes.toLocaleString('en-US'));
+                $numberOfBoxes.val(numberOfBoxes);
             } else {
-                $numberOfPiecesText.val('0');
-                $numberOfPieces.val('0');
+                $amountText.val('0');
+                $value.val('0');
                 $numberOfBoxesText.val('0');
+                $numberOfBoxes.val('0');
             }
         }
 
         // Form submission - ensure values are set
         $('#createForm').on('submit', function(e) {
-            const amount = $value.val();
+            const pieces = $numberOfPieces.val();
             
-            if (!amount || amount === '0') {
+            if (!pieces || pieces === '0') {
                 e.preventDefault();
-                $amountText.focus();
-                alert('Please enter a valid amount');
+                $numberOfPiecesText.focus();
+                alert('Please enter a valid number of pieces');
                 return false;
             }
 
-            const numberOfPieces = $numberOfPieces.val();
-            if (!numberOfPieces || numberOfPieces === '0') {
+            const amount = $value.val();
+            if (!amount || amount === '0') {
                 e.preventDefault();
-                alert('Amount must be greater than 0. Please enter a valid amount');
+                alert('Number of pieces must be greater than 0. Please enter a valid value');
                 return false;
             }
 
@@ -429,7 +444,7 @@
         });
 
         // Clear error on valid input
-        $amountText.on('focus', function() {
+        $numberOfPiecesText.on('focus', function() {
             // Clear any error messages if needed
         });
     });

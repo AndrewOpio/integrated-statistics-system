@@ -68,8 +68,6 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("CurrencyVendorId");
 
-                    b.HasIndex("DenominationId");
-
                     b.ToTable("ApprovedCurrencyDenominations");
                 });
 
@@ -216,49 +214,6 @@ namespace VMSService.Data.Migrations
                     b.ToTable("CurrencyVendors");
                 });
 
-            modelBuilder.Entity("VMSService.Data.Entities.Denomination", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("DenominationTypeId")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("ModifiedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("ModifiedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("NumberOfPiecesInABox")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("Value")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Denominations");
-                });
-
             modelBuilder.Entity("VMSService.Data.Entities.ExPrintMint", b =>
                 {
                     b.Property<int>("Id")
@@ -282,6 +237,9 @@ namespace VMSService.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<int?>("BoxNumberRangeStart")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BranchId")
                         .HasColumnType("int");
 
                     b.Property<string>("CreatedBy")
@@ -342,8 +300,6 @@ namespace VMSService.Data.Migrations
                     b.HasIndex("CurrencyVendorId");
 
                     b.HasIndex("CurrentStatusId");
-
-                    b.HasIndex("DenominationId");
 
                     b.ToTable("ExPrintMints");
                 });
@@ -421,6 +377,13 @@ namespace VMSService.Data.Migrations
                     b.Property<int?>("BoxNumberRangeStart")
                         .HasColumnType("int");
 
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("CurrentStatusId")
                         .HasColumnType("int");
 
@@ -435,6 +398,13 @@ namespace VMSService.Data.Migrations
 
                     b.Property<bool>("IsPartial")
                         .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("NumberOfBoxes")
                         .HasColumnType("int");
@@ -670,17 +640,9 @@ namespace VMSService.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("VMSService.Data.Entities.Denomination", "Denomination")
-                        .WithMany()
-                        .HasForeignKey("DenominationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("ApprovedCurrency");
 
                     b.Navigation("CurrencyVendor");
-
-                    b.Navigation("Denomination");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ApprovedCurrencyProcurement", b =>
@@ -752,19 +714,11 @@ namespace VMSService.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("VMSService.Data.Entities.Denomination", "Denomination")
-                        .WithMany()
-                        .HasForeignKey("DenominationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("ApprovedCurrencyProcurement");
 
                     b.Navigation("CurrencyVendor");
 
                     b.Navigation("CurrentStatus");
-
-                    b.Navigation("Denomination");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ExPrintMintStatusHistory", b =>

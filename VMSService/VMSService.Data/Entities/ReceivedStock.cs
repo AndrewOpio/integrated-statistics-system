@@ -1,6 +1,8 @@
-﻿namespace VMSService.Data.Entities
+﻿using VMSService.Data.AuditColumns;
+
+namespace VMSService.Data.Entities
 {
-    public class ReceivedStock
+    public class ReceivedStock : AuditableEntity
     {
         public int Id { get; set; }
         public int ExPrintMintId { get; set; }

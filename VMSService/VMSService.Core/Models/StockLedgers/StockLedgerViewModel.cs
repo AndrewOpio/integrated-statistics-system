@@ -1,5 +1,6 @@
+using VMSService.Core.Models.Categories;
+using VMSService.Core.Models.CounterPartyTypes;
 using VMSService.Core.Services.Stocks.StockEntities;
-using VMSService.Data.Entities;
 
 namespace VMSService.Core.Models.StockLedgers
 {
@@ -26,17 +27,5 @@ namespace VMSService.Core.Models.StockLedgers
         public int Values { get; set; }
         public int StockLedgerId { get; set; }
         public StockLedger? StockLedger { get; set; }
-    }
-
-    public class CounterPartyTypeViewModel
-    {
-        public int Id { get; set; }
-        public string Name { get; set; }
-    }
-
-    public class CategoryViewModel
-    {
-        public int Id { get; set; }
-        public string Name { get; set; }
     }
 }

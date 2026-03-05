@@ -44,7 +44,6 @@ namespace VMSService.Core.Repositories.ApprovedCurrencyDenominations
         {
             return await _db.ApprovedCurrencyDenominations.Where(x => x.ApprovedCurrencyId == approvedCurrencyProcurementId)
                 .Where(x => !x.IsDeleted)
-                .Include(x => x.Denomination)
                 .ToListAsync();
         }
     }

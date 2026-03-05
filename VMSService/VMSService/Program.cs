@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -10,9 +12,15 @@ using SmartBreadcrumbs.Extensions;
 using System.Reflection;
 using System.Text;
 using VMSService.Core.Mappings;
+using VMSService.Core.Models.Authentication;
 using VMSService.Core.Repositories.ApprovedCurrencyDenominations;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
+using VMSService.Core.Repositories.BranchCategories;
+using VMSService.Core.Repositories.Branches;
+using VMSService.Core.Repositories.Categories;
+using VMSService.Core.Repositories.CommercialBanks;
+using VMSService.Core.Repositories.CounterPartyTypes;
 using VMSService.Core.Repositories.CurrencyVendors;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.DenominationTypes;
@@ -93,6 +101,7 @@ builder.Services.AddAutoMapper(cfg => { }, typeof(VMSServiceAutoMapperProfile));
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["SecretKey"];
+var authenticationSettings = builder.Configuration.GetSection("Authentication").Get<AuthenticationSettings>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -118,7 +127,24 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     context.Token = context.Request.Cookies["AuthToken"];
                 }
                 return Task.CompletedTask;
+            },
+            OnChallenge = async context =>
+            {
+                // This event fires when authentication fails
+                context.HandleResponse();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.Redirect(authenticationSettings?.LoginPath ?? "/logout");
+                await context.Response.CompleteAsync();
+            },
+            OnAuthenticationFailed = context =>
+            {
+                // Handle specific authentication failures
+                context.NoResult();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.Redirect(authenticationSettings?.LoginPath ?? "/logout");
+                return Task.CompletedTask;
             }
+
         };
     });
 
@@ -148,6 +174,11 @@ builder.Services.AddScoped<IWorkflowService, WorkflowService>();
 builder.Services.AddScoped<IReceivedStockStatusHistoryRepository, ReceivedStockStatusHistoryRepository>();
 builder.Services.AddScoped<IStockLedgerRepository, StockLedgerRepository>();
 builder.Services.AddScoped<IStockLedgerDetailRepository, StockLedgerDetailRepository>();
+builder.Services.AddScoped<ICommercialBankRepository, CommercialBankRepository>();
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<IBranchCategoryRepository, BranchCategoryRepository>();
+builder.Services.AddScoped<IBranchRepository, BranchRepository>();
+builder.Services.AddScoped<ICounterPartyTypeRepository, CounterPartyTypeRepository>();
 
 // Add this in your service registration section
 builder.Services.AddScoped<IStockService, StockService>();
@@ -189,6 +220,7 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllerRoute(

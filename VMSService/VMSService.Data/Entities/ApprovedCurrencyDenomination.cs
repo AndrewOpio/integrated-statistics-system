@@ -6,7 +6,6 @@ namespace VMSService.Data.Entities
     {
         public int Id { get; set; }
         public int DenominationId { get; set; }
-        public Denomination Denomination { get; set; }
         public int ApprovedCurrencyId { get; set; }
         public ApprovedCurrencyProcurement ApprovedCurrency { get; set; }
         public int NumberOfPieces { get; set; }

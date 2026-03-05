@@ -2,6 +2,11 @@ using AutoMapper;
 using VMSService.Core.Models.ApprovedCurrencyDenominations;
 using VMSService.Core.Models.ApprovedCurrencyProcurements;
 using VMSService.Core.Models.ApprovedCurrencyStatusHistories;
+using VMSService.Core.Models.BranchCategories;
+using VMSService.Core.Models.Branches;
+using VMSService.Core.Models.Categories;
+using VMSService.Core.Models.CommercialBanks;
+using VMSService.Core.Models.CounterPartyTypes;
 using VMSService.Core.Models.CurrencyVendors;
 using VMSService.Core.Models.Denominations;
 using VMSService.Core.Models.DenominationTypes;
@@ -46,8 +51,17 @@ namespace VMSService.Core.Mappings
             CreateMap<CounterPartyType, CounterPartyTypeViewModel>()
                 .ReverseMap();
 
+            // Category, BranchCategory
             CreateMap<Category, CategoryViewModel>()
                 .ReverseMap();
+
+            CreateMap<BranchCategory, BranchCategoryViewModel>()
+                .ReverseMap();
+
+            CreateMap<Branch, BranchViewModel>()
+                .ReverseMap();
+
+            CreateMap<CommercialBank, CommercialBankViewModel>().ReverseMap();
         }
     }
 }

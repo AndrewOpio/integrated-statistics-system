@@ -3,9 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Net.Http.Json;
 using System.Text;
-using VMSService.Core.Models.StockLedgers;
 using VMSService.Core.Services.Stocks.StockEntities;
-using VMSService.Data.Entities;
 
 namespace VMSService.Core.Services.Stocks
 {
@@ -188,6 +186,7 @@ namespace VMSService.Core.Services.Stocks
 
         public async Task<bool> UpdateDenominationType(DenominationType denominationType)
         {
+            denominationType.Denominations = []; // Ensure we don't send the nested collection if not needed
             try
             {
                 await EnsureAuthorizationHeaderAsync();
@@ -263,6 +262,8 @@ namespace VMSService.Core.Services.Stocks
 
         public async Task<bool> CreateDenomination(Denomination denomination)
         {
+            denomination.DenominationType = null; // Ensure we don't send the nested object if not needed
+            denomination.StockLedgerDetails = [];
             try
             {
                 await EnsureAuthorizationHeaderAsync();
@@ -287,6 +288,8 @@ namespace VMSService.Core.Services.Stocks
 
         public async Task<bool> UpdateDenomination(Denomination denomination)
         {
+            denomination.DenominationType = null; // Ensure we don't send the nested object if not needed
+            denomination.StockLedgerDetails = []; 
             try
             {
                 await EnsureAuthorizationHeaderAsync();
@@ -305,6 +308,105 @@ namespace VMSService.Core.Services.Stocks
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating denomination via API");
+                return false;
+            }
+        }
+
+        #endregion
+
+        #region CommercialBank Methods
+
+        public async Task<ICollection<CommercialBank>> GetAllCommercialBanks()
+        {
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.GetAsync($"{baseUrl}/api/commercialbanks/get-all");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var commercialBanks = await response.Content.ReadFromJsonAsync<ICollection<CommercialBank>>();
+                    return commercialBanks ?? new List<CommercialBank>();
+                }
+
+                _logger.LogError("Failed to retrieve commercial banks. Status: {StatusCode}", response.StatusCode);
+                return new List<CommercialBank>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving commercial banks from API");
+                return new List<CommercialBank>();
+            }
+        }
+
+        public async Task<CommercialBank> GetCommercialBankById(int id)
+        {
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.GetAsync($"{baseUrl}/api/commercialbanks/get/{id}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    return await response.Content.ReadFromJsonAsync<CommercialBank>();
+                }
+
+                _logger.LogWarning("Commercial bank with id {CommercialBankId} not found", id);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving commercial bank {CommercialBankId} from API", id);
+                return null;
+            }
+        }
+
+        public async Task<bool> CreateCommercialBank(CommercialBank commercialBank)
+        {
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.PostAsJsonAsync($"{baseUrl}/api/commercialbanks/create", commercialBank);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation("Commercial bank created successfully");
+                    return true;
+                }
+
+                _logger.LogError("Failed to create commercial bank. Status: {StatusCode}", response.StatusCode);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating commercial bank via API");
+                return false;
+            }
+        }
+
+        public async Task<bool> UpdateCommercialBank(CommercialBank commercialBank)
+        {
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.PutAsJsonAsync($"{baseUrl}/api/commercialbanks/update/{commercialBank.Id}", commercialBank);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation("Commercial bank updated successfully");
+                    return true;
+                }
+
+                _logger.LogError("Failed to update commercial bank. Status: {StatusCode}", response.StatusCode);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating commercial bank via API");
                 return false;
             }
         }
@@ -479,6 +581,414 @@ namespace VMSService.Core.Services.Stocks
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating stock ledger detail via API");
+                return false;
+            }
+        }
+
+        #endregion
+
+        #region Category Methods
+
+        public async Task<ICollection<Category>> GetAllCategories()
+        {
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.GetAsync($"{baseUrl}/api/categories/get-all");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var categories = await response.Content.ReadFromJsonAsync<ICollection<Category>>();
+                    return categories ?? new List<Category>();
+                }
+
+                _logger.LogError("Failed to retrieve categories. Status: {StatusCode}", response.StatusCode);
+                return new List<Category>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving categories from API");
+                return new List<Category>();
+            }
+        }
+
+        public async Task<Category> GetCategoryById(int id)
+        {
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.GetAsync($"{baseUrl}/api/categories/get/{id}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    return await response.Content.ReadFromJsonAsync<Category>();
+                }
+
+                _logger.LogWarning("Category with id {CategoryId} not found", id);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving category {CategoryId} from API", id);
+                return null;
+            }
+        }
+
+        public async Task<bool> CreateCategory(Category category)
+        {
+            category.BranchCategories = [];
+            category.StockLedgers = [];
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.PostAsJsonAsync($"{baseUrl}/api/categories/create", category);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation("Category created successfully");
+                    return true;
+                }
+
+                _logger.LogError("Failed to create category. Status: {StatusCode}", response.StatusCode);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating category via API");
+                return false;
+            }
+        }
+
+        public async Task<bool> UpdateCategory(Category category)
+        {
+            category.BranchCategories = [];
+            category.StockLedgers = [];
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.PutAsJsonAsync($"{baseUrl}/api/categories/update/{category.Id}", category);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation("Category updated successfully");
+                    return true;
+                }
+
+                _logger.LogError("Failed to update category. Status: {StatusCode}", response.StatusCode);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating category via API");
+                return false;
+            }
+        }
+
+        #endregion
+
+        #region BranchCategory Methods
+
+        public async Task<ICollection<BranchCategory>> GetAllBranchCategories()
+        {
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.GetAsync($"{baseUrl}/api/branchcategories/get-all");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var branchCategories = await response.Content.ReadFromJsonAsync<ICollection<BranchCategory>>();
+                    return branchCategories ?? new List<BranchCategory>();
+                }
+
+                _logger.LogError("Failed to retrieve branch categories. Status: {StatusCode}", response.StatusCode);
+                return new List<BranchCategory>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving branch categories from API");
+                return new List<BranchCategory>();
+            }
+        }
+
+        public async Task<BranchCategory> GetBranchCategoryById(int id)
+        {
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.GetAsync($"{baseUrl}/api/branchcategories/get/{id}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    return await response.Content.ReadFromJsonAsync<BranchCategory>();
+                }
+
+                _logger.LogWarning("Branch category with id {BranchCategoryId} not found", id);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving branch category {BranchCategoryId} from API", id);
+                return null;
+            }
+        }
+
+        public async Task<bool> CreateBranchCategory(BranchCategory branchCategory)
+        {
+            branchCategory.Branch = null;
+            branchCategory.Category = null;
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.PostAsJsonAsync($"{baseUrl}/api/branchcategories/create", branchCategory);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation("Branch category created successfully");
+                    return true;
+                }
+
+                _logger.LogError("Failed to create branch category. Status: {StatusCode}", response.StatusCode);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating branch category via API");
+                return false;
+            }
+        }
+
+        public async Task<bool> UpdateBranchCategory(BranchCategory branchCategory)
+        {
+            branchCategory.Branch = null;
+            branchCategory.Category = null;
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.PutAsJsonAsync($"{baseUrl}/api/branchcategories/update/{branchCategory.Id}", branchCategory);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation("Branch category updated successfully");
+                    return true;
+                }
+
+                _logger.LogError("Failed to update branch category. Status: {StatusCode}", response.StatusCode);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating branch category via API");
+                return false;
+            }
+        }
+
+        #endregion
+
+        #region Branch Methods
+
+        public async Task<ICollection<Branch>> GetAllBranches()
+        {
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.GetAsync($"{baseUrl}/api/branches/get-all");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var branches = await response.Content.ReadFromJsonAsync<ICollection<Branch>>();
+                    return branches ?? new List<Branch>();
+                }
+
+                _logger.LogError("Failed to retrieve branches. Status: {StatusCode}", response.StatusCode);
+                return new List<Branch>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving branches from API");
+                return new List<Branch>();
+            }
+        }
+
+        public async Task<Branch> GetBranchById(int id)
+        {
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.GetAsync($"{baseUrl}/api/branches/get/{id}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    return await response.Content.ReadFromJsonAsync<Branch>();
+                }
+
+                _logger.LogWarning("Branch with id {BranchId} not found", id);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving branch {BranchId} from API", id);
+                return null;
+            }
+        }
+
+        public async Task<bool> CreateBranch(Branch branch)
+        {
+            branch.BranchCategories = [];
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.PostAsJsonAsync($"{baseUrl}/api/branches/create", branch);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation("Branch created successfully");
+                    return true;
+                }
+
+                _logger.LogError("Failed to create branch. Status: {StatusCode}", response.StatusCode);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating branch via API");
+                return false;
+            }
+        }
+
+        public async Task<bool> UpdateBranch(Branch branch)
+        {
+            branch.BranchCategories = [];
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.PutAsJsonAsync($"{baseUrl}/api/branches/update/{branch.Id}", branch);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation("Branch updated successfully");
+                    return true;
+                }
+
+                _logger.LogError("Failed to update branch. Status: {StatusCode}", response.StatusCode);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating branch via API");
+                return false;
+            }
+        }
+
+        #endregion
+
+        #region CounterPartyType Methods
+
+        public async Task<ICollection<CounterPartyType>> GetAllCounterPartyTypes()
+        {
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.GetAsync($"{baseUrl}/api/counterpartytypes/get-all");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var counterPartyTypes = await response.Content.ReadFromJsonAsync<ICollection<CounterPartyType>>();
+                    return counterPartyTypes ?? new List<CounterPartyType>();
+                }
+
+                _logger.LogError("Failed to retrieve counter party types. Status: {StatusCode}", response.StatusCode);
+                return new List<CounterPartyType>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving counter party types from API");
+                return new List<CounterPartyType>();
+            }
+        }
+
+        public async Task<CounterPartyType> GetCounterPartyTypeById(int id)
+        {
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.GetAsync($"{baseUrl}/api/counterpartytypes/get/{id}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    return await response.Content.ReadFromJsonAsync<CounterPartyType>();
+                }
+
+                _logger.LogWarning("Counter party type with id {CounterPartyTypeId} not found", id);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving counter party type {CounterPartyTypeId} from API", id);
+                return null;
+            }
+        }
+
+        public async Task<bool> CreateCounterPartyType(CounterPartyType counterPartyType)
+        {
+            counterPartyType.StockLedgers = [];
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.PostAsJsonAsync($"{baseUrl}/api/counterpartytypes/create", counterPartyType);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation("Counter party type created successfully");
+                    return true;
+                }
+
+                _logger.LogError("Failed to create counter party type. Status: {StatusCode}", response.StatusCode);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating counter party type via API");
+                return false;
+            }
+        }
+
+        public async Task<bool> UpdateCounterPartyType(CounterPartyType counterPartyType)
+        {
+            counterPartyType.StockLedgers = [];
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.PutAsJsonAsync($"{baseUrl}/api/counterpartytypes/update/{counterPartyType.Id}", counterPartyType);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation("Counter party type updated successfully");
+                    return true;
+                }
+
+                _logger.LogError("Failed to update counter party type. Status: {StatusCode}", response.StatusCode);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating counter party type via API");
                 return false;
             }
         }

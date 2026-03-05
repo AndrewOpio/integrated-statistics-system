@@ -8,18 +8,19 @@ namespace StockService.Core.Repository.Branches
     {
         public async Task<ICollection<Branch>> FindAllAsync()
         {
-            return await _db.Branches.ToListAsync();
+            return await _db.Branches.Where(b => !b.IsDeleted).ToListAsync();
         }
 
         public async Task<Branch> FindByIdAsync(int id)
         {
-            return await _db.Branches.FindAsync(id);
+            return await _db.Branches.Where(b => !b.IsDeleted)
+                .FirstOrDefaultAsync(b => b.Id == id);
         }
 
         public async Task<Branch> CreateAsync(Branch branch)
         {
             // Check for duplicate branch name
-            var duplicate = await _db.Branches.AnyAsync(b => b.Name == branch.Name);
+            var duplicate = await _db.Branches.AnyAsync(b => b.Name == branch.Name && !b.IsDeleted);
             if (duplicate)
                 throw new InvalidOperationException("A branch with the same name already exists.");
 
@@ -32,7 +33,7 @@ namespace StockService.Core.Repository.Branches
         public async Task<bool> UpdateAsync(Branch branch)
         {
             // Check for duplicate branch name (different id)
-            var duplicate = await _db.Branches.AnyAsync(b => b.Name == branch.Name && b.Id != branch.Id);
+            var duplicate = await _db.Branches.AnyAsync(b => b.Name == branch.Name && b.Id != branch.Id && !b.IsDeleted);
             if (duplicate)
                 throw new InvalidOperationException("A branch with the same name already exists.");
 
@@ -41,6 +42,9 @@ namespace StockService.Core.Repository.Branches
                 return false;
                 
             existing.Name = branch.Name;
+            existing.IsDeleted = branch.IsDeleted;
+            existing.ModifiedBy = branch.ModifiedBy;
+            existing.ModifiedDate = branch.ModifiedDate;
             // Add other fields as needed
             return await Save();
         }

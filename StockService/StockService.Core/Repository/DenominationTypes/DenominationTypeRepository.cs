@@ -8,18 +8,19 @@ namespace StockService.Core.Repository.DenominationTypes
     {
         public async Task<ICollection<DenominationType>> FindAllAsync()
         {
-            return await _db.DenominationTypes.ToListAsync();
+            return await _db.DenominationTypes.Where(d => !d.IsDeleted).ToListAsync();
         }
 
         public async Task<DenominationType> FindByIdAsync(int id)
         {
-            return await _db.DenominationTypes.FindAsync(id);
+            return await _db.DenominationTypes.Where(d => !d.IsDeleted)
+                .FirstOrDefaultAsync(bc => bc.Id == id);
         }
 
         public async Task<DenominationType> CreateAsync(DenominationType entity)
         {
             // Check for duplicate name
-            var duplicate = await _db.DenominationTypes.AnyAsync(dt => dt.Name == entity.Name);
+            var duplicate = await _db.DenominationTypes.AnyAsync(dt => dt.Name == entity.Name && !dt.IsDeleted);
             if (duplicate)
                 throw new InvalidOperationException("A denomination type with the same name already exists.");
 
@@ -36,11 +37,14 @@ namespace StockService.Core.Repository.DenominationTypes
                 return false;
 
             // Check for duplicate name (different id)
-            var duplicate = await _db.DenominationTypes.AnyAsync(dt => dt.Name == entity.Name && dt.Id != entity.Id);
+            var duplicate = await _db.DenominationTypes.AnyAsync(dt => dt.Name == entity.Name && dt.Id != entity.Id && !dt.IsDeleted);
             if (duplicate)
                 throw new InvalidOperationException("A denomination type with the same name already exists.");
 
             existing.Name = entity.Name;
+            existing.IsDeleted = entity.IsDeleted;
+            existing.ModifiedBy = entity.ModifiedBy;
+            existing.ModifiedDate = entity.ModifiedDate;
 
             return await Save();
         }

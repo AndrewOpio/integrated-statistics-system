@@ -21,8 +21,10 @@ using VMSService.Core.Static;
 using VMSService.Data.Entities;
 using Microsoft.AspNetCore.Authorization;
 using VMSService.Core.Services.Stocks.StockEntities;
-using VMSService.Core.Services.Stocks;
 using VMSService.Core.Models.DenominationTypes;
+using VMSService.Core.Models.Branches;
+using VMSService.Core.Repositories.Branches;
+using VMSService.Core.Repositories.DenominationTypes;
 
 namespace VMSService.Web.Controllers
 {
@@ -38,7 +40,8 @@ namespace VMSService.Web.Controllers
         IApprovedCurrencyProcurementRepository _approvedCurrencyProcurementRepo,
         IWorkflowService _workflowService,
         IExPrintMintStatusHistoryRepository _statusHistoryRepository,
-        IStockService _stockService) : Controller
+        IBranchRepository _branchRepository,
+        IDenominationTypeRepository _denominationTypeRepository) : Controller
     {
         [Breadcrumb("Expected Stock", FromController = typeof(HomeController), FromAction = nameof(Index))]
         // GET: ExPrintMints
@@ -48,6 +51,13 @@ namespace VMSService.Web.Controllers
             {
                 var exPrintMints = (await _exPrintMintRepository.FindAll());
                 var model = _mapper.Map<List<ExPrintMintViewModel>>((List<ExPrintMint>)exPrintMints);
+
+                foreach (var exPrintMint in model)
+                {
+                    exPrintMint.Denomination = _mapper.Map<DenominationViewModel>(await _denominationRepository.FindById(exPrintMint.DenominationId));
+                    exPrintMint.Branch = _mapper.Map<BranchViewModel>(await _branchRepository.FindById(exPrintMint.BranchId));
+                }
+
                 return View(model);
             }
             catch (Exception ex)
@@ -107,9 +117,13 @@ namespace VMSService.Web.Controllers
                 model.StatusHistory = _mapper.Map<ICollection<ExPrintMintStatusHistoryViewModel>>(
                     await _statusHistoryRepository.FindByExPrintMintId(id ?? 0));
 
-                DenominationType denominationType = await _stockService.GetDenominationTypeById(model.Denomination.DenominationTypeId);
+                model.Denomination = _mapper.Map<DenominationViewModel>(await _denominationRepository.FindById(model.DenominationId));
+
+                DenominationType denominationType = await _denominationTypeRepository.FindById(model.Denomination.DenominationTypeId);
 
                 model.Denomination.DenominationType = _mapper.Map<DenominationTypeViewModel>(denominationType);
+
+                model.Branch = _mapper.Map<BranchViewModel>(await _branchRepository.FindById(model.BranchId));
 
                 return View(model);
             }
@@ -131,6 +145,7 @@ namespace VMSService.Web.Controllers
                 ViewBag.Denominations = _mapper.Map<List<DenominationViewModel>>(await _denominationRepository.FindAll());
                 ViewBag.VendorTypes = _mapper.Map<List<VendorType>>(await _vendorTypeRepository.FindAll());
                 ViewBag.ApprovedCurrencyProcurements = _mapper.Map<List<ApprovedCurrencyProcurementsViewModel>>(await _approvedCurrencyProcurementRepo.FindAll());
+                ViewBag.BranchList = _mapper.Map<List<BranchViewModel>>(await _branchRepository.FindAll());
                 return View(new ExPrintMintViewModel());
             }
             catch (Exception ex)
@@ -151,6 +166,7 @@ namespace VMSService.Web.Controllers
             ViewBag.Denominations = _mapper.Map<List<DenominationViewModel>>(await _denominationRepository.FindAll());
             ViewBag.VendorTypes = _mapper.Map<List<VendorType>>(await _vendorTypeRepository.FindAll());
             ViewBag.ApprovedCurrencyProcurements = _mapper.Map<List<ApprovedCurrencyProcurementsViewModel>>(await _approvedCurrencyProcurementRepo.FindAll());
+            ViewBag.BranchList = _mapper.Map<List<BranchViewModel>>(await _branchRepository.FindAll());
 
             if (!ModelState.IsValid)
             {
@@ -255,7 +271,8 @@ namespace VMSService.Web.Controllers
                 ViewBag.Denominations = _mapper.Map<List<DenominationViewModel>>(await _denominationRepository.FindAll());
                 ViewBag.VendorTypes = _mapper.Map<List<VendorType>>(await _vendorTypeRepository.FindAll());
                 ViewBag.ApprovedCurrencyProcurements = _mapper.Map<List<ApprovedCurrencyProcurementsViewModel>>(await _approvedCurrencyProcurementRepo.FindAll());
-                
+                ViewBag.BranchList = _mapper.Map<List<BranchViewModel>>(await _branchRepository.FindAll());
+
                 var model = _mapper.Map<ExPrintMintViewModel>(exPrintMint);
                 return View(model);
             }
@@ -282,6 +299,7 @@ namespace VMSService.Web.Controllers
             ViewBag.Denominations = _mapper.Map<List<DenominationViewModel>>(await _denominationRepository.FindAll());
             ViewBag.VendorTypes = _mapper.Map<List<VendorType>>(await _vendorTypeRepository.FindAll());
             ViewBag.ApprovedCurrencyProcurements = _mapper.Map<List<ApprovedCurrencyProcurementsViewModel>>(await _approvedCurrencyProcurementRepo.FindAll());
+            ViewBag.BranchList = _mapper.Map<List<BranchViewModel>>(await _branchRepository.FindAll());
 
             if (!ModelState.IsValid && !(ModelState.ErrorCount == 1 && ModelState["AttachmentFile"]?.ValidationState == ModelValidationState.Invalid))
             {
@@ -316,6 +334,7 @@ namespace VMSService.Web.Controllers
                 exPrintMint.SerialNumberPrefix = model.SerialNumberPrefix;
                 exPrintMint.SerialNumberRangeStart = model.SerialNumberRangeStart;
                 exPrintMint.SerialNumberRangeEnd = model.SerialNumberRangeEnd;
+                exPrintMint.BranchId = model.BranchId;
 
                 if (model.AttachmentFile != null && model.AttachmentFile.ContentType != "application/pdf")
                 {
@@ -397,6 +416,8 @@ namespace VMSService.Web.Controllers
                 }
 
                 var model = _mapper.Map<ExPrintMintViewModel>(exPrintMint);
+                model.Denomination = _mapper.Map<DenominationViewModel>(await _denominationRepository.FindById(model.DenominationId));
+                model.Branch = _mapper.Map<BranchViewModel>(await _branchRepository.FindById(model.BranchId));
                 return View(model);
             }
             catch (Exception ex)

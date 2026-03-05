@@ -1,9 +1,215 @@
-﻿@{
+﻿@model List<VMSService.Core.Models.ExPrintMints.ExPrintMintViewModel>
+
+@{
     ViewData["Title"] = "Dashboard";
 }
-<div class="mt-4 mb-4 p-4"></div>
-<div class="mt-4 mb-4 p-4"></div>
-<div class="text-center mb-4">
-    <h1 class="display-4 mb-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow">
+            <div class="card-header py-3">
+                <div class="d-flex align-items-center">
+                    <i class="ti ti-truck me-3 fs-5 "></i>
+                    <h5 class="mb-0 fw-bold">Pending Deliveries</h5>
+                </div>
+            </div>
+            <div class="card-body">
+                @if (Model != null && Model.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-centered table-nowrap mb-0 rounded datatable">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th class="border-0 rounded-start p-0">#</th>
+                                    <th class="border-0">Reference</th>
+                                    <th class="border-0">Branch</th>
+                                    <th class="border-0">Vendor</th>
+                                    <th class="border-0">Denomination</th>
+                                    <th class="border-0">Expected Delivery Date</th>
+                                    <th class="border-0">Expected Value (UGX)</th>
+                                    <th class="border-0">Status</th>
+                                    <th class="border-0 rounded-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    int rowNumber = 1;
+                                }
+                                @foreach (var delivery in Model)
+                                {
+                                    <!-- Determine status badge color -->
+                                    string badgeClass = "bg-secondary";
+                                    if (delivery.CurrentStatus?.Name.Contains("Draft") ?? false)
+                                    {
+                                        badgeClass = "bg-warning";
+                                    }
+                                    else if (delivery.CurrentStatus?.Name.Contains("Submitted") ?? false)
+                                    {
+                                        badgeClass = "bg-info";
+                                    }
+                                    else if (delivery.CurrentStatus?.Name.Contains("Approved") ?? false)
+                                    {
+                                        badgeClass = "bg-success";
+                                    }
+
+                                    <tr>
+                                        <td><span class="text-primary fw-bold">@rowNumber</span></td>
+                                        <td class="fw-bold">@delivery.ExPrintMintReference</td>
+                                        <td>
+                                            @if (delivery.Branch != null)
+                                            {
+                                                <span class="badge bg-primary">
+                                                    <i class="ti ti-building me-1"></i>@delivery.Branch.Name
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (delivery.CurrencyVendor != null)
+                                            {
+                                                @delivery.CurrencyVendor.Name
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (delivery.Denomination != null)
+                                            {
+                                                <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
+                                                    <span class="badge bg-info">
+                                                        <i class="ti ti-cash-banknote me-1"></i>@delivery.Denomination.Name
+                                                    </span>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <span class="text-muted">@delivery.DeliveryDate.ToString("dd/MMM/yyyy")</span>
+                                        </td>
+                                        <td>
+                                            <span class="fw-bold">@delivery.Value.ToString("N0")</span>
+                                        </td>
+                                        <td>
+                                            <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
+                                                @if (delivery.CurrentStatusId > 0)
+                                                {
+                                                    <span class="badge @badgeClass">
+                                                        <i class="ti ti-badge me-1"></i>@delivery.CurrentStatus?.Name
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">
+                                                        <i class="ti ti-question-mark me-1"></i>Unknown
+                                                    </span>
+                                                }
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <a asp-controller="ExPrintMints" asp-action="Details" asp-route-id="@delivery.Id" 
+                                                   class="btn btn-sm btn-outline-info" title="View Details">
+                                                    <i class="ti ti-eye"></i>
+                                                </a>
+                                                <a asp-controller="ReceivedStocks" asp-action="Create" 
+                                                   class="btn btn-sm btn-outline-success" title="Receive Stock">
+                                                    <i class="ti ti-check"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                        @{
+                                            rowNumber++;
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-5">
+                        <i class="ti ti-inbox fs-1 text-muted mb-3 d-block"></i>
+                        <p class="text-muted fw-bold">No pending deliveries at this time</p>
+                        <small class="text-muted">All expected stocks have been accounted for or there are no pending deliveries.</small>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dashboard Statistics Section (Optional) -->
+<div class="row">
+    <div class="col-md-3 col-sm-6 mb-4">
+        <div class="card border-0 shadow h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <small class="text-muted text-uppercase fw-semibold">Pending Deliveries</small>
+                        <h5 class="mb-0 fw-bold mt-2">@(Model?.Count ?? 0)</h5>
+                    </div>
+                    <div class="fs-2 text-info">
+                        <i class="ti ti-truck"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 col-sm-6 mb-4">
+        <div class="card border-0 shadow h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <small class="text-muted text-uppercase fw-semibold">Total Expected Value</small>
+                        <h5 class="mb-0 fw-bold mt-2">@(Model?.Sum(d => (long)d.Value).ToString("N0") ?? "0")</h5>
+                    </div>
+                    <div class="fs-2 text-success">
+                        <i class="ti ti-cash-banknote"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 col-sm-6 mb-4">
+        <div class="card border-0 shadow h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <small class="text-muted text-uppercase fw-semibold">Total Pieces</small>
+                        <h5 class="mb-0 fw-bold mt-2">@(Model?.Sum(d => d.NumberOfPieces).ToString("N0") ?? "0")</h5>
+                    </div>
+                    <div class="fs-2 text-warning">
+                        <i class="ti ti-package"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 col-sm-6 mb-4">
+        <div class="card border-0 shadow h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <small class="text-muted text-uppercase fw-semibold">Total Boxes</small>
+                        <h5 class="mb-0 fw-bold mt-2">@(Model?.Sum(d => d.NumberOfBoxes).ToString("N0") ?? "0")</h5>
+                    </div>
+                    <div class="fs-2 text-primary">
+                        <i class="ti ti-box"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>

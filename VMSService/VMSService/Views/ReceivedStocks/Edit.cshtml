@@ -120,32 +120,36 @@
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label class="form-label" asp-for="DateDelivered">Date Delivered <span class="text-danger">*</span></label>
-                                <input type="date" class="form-control" asp-for="DateDelivered" required>
-                                <span asp-validation-for="DateDelivered" class="text-danger small d-block mt-1"></span>
+                                <label class="form-label" for="DateDelivered">Date Delivered <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="DateDelivered" name="DateDelivered" required>
+                                <small class="text-muted d-block mt-1">Select a date up to today (current date)</small>
+                                <span class="text-danger small d-block mt-1" id="dateError"></span>
                             </div>
 
                             <div class="col-md-6 mb-3">
-                                <label class="form-label" for="AmountText">Amount <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="AmountText" placeholder="Enter amount" required value="@Model.Value.ToString("N0")">
-                                <input type="hidden" asp-for="Value" id="Value">
-                                <span asp-validation-for="Value" class="text-danger small d-block mt-1"></span>
+                                <label class="form-label" for="NumberOfBoxesText">Number of Boxes <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="NumberOfBoxesText" placeholder="Enter number of boxes" required>
+                                <input type="hidden" asp-for="NumberOfBoxes" id="NumberOfBoxes">
+                                <small class="text-muted d-block mt-1">Enter the number of boxes received</small>
+                                <span asp-validation-for="NumberOfBoxes" class="text-danger small d-block mt-1"></span>
                             </div>
                         </div>
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label class="form-label" for="NumberOfPiecesText">Number of Pieces <span class="text-danger">*</span></label>
+                                <label class="form-label" for="NumberOfPiecesText">Number of Pieces (Auto-calculated) <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="NumberOfPiecesText" placeholder="0" readonly value="@Model.NumberOfPieces.ToString("N0")">
                                 <input type="hidden" asp-for="NumberOfPieces" id="NumberOfPieces">
-                                <small class="text-muted d-block mt-1">Automatically calculated based on amount and denomination value</small>
+                                <small class="text-muted d-block mt-1">Automatically calculated: Boxes × Pieces per Box</small>
                                 <span asp-validation-for="NumberOfPieces" class="text-danger small d-block mt-1"></span>
                             </div>
 
                             <div class="col-md-6 mb-3">
-                                <label class="form-label" for="NumberOfBoxesText">Number of Boxes <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="NumberOfBoxesText" placeholder="0" readonly>
-                                <small class="text-muted d-block mt-1">Automatically calculated based on pieces and box capacity</small>
+                                <label class="form-label" for="AmountText">Amount (Auto-calculated) <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="AmountText" placeholder="0" readonly value="@Model.Value.ToString("N0")">
+                                <input type="hidden" asp-for="Value" id="Value">
+                                <small class="text-muted d-block mt-1">Automatically calculated: Pieces × Denomination Value</small>
+                                <span asp-validation-for="Value" class="text-danger small d-block mt-1"></span>
                             </div>
                         </div>
 
@@ -243,18 +247,25 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
     $(document).ready(function () {
+        // Set max date to today
+        const today = new Date().toISOString().split('T')[0];
+        const $dateDelivered = $('#DateDelivered');
+        $dateDelivered.attr('max', today);
+
         const $exPrintMintSelect = $('#ExPrintMintId');
         const $summaryCard = $('#exPrintMintSummary');
-        const $amountText = $('#AmountText');
-        const $value = $('#Value');
+        const $numberOfBoxesText = $('#NumberOfBoxesText');
+        const $numberOfBoxes = $('#NumberOfBoxes');
         const $numberOfPiecesText = $('#NumberOfPiecesText');
         const $numberOfPieces = $('#NumberOfPieces');
-        const $numberOfBoxesText = $('#NumberOfBoxesText');
+        const $amountText = $('#AmountText');
+        const $value = $('#Value');
 
         // Initialize form with current values on page load
         function initializeForm() {
             const currentExPrintMintId = $exPrintMintSelect.val();
-            const currentAmount = $value.val();
+            const currentNumberOfBoxes = $numberOfBoxes.val();
+            const currentDateDelivered = $dateDelivered.val();
 
             if (currentExPrintMintId) {
                 const selectedOption = $exPrintMintSelect.find('option:selected');
@@ -271,18 +282,29 @@
                 $summaryCard.show();
             }
 
-            // Initialize Amount display
-            if (currentAmount) {
-                const formattedAmount = parseFloat(currentAmount).toLocaleString('en-US', {
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0
-                });
-                $amountText.val(formattedAmount);
+            // Initialize NumberOfBoxes display
+            if (currentNumberOfBoxes) {
+                const formattedBoxes = parseInt(currentNumberOfBoxes).toLocaleString('en-US');
+                $numberOfBoxesText.val(formattedBoxes);
             }
 
             // Initialize calculations
-            calculatePiecesAndBoxes();
+            calculatePiecesAndAmount();
         }
+
+        // Handle Date Delivered change - validate it's not in the future
+        $dateDelivered.on('change', function() {
+            const selectedDate = new Date($(this).val());
+            const todayDate = new Date(today);
+            
+            if (selectedDate > todayDate) {
+                $('#dateError').text('Date cannot be in the future. Please select today or an earlier date.').show();
+                $(this).val(today);
+                $(this).focus();
+            } else {
+                $('#dateError').text('').hide();
+            }
+        });
 
         // Handle ExPrintMint selection change
         $exPrintMintSelect.on('change', function() {
@@ -301,103 +323,112 @@
                 $summaryCard.slideDown(300);
 
                 // Recalculate when ExPrintMint changes
-                calculatePiecesAndBoxes();
+                calculatePiecesAndAmount();
             } else {
                 // Hide summary card if no selection
                 $summaryCard.slideUp(300);
                 // Clear calculations
-                $amountText.val('');
-                $value.val('');
+                $numberOfBoxesText.val('');
+                $numberOfBoxes.val('');
                 $numberOfPiecesText.val('0');
                 $numberOfPieces.val('0');
-                $numberOfBoxesText.val('0');
+                $amountText.val('0');
+                $value.val('0');
             }
         });
 
-        // Handle Amount formatting
-        $amountText.on('input', function() {
+        // Handle Number of Boxes formatting
+        $numberOfBoxesText.on('input', function() {
             let input = $(this).val();
             
-            // Remove all non-numeric characters except decimal
-            let sanitized = input.replace(/[^0-9.]/g, '');
-            
-            // Prevent multiple decimal points
-            const parts = sanitized.split('.');
-            if (parts.length > 2) {
-                sanitized = parts[0] + '.' + parts.slice(1).join('');
-            }
+            // Remove all non-numeric characters
+            let sanitized = input.replace(/[^0-9]/g, '');
 
-            const number = parseFloat(sanitized);
-            if (!isNaN(number)) {
-                // Format with commas and 0 decimal places
-                $(this).val(number.toLocaleString('en-US', {
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0
-                }));
+            const number = parseInt(sanitized);
+            if (!isNaN(number) && sanitized !== "") {
+                // Format with commas
+                $(this).val(number.toLocaleString('en-US'));
                 // Update hidden input with numeric value
-                $value.val(number);
+                $numberOfBoxes.val(number);
             } else {
                 $(this).val('');
-                $value.val('');
+                $numberOfBoxes.val('');
             }
 
-            // Recalculate when amount changes
-            calculatePiecesAndBoxes();
+            // Recalculate when boxes change
+            calculatePiecesAndAmount();
         });
 
-        // Handle paste events for Amount
-        $amountText.on('paste', function() {
+        // Handle paste events for Number of Boxes
+        $numberOfBoxesText.on('paste', function() {
             const $this = $(this);
             setTimeout(function() {
                 $this.trigger('input');
             }, 10);
         });
 
-        // Calculate pieces and boxes based on amount and denomination
-        function calculatePiecesAndBoxes() {
+        // Calculate pieces and amount based on boxes and denomination
+        function calculatePiecesAndAmount() {
             const selectedExPrintMintId = $exPrintMintSelect.val();
-            const amount = parseFloat($value.val()) || 0;
+            const boxes = parseInt($numberOfBoxes.val()) || 0;
 
-            if (selectedExPrintMintId && amount > 0) {
+            if (selectedExPrintMintId && boxes > 0) {
                 // Get the denomination data from the selected option
                 const selectedOption = $exPrintMintSelect.find('option:selected');
                 const denominationValue = parseFloat(selectedOption.data('denomination-value')) || 0;
                 const piecesInBox = parseInt(selectedOption.data('pieces-in-box')) || 1;
 
-                // Calculate number of pieces: amount / denominationValue
-                const numberOfPieces = Math.floor(amount / denominationValue);
+                // Calculate pieces: boxes * piecesInBox
+                const pieces = boxes * piecesInBox;
 
-                // Calculate number of boxes: numberOfPieces / piecesInBox
-                const numberOfBoxes = Math.ceil(numberOfPieces / piecesInBox);
+                // Calculate amount: pieces * denominationValue
+                const amount = pieces * denominationValue;
 
                 // Display formatted pieces
-                $numberOfPiecesText.val(numberOfPieces.toLocaleString('en-US'));
-                $numberOfPieces.val(numberOfPieces);
+                $numberOfPiecesText.val(pieces.toLocaleString('en-US'));
+                $numberOfPieces.val(pieces);
 
-                // Display formatted boxes
-                $numberOfBoxesText.val(numberOfBoxes.toLocaleString('en-US'));
+                // Display formatted amount
+                $amountText.val(amount.toLocaleString('en-US', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                }));
+                $value.val(amount);
             } else {
                 $numberOfPiecesText.val('0');
                 $numberOfPieces.val('0');
-                $numberOfBoxesText.val('0');
+                $amountText.val('0');
+                $value.val('0');
             }
         }
 
         // Form submission - ensure values are set
         $('#editForm').on('submit', function(e) {
-            const amount = $value.val();
+            const boxes = $numberOfBoxes.val();
             
-            if (!amount || amount === '0') {
+            if (!boxes || boxes === '0') {
                 e.preventDefault();
-                $amountText.focus();
-                alert('Please enter a valid amount');
+                $numberOfBoxesText.focus();
+                alert('Please enter a valid number of boxes');
                 return false;
             }
 
-            const numberOfPieces = $numberOfPieces.val();
-            if (!numberOfPieces || numberOfPieces === '0') {
+            const amount = $value.val();
+            if (!amount || amount === '0') {
                 e.preventDefault();
-                alert('Amount must be greater than 0. Please enter a valid amount');
+                alert('Number of boxes must be greater than 0. Please enter a valid value');
+                return false;
+            }
+
+            // Validate date
+            const dateValue = $dateDelivered.val();
+            const selectedDate = new Date(dateValue);
+            const todayDate = new Date(today);
+            
+            if (selectedDate > todayDate) {
+                e.preventDefault();
+                $dateDelivered.focus();
+                alert('Date cannot be in the future. Please select today or an earlier date.');
                 return false;
             }
         });

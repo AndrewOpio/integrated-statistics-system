@@ -6,7 +6,6 @@ using VMSService.Controllers;
 using VMSService.Core.Models.DenominationTypes;
 using VMSService.Core.Repositories.DenominationTypes;
 using VMSService.Core.Services.Stocks.StockEntities;
-using VMSService.Data.Entities;
 
 namespace VMSService.Web.Controllers
 {
@@ -19,7 +18,7 @@ namespace VMSService.Web.Controllers
         {
             try
             {
-                var denominationTypes = (await _denominationTypeRepository.FindAll()).Where(d => d.IsDeleted == false);
+                var denominationTypes = (await _denominationTypeRepository.FindAll());
                 var model = _mapper.Map<List<DenominationTypeViewModel>>(denominationTypes);
                 return View(model);
             }
@@ -166,6 +165,12 @@ namespace VMSService.Web.Controllers
                 if (denominationType == null)
                 {
                     return NotFound();
+                }
+
+                if (denominationType.Name == model.Name)
+                {
+                    TempData["Error"] = "No changes were made to the denomination type.";
+                    return View(model);
                 }
 
                 denominationType.Name = model.Name;

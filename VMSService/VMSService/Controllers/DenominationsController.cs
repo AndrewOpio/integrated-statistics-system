@@ -6,7 +6,7 @@ using VMSService.Controllers;
 using VMSService.Core.Models.Denominations;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.DenominationTypes;
-using VMSService.Data.Entities;
+using VMSService.Core.Services.Stocks.StockEntities;
 
 namespace VMSService.Web.Controllers
 {
@@ -23,7 +23,7 @@ namespace VMSService.Web.Controllers
         {
             try
             {
-                var denominations = (await _denominationRepository.FindAll()).Where(d => d.IsDeleted == false);
+                var denominations = (await _denominationRepository.FindAll());
                 var model = _mapper.Map<List<DenominationViewModel>>(denominations);
                 return View(model);
             }
@@ -46,13 +46,13 @@ namespace VMSService.Web.Controllers
 
             try
             {
-                bool exists = await _denominationRepository.IsExists(id.Value);
+                var denomination = await _denominationRepository.FindById(id.Value);
+                bool exists = denomination != null && !denomination.IsDeleted;
                 if (!exists)
                 {
                     return NotFound();
                 }
 
-                var denomination = await _denominationRepository.FindById(id.Value);
                 if (denomination == null)
                 {
                     return NotFound();
@@ -148,13 +148,14 @@ namespace VMSService.Web.Controllers
 
             try
             {
-                bool exists = await _denominationRepository.IsExists(id.Value);
+                //bool exists = await _denominationRepository.IsExists(id.Value);
+                var denomination = await _denominationRepository.FindById(id.Value);
+                bool exists = denomination != null && !denomination.IsDeleted;
                 if (!exists)
                 {
                     return NotFound();
                 }
 
-                var denomination = await _denominationRepository.FindById(id.Value);
                 if (denomination == null)
                 {
                     return NotFound();
@@ -206,6 +207,19 @@ namespace VMSService.Web.Controllers
                 if (denomination == null)
                 {
                     return NotFound();
+                }
+
+                //Compare to check if changes were made
+                var oldDenomination = _mapper.Map<DenominationViewModel>(denomination);
+                if (oldDenomination.Name == model.Name &&
+                    oldDenomination.Value == model.Value &&
+                    oldDenomination.DenominationTypeId == model.DenominationTypeId &&
+                    oldDenomination.NumberOfPiecesInABox == model.NumberOfPiecesInABox)
+                {
+                    var denominationTypes = await _denominationTypeRepository.FindAll();
+                    ViewBag.DenominationTypes = denominationTypes.Where(dt => !dt.IsDeleted).ToList();
+                    TempData["Error"] = "No changes Made";
+                    return View(model);
                 }
 
                 denomination.Name = model.Name;

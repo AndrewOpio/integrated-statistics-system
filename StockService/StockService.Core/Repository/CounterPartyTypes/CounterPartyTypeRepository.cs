@@ -9,12 +9,13 @@ namespace StockService.Core.Repository.CounterPartyTypes
 
         public async Task<ICollection<CounterPartyType>> FindAllAsync()
         {
-            return await _db.CounterPartyTypes.ToListAsync();
+            return await _db.CounterPartyTypes.Where(t => !t.IsDeleted).ToListAsync();
         }
 
         public async Task<CounterPartyType> FindByIdAsync(int id)
         {
-            return await _db.CounterPartyTypes.FindAsync(id);
+            return await _db.CounterPartyTypes.Where(t => !t.IsDeleted)
+                .FirstOrDefaultAsync(t => t.Id == id);
         }
 
         public async Task<CounterPartyType> CreateAsync(CounterPartyType entity)
@@ -42,6 +43,9 @@ namespace StockService.Core.Repository.CounterPartyTypes
                 throw new InvalidOperationException("A counter party type with the same name already exists.");
 
             existing.Name = entity.Name;
+            existing.IsDeleted = entity.IsDeleted;
+            existing.ModifiedBy = entity.ModifiedBy;
+            existing.ModifiedDate = entity.ModifiedDate;
 
             return await Save();
         }

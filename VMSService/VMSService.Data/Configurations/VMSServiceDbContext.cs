@@ -15,7 +15,7 @@ namespace VMSService.Data.Configurations
 
         public DbSet<VendorType> VendorTypes { get; set; }
         public DbSet<CurrencyVendor> CurrencyVendors { get; set; }
-        public DbSet<Denomination> Denominations { get; set; }
+        //public DbSet<Denomination> Denominations { get; set; }
         public DbSet<ApprovedCurrencyProcurement> ApprovedCurrencyProcurements { get; set; }
         public DbSet<ExPrintMint> ExPrintMints { get; set; }
         public DbSet<ApprovedCurrencyDenomination> ApprovedCurrencyDenominations { get; set; }

@@ -3,10 +3,16 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartBreadcrumbs.Attributes;
 using VMSService.Controllers;
+using VMSService.Core.Models.Branches;
+using VMSService.Core.Models.Denominations;
 using VMSService.Core.Models.ExPrintMints;
 using VMSService.Core.Models.ReceivedStocks;
 using VMSService.Core.Models.ReceivedStockStatusHistories;
 using VMSService.Core.Models.WorkflowTransitions;
+using VMSService.Core.Repositories.BranchCategories;
+using VMSService.Core.Repositories.Branches;
+using VMSService.Core.Repositories.CounterPartyTypes;
+using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ReceivedStocks;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
@@ -29,7 +35,11 @@ namespace VMSService.Web.Controllers
         IWorkflowService _workflowService,
         IReceivedStockStatusHistoryRepository _statusHistoryRepository,
         IStockLedgerRepository _stockLedgerRepository,
-        IStockLedgerDetailRepository _stockLedgerDetailRepository) : Controller
+        IStockLedgerDetailRepository _stockLedgerDetailRepository,
+        IDenominationRepository _denominationRepository,
+        IBranchRepository _branchRepository,
+        ICounterPartyTypeRepository _counterPartyTypeRepository,
+        IBranchCategoryRepository _branchCategoryRepository) : Controller
     {
         [Breadcrumb("Received Stock", FromController = typeof(HomeController), FromAction = nameof(Index))]
         // GET: ReceivedStocks
@@ -39,6 +49,24 @@ namespace VMSService.Web.Controllers
             {
                 var receivedStocks = (await _receivedStockRepository.FindAll());
                 var model = _mapper.Map<List<ReceivedStockViewModel>>(receivedStocks);
+
+                foreach (var receivedStock in model)
+                {
+                    if (receivedStock.ExPrintMint != null)
+                    {
+                        receivedStock.ExPrintMint.Denomination = _mapper.Map<DenominationViewModel>(await _denominationRepository.FindById(receivedStock.ExPrintMint.DenominationId));
+                        
+                        // Add Branch information through ExPrintMint
+                        if (receivedStock.ExPrintMint.BranchId > 0)
+                        {
+                            var branch = await _branchRepository.FindById(receivedStock.ExPrintMint.BranchId);
+                            if (branch != null)
+                            {
+                                receivedStock.ExPrintMint.Branch = _mapper.Map<BranchViewModel>(branch);
+                            }
+                        }
+                    }
+                }
                 return View(model);
             }
             catch (Exception ex)
@@ -98,6 +126,21 @@ namespace VMSService.Web.Controllers
                 model.StatusHistory = _mapper.Map<ICollection<ReceivedStockStatusHistoryViewModel>>(
                     await _statusHistoryRepository.FindByReceivedStockId(id ?? 0));
 
+                if (model.ExPrintMint != null)
+                {
+                    model.ExPrintMint.Denomination = _mapper.Map<DenominationViewModel>(await _denominationRepository.FindById(model.ExPrintMint.DenominationId));
+                    
+                    // Add Branch information through ExPrintMint
+                    if (model.ExPrintMint.BranchId > 0)
+                    {
+                        var branch = await _branchRepository.FindById(model.ExPrintMint.BranchId);
+                        if (branch != null)
+                        {
+                            model.ExPrintMint.Branch = _mapper.Map<BranchViewModel>(branch);
+                        }
+                    }
+                }
+
                 return View(model);
             }
             catch (Exception ex)
@@ -114,7 +157,22 @@ namespace VMSService.Web.Controllers
         {
             try
             {
-                ViewBag.ExPrintMints = _mapper.Map<List<ExPrintMintViewModel>>(await _exPrintMintRepository.FindAll());
+                var exPrintMints = _mapper.Map<List<ExPrintMintViewModel>>(await _exPrintMintRepository.FindPendingDeliveries());
+                foreach (var exPrintMint in exPrintMints)
+                {
+                    exPrintMint.Denomination = _mapper.Map<DenominationViewModel>(await _denominationRepository.FindById(exPrintMint.DenominationId));
+                    
+                    // Add Branch information through ExPrintMint
+                    if (exPrintMint.BranchId > 0)
+                    {
+                        var branch = await _branchRepository.FindById(exPrintMint.BranchId);
+                        if (branch != null)
+                        {
+                            exPrintMint.Branch = _mapper.Map<BranchViewModel>(branch);
+                        }
+                    }
+                }
+                ViewBag.ExPrintMints = exPrintMints;
                 return View(new ReceivedStockViewModel());
             }
             catch (Exception ex)
@@ -131,7 +189,22 @@ namespace VMSService.Web.Controllers
         [Breadcrumb("Create", FromController = typeof(ReceivedStocksController), FromAction = nameof(Index))]
         public async Task<IActionResult> Create(ReceivedStockViewModel model)
         {
-            ViewBag.ExPrintMints = _mapper.Map<List<ExPrintMintViewModel>>(await _exPrintMintRepository.FindAll());
+            var exPrintMints = _mapper.Map<List<ExPrintMintViewModel>>(await _exPrintMintRepository.FindPendingDeliveries());
+            foreach (var exPrintMint in exPrintMints)
+            {
+                exPrintMint.Denomination = _mapper.Map<DenominationViewModel>(await _denominationRepository.FindById(exPrintMint.DenominationId));
+                
+                // Add Branch information through ExPrintMint
+                if (exPrintMint.BranchId > 0)
+                {
+                    var branch = await _branchRepository.FindById(exPrintMint.BranchId);
+                    if (branch != null)
+                    {
+                        exPrintMint.Branch = _mapper.Map<BranchViewModel>(branch);
+                    }
+                }
+            }
+            ViewBag.ExPrintMints = exPrintMints;
 
             if (!ModelState.IsValid)
             {
@@ -198,7 +271,22 @@ namespace VMSService.Web.Controllers
                     return NotFound();
                 }
 
-                ViewBag.ExPrintMints = _mapper.Map<List<ExPrintMintViewModel>>(await _exPrintMintRepository.FindAll());
+                var exPrintMints = _mapper.Map<List<ExPrintMintViewModel>>(await _exPrintMintRepository.FindPendingDeliveries());
+                foreach (var exPrintMint in exPrintMints)
+                {
+                    exPrintMint.Denomination = _mapper.Map<DenominationViewModel>(await _denominationRepository.FindById(exPrintMint.DenominationId));
+                    
+                    // Add Branch information through ExPrintMint
+                    if (exPrintMint.BranchId > 0)
+                    {
+                        var branch = await _branchRepository.FindById(exPrintMint.BranchId);
+                        if (branch != null)
+                        {
+                            exPrintMint.Branch = _mapper.Map<BranchViewModel>(branch);
+                        }
+                    }
+                }
+                ViewBag.ExPrintMints = exPrintMints;
 
                 var model = _mapper.Map<ReceivedStockViewModel>(receivedStock);
                 return View(model);
@@ -222,7 +310,22 @@ namespace VMSService.Web.Controllers
                 return NotFound();
             }
 
-            ViewBag.ExPrintMints = _mapper.Map<List<ExPrintMintViewModel>>(await _exPrintMintRepository.FindAll());
+            var exPrintMints = _mapper.Map<List<ExPrintMintViewModel>>(await _exPrintMintRepository.FindPendingDeliveries());
+            foreach (var exPrintMint in exPrintMints)
+            {
+                exPrintMint.Denomination = _mapper.Map<DenominationViewModel>(await _denominationRepository.FindById(exPrintMint.DenominationId));
+                
+                // Add Branch information through ExPrintMint
+                if (exPrintMint.BranchId > 0)
+                {
+                    var branch = await _branchRepository.FindById(exPrintMint.BranchId);
+                    if (branch != null)
+                    {
+                        exPrintMint.Branch = _mapper.Map<BranchViewModel>(branch);
+                    }
+                }
+            }
+            ViewBag.ExPrintMints = exPrintMints;
 
             if (!ModelState.IsValid)
             {
@@ -248,6 +351,7 @@ namespace VMSService.Web.Controllers
                 receivedStock.ExPrintMintId = model.ExPrintMintId;
                 receivedStock.DateDelivered = model.DateDelivered;
                 receivedStock.NumberOfPieces = model.NumberOfPieces;
+                receivedStock.NumberOfBoxes = model.NumberOfBoxes;
                 receivedStock.Value = model.Value;
                 receivedStock.BoxNumberPrefix = model.BoxNumberPrefix;
                 receivedStock.BoxNumberRangeStart = model.BoxNumberRangeStart;
@@ -398,22 +502,41 @@ namespace VMSService.Web.Controllers
                         //Update Stock Position
                         try
                         {
-                            var updatedReceivedStock = await _receivedStockRepository.FindById(id);
+                            //var updatedReceivedStock = await _receivedStockRepository.FindById(id);
+
+                            BranchCategory store = await _branchCategoryRepository
+                                .FindByBranchAndCategoryName(receivedStock.ExPrintMint.BranchId, StockConstants.StoreTypes.New);
+                            var counterPartyType = await _counterPartyTypeRepository.FindByName(StockConstants.StockCounterPartyType.Vendor);
+
+                            StockLedgerDetail stockLedgerDetail = new()
+                            {
+                                CreatedDate = DateTime.Now,
+                                ModifiedDate = DateTime.Now,
+                                CreatedBy = username ?? "unknown",
+                                ModifiedBy = username ?? "unknown",
+                                DenominationId = receivedStock.ExPrintMint.DenominationId,
+                                NumberOfPieces = receivedStock.NumberOfPieces,
+                                NumberOfBoxes = receivedStock.NumberOfBoxes,
+                                Value = (int) receivedStock.Value
+                            };
+
+                            List<StockLedgerDetail> stockLedgerDetails = new();
+                            stockLedgerDetails.Add(stockLedgerDetail);
 
                             // Create StockLedger entry
-                            var stockLedger = new StockLedger
+                            StockLedger stockLedger = new()
                             {
                                 ReferenceCode = receivedStock.ExPrintMint.ExPrintMintReference,
+                                StoreId = store.Id, //Branch - New
                                 IsIn = true,
-                                CounterPartyId = 1,
-                                CategoryId = 1, //Remove 
-                                CounterPartyTypeId = 1,
+                                CounterPartyId = receivedStock.ExPrintMint.CurrencyVendorId,
+                                CounterPartyTypeId = counterPartyType.Id, //Vendor
                                 Notes = remarks,
                                 CreatedBy = username ?? "unknown",
                                 CreatedDate = DateTime.Now,
                                 ModifiedBy = username ?? "unknown",
                                 ModifiedDate = DateTime.Now,
-                                StockLedgerDetails = new List<StockLedgerDetail>()
+                                StockLedgerDetails = stockLedgerDetails
                             };
 
                             StockLedger createdLedgerRecord = await _stockLedgerRepository.Create(stockLedger);
@@ -421,14 +544,16 @@ namespace VMSService.Web.Controllers
                             if (createdLedgerRecord != null)
                             {
                                 // Create StockLedgerDetail entries
-                                for (int i = 0; i < updatedReceivedStock.NumberOfPieces; i++)
+                                for (int i = 0; i < receivedStock.NumberOfPieces; i++)
                                 {
                                     var ledgerDetail = new StockLedgerDetail
                                     {
                                         StockLedgerId = createdLedgerRecord.Id,
                                         DenominationId = receivedStock.ExPrintMint.DenominationId,
-                                        Count = receivedStock.NumberOfPieces,
-                                        Values = (int) receivedStock.Value,
+                                        NumberOfPieces = receivedStock.NumberOfPieces,
+                                        NumberOfBoxes = receivedStock.NumberOfBoxes,
+                                        NumberOfBundles = null,
+                                        Value = (int)receivedStock.Value,
                                         CreatedBy = username ?? "unknown",
                                         ModifiedBy = username ?? "unknown",
                                         CreatedDate = DateTime.Now,

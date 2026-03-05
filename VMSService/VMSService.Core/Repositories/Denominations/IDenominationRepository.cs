@@ -1,5 +1,5 @@
 using VMSService.Core.Repository.Common;
-using VMSService.Data.Entities;
+using VMSService.Core.Services.Stocks.StockEntities;
 
 namespace VMSService.Core.Repositories.Denominations
 {

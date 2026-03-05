@@ -48,10 +48,11 @@
                                 <th class="border-0">Reference</th>
                                 <th class="border-0">Vendor</th>
                                 <th class="border-0">Denomination</th>
-                                <th class="border-0">Delivery Date</th>
+                                <th class="border-0">Expected Delivery Date</th>
                                 <th class="border-0">Value (UGX)</th>
                                 <th class="border-0">Type</th>
                                 <th class="border-0">Status</th>
+                                <th class="border-0">Branch</th>
                                 <th class="border-0 rounded-end">Actions</th>
                             </tr>
                         </thead>
@@ -121,6 +122,16 @@
                                                     </span>
                                                 }
                                             </div>
+                                        </td>
+                                        <td>
+                                            @if (item.Branch != null)
+                                            {
+                                                @item.Branch.Name
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
                                         </td>
                                         <td>
                                             <div class="btn-group" role="group">

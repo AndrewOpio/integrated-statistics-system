@@ -1,5 +1,4 @@
 ﻿using VMSService.Data.AuditColumns;
-using VMSService.Data.Entities;
 
 namespace VMSService.Core.Services.Stocks.StockEntities
 {

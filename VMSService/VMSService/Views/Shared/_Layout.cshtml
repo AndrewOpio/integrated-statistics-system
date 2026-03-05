@@ -143,7 +143,7 @@
                                 <span class="sidebar-icon fs-5 me-4">
                                     <i class="ti ti-settings"></i>
                                 </span>
-                                <span class="sidebar-text">Settings</span>
+                                <span class="sidebar-text">Stock Settings</span>
                             </span>
                             <span class="link-arrow">
                                 <svg class="icon icon-sm" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
@@ -156,16 +156,6 @@
                         <div class="multi-level collapse" role="list" id="submenu-app" aria-expanded="false">
                             <ul class="flex-column nav">
                                 <li class="nav-item">
-                                    <a asp-controller="VendorTypes" asp-action="Index" class="nav-link">
-                                        <span class="sidebar-text">Vendor Types</span>
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a asp-controller="CurrencyVendors" asp-action="Index" class="nav-link">
-                                        <span class="sidebar-text">Currency Vendors</span>
-                                    </a>
-                                </li>
-                                <li class="nav-item">
                                     <a asp-controller="DenominationTypes" asp-action="Index" class="nav-link">
                                         <span class="sidebar-text">Denomination Types</span>
                                     </a>
@@ -173,6 +163,63 @@
                                 <li class="nav-item">
                                     <a asp-controller="Denominations" asp-action="Index" class="nav-link">
                                         <span class="sidebar-text">Denomination</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a asp-controller="CounterPartyTypes" asp-action="Index" class="nav-link">
+                                        <span class="sidebar-text">Counter Party Types</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a asp-controller="CommercialBanks" asp-action="Index" class="nav-link">
+                                        <span class="sidebar-text">Commercial Banks</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a asp-controller="Categories" asp-action="Index" class="nav-link">
+                                        <span class="sidebar-text">Currency Categories</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a asp-controller="Branches" asp-action="Index" class="nav-link">
+                                        <span class="sidebar-text">BOU Branches</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a asp-controller="BranchCategories" asp-action="Index" class="nav-link">
+                                        <span class="sidebar-text">Vault Stores</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <span class="nav-link collapsed d-flex justify-content-between align-items-center"
+                              data-bs-toggle="collapse" data-bs-target="#submenu1-app">
+                            <span class="d-flex align-items-center">
+                                <span class="sidebar-icon fs-5 me-4">
+                                    <i class="ti ti-settings"></i>
+                                </span>
+                                <span class="sidebar-text">VMS Settings</span>
+                            </span>
+                            <span class="link-arrow">
+                                <svg class="icon icon-sm" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                    <path fill-rule="evenodd"
+                                          d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                                          clip-rule="evenodd"></path>
+                                </svg>
+                            </span>
+                        </span>
+                        <div class="multi-level collapse" role="list" id="submenu1-app" aria-expanded="false">
+                            <ul class="flex-column nav">
+                                <li class="nav-item">
+                                    <a asp-controller="VendorTypes" asp-action="Index" class="nav-link">
+                                        <span class="sidebar-text">Vendor Types</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a asp-controller="CurrencyVendors" asp-action="Index" class="nav-link">
+                                        <span class="sidebar-text">Currency Vendors</span>
                                     </a>
                                 </li>
                                 <li class="nav-item">

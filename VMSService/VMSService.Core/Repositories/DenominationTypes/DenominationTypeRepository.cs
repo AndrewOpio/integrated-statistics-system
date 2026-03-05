@@ -1,11 +1,12 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using VMSService.Core.Services.Stocks;
 using VMSService.Core.Services.Stocks.StockEntities;
-using VMSService.Data.Configurations;
 
 namespace VMSService.Core.Repositories.DenominationTypes
 {
-    public class DenominationTypeRepository(IStockService _stockService, ILogger<DenominationTypeRepository> _logger, VMSServiceDbContext _db) : IDenominationTypeRepository
+    public class DenominationTypeRepository(IStockService _stockService, 
+        ILogger<DenominationTypeRepository> _logger, IHttpContextAccessor _httpContextAccessor) : IDenominationTypeRepository
     {
         public async Task<bool> Create(DenominationType model)
         {
@@ -14,6 +15,9 @@ namespace VMSService.Core.Repositories.DenominationTypes
 
             try
             {
+                var user = _httpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "unknown";
+                model.CreatedBy = user;
+                model.ModifiedBy = user;
                 return await _stockService.CreateDenominationType(model);
             }
             catch (Exception ex)
@@ -29,7 +33,7 @@ namespace VMSService.Core.Repositories.DenominationTypes
             try
             {
                 var denominationTypes = await _stockService.GetAllDenominationTypes();
-                return denominationTypes.Where(x => x.IsDeleted == false).ToList();
+                return denominationTypes.ToList();
             }
             catch (Exception ex)
             {
@@ -65,7 +69,7 @@ namespace VMSService.Core.Repositories.DenominationTypes
             try
             {
                 var denominationType = await FindById(id);
-                return denominationType != null;
+                return denominationType != null && !denominationType.IsDeleted;
             }
             catch (Exception ex)
             {
@@ -87,6 +91,10 @@ namespace VMSService.Core.Repositories.DenominationTypes
 
             try
             {
+                var user = _httpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "unknown";
+                var now = DateTime.Now;
+                model.ModifiedBy = user;
+                model.ModifiedDate = now;
                 return await _stockService.UpdateDenominationType(model);
             }
             catch (Exception ex)

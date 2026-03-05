@@ -15,12 +15,12 @@ namespace VMSService.Core.Repositories.ReceivedStocks
         public async Task<ICollection<ReceivedStock>> FindAll()
         {
             return await _db.ReceivedStock
+                .OrderByDescending(x => x.CreatedDate)
                 .Where(x => x.IsDeleted == false)
                 .Include(x => x.CurrentStatus)
                 .Include(x => x.ExPrintMint)
                 .Include(x => x.ExPrintMint.CurrencyVendor)
                 .Include(x => x.ExPrintMint.CurrencyVendor.VendorType)
-                .Include(x => x.ExPrintMint.Denomination)
                 .ToListAsync();
         }
 
@@ -31,7 +31,6 @@ namespace VMSService.Core.Repositories.ReceivedStocks
                 .Include(x => x.ExPrintMint)
                 .Include(x => x.ExPrintMint.CurrencyVendor)
                 .Include(x => x.ExPrintMint.CurrencyVendor.VendorType)
-                .Include(x => x.ExPrintMint.Denomination)
                 .FirstOrDefaultAsync(x => x.Id == id);
         }
 

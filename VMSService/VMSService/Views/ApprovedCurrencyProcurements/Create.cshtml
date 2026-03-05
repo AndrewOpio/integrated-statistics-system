@@ -19,14 +19,14 @@
                     
                     <div class="mb-3">
                         <label class="form-label" asp-for="Amount">Total Approved Amount <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="AmountText" placeholder="Enter amount" readonly>
+                        <input type="text" class="form-control" id="AmountText" placeholder="0" readonly>
                         <span asp-validation-for="Amount" class="text-danger small d-block mt-1"></span>
                     </div>
 
                     <!-- Denominations Section -->
                     <div class="mb-4">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <label class="form-label fw-bold mb-0">Denominations</label>
+                            <label class="form-label fw-bold mb-0">Denominations <span class="text-danger">*</span></label>
                             <button type="button" class="btn btn-sm btn-primary" id="addDenominationBtn">
                                 <i class="ti ti-plus me-1"></i>Add Denomination
                             </button>
@@ -38,8 +38,8 @@
                                     <tr>
                                         <th class="fw-bold">Denomination</th>
                                         <th class="fw-bold">Currency Vendor</th>
-                                        <th class="fw-bold">Amount</th>
-                                        <th class="fw-bold">Number of Pieces</th>
+                                        <th class="fw-bold">Number of Pieces <span class="text-danger">*</span></th>
+                                        <th class="fw-bold">Amount (Auto-calculated)</th>
                                         <th class="fw-bold text-center" style="width: 50px;">Actions</th>
                                     </tr>
                                 </thead>
@@ -54,7 +54,7 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label" asp-for="AttachmentFile">Board Approval Attachment</label>
+                        <label class="form-label" asp-for="AttachmentFile">Board Resolution Attachment <span class="text-danger">*</span></label>
                         <input type="file" class="form-control" id="AttachmentFile" name="AttachmentFile" accept=".pdf,application/pdf">
                         <span asp-validation-for="AttachmentFile" class="text-danger small d-block mt-1"></span>
                     </div>
@@ -138,14 +138,14 @@
                         </select>
                     </td>
                     <td>
-                        <input type="text" class="form-control form-control-sm denomination-amount" id="${amountInputId}" 
-                               placeholder="0" required>
-                        <input type="hidden" name="ApprovedCurrencyDenominations[${rowIndex}].Amount" id="Amount_Hidden_${rowIndex}" value="0">
+                        <input type="text" class="form-control form-control-sm denomination-pieces" id="${piecesInputId}" 
+                               placeholder="Enter number of pieces" value="${pieces}" required>
+                        <input type="hidden" name="ApprovedCurrencyDenominations[${rowIndex}].NumberOfPieces" id="Pieces_Hidden_${rowIndex}" value="${pieces}">
                     </td>
                     <td>
-                        <input type="text" class="form-control form-control-sm denomination-pieces" id="${piecesInputId}" 
-                               placeholder="0" readonly>
-                        <input type="hidden" name="ApprovedCurrencyDenominations[${rowIndex}].NumberOfPieces" id="Pieces_Hidden_${rowIndex}" value="0">
+                        <input type="text" class="form-control form-control-sm denomination-amount" id="${amountInputId}" 
+                               placeholder="0" readonly value="${amount}">
+                        <input type="hidden" name="ApprovedCurrencyDenominations[${rowIndex}].Amount" id="Amount_Hidden_${rowIndex}" value="${amount}">
                     </td>
                     <td class="text-center">
                         <button type="button" class="btn btn-sm btn-outline-danger remove-denomination-btn">
@@ -164,11 +164,11 @@
             if (vendorId) {
                 $(`#${vendorSelectId}`).val(vendorId);
             }
-            if (amount) {
-                $(`#${amountInputId}`).val(parseFloat(amount).toLocaleString("en-US", {minimumFractionDigits: 0, maximumFractionDigits: 2}));
-            }
             if (pieces) {
                 $(`#${piecesInputId}`).val(parseInt(pieces).toLocaleString("en-US"));
+            }
+            if (amount) {
+                $(`#${amountInputId}`).val(parseFloat(amount).toLocaleString("en-US", {minimumFractionDigits: 0, maximumFractionDigits: 2}));
             }
 
             // Attach event handlers to the new row
@@ -182,16 +182,16 @@
             const $piecesInput = $row.find('.denomination-pieces');
             const $removeBtn = $row.find('.remove-denomination-btn');
 
-            // Format amount input and calculate pieces
-            $amountInput.on('input', function (e) {
-                formatAmountInput(this);
-                calculatePiecesFromAmount($row);
+            // Format pieces input and calculate amount
+            $piecesInput.on('input', function (e) {
+                formatPiecesInput(this);
+                calculateAmountFromPieces($row);
                 calculateTotalAmount();
             });
 
-            // Calculate pieces when denomination is selected
+            // Calculate amount when denomination is selected
             $denomSelect.on('change', function () {
-                calculatePiecesFromAmount($row);
+                calculateAmountFromPieces($row);
                 calculateTotalAmount();
             });
 
@@ -205,42 +205,36 @@
             });
         }
 
-        function formatAmountInput(input) {
-            let raw = input.value.replace(/[^0-9.]/g, "");
-            const parts = raw.split(".");
-            if (parts.length > 2) {
-                raw = parts[0] + "." + parts.slice(1).join("");
-            }
-            const number = parseFloat(raw);
-            if (!isNaN(number)) {
-                input.value = number.toLocaleString("en-US", {
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 2
-                });
+        function formatPiecesInput(input) {
+            // Remove all non-numeric characters
+            let raw = input.value.replace(/[^0-9]/g, "");
+            const number = parseInt(raw);
+            if (!isNaN(number) && raw !== "") {
+                input.value = number.toLocaleString("en-US");
             } else {
                 input.value = "";
             }
         }
 
-        function calculatePiecesFromAmount($row) {
+        function calculateAmountFromPieces($row) {
             const $denomSelect = $row.find('.denomination-select');
-            const $amountInput = $row.find('.denomination-amount');
             const $piecesInput = $row.find('.denomination-pieces');
+            const $amountInput = $row.find('.denomination-amount');
             const $amountHidden = $row.find('input[name*=".Amount"]');
             const $piecesHidden = $row.find('input[name*=".NumberOfPieces"]');
 
             const selectedDenomination = denominations.find(d => d.Id == $denomSelect.val());
-            const amount = parseFloat($amountInput.val().replace(/,/g, '')) || 0;
+            const pieces = parseInt($piecesInput.val().replace(/,/g, '')) || 0;
 
             if (selectedDenomination && selectedDenomination.Value > 0) {
-                const pieces = Math.floor(amount / selectedDenomination.Value);
-                $piecesInput.val(pieces.toLocaleString("en-US"));
+                const amount = pieces * selectedDenomination.Value;
+                $amountInput.val(amount.toLocaleString("en-US", {minimumFractionDigits: 0, maximumFractionDigits: 2}));
+                $amountHidden.val(amount);
                 $piecesHidden.val(pieces);
-                $amountHidden.val(amount);
             } else {
-                $piecesInput.val('0');
-                $piecesHidden.val(0);
-                $amountHidden.val(amount);
+                $amountInput.val('0');
+                $amountHidden.val(0);
+                $piecesHidden.val(pieces);
             }
         }
 

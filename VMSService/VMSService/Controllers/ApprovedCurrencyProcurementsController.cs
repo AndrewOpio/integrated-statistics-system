@@ -79,6 +79,10 @@ namespace VMSService.Web.Controllers
                 var model = _mapper.Map<ApprovedCurrencyProcurementsViewModel>(approvedCurrencyProcurement);
                 model.ApprovedCurrencyDenominations = _mapper.Map<List<ApprovedCurrencyDenominationViewModel>>(
                     await _approvedCurrencyDenominationRepo.FindByApprovedCurrencyId(id ?? 0));
+                foreach(var approvedCurrencyDenomination in model.ApprovedCurrencyDenominations)
+                {
+                    approvedCurrencyDenomination.Denomination = _mapper.Map<DenominationViewModel>(await _denominationRepository.FindById(approvedCurrencyDenomination.DenominationId));
+                }
 
                 // Get available transitions for current user
                 //var userRole = User.FindFirst(SystemPolicy.ClaimType.AppRole)?.Value ?? "";
@@ -258,6 +262,10 @@ namespace VMSService.Web.Controllers
 
                 var model = _mapper.Map<ApprovedCurrencyProcurementsViewModel>(approvedCurrencyProcurement);
                 model.ApprovedCurrencyDenominations = _mapper.Map<List<ApprovedCurrencyDenominationViewModel>>(await _approvedCurrencyDenominationRepo.FindByApprovedCurrencyId(id ?? 0));
+                foreach (var approvedCurrencyDenomination in model.ApprovedCurrencyDenominations)
+                {
+                    approvedCurrencyDenomination.Denomination = _mapper.Map<DenominationViewModel>(await _denominationRepository.FindById(approvedCurrencyDenomination.DenominationId));
+                }
                 return View(model);
             }
             catch (Exception ex)
@@ -428,6 +436,10 @@ namespace VMSService.Web.Controllers
 
                 var model = _mapper.Map<ApprovedCurrencyProcurementsViewModel>(approvedCurrencyProcurement);
                 model.ApprovedCurrencyDenominations = _mapper.Map<List<ApprovedCurrencyDenominationViewModel>>(await _approvedCurrencyDenominationRepo.FindByApprovedCurrencyId(id ?? 0));
+                foreach (var approvedCurrencyDenomination in model.ApprovedCurrencyDenominations)
+                {
+                    approvedCurrencyDenomination.Denomination = _mapper.Map<DenominationViewModel>(await _denominationRepository.FindById(approvedCurrencyDenomination.DenominationId));
+                }
                 return View(model);
             }
             catch (Exception ex)

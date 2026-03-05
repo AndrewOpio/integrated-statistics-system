@@ -9,7 +9,9 @@ using IdentityService.Core.Static;
 using IdentityService.Data.Configurations;
 using IdentityService.Data.Entities;
 using IdentityService.Mappings;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -128,8 +130,6 @@ builder.Services.AddAuthentication(options =>
         }
     };
 });
-
-builder.Services.AddAuthorization();
 
 // Custom Policies
 builder.Services.AddAuthorization(options =>

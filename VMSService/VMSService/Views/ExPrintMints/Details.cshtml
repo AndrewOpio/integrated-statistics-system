@@ -39,10 +39,10 @@
             <div class="card-body bg-light">
                 <div class="row align-items-center">
                     <div class="col-md-8">
-                        <h5 class="mb-1">@Model.ExPrintMintReference</h5>
+                        <h5 class="mb-1">@Model.ExPrintMintReference - @Model.Branch?.Name</h5>
                         <p class="text-muted mb-0">
                             <i class="ti ti-calendar me-1"></i>
-                            Delivery Date: <strong>@Model.DeliveryDate.ToString("dddd, MMMM dd, yyyy")</strong>
+                            Expected Delivery Date: <strong>@Model.DeliveryDate.ToString("dddd, MMMM dd, yyyy")</strong>
                         </p>
                     </div>
                     <div class="col-md-4 text-end">
