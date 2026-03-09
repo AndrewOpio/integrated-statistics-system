@@ -92,9 +92,10 @@ namespace VMSService.Core.Repositories.BranchCategories
 
         public async Task<BranchCategory> FindByBranchAndCategoryName(int branchId, string categoryName)
         {
-            var branchCategories = await FindAll();
-            var filtered = branchCategories.Where(bc => bc.Branch.Id == branchId && bc.Category.Name == categoryName).FirstOrDefault();
-            return filtered;
+            //var branchCategories = await FindAll();
+            //var filtered = branchCategories.Where(bc => bc.Branch.Id == branchId && bc.Category.Name == categoryName).FirstOrDefault();
+            //return filtered;
+            return (await FindAll()).Where(bc => bc.Branch.Id == branchId && bc.Category.Name == categoryName).FirstOrDefault();
         }
     }
 }

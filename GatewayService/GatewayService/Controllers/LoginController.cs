@@ -1,11 +1,12 @@
 ﻿using GatewayService.Models;
 using GatewayService.Services;
+using GatewayService.Services.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
 namespace GatewayService.Controllers
 {
-    public class LoginController(ILogger<LoginController> _logger) : Controller
+    public class LoginController(ILogger<LoginController> _logger, IIdentityService _identityService) : Controller
     {
         public IActionResult Index()
         {
@@ -15,15 +16,9 @@ namespace GatewayService.Controllers
         [HttpPost]
         public async Task<IActionResult> Index(string username, string password, [FromServices] IHttpClientFactory clientFactory)
         {
-            var client = clientFactory.CreateClient();
-            var loginData = new { username, password };
-
             try
             {
-                //var response = await client.PostAsJsonAsync("http://identityservice/api/auth/login", loginData);
-                var response = await client.PostAsJsonAsync("https://localhost:7026/api/auth/login", loginData);
-                //var response = await client.PostAsJsonAsync("http://localhost:5000/api/auth/login", loginData);
-
+                var response = await _identityService.LoginAsync(username, password);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -32,17 +27,18 @@ namespace GatewayService.Controllers
                     // Set authentication cookie
                     Response.Cookies.Append("AuthToken", result.Token, new CookieOptions
                     {
-                        HttpOnly = true,
-                        Secure = false, // Set to true in production with HTTPS
-                        SameSite = SameSiteMode.Lax,
-                        Expires = DateTimeOffset.UtcNow.AddHours(2)
+                        Secure = true, // Set to true in production with HTTPS
+                        SameSite = SameSiteMode.None,
+                        Expires = DateTimeOffset.UtcNow.AddHours(2),
+                        Domain = ".bcnet.bou.or.ug"
                     });
 
                     Response.Cookies.Append("Username", result.Username, new CookieOptions
                     {
-                        Secure = false,
-                        SameSite = SameSiteMode.Lax,
-                        Expires = DateTimeOffset.UtcNow.AddHours(2)
+                        Secure = true,
+                        SameSite = SameSiteMode.None,
+                        Expires = DateTimeOffset.UtcNow.AddHours(2),
+                        Domain = ".bcnet.bou.or.ug"
                     });
 
                     //ApplicationUser user = new ApplicationUser
@@ -61,8 +57,8 @@ namespace GatewayService.Controllers
                 }
 
                 string errorMessage = await response.Content.ReadAsStringAsync();
-                ViewBag.Error = errorMessage;
-                _logger.LogError(errorMessage);
+                ViewBag.Error = $"{response.ReasonPhrase} - {errorMessage}";
+                _logger.LogError($"{response.ReasonPhrase} - {errorMessage}");
                 return View();
             }
             catch (Exception ex)

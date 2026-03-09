@@ -7,8 +7,10 @@ using VMSService.Core.Models.Branches;
 using VMSService.Core.Models.Denominations;
 using VMSService.Core.Models.ExPrintMints;
 using VMSService.Core.Repositories.Branches;
+using VMSService.Core.Repositories.Categories;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.ExpectedCurrencies;
+using VMSService.Core.Repositories.Stocks;
 using VMSService.Models;
 
 namespace VMSService.Controllers
@@ -21,20 +23,29 @@ namespace VMSService.Controllers
         private readonly IExPrintMintRepository _exPrintMintRepository;
         private readonly IDenominationRepository _denominationRepository;
         private readonly IBranchRepository _branchRepository;
+        private readonly ICategoryRepository _categoryRepository;
+        private readonly IStockLedgerRepository _stockLedgerRepository;
         private readonly IMapper _mapper;
+        private readonly IConfiguration _configuration;
 
         public HomeController(
             ILogger<HomeController> logger,
             IExPrintMintRepository exPrintMintRepository,
             IDenominationRepository denominationRepository,
             IBranchRepository branchRepository,
-            IMapper mapper)
+            ICategoryRepository categoryRepository,
+            IStockLedgerRepository stockLedgerRepository,
+            IMapper mapper,
+            IConfiguration configuration)
         {
             _logger = logger;
             _exPrintMintRepository = exPrintMintRepository;
             _denominationRepository = denominationRepository;
             _branchRepository = branchRepository;
+            _categoryRepository = categoryRepository;
+            _stockLedgerRepository = stockLedgerRepository;
             _mapper = mapper;
+            _configuration = configuration;
         }
 
         public async Task<IActionResult> Index()
@@ -69,14 +80,64 @@ namespace VMSService.Controllers
                     }
                 }
 
+                // Get Kampala Branch data for stock position
+                var kampalaBranch = await _branchRepository.FindByName("Kampala Branch");
+                
+                if (kampalaBranch != null)
+                {
+                    // Get all categories
+                    var allCategories = await _categoryRepository.FindAll();
+                    
+                    // Get all denominations sorted by value
+                    var allDenominations = await _denominationRepository.FindAll();
+                    var sortedDenominations = allDenominations?.OrderBy(d => d.Value).ToList();
+                    
+                    // Get all stock ledgers for Kampala Branch
+                    var stockLedgers = await _stockLedgerRepository.FindAll();
+                    
+                    // Build stock position matrix: [Denomination][Category] = Total Value
+                    var stockMatrix = new Dictionary<int, Dictionary<int, decimal>>();
+                    
+                    foreach (var denomination in sortedDenominations)
+                    {
+                        stockMatrix[denomination.Id] = new Dictionary<int, decimal>();
+                        
+                        foreach (var category in allCategories)
+                        {
+                            // Find stock ledgers for this branch, category, and denomination
+                            var totalValue = stockLedgers?
+                                .Where(sl => sl.Store != null && 
+                                           sl.Store.BranchId == kampalaBranch.Id &&
+                                           sl.Store.CategoryId == category.Id &&
+                                           sl.StockLedgerDetails != null)
+                                .SelectMany(sl => sl.StockLedgerDetails)
+                                .Where(sld => sld.DenominationId == denomination.Id)
+                                .Sum(sld => sld.Value) ?? 0;
+                            
+                            stockMatrix[denomination.Id][category.Id] = totalValue;
+                        }
+                    }
+                    
+                    ViewBag.KampalaBranch = kampalaBranch;
+                    ViewBag.Categories = allCategories;
+                    ViewBag.Denominations = sortedDenominations;
+                    ViewBag.StockMatrix = stockMatrix;
+                }
+
                 return View(model);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving pending deliveries for dashboard");
-                TempData["Error"] = "An error occurred while retrieving pending deliveries.";
+                _logger.LogError(ex, "Error retrieving dashboard data");
+                TempData["Error"] = "An error occurred while retrieving dashboard data.";
                 return View(new List<ExPrintMintViewModel>());
             }
+        }
+
+        [Breadcrumb("About")]
+        public IActionResult About()
+        {
+            return View();
         }
 
         public IActionResult Privacy()
@@ -94,7 +155,8 @@ namespace VMSService.Controllers
         {
             Response.Cookies.Delete("AuthToken");
             Response.Cookies.Delete("Username");
-            return Redirect("https://localhost:7204");
+            var gatewayUrl = _configuration["Microservices:gatewayservice"];
+            return Redirect($"{gatewayUrl}/Login/Logout");
         }
     }
 }

@@ -36,50 +36,39 @@
                             @{
                                 int rowNumber = 1;
                             }
-                            @if (Model != null && Model.Any())
+                            @foreach (var item in Model)
                             {
-                                @foreach (var item in Model)
-                                {
-                                    <tr>
-                                        <td class="fw-bold"><span class="text-primary fw-bold">@rowNumber</span></td>
-                                        <td>@item.Branch?.Name - @item.Category?.Name</td>
-                                        <td>@item.Branch?.Name</td>
-                                        <td class="fw-bold">
-                                            <span class="badge bg-primary">
-                                                <i class="ti ti-building-store me-1"></i>@item.Category?.Name
-                                            </span>
-                                        </td>
-                                        <td class="fw-bold">
-                                            <span class="badge bg-info">
-                                                <i class="ti ti-archive me-1"></i>@item.Category?.Classification
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div class="btn-group" role="group">
-                                                <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
-                                                    <i class="ti ti-edit"></i>
-                                                </a>
-                                                <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
-                                                    <i class="ti ti-eye"></i>
-                                                </a>
-                                                <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger" title="Delete">
-                                                    <i class="ti ti-trash"></i>
-                                                </a>
-                                            </div>
-                                        </td>
-                                        @{
-                                            rowNumber++;
-                                        }
-                                    </tr>
-                                }
-                            }
-                            else
-                            {
-                                @* <tr>
-                                    <td colspan="4" class="text-center py-4 text-muted">
-                                        <i class="ti ti-inbox me-2"></i>No branch categories found.
+                                <tr>
+                                    <td class="fw-bold"><span class="text-primary fw-bold">@rowNumber</span></td>
+                                    <td>@item.Branch?.Name - @item.Category?.Name</td>
+                                    <td>@item.Branch?.Name</td>
+                                    <td class="fw-bold">
+                                        <span class="badge bg-primary">
+                                            <i class="ti ti-building-store me-1"></i>@item.Category?.Name
+                                        </span>
                                     </td>
-                                </tr> *@
+                                    <td class="fw-bold">
+                                        <span class="badge bg-info">
+                                            <i class="ti ti-archive me-1"></i>@item.Category?.Classification
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
+                                                <i class="ti ti-edit"></i>
+                                            </a>
+                                            <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
+                                                <i class="ti ti-eye"></i>
+                                            </a>
+                                            <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger" title="Delete">
+                                                <i class="ti ti-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                    @{
+                                        rowNumber++;
+                                    }
+                                </tr>
                             }
                         </tbody>
                     </table>

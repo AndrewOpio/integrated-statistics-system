@@ -36,64 +36,54 @@
                             @{
                                 int rowNumber = 1;
                             }
-                            @if (Model != null && Model.Any())
-                            {
-                                @foreach (var item in Model)
-                                {
-                                    <tr>
-                                        <td><span class="text-primary fw-bold">@rowNumber</span></td>
-                                        <td><span>#PR</span>@item.Id</td>
-                                        <td>@item.Amount.ToString("N0")</td>
-                                        <td>
-                                            <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
-                                                <span class="badge bg-info">
-                                                    <i class="ti ti-badge me-1"></i>@item.CurrentStatus?.Name
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            @if (!string.IsNullOrEmpty(item.BoardApprovalAttachment))
-                                            {
-                                                <a asp-controller="ApprovedCurrencyProcurements" asp-action="ViewAttachment" asp-route-id="@item.Id" target="_blank" class="text-primary">
-                                                    <i class="ti ti-external-link me-1"></i>View
-                                                </a>
-                                            }
-                                            else
-                                            {
-                                                <span class="text-muted">-</span>
-                                            }
-                                        </td>
-                                        <td>
-                                            <div class="btn-group" role="group">
-                                                <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
-                                                    <i class="ti ti-eye"></i>
-                                                </a>
-                                                @{
-                                                    bool isEditable = item.CurrentStatus?.Name == StatusConstants.ApprovedCurrencyProcurement.Draft || item.CurrentStatus?.Name == StatusConstants.ApprovedCurrencyProcurement.Returned;
-                                                }
-                                                @if (isEditable)
-                                                {
-                                                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
-                                                        <i class="ti ti-edit"></i>
-                                                    </a>
-                                                    <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger" title="Delete">
-                                                        <i class="ti ti-trash"></i>
-                                                    </a>
-                                                }
-                                            </div>
-                                        </td>
-                                        @{
-                                            rowNumber++;
-                                        }
-                                    </tr>
-                                }
-                            }
-                            else
+                            
+                            @foreach (var item in Model)
                             {
                                 <tr>
-                                    <td colspan="6" class="text-center py-4 text-muted">
-                                        <i class="ti ti-inbox me-2"></i>No approved currency procurements found.
+                                    <td><span class="text-primary fw-bold">@rowNumber</span></td>
+                                    <td><span>#PR</span>@item.Id</td>
+                                    <td>@item.Amount.ToString("N0")</td>
+                                    <td>
+                                        <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
+                                            <span class="badge bg-info">
+                                                <i class="ti ti-badge me-1"></i>@item.CurrentStatus?.Name
+                                            </span>
+                                        </div>
                                     </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(item.BoardApprovalAttachment))
+                                        {
+                                            <a asp-controller="ApprovedCurrencyProcurements" asp-action="ViewAttachment" asp-route-id="@item.Id" target="_blank" class="text-primary">
+                                                <i class="ti ti-external-link me-1"></i>View
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
+                                                <i class="ti ti-eye"></i>
+                                            </a>
+                                            @{
+                                                bool isEditable = item.CurrentStatus?.Name == StatusConstants.ApprovedCurrencyProcurement.Draft || item.CurrentStatus?.Name == StatusConstants.ApprovedCurrencyProcurement.Returned;
+                                            }
+                                            @if (isEditable)
+                                            {
+                                                <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
+                                                    <i class="ti ti-edit"></i>
+                                                </a>
+                                                <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger" title="Delete">
+                                                    <i class="ti ti-trash"></i>
+                                                </a>
+                                            }
+                                        </div>
+                                    </td>
+                                    @{
+                                        rowNumber++;
+                                    }
                                 </tr>
                             }
                         </tbody>

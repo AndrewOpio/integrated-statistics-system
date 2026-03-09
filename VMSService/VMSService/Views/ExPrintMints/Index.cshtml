@@ -60,110 +60,100 @@
                             @{
                                 int rowNumber = 1;
                             }
-                            @if (Model != null && Model.Any())
-                            {
-                                @foreach (var item in Model)
-                                {
-                                    <tr>
-                                        <td><span class="text-primary fw-bold">@rowNumber</span></td>
-                                        <td class="fw-bold">@item.ExPrintMintReference</td>
-                                        <td>
-                                            @if (item.CurrencyVendor != null)
-                                            {
-                                                @item.CurrencyVendor.Name
-                                            }
-                                            else
-                                            {
-                                                <span class="text-muted">-</span>
-                                            }
-                                        </td>
-                                        <td>
-                                            @if (item.Denomination != null)
-                                            {
-                                                @item.Denomination.Name
-                                            }
-                                            else
-                                            {
-                                                <span class="text-muted">-</span>
-                                            }
-                                        </td>
-                                        <td>@item.DeliveryDate.ToString("dd/MMM/yyyy")</td>
-                                        <td>
-                                            <span class="fw-bold">@item.Value.ToString("N0")</span>
-                                        </td>
-                                        <td>
-                                            <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
-                                                @if (item.CurrencyVendor?.VendorType?.Name == "Printer")
-                                                {
-                                                    <span class="badge bg-primary">
-                                                        <i class="ti ti-tag me-1"></i>ExPrint
-                                                    </span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="badge bg-primary">
-                                                        <i class="ti ti-tag me-1"></i>ExMint
-                                                    </span>
-                                                }
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
-                                                @if (item.CurrentStatusId > 0)
-                                                {
-                                                    <span class="badge bg-info">
-                                                        <i class="ti ti-badge me-1"></i>@item.CurrentStatus?.Name
-                                                    </span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="badge bg-secondary">
-                                                        <i class="ti ti-question-mark me-1"></i>Unknown
-                                                    </span>
-                                                }
-                                            </div>
-                                        </td>
-                                        <td>
-                                            @if (item.Branch != null)
-                                            {
-                                                @item.Branch.Name
-                                            }
-                                            else
-                                            {
-                                                <span class="text-muted">-</span>
-                                            }
-                                        </td>
-                                        <td>
-                                            <div class="btn-group" role="group">
-                                                <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
-                                                    <i class="ti ti-eye"></i>
-                                                </a>
-                                                @{
-                                                    bool isEditable = item.CurrentStatus?.Name == StatusConstants.ExPrintMint.Draft || item.CurrentStatus?.Name == StatusConstants.ExPrintMint.Returned;
-                                                }
-                                                @if (isEditable)
-                                                {
-                                                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
-                                                        <i class="ti ti-edit"></i>
-                                                    </a>
-                                                    <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger" title="Delete">
-                                                        <i class="ti ti-trash"></i>
-                                                    </a>
-                                                }
-                                            </div>
-                                        </td>
-                                        @{
-                                            rowNumber++;
-                                        }
-                                    </tr>
-                                }
-                            }
-                            else
+                            
+                            @foreach (var item in Model)
                             {
                                 <tr>
-                                    <td colspan="9" class="text-center py-4 text-muted">
-                                        <i class="ti ti-inbox me-2"></i>No expected stock found.
+                                    <td><span class="text-primary fw-bold">@rowNumber</span></td>
+                                    <td class="fw-bold">@item.ExPrintMintReference</td>
+                                    <td>
+                                        @if (item.CurrencyVendor != null)
+                                        {
+                                            @item.CurrencyVendor.Name
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
                                     </td>
+                                    <td>
+                                        @if (item.Denomination != null)
+                                        {
+                                            @item.Denomination.Name
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td>@item.DeliveryDate.ToString("dd/MMM/yyyy")</td>
+                                    <td>
+                                        <span class="fw-bold">@item.Value.ToString("N0")</span>
+                                    </td>
+                                    <td>
+                                        <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
+                                            @if (item.CurrencyVendor?.VendorType?.Name == "Printer")
+                                            {
+                                                <span class="badge bg-primary">
+                                                    <i class="ti ti-tag me-1"></i>ExPrint
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-primary">
+                                                    <i class="ti ti-tag me-1"></i>ExMint
+                                                </span>
+                                            }
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
+                                            @if (item.CurrentStatusId > 0)
+                                            {
+                                                <span class="badge bg-info">
+                                                    <i class="ti ti-badge me-1"></i>@item.CurrentStatus?.Name
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary">
+                                                    <i class="ti ti-question-mark me-1"></i>Unknown
+                                                </span>
+                                            }
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @if (item.Branch != null)
+                                        {
+                                            @item.Branch.Name
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
+                                                <i class="ti ti-eye"></i>
+                                            </a>
+                                            @{
+                                                bool isEditable = item.CurrentStatus?.Name == StatusConstants.ExPrintMint.Draft || item.CurrentStatus?.Name == StatusConstants.ExPrintMint.Returned;
+                                            }
+                                            @if (isEditable)
+                                            {
+                                                <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
+                                                    <i class="ti ti-edit"></i>
+                                                </a>
+                                                <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger" title="Delete">
+                                                    <i class="ti ti-trash"></i>
+                                                </a>
+                                            }
+                                        </div>
+                                    </td>
+                                    @{
+                                        rowNumber++;
+                                    }
                                 </tr>
                             }
                         </tbody>

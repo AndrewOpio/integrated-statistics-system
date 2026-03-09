@@ -2,6 +2,10 @@
 
 @{
     ViewData["Title"] = "Dashboard";
+    var kampalaBranch = ViewBag.KampalaBranch;
+    var categories = ViewBag.Categories;
+    var denominations = ViewBag.Denominations;
+    var stockMatrix = ViewBag.StockMatrix;
 }
 
 <div class="row mb-4">
@@ -147,8 +151,8 @@
     </div>
 </div>
 
-<!-- Dashboard Statistics Section (Optional) -->
-<div class="row">
+<!-- Dashboard Statistics Section -->
+<div class="row mb-4">
     <div class="col-md-3 col-sm-6 mb-4">
         <div class="card border-0 shadow h-100">
             <div class="card-body">
@@ -213,3 +217,140 @@
         </div>
     </div>
 </div>
+
+<!-- Stock Position Matrix for Kampala Branch -->
+@if (kampalaBranch != null && categories != null && denominations != null && stockMatrix != null)
+{
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow">
+                <div class="card-header py-3 bg-secondary text-white">
+                    <div class="d-flex align-items-center">
+                        <i class="ti ti-database me-3 fs-5"></i>
+                        <h5 class="mb-0 fw-bold">Stock Position - @kampalaBranch.Name</h5>
+                    </div>
+                </div>
+                <div class="card-body">
+                    @if (categories.Count > 0 && denominations.Count > 0)
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="fw-bold text-center bg-light" style="min-width: 150px;">
+                                            <i class="ti ti-cash-banknote me-1"></i>Denomination
+                                        </th>
+                                        @foreach (var category in categories)
+                                        {
+                                            <th class="fw-bold text-center" style="min-width: 140px;">
+                                                <i class="ti ti-folder-open me-1"></i>@category.Name
+                                            </th>
+                                        }
+                                        <th class="fw-bold text-center bg-light" style="min-width: 140px;">
+                                            <i class="ti ti-sum me-1"></i>Total
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @{
+                                        decimal grandTotal = 0;
+                                    }
+                                    @foreach (var denomination in denominations)
+                                    {
+                                        <tr>
+                                            <td class="fw-bold bg-light">
+                                                <small class="text-muted d-block">@denomination.Name</small>
+                                                <strong class="text-primary">UGX @denomination.Value.ToString("N0")</strong>
+                                            </td>
+                                            @{
+                                                decimal denominationTotal = 0;
+                                            }
+                                            @foreach (var category in categories)
+                                            {
+                                                decimal cellValue = 0;
+                                                if (stockMatrix.ContainsKey(denomination.Id) && 
+                                                    stockMatrix[denomination.Id].ContainsKey(category.Id))
+                                                {
+                                                    cellValue = stockMatrix[denomination.Id][category.Id];
+                                                }
+                                                denominationTotal += cellValue;
+                                                grandTotal += cellValue;
+                                                <td class="text-center">
+                                                    @if (cellValue > 0)
+                                                    {
+                                                        <span class="badge bg-success text-white" style="font-size: 0.85rem; padding: 0.5rem;">
+                                                            UGX @cellValue.ToString("N0")
+                                                        </span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-light text-dark">
+                                                            UGX 0
+                                                        </span>
+                                                    }
+                                                </td>
+                                            }
+                                            <td class="fw-bold text-center bg-light">
+                                                @if (denominationTotal > 0)
+                                                {
+                                                    <span class="text-success">UGX @denominationTotal.ToString("N0")</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">UGX 0</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                    <!-- Grand Total Row -->
+                                    <tr class="table-info fw-bold">
+                                        <td class="text-center bg-light">
+                                            <i class="ti ti-sum me-1"></i>Grand Total
+                                        </td>
+                                        @foreach (var category in categories)
+                                        {
+                                            decimal categoryTotal = 0;
+                                            foreach (var denomination in denominations)
+                                            {
+                                                if (stockMatrix.ContainsKey(denomination.Id) && 
+                                                    stockMatrix[denomination.Id].ContainsKey(category.Id))
+                                                {
+                                                    categoryTotal += stockMatrix[denomination.Id][category.Id];
+                                                }
+                                            }
+                                            <td class="text-center">
+                                                @if (categoryTotal > 0)
+                                                {
+                                                    <span class="badge bg-info text-white" style="font-size: 0.85rem; padding: 0.5rem;">
+                                                        UGX @categoryTotal.ToString("N0")
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-light text-dark">
+                                                        UGX 0
+                                                    </span>
+                                                }
+                                            </td>
+                                        }
+                                        <td class="text-center bg-light text-primary" style="font-size: 1.1rem;">
+                                            UGX @grandTotal.ToString("N0")
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-5">
+                            <i class="ti ti-database-off fs-1 text-muted mb-3 d-block"></i>
+                            <p class="text-muted fw-bold">No Stock Data Available</p>
+                            <small class="text-muted">Stock position data will appear here once stocks are received and confirmed.</small>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}

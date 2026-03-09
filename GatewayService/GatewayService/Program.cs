@@ -1,3 +1,4 @@
+using GatewayService.Services.Identity;
 using GatewayService.Static;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
@@ -111,6 +112,8 @@ builder.Services.AddAuthorization(options =>
 
 // Move UseUrls to the WebHost property
 //builder.WebHost.UseUrls("http://*:80");
+
+builder.Services.AddScoped<IIdentityService, IdentityService>();
 
 var app = builder.Build();
 

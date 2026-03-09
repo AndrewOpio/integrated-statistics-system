@@ -517,7 +517,7 @@ namespace VMSService.Web.Controllers
                                 DenominationId = receivedStock.ExPrintMint.DenominationId,
                                 NumberOfPieces = receivedStock.NumberOfPieces,
                                 NumberOfBoxes = receivedStock.NumberOfBoxes,
-                                Value = (int) receivedStock.Value
+                                Value = receivedStock.Value
                             };
 
                             List<StockLedgerDetail> stockLedgerDetails = new();
@@ -543,27 +543,27 @@ namespace VMSService.Web.Controllers
 
                             if (createdLedgerRecord != null)
                             {
-                                // Create StockLedgerDetail entries
-                                for (int i = 0; i < receivedStock.NumberOfPieces; i++)
-                                {
-                                    var ledgerDetail = new StockLedgerDetail
-                                    {
-                                        StockLedgerId = createdLedgerRecord.Id,
-                                        DenominationId = receivedStock.ExPrintMint.DenominationId,
-                                        NumberOfPieces = receivedStock.NumberOfPieces,
-                                        NumberOfBoxes = receivedStock.NumberOfBoxes,
-                                        NumberOfBundles = null,
-                                        Value = (int)receivedStock.Value,
-                                        CreatedBy = username ?? "unknown",
-                                        ModifiedBy = username ?? "unknown",
-                                        CreatedDate = DateTime.Now,
-                                        ModifiedDate = DateTime.Now
-                                    };
+                                //// Create StockLedgerDetail entries
+                                //for (int i = 0; i < receivedStock.NumberOfPieces; i++)
+                                //{
+                                //    var ledgerDetail = new StockLedgerDetail
+                                //    {
+                                //        StockLedgerId = createdLedgerRecord.Id,
+                                //        DenominationId = receivedStock.ExPrintMint.DenominationId,
+                                //        NumberOfPieces = receivedStock.NumberOfPieces,
+                                //        NumberOfBoxes = receivedStock.NumberOfBoxes,
+                                //        NumberOfBundles = null,
+                                //        Value = receivedStock.Value,
+                                //        CreatedBy = username ?? "unknown",
+                                //        ModifiedBy = username ?? "unknown",
+                                //        CreatedDate = DateTime.Now,
+                                //        ModifiedDate = DateTime.Now
+                                //    };
 
-                                    await _stockLedgerDetailRepository.Create(ledgerDetail);
-                                }
+                                //    await _stockLedgerDetailRepository.Create(ledgerDetail);
+                                //}
 
-                                _logger.LogInformation("Stock position updated successfully for Received Stock {ReceivedStockId}", id);
+                                _logger.LogInformation("Stock position updated successfully for Received Stock {ReceivedStockId} and Notification Sent", id);
                             }
                             else
                             {

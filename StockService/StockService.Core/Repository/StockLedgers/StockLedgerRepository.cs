@@ -11,8 +11,10 @@ namespace StockService.Core.Repository.StockLedgers
             return await _db.StockLedger
                 .Include(cpt => cpt.CounterPartyType)
                 .Include(st => st.Store)
+                .Include(st => st.Store.Branch)
+                .Include(st => st.Store.Category)
                 .Include(sl => sl.StockLedgerDetails)
-                   .ThenInclude(sld => sld.Denomination)
+                .ThenInclude(sld => sld.Denomination)
                 .ToListAsync();
         }
 
