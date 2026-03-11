@@ -5,10 +5,10 @@
         public static class Roles
         {
             public const string ContractManager = "Contract Manager";
-            public const string VerificationOfficer = "VerificationOfficer";
-            public const string StockVerifier = "StockVerifier"; 
-            public const string StockApprover = "StockApprover"; 
-            public const string CurrencyApprover = "CurrencyApprover";
+            public const string VerificationOfficer = "Verification Officer";
+            public const string StockVerifier = "Stock Verifier"; 
+            public const string StockApprover = "Stock Approver"; 
+            public const string CurrencyApprover = "Currency Approver";
             public const string Director = "Director";
         }
 

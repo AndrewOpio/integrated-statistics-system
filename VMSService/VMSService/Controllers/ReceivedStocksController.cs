@@ -575,7 +575,7 @@ namespace VMSService.Web.Controllers
                             _logger.LogError(ex, "Error updating stock position for Received Stock {ReceivedStockId}", id);
                             TempData["Warning"] = "Action confirmed but stock position update encountered an error. Please verify stock levels.";
                         }
-                        TempData["Success"] = "Stock Position Updated Successfuly and Notification Sent!";
+                        TempData["Success"] = "Stock Position Updated Successfully and Notification Sent!";
                     } else
                     {
                         TempData["Success"] = "Review completed successfully and Notification Sent!";

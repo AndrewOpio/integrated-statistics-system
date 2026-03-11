@@ -2,6 +2,7 @@
 
 @{
     ViewData["Title"] = "Expected Stock";
+    var userRoles = string.Join(", ", User.FindAll("appRole").Where(c => c.Value.StartsWith("VMS:")).Select(c => c.Value.Split(":")[1]).ToList());
 }
 
 <div class="row">
@@ -12,11 +13,14 @@
                     <div class="col">
                         <h2 class="fs-5 fw-bold mb-0">Expected Stock</h2>
                     </div>
-                    <div class="col text-end">
-                        <a asp-action="Create" class="btn btn-sm btn-primary">
-                            <i class="ti ti-plus me-1"></i>Add Expected Stock
-                        </a>
-                    </div>
+                    @if (userRoles.Contains(SystemPolicy.Roles.ContractManager))
+                    {
+                        <div class="col text-end">
+                            <a asp-action="Create" class="btn btn-sm btn-primary">
+                                <i class="ti ti-plus me-1"></i>Add Expected Stock
+                            </a>
+                        </div>
+                    }
                 </div>
             </div>
             <div class="card-body">

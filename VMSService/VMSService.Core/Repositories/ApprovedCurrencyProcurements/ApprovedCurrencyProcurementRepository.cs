@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using VMSService.Core.Static;
 using VMSService.Data.Configurations;
 using VMSService.Data.Entities;
 
@@ -41,6 +42,24 @@ namespace VMSService.Core.Repositories.ApprovedCurrencyProcurements
         {
             _db.ApprovedCurrencyProcurements.Update(model);
             return await Save();
+        }
+
+        public async Task<ICollection<ApprovedCurrencyProcurement>> FindVerified()
+        {
+            var verifiedStatus = await _db.StatusTypes
+                .Where(s => s.Name == StatusConstants.ApprovedCurrencyProcurement.Verified)
+                .FirstOrDefaultAsync();
+
+            if (verifiedStatus == null)
+            {
+                return new List<ApprovedCurrencyProcurement>();
+            }
+
+            int verifiedStatusId = verifiedStatus.Id;
+            return await _db.ApprovedCurrencyProcurements
+                .Where(x => x.IsDeleted == false && x.CurrentStatusId == verifiedStatusId)
+                .Include(x => x.CurrentStatus)
+                .ToListAsync();
         }
     }
 }
