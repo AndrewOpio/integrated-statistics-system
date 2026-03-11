@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -10,16 +12,28 @@ using SmartBreadcrumbs.Extensions;
 using System.Reflection;
 using System.Text;
 using VMSService.Core.Mappings;
+using VMSService.Core.Models.Authentication;
 using VMSService.Core.Repositories.ApprovedCurrencyDenominations;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
+using VMSService.Core.Repositories.BranchCategories;
+using VMSService.Core.Repositories.Branches;
+using VMSService.Core.Repositories.Categories;
+using VMSService.Core.Repositories.CommercialBanks;
+using VMSService.Core.Repositories.CounterPartyTypes;
 using VMSService.Core.Repositories.CurrencyVendors;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.DenominationTypes;
 using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ExPrintMintStatusHistories;
+using VMSService.Core.Repositories.ReceivedStocks;
+using VMSService.Core.Repositories.ReceivedStockStatusHistories;
 using VMSService.Core.Repositories.StatusTypes;
+using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Repositories.VendorTypes;
+using VMSService.Core.Repositories.WorkflowTransitions;
+using VMSService.Core.Services.Stocks;
+using VMSService.Core.Services.Workflows;
 using VMSService.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -87,6 +101,7 @@ builder.Services.AddAutoMapper(cfg => { }, typeof(VMSServiceAutoMapperProfile));
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["SecretKey"];
+var authenticationSettings = builder.Configuration.GetSection("Authentication").Get<AuthenticationSettings>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -112,13 +127,36 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     context.Token = context.Request.Cookies["AuthToken"];
                 }
                 return Task.CompletedTask;
+            },
+            OnAuthenticationFailed = context =>
+            {
+                // Handle specific authentication failures
+                context.NoResult();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.Redirect(authenticationSettings?.LoginPath ?? "/logout");
+                return Task.CompletedTask;
+            },
+            OnChallenge = async context =>
+            {
+                // This event fires when authentication fails
+                context.HandleResponse();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.Redirect(authenticationSettings?.LoginPath ?? "/logout");
+                await context.Response.CompleteAsync();
             }
+            
+
         };
     });
 
 // Add health checks
 builder.Services.AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
+
+//Add configuration
+var configuration = new ConfigurationBuilder()
+    .AddJsonFile("appsettings.json")
+    .Build();
 
 // Register Repositories
 builder.Services.AddScoped<IVendorTypeRepository, VendorTypeRepository>();
@@ -131,6 +169,32 @@ builder.Services.AddScoped<IExPrintMintRepository, ExPrintMintRepository>();
 builder.Services.AddScoped<IApprovedCurrencyProcurementRepository, ApprovedCurrencyProcurementRepository>();
 builder.Services.AddScoped<IApprovedCurrencyDenominationRepository, ApprovedCurrencyDenominationRepository>();
 builder.Services.AddScoped<ICurrencyVendorRepository, CurrencyVendorRepository>();
+builder.Services.AddScoped<IReceivedStockRepository, ReceivedStockRepository>();
+builder.Services.AddScoped<IWorkflowTransitionRepository, WorkflowTransitionRepository>();
+builder.Services.AddScoped<IWorkflowService, WorkflowService>();
+builder.Services.AddScoped<IReceivedStockStatusHistoryRepository, ReceivedStockStatusHistoryRepository>();
+builder.Services.AddScoped<IStockLedgerRepository, StockLedgerRepository>();
+builder.Services.AddScoped<IStockLedgerDetailRepository, StockLedgerDetailRepository>();
+builder.Services.AddScoped<ICommercialBankRepository, CommercialBankRepository>();
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<IBranchCategoryRepository, BranchCategoryRepository>();
+builder.Services.AddScoped<IBranchRepository, BranchRepository>();
+builder.Services.AddScoped<ICounterPartyTypeRepository, CounterPartyTypeRepository>();
+
+// Add this in your service registration section
+builder.Services.AddScoped<IStockService, StockService>();
+builder.Services.AddHttpClient<StockService>()
+    .ConfigureHttpClient((sp, client) =>
+    {
+        var configuration = sp.GetRequiredService<IConfiguration>();
+        var baseUrl = configuration["StockApiSettings:BaseUrl"] ?? "https://localhost:7158";
+        client.BaseAddress = new Uri(baseUrl);
+        client.DefaultRequestHeaders.Add("Accept", "application/json");
+    });
+
+// Configure LDAP settings
+builder.Services.Configure<StockAPISettings>(
+    builder.Configuration.GetSection("StockApiSettings"));
 
 // Add SmartBreadcrumbs
 builder.Services.AddBreadcrumbs(Assembly.GetExecutingAssembly(), options =>
@@ -157,6 +221,7 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllerRoute(

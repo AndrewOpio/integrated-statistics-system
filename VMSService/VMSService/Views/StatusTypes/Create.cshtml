@@ -1,0 +1,50 @@
+@model VMSService.Core.Models.StatusTypes.StatusTypeViewModel
+
+@{
+    ViewData["Title"] = "Create Status Type";
+}
+
+<div class="row">
+    <div>
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header">
+                <h2 class="fs-5 fw-bold mb-0">Add New Status Type</h2>
+            </div>
+            <div class="card-body">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+
+                <form asp-action="Create" method="post">
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="Name">Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" asp-for="Name" placeholder="Enter status type name" required>
+                        <span asp-validation-for="Name" class="text-danger small d-block mt-1"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="Category">Category <span class="text-danger">*</span></label>
+                        @* <input type="text" class="form-control" asp-for="Category" placeholder="Enter category" required> *@
+                        <select asp-for="Category" id="Category" class="form-select" required>
+                            <option value="">-- Select Category --</option>
+                            <option value="Approved Currency Procurement">Approved Currency Procurement</option>
+                            <option value="ExPrint and ExMint">ExPrint and ExMint</option>
+                            <option value="Received Stock">Received Stock</option>
+                        </select>
+                        <small class="text-muted d-block mt-1">e.g., Approved Currency Procurement, ExPrint and ExMint, Received Stock</small>
+                        <span asp-validation-for="Category" class="text-danger small d-block mt-1"></span>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-check me-1"></i>Save
+                        </button>
+                        <a asp-action="Index" class="btn btn-secondary">
+                            <i class="ti ti-arrow-left me-1"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

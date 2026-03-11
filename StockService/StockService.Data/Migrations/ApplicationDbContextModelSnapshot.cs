@@ -293,7 +293,7 @@ namespace StockService.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
 
-                    b.Property<int>("CategoryId")
+                    b.Property<int?>("CategoryId")
                         .HasColumnType("int");
 
                     b.Property<int>("CounterPartyId")
@@ -327,11 +327,16 @@ namespace StockService.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("StoreId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
 
                     b.HasIndex("CounterPartyTypeId");
+
+                    b.HasIndex("StoreId");
 
                     b.ToTable("StockLedger");
                 });
@@ -343,9 +348,6 @@ namespace StockService.Data.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
-                    b.Property<int>("Count")
-                        .HasColumnType("int");
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
@@ -364,11 +366,20 @@ namespace StockService.Data.Migrations
                     b.Property<DateTime>("ModifiedDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("NumberOfBoxes")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("NumberOfBundles")
+                        .HasColumnType("int");
+
+                    b.Property<int>("NumberOfPieces")
+                        .HasColumnType("int");
+
                     b.Property<int>("StockLedgerId")
                         .HasColumnType("int");
 
-                    b.Property<int>("Values")
-                        .HasColumnType("int");
+                    b.Property<decimal>("Value")
+                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 
@@ -411,11 +422,9 @@ namespace StockService.Data.Migrations
 
             modelBuilder.Entity("StockService.Data.Entities.StockLedger", b =>
                 {
-                    b.HasOne("StockService.Data.Entities.Category", "Category")
+                    b.HasOne("StockService.Data.Entities.Category", null)
                         .WithMany("StockLedgers")
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("CategoryId");
 
                     b.HasOne("StockService.Data.Entities.CounterPartyType", "CounterPartyType")
                         .WithMany("StockLedgers")
@@ -423,9 +432,15 @@ namespace StockService.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Category");
+                    b.HasOne("StockService.Data.Entities.BranchCategory", "Store")
+                        .WithMany()
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("CounterPartyType");
+
+                    b.Navigation("Store");
                 });
 
             modelBuilder.Entity("StockService.Data.Entities.StockLedgerDetail", b =>

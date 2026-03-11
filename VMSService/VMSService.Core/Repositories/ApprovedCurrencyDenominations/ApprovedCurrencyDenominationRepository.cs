@@ -14,7 +14,7 @@ namespace VMSService.Core.Repositories.ApprovedCurrencyDenominations
 
         public async Task<ICollection<ApprovedCurrencyDenomination>> FindAll()
         {
-            return await _db.ApprovedCurrencyDenominations.ToListAsync();
+            return await _db.ApprovedCurrencyDenominations.Where(x => x.IsDeleted == false).ToListAsync();
         }
 
         public async Task<ApprovedCurrencyDenomination> FindById(int id)
@@ -38,6 +38,13 @@ namespace VMSService.Core.Repositories.ApprovedCurrencyDenominations
         {
             _db.ApprovedCurrencyDenominations.Update(model);
             return await Save();
+        }
+
+        public async Task<ICollection<ApprovedCurrencyDenomination>> FindByApprovedCurrencyId(int approvedCurrencyProcurementId)
+        {
+            return await _db.ApprovedCurrencyDenominations.Where(x => x.ApprovedCurrencyId == approvedCurrencyProcurementId)
+                .Where(x => !x.IsDeleted)
+                .ToListAsync();
         }
     }
 }

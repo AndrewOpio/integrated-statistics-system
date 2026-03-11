@@ -9,18 +9,19 @@ namespace StockService.Core.Repository.CommercialBanks
 
         public async Task<ICollection<CommercialBank>> FindAllAsync()
         {
-            return await _db.CommercialBanks.ToListAsync();
+            return await _db.CommercialBanks.Where(b => !b.IsDeleted).ToListAsync();
         }
 
         public async Task<CommercialBank> FindByIdAsync(int id)
         {
-            return await _db.CommercialBanks.FindAsync(id);
+            return await _db.CommercialBanks.Where(b => !b.IsDeleted)
+                .FirstOrDefaultAsync(b => b.Id == id);
         }
 
         public async Task<CommercialBank> CreateAsync(CommercialBank bank)
         {
             // Check for duplicate bank name or code
-            var duplicate = await _db.CommercialBanks.AnyAsync(b => b.Name == bank.Name || b.Code == bank.Code);
+            var duplicate = await _db.CommercialBanks.AnyAsync(b => b.Name == bank.Name || b.Code == bank.Code || !b.IsDeleted);
             if (duplicate)
                 throw new InvalidOperationException("A commercial bank with the same name or code already exists.");
 
@@ -36,12 +37,15 @@ namespace StockService.Core.Repository.CommercialBanks
                 return false;
 
             // Check for duplicate bank name or code (different id)
-            var duplicate = await _db.CommercialBanks.AnyAsync(b => (b.Name == bank.Name || b.Code == bank.Code) && b.Id != bank.Id);
+            var duplicate = await _db.CommercialBanks.AnyAsync(b => (b.Name == bank.Name || b.Code == bank.Code) && b.Id != bank.Id || !b.IsDeleted);
             if (duplicate)
                 throw new InvalidOperationException("A commercial bank with the same name or code already exists.");
 
             existing.Name = bank.Name;
             existing.Code = bank.Code;
+            existing.IsDeleted = bank.IsDeleted;
+            existing.ModifiedBy = bank.ModifiedBy;
+            existing.ModifiedDate = bank.ModifiedDate;
 
             return await Save();
         }

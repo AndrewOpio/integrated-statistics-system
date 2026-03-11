@@ -10,7 +10,7 @@ namespace StockService.Data.Entities
         public int NumberOfPieces { get; set; }
         public int NumberOfBoxes { get; set; }
         public int? NumberOfBundles { get; set; }
-        public int Value { get; set; } //Encrypt values here
+        public decimal Value { get; set; } //Encrypt values here
         public int StockLedgerId { get; set; }
         public StockLedger? StockLedger { get; set; }
     }

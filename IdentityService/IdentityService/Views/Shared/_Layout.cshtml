@@ -1,4 +1,6 @@
-﻿<!DOCTYPE html>
+﻿@using Microsoft.Extensions.Configuration
+@inject IConfiguration Configuration
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -36,7 +38,7 @@
                 </ul>
                 <ul class="navbar-nav">
                     <li class="nav-item d-flex align-items-center">
-                        <a class="btn btn-sm btn-outline-secondary me-4" href="https://localhost:7204/">Go To Aswam Home</a>
+                        <a class="btn btn-sm btn-outline-secondary me-4" href="@Configuration["MicroServices:gatewayservice"]">Go To Aswam Home</a>
                     </li>
                     @if (Context.Request.Cookies["AuthToken"] != null)
                     {
@@ -44,7 +46,7 @@
                             <span class="navbar-text me-3">@Context.Request.Cookies["Username"]</span>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="https://localhost:7204/Login/Logout">Logout</a>
+                            <a class="nav-link" href="@Configuration["MicroServices:gatewayservice"]/Login/Logout">Logout</a>
                         </li>
                     }
                 </ul>

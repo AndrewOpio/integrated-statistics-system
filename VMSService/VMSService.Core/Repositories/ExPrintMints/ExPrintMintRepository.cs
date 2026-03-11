@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using VMSService.Core.Static;
 using VMSService.Data.Configurations;
 using VMSService.Data.Entities;
 
@@ -15,9 +16,11 @@ namespace VMSService.Core.Repositories.ExpectedCurrencies
         public async Task<ICollection<ExPrintMint>> FindAll()
         {
             return await _db.ExPrintMints
+                .Where(x => x.IsDeleted == false)
                 .Include(x => x.CurrentStatus)
                 .Include(x => x.CurrencyVendor)
-                .Include(x => x.Denomination)
+                .Include(x => x.CurrencyVendor.VendorType)
+                .Include(x => x.ApprovedCurrencyProcurement)
                 .ToListAsync();
         }
 
@@ -26,7 +29,8 @@ namespace VMSService.Core.Repositories.ExpectedCurrencies
             return await _db.ExPrintMints
                 .Include(x => x.CurrentStatus)
                 .Include(x => x.CurrencyVendor)
-                .Include(x => x.Denomination)
+                .Include(x => x.CurrencyVendor.VendorType)
+                .Include(x => x.ApprovedCurrencyProcurement)
                 .FirstOrDefaultAsync(x => x.Id == id);
         }
 
@@ -45,6 +49,15 @@ namespace VMSService.Core.Repositories.ExpectedCurrencies
         {
             _db.ExPrintMints.Update(model);
             return await Save();
+        }
+
+        public async Task<ICollection<ExPrintMint>> FindPendingDeliveries()
+        {
+            return await _db.ExPrintMints.Where(x => x.CurrentStatus.Name == StatusConstants.ExPrintMint.Verified)
+                .Include(x => x.CurrentStatus)
+                .Include(x => x.CurrencyVendor)
+                .Include(x => x.CurrencyVendor.VendorType)
+                .Include(x => x.ApprovedCurrencyProcurement).ToListAsync();
         }
     }
 }

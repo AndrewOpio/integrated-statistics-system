@@ -5,5 +5,6 @@ namespace VMSService.Core.Repositories.ApprovedCurrencyDenominations
 {
     public interface IApprovedCurrencyDenominationRepository : IRepositoryBase<ApprovedCurrencyDenomination, int>
     {
+        Task<ICollection<ApprovedCurrencyDenomination>> FindByApprovedCurrencyId(int approvedCurrencyProcurementId);
     }
 }

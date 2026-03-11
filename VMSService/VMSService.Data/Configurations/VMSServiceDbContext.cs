@@ -15,14 +15,17 @@ namespace VMSService.Data.Configurations
 
         public DbSet<VendorType> VendorTypes { get; set; }
         public DbSet<CurrencyVendor> CurrencyVendors { get; set; }
-        public DbSet<Denomination> Denominations { get; set; }
+        //public DbSet<Denomination> Denominations { get; set; }
         public DbSet<ApprovedCurrencyProcurement> ApprovedCurrencyProcurements { get; set; }
         public DbSet<ExPrintMint> ExPrintMints { get; set; }
         public DbSet<ApprovedCurrencyDenomination> ApprovedCurrencyDenominations { get; set; }
-        public DbSet<DenominationType> DenominationTypes { get; set; }
+        //public DbSet<DenominationType> DenominationTypes { get; set; }
         public DbSet<StatusType> StatusTypes { get; set; }
         public DbSet<ApprovedCurrencyStatusHistory> ApprovedCurrencyStatusHistory { get; set; }
         public DbSet<ExPrintMintStatusHistory> ExPrintMintStatusHistory { get; set; }
+        public DbSet<ReceivedStock> ReceivedStock { get; set; }
+        public DbSet<WorkflowTransition> WorkflowTransitions { get; set; }
+        public DbSet<ReceivedStockStatusHistory> ReceivedStockStatusHistory { get; set; }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
@@ -35,14 +38,8 @@ namespace VMSService.Data.Configurations
 
                 if (entry.State == EntityState.Added)
                 {
-                    // Only set if not already set (allow manual override)
-                    if (entity.CreatedBy == null)
-                    {
-                        entity.CreatedBy = user;
-                        entity.CreatedDate = now;
-                    }
-
-                    // Always update modified fields for new entities
+                    entity.CreatedBy = user;
+                    entity.CreatedDate = now;
                     entity.ModifiedBy = user;
                     entity.ModifiedDate = now;
                 }

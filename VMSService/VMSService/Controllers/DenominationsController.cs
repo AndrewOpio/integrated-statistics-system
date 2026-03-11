@@ -1,14 +1,16 @@
 using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartBreadcrumbs.Attributes;
 using VMSService.Controllers;
 using VMSService.Core.Models.Denominations;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.DenominationTypes;
-using VMSService.Data.Entities;
+using VMSService.Core.Services.Stocks.StockEntities;
 
 namespace VMSService.Web.Controllers
 {
+    [Authorize]
     public class DenominationsController(
         IDenominationRepository _denominationRepository,
         IDenominationTypeRepository _denominationTypeRepository,
@@ -21,7 +23,7 @@ namespace VMSService.Web.Controllers
         {
             try
             {
-                var denominations = (await _denominationRepository.FindAll()).Where(d => d.IsDeleted == false);
+                var denominations = (await _denominationRepository.FindAll());
                 var model = _mapper.Map<List<DenominationViewModel>>(denominations);
                 return View(model);
             }
@@ -44,13 +46,13 @@ namespace VMSService.Web.Controllers
 
             try
             {
-                bool exists = await _denominationRepository.IsExists(id.Value);
+                var denomination = await _denominationRepository.FindById(id.Value);
+                bool exists = denomination != null && !denomination.IsDeleted;
                 if (!exists)
                 {
                     return NotFound();
                 }
 
-                var denomination = await _denominationRepository.FindById(id.Value);
                 if (denomination == null)
                 {
                     return NotFound();
@@ -88,6 +90,7 @@ namespace VMSService.Web.Controllers
         // POST: Denominations/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Breadcrumb("Create", FromController = typeof(DenominationsController), FromAction = nameof(Index))]
         public async Task<IActionResult> Create(DenominationViewModel model)
         {
             if (!ModelState.IsValid)
@@ -145,13 +148,14 @@ namespace VMSService.Web.Controllers
 
             try
             {
-                bool exists = await _denominationRepository.IsExists(id.Value);
+                //bool exists = await _denominationRepository.IsExists(id.Value);
+                var denomination = await _denominationRepository.FindById(id.Value);
+                bool exists = denomination != null && !denomination.IsDeleted;
                 if (!exists)
                 {
                     return NotFound();
                 }
 
-                var denomination = await _denominationRepository.FindById(id.Value);
                 if (denomination == null)
                 {
                     return NotFound();
@@ -174,6 +178,7 @@ namespace VMSService.Web.Controllers
         // POST: Denominations/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Breadcrumb("Edit", FromController = typeof(DenominationsController), FromAction = nameof(Index))]
         public async Task<IActionResult> Edit(int id, DenominationViewModel model)
         {
             if (id != model.Id)
@@ -204,9 +209,23 @@ namespace VMSService.Web.Controllers
                     return NotFound();
                 }
 
+                //Compare to check if changes were made
+                var oldDenomination = _mapper.Map<DenominationViewModel>(denomination);
+                if (oldDenomination.Name == model.Name &&
+                    oldDenomination.Value == model.Value &&
+                    oldDenomination.DenominationTypeId == model.DenominationTypeId &&
+                    oldDenomination.NumberOfPiecesInABox == model.NumberOfPiecesInABox)
+                {
+                    var denominationTypes = await _denominationTypeRepository.FindAll();
+                    ViewBag.DenominationTypes = denominationTypes.Where(dt => !dt.IsDeleted).ToList();
+                    TempData["Error"] = "No changes Made";
+                    return View(model);
+                }
+
                 denomination.Name = model.Name;
                 denomination.Value = model.Value;
                 denomination.DenominationTypeId = model.DenominationTypeId;
+                denomination.NumberOfPiecesInABox = model.NumberOfPiecesInABox;
 
                 bool isUpdated = await _denominationRepository.Update(denomination);
                 if (isUpdated)
@@ -269,6 +288,7 @@ namespace VMSService.Web.Controllers
         // POST: Denominations/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
+        [Breadcrumb("Delete", FromController = typeof(DenominationsController), FromAction = nameof(Index))]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             try

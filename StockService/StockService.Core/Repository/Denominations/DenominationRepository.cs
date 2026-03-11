@@ -9,14 +9,14 @@ namespace StockService.Core.Repository.Denominations
 
         public async Task<ICollection<Denomination>> FindAllAsync()
         {
-            return await _db.Denominations
+            return await _db.Denominations.Where(d => !d.IsDeleted)
                 .Include(d => d.DenominationType)
                 .ToListAsync();
         }
 
         public async Task<Denomination> FindByIdAsync(int id)
         {
-            return await _db.Denominations
+            return await _db.Denominations.Where(d => !d.IsDeleted)
                 .Include(d => d.DenominationType)
                 .FirstOrDefaultAsync(bc => bc.Id == id);
         }
@@ -24,7 +24,7 @@ namespace StockService.Core.Repository.Denominations
         public async Task<Denomination> CreateAsync(Denomination entity)
         {
             // Check for duplicate name
-            var duplicate = await _db.Denominations.AnyAsync(d => d.Name == entity.Name);
+            var duplicate = await _db.Denominations.AnyAsync(d => d.Name == entity.Name && !d.IsDeleted);
             if (duplicate)
                 throw new InvalidOperationException("A denomination with the same name already exists.");
 
@@ -40,7 +40,7 @@ namespace StockService.Core.Repository.Denominations
                 return false;
 
             // Check for duplicate name (different id)
-            var duplicate = await _db.Denominations.AnyAsync(d => d.Name == entity.Name && d.Id != entity.Id);
+            var duplicate = await _db.Denominations.AnyAsync(d => d.Name == entity.Name && d.Id != entity.Id && !d.IsDeleted);
             if (duplicate)
                 throw new InvalidOperationException("A denomination with the same name already exists.");
 
@@ -48,6 +48,9 @@ namespace StockService.Core.Repository.Denominations
             existing.Value = entity.Value;
             existing.NumberOfPiecesInABox = entity.NumberOfPiecesInABox;
             existing.DenominationTypeId = entity.DenominationTypeId;
+            existing.IsDeleted = entity.IsDeleted;
+            existing.ModifiedDate = entity.ModifiedDate;
+            existing.ModifiedBy = entity.ModifiedBy;
 
             return await Save();
         }

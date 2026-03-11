@@ -14,12 +14,19 @@ namespace VMSService.Core.Repositories.ApprovedCurrencyStatusHistories
 
         public async Task<ICollection<ApprovedCurrencyStatusHistory>> FindAll()
         {
-            return await _db.ApprovedCurrencyStatusHistory.ToListAsync();
+            return await _db.ApprovedCurrencyStatusHistory.Where(x => x.IsDeleted == false)
+                .Include(x => x.ApprovedCurrencyProcurement)
+                .Include(x => x.OldStatus)
+                .Include(x => x.NewStatus)
+                .ToListAsync();
         }
 
         public async Task<ApprovedCurrencyStatusHistory> FindById(int id)
         {
             return await _db.ApprovedCurrencyStatusHistory
+                .Include(x => x.ApprovedCurrencyProcurement)
+                .Include(x => x.OldStatus)
+                .Include(x => x.NewStatus)
                 .FirstOrDefaultAsync(x => x.Id == id);
         }
 
@@ -38,6 +45,16 @@ namespace VMSService.Core.Repositories.ApprovedCurrencyStatusHistories
         {
             _db.ApprovedCurrencyStatusHistory.Update(model);
             return await Save();
+        }
+
+        public async Task<ICollection<ApprovedCurrencyStatusHistory>> FindByApprovedCurrencyId(int approvedCurrencyProcurementId)
+        {
+            return await _db.ApprovedCurrencyStatusHistory
+                .Where(x => x.ApprovedCurrencyProcurementId == approvedCurrencyProcurementId)
+                .Where(x => !x.IsDeleted)
+                .Include(x => x.OldStatus)
+                .Include(x => x.NewStatus)
+                .ToListAsync();
         }
     }
 }

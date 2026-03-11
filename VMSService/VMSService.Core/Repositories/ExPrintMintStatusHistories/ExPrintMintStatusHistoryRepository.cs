@@ -14,12 +14,19 @@ namespace VMSService.Core.Repositories.ExPrintMintStatusHistories
 
         public async Task<ICollection<ExPrintMintStatusHistory>> FindAll()
         {
-            return await _db.ExPrintMintStatusHistory.ToListAsync();
+            return await _db.ExPrintMintStatusHistory.Where(x => x.IsDeleted == false)
+                .Include(x => x.ExPrintMint)
+                .Include(x => x.OldStatus)
+                .Include(x => x.NewStatus)
+                .ToListAsync();
         }
 
         public async Task<ExPrintMintStatusHistory> FindById(int id)
         {
             return await _db.ExPrintMintStatusHistory
+                .Include(x => x.ExPrintMint)
+                .Include(x => x.OldStatus)
+                .Include(x => x.NewStatus)
                 .FirstOrDefaultAsync(x => x.Id == id);
         }
 
@@ -38,6 +45,15 @@ namespace VMSService.Core.Repositories.ExPrintMintStatusHistories
         {
             _db.ExPrintMintStatusHistory.Update(model);
             return await Save();
+        }
+
+        public async Task<ICollection<ExPrintMintStatusHistory>> FindByExPrintMintId(int exPrintMintId)
+        {
+            return await _db.ExPrintMintStatusHistory.Where(x => x.ExPrintMintId == exPrintMintId && x.IsDeleted == false)
+                .Include(x => x.ExPrintMint)
+                .Include(x => x.OldStatus)
+                .Include(x => x.NewStatus)
+                .ToListAsync();
         }
     }
 }

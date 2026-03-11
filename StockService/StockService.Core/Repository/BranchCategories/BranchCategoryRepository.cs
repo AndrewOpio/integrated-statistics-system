@@ -8,7 +8,7 @@ namespace StockService.Core.Repository.BranchCategories
     {
         public async Task<ICollection<BranchCategory>> FindAllAsync()
         {
-            return await _db.BranchCategories
+            return await _db.BranchCategories.Where(bc => !bc.IsDeleted)
                 .Include(bc => bc.Branch)
                 .Include(bc => bc.Category)
                 .ToListAsync();
@@ -16,7 +16,7 @@ namespace StockService.Core.Repository.BranchCategories
 
         public async Task<BranchCategory> FindByIdAsync(int id)
         {
-            return await _db.BranchCategories
+            return await _db.BranchCategories.Where(bc => !bc.IsDeleted)
                     .Include(bc => bc.Branch)
                     .Include(bc => bc.Category)
                     .FirstOrDefaultAsync(bc => bc.Id == id);
@@ -25,7 +25,7 @@ namespace StockService.Core.Repository.BranchCategories
         public async Task<BranchCategory> CreateAsync(BranchCategory entity)
         {
             // Check for duplicate BranchId and CategoryId combination
-            var duplicate = await _db.BranchCategories.AnyAsync(bc => bc.BranchId == entity.BranchId && bc.CategoryId == entity.CategoryId);
+            var duplicate = await _db.BranchCategories.AnyAsync(bc => bc.BranchId == entity.BranchId && bc.CategoryId == entity.CategoryId && !bc.IsDeleted);
             if (duplicate)
                 throw new InvalidOperationException("A branch category with the same branch and category already exists.");
 
@@ -41,12 +41,15 @@ namespace StockService.Core.Repository.BranchCategories
                 return false;
 
             // Check for duplicate BranchId and CategoryId combination (different Id)
-            var duplicate = await _db.BranchCategories.AnyAsync(bc => bc.BranchId == entity.BranchId && bc.CategoryId == entity.CategoryId && bc.Id != entity.Id);
+            var duplicate = await _db.BranchCategories.AnyAsync(bc => bc.BranchId == entity.BranchId && bc.CategoryId == entity.CategoryId && bc.Id != entity.Id && !bc.IsDeleted);
             if (duplicate)
                 throw new InvalidOperationException("A branch category with the same branch and category already exists.");
 
             existing.BranchId = entity.BranchId;
             existing.CategoryId = entity.CategoryId;
+            existing.IsDeleted = entity.IsDeleted;
+            existing.ModifiedBy = entity.ModifiedBy;
+            existing.ModifiedDate = entity.ModifiedDate;
 
             return await Save();
         }

@@ -10,6 +10,6 @@ namespace StockService.Core.Models.StockLedger
         public int NumberOfPieces { get; set; }
         public int NumberOfBoxes { get; set; }
         public int? NumberOfBundles { get; set; }
-        public int Value { get; set; }
+        public decimal Value { get; set; }
     }
 }

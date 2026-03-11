@@ -3377,12 +3377,13 @@ progress {
     }
 
     .table > thead {
-        vertical-align: bottom
+        vertical-align: bottom;
+        border-bottom: .125rem solid currentColor
     }
 
-    .table > :not(:first-child) {
+/*    .table > :not(:first-child) {
         border-top: .125rem solid currentColor
-    }
+    }*/
 
 .caption-top {
     caption-side: top
@@ -5993,7 +5994,7 @@ textarea.form-control-lg {
     position: absolute;
     z-index: 1000;
     display: none;
-    min-width: 12rem;
+    min-width: 16rem;
     padding: .5rem 0;
     margin: 0;
     font-size: .875rem;
@@ -7477,7 +7478,7 @@ textarea.form-control-lg {
 .badge {
     display: inline-block;
     padding: .2rem .4rem;
-    font-size: .75em;
+    font-size: .8em;
     font-weight: 600;
     line-height: 1;
     color: #fff;
@@ -22465,7 +22466,7 @@ textarea.form-control-lg {
 }
 
 .sidebar .nav-link {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     vertical-align: middle;
     padding: .55rem .75rem;
     border-radius: .5rem
@@ -22622,7 +22623,7 @@ img {
 }
 
 strong {
-    font-weight: 500
+    font-weight: 600
 }
 
 button:focus {
@@ -23227,7 +23228,7 @@ label {
     }
 
 .badge {
-    font-size: .75em;
+    font-size: .8em;
     font-weight: 600
 }
 
@@ -27143,7 +27144,7 @@ label {
 
 .table td, .table th {
     font-size: .875rem;
-    white-space: nowrap
+    white-space: inherit
 }
 
 .table.user-table thead th {

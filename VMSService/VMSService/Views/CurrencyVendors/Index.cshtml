@@ -36,65 +36,55 @@
                             @{
                                 int rowNumber = 1;
                             }
-                            @if (Model != null && Model.Any())
-                            {
-                                @foreach (var item in Model)
-                                {
-                                    <tr>
-                                        <td><span class="text-primary fw-bold">@rowNumber</span></td>
-                                        <td class="fw-bold">@item.Name</td>
-                                        <td>
-                                            @if (!string.IsNullOrEmpty(item.Description))
-                                            {
-                                                @item.Description
-                                            }
-                                            else
-                                            {
-                                                <span class="text-muted">-</span>
-                                            }
-                                        </td>
-                                        <td>
-                                            <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
-                                                <span class="badge bg-primary">
-                                                    <i class="ti ti-tag me-1"></i>@item.VendorType?.Name
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            @if (!string.IsNullOrEmpty(item.Country))
-                                            {
-                                                @item.Country
-                                            }
-                                            else
-                                            {
-                                                <span class="text-muted">-</span>
-                                            }
-                                        </td>
-                                        <td>
-                                            <div class="btn-group" role="group">
-                                                <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
-                                                    <i class="ti ti-edit"></i>
-                                                </a>
-                                                <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
-                                                    <i class="ti ti-eye"></i>
-                                                </a>
-                                                <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger" title="Delete">
-                                                    <i class="ti ti-trash"></i>
-                                                </a>
-                                            </div>
-                                        </td>
-                                        @{
-                                            rowNumber++;
-                                        }
-                                    </tr>
-                                }
-                            }
-                            else
+                            
+                            @foreach (var item in Model)
                             {
                                 <tr>
-                                    <td colspan="5" class="text-center py-4 text-muted">
-                                        <i class="ti ti-inbox me-2"></i>No currency vendors found.
+                                    <td><span class="text-primary fw-bold">@rowNumber</span></td>
+                                    <td class="fw-bold">@item.Name</td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(item.Description))
+                                        {
+                                            @item.Description
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
                                     </td>
+                                    <td>
+                                        <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
+                                            <span class="badge bg-primary">
+                                                <i class="ti ti-tag me-1"></i>@item.VendorType?.Name
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(item.Country))
+                                        {
+                                            @item.Country
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
+                                                <i class="ti ti-edit"></i>
+                                            </a>
+                                            <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
+                                                <i class="ti ti-eye"></i>
+                                            </a>
+                                            <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger" title="Delete">
+                                                <i class="ti ti-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                    @{
+                                        rowNumber++;
+                                    }
                                 </tr>
                             }
                         </tbody>

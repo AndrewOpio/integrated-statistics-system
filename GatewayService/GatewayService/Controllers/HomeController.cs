@@ -1,18 +1,12 @@
 using System.Diagnostics;
 using GatewayService.Models;
+using GatewayService.Services.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GatewayService.Controllers
 {
-    public class HomeController : Controller
+    public class HomeController(ILogger<HomeController> _logger, IIdentityService _identityService) : Controller
     {
-        private readonly ILogger<HomeController> _logger;
-
-        public HomeController(ILogger<HomeController> logger)
-        {
-            _logger = logger;
-        }
-
         public async Task<IActionResult> Index([FromServices] IHttpClientFactory clientFactory)
         {
             List<Application> applications = new();
@@ -23,11 +17,10 @@ namespace GatewayService.Controllers
             }
 
             ViewBag.Username = Request.Cookies["Username"];
-            var client = clientFactory.CreateClient();
 
             try
             {
-                var response = await client.GetAsync("https://localhost:7026/api/app/applications");
+                var response = await _identityService.GetApplicationsAsync();
                 if (response.IsSuccessStatusCode)
                 {
                     var result = await response.Content.ReadFromJsonAsync<List<Application>>();

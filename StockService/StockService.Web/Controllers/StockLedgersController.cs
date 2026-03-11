@@ -6,6 +6,8 @@ using StockService.Core.Models.DenominationTypes;
 using StockService.Core.Models.StockLedger;
 using StockService.Core.Repository.StockLedgers;
 using StockService.Data.Entities;
+using StockService.Web.Models.BranchCategories;
+using StockService.Web.Models.Branches;
 using StockService.Web.Models.Categories;
 
 namespace StockService.Web.Controllers
@@ -33,6 +35,21 @@ namespace StockService.Web.Controllers
                     Name = sl.CounterPartyType.Name
                 },
                 CounterPartyId = sl.CounterPartyId,
+                StoreId  = sl.StoreId,
+                Store = sl.Store == null ? null : new BranchCategoryDto
+                {
+                    Id = sl.Store.Id,
+                    Branch = sl.Store.Branch == null ? null : new BranchDto
+                    {
+                        Id = sl.Store.Branch.Id,
+                        Name = sl.Store.Branch.Name
+                    },
+                    Category = sl.Store.Category == null ? null : new CategoryDto
+                    {
+                        Id = sl.Store.Category.Id,
+                        Name = sl.Store.Category.Name
+                    }
+                },
                 Notes = sl.Notes,
                 StockLedgerDetails = sl.StockLedgerDetails?.Select(d => new StockLedgerDetailDto
                 {

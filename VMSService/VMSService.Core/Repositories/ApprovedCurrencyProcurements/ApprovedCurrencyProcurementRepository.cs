@@ -14,12 +14,15 @@ namespace VMSService.Core.Repositories.ApprovedCurrencyProcurements
 
         public async Task<ICollection<ApprovedCurrencyProcurement>> FindAll()
         {
-            return await _db.ApprovedCurrencyProcurements.ToListAsync();
+            return await _db.ApprovedCurrencyProcurements.Where(x => x.IsDeleted == false)
+                .Include(x => x.CurrentStatus)
+                .ToListAsync();
         }
 
         public async Task<ApprovedCurrencyProcurement> FindById(int id)
         {
             return await _db.ApprovedCurrencyProcurements
+                .Include(x => x.CurrentStatus)
                 .FirstOrDefaultAsync(x => x.Id == id);
         }
 

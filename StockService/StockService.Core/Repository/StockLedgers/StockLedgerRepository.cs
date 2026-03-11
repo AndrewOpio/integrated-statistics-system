@@ -11,8 +11,10 @@ namespace StockService.Core.Repository.StockLedgers
             return await _db.StockLedger
                 .Include(cpt => cpt.CounterPartyType)
                 .Include(st => st.Store)
+                .Include(st => st.Store.Branch)
+                .Include(st => st.Store.Category)
                 .Include(sl => sl.StockLedgerDetails)
-                   .ThenInclude(sld => sld.Denomination)
+                .ThenInclude(sld => sld.Denomination)
                 .ToListAsync();
         }
 
@@ -33,8 +35,20 @@ namespace StockService.Core.Repository.StockLedgers
             if (duplicate)
                 throw new InvalidOperationException("A stock ledger with the same reference code already exists.");
 
+            ICollection<StockLedgerDetail> stockLedgerDetails = entity.StockLedgerDetails;
+            entity.StockLedgerDetails = [];
+
             _db.StockLedger.Add(entity);
             await _db.SaveChangesAsync();
+
+            // Create StockLedgerDetails
+            foreach (StockLedgerDetail stockLedgerDetail in stockLedgerDetails)
+            {
+                stockLedgerDetail.StockLedgerId = entity.Id;
+            }
+            await _db.StockLedgerDetails.AddRangeAsync(stockLedgerDetails);
+            await _db.SaveChangesAsync();
+
             return entity;
         }
 

@@ -10,5 +10,6 @@ namespace StockService.Core.Models.Denominations
         public decimal Value { get; set; }
         public int NumberOfPiecesInABox { get; set; }
         public DenominationTypeDto? DenominationType { get; set; }
+        public bool IsDeleted { get; set; }
     }
 }

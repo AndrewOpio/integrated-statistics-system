@@ -34,3 +34,51 @@ body {
 .breadcrumb-item a:hover {
     text-decoration: underline
 }
+
+.border-dashed {
+    border-style: dashed;
+}
+
+.border-2 {
+    border-width: 2px;
+}
+
+.border-slate-300 {
+    --tw-border-opacity: 1;
+    border-color: rgb(203 213 225 / var(--tw-border-opacity));
+}
+
+.card-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #b5341c, #c9973a);
+}
+
+.card-header {
+    position: relative;
+}
+
+.form-section {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.2rem;
+    /*border-left: 3px solid lightgray;*/
+}
+
+.no-after::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 0;
+    background: unset;
+}
+
+.more-rounded {
+    border-radius: 1rem !important;
+}

@@ -1,0 +1,457 @@
+@model VMSService.Core.Models.ExPrintMints.ExPrintMintViewModel
+
+@{
+    ViewData["Title"] = "Add Expected Stock";
+}
+
+<div class="row">
+    <div class="col-12 col-lg-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header">
+                <h2 class="fs-5 fw-bold mb-0">Add New Expected Stock</h2>
+            </div>
+            <div class="card-body">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <form asp-action="Create" method="post" enctype="multipart/form-data" id="createForm">
+                    
+
+                    <!-- Section 1: Basic Information -->
+                    <div class="form-section mb-4 shadow">
+                        <div class="mb-3 pb-2 border-bottom">
+                            <small class="fw-bold text-muted mb-0 text-uppercase">
+                                <i class="ti ti-info-circle me-2"></i>Basic Information
+                            </small>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="ExPrintMintReference">Reference <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" asp-for="ExPrintMintReference" placeholder="Enter Reference" required>
+                                <small class="text-muted d-block mt-1">Unique identifier for this stock shipment</small>
+                                <span asp-validation-for="ExPrintMintReference" class="text-danger small d-block mt-1"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="VendorTypeId">Vendor Type <span class="text-danger">*</span></label>
+                                <select class="form-select" id="VendorTypeId" required>
+                                    <option value="">-- Select Vendor Type --</option>
+                                    @if (ViewBag.VendorTypes != null)
+                                    {
+                                        @foreach (var vendorType in ViewBag.VendorTypes)
+                                        {
+                                            <option value="@vendorType.Id" data-name="@vendorType.Name">@vendorType.Name</option>
+                                        }
+                                    }
+                                </select>
+                                <small class="text-muted d-block mt-1">Vendors will be filtered based on selected type</small>
+                                <span class="text-danger small d-block mt-1" id="vendorTypeError"></span>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="DeliveryDate">Expected Delivery Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" asp-for="DeliveryDate" required>
+                                <span asp-validation-for="DeliveryDate" class="text-danger small d-block mt-1"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="CurrencyVendorId">Currency Vendor <span class="text-danger">*</span></label>
+                                <select class="form-select" asp-for="CurrencyVendorId" id="CurrencyVendorId" required>
+                                    <option value="">-- Select Vendor --</option>
+                                    @if (ViewBag.CurrencyVendors != null)
+                                    {
+                                        @foreach (var vendor in ViewBag.CurrencyVendors)
+                                        {
+                                            <option value="@vendor.Id" data-vendor-type="@vendor.VendorType?.Id">@vendor.Name</option>
+                                        }
+                                    }
+                                </select>
+                                <span asp-validation-for="CurrencyVendorId" class="text-danger small d-block mt-1"></span>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="ApprovedCurrencyProcurementId">Approved Currency Procurement <span class="text-danger">*</span></label>
+                                <select class="form-select" asp-for="ApprovedCurrencyProcurementId" id="ApprovedCurrencyProcurementId" required>
+                                    <option value="">-- Select Approved Currency Procurement --</option>
+                                    @if (ViewBag.ApprovedCurrencyProcurements != null)
+                                    {
+                                        @foreach (var proc in ViewBag.ApprovedCurrencyProcurements)
+                                        {
+                                            <option value="@proc.Id" data-name="@proc.Amount"><span>#PR</span>@proc.Id - @proc.Amount.ToString("N0")</option>
+                                        }
+                                    }
+                                </select>
+                                @* <span class="text-danger small d-block mt-1" id="vendorTypeError"></span> *@
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="BranchId">Branch<span class="text-danger">*</span></label>
+                                <select class="form-select" asp-for="BranchId" id="CurrencyVendorId" required>
+                                    <option value="">-- Select Branch --</option>
+                                    @if (ViewBag.BranchList != null)
+                                    {
+                                        @foreach (var branch in ViewBag.BranchList)
+                                        {
+                                            <option value="@branch.Id" data-name="@branch.Name">@branch.Name</option>
+                                        }
+                                    }
+                                </select>
+                                <span asp-validation-for="BranchId" class="text-danger small d-block mt-1"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Denomination & Stock Details -->
+                    <div class="form-section mb-4 shadow">
+                        <div class="mb-3 pb-2 border-bottom">
+                            <small class="fw-bold text-muted mb-0 text-uppercase">
+                                <i class="ti ti-package me-2"></i>Denomination & Stock Details
+                            </small>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="DenominationId">Denomination <span class="text-danger">*</span></label>
+                                <select class="form-select" asp-for="DenominationId" id="DenominationId" required>
+                                    <option value="">-- Select Denomination --</option>
+                                    @if (ViewBag.Denominations != null)
+                                    {
+                                        @foreach (var denom in ViewBag.Denominations)
+                                        {
+                                            <option value="@denom.Id" data-denomination-value="@denom.Value" data-pieces-in-box="@denom.NumberOfPiecesInABox">@denom.Name</option>
+                                        }
+                                    }
+                                </select>
+                                <span asp-validation-for="DenominationId" class="text-danger small d-block mt-1"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="NumberOfPiecesText">Number of Pieces <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="NumberOfPiecesText" placeholder="Enter number of pieces" required>
+                                <input type="hidden" asp-for="NumberOfPieces" id="NumberOfPieces">
+                                <small class="text-muted d-block mt-1">Enter the number of currency pieces to be received</small>
+                                <span asp-validation-for="NumberOfPieces" class="text-danger small d-block mt-1"></span>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="AmountText">Amount (Auto-calculated) <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="AmountText" placeholder="0" readonly>
+                                <input type="hidden" asp-for="Value" id="Value">
+                                <small class="text-muted d-block mt-1">Automatically calculated: Pieces × Denomination Value</small>
+                                <span asp-validation-for="Value" class="text-danger small d-block mt-1"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" for="NumberOfBoxesText">Number of Boxes (Auto-calculated) <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="NumberOfBoxesText" placeholder="0" readonly>
+                                <input type="hidden" asp-for="NumberOfBoxes" id="NumberOfBoxes">
+                                <small class="text-muted d-block mt-1">Automatically calculated based on pieces and box capacity</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 3: Box Number Details -->
+                    <div class="form-section mb-4 shadow">
+                        <div class="mb-3 pb-2 border-bottom">
+                            <small class="fw-bold text-muted mb-0 text-uppercase">
+                                <i class="ti ti-box me-2"></i>Box Number Details
+                            </small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" asp-for="BoxNumberPrefix">Box Number Prefix <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" asp-for="BoxNumberPrefix" placeholder="Enter box number prefix" required>
+                            <small class="text-muted d-block mt-1">Prefix used before box numbers</small>
+                            <span asp-validation-for="BoxNumberPrefix" class="text-danger small d-block mt-1"></span>
+                        </div>
+
+                        <!-- (Only for Printer) -->
+                        <div class="row" id="boxNumberSection" style="display: none;">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="BoxNumberRangeStart">Box Number Range Start <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" asp-for="BoxNumberRangeStart" placeholder="Enter start range">
+                                <span asp-validation-for="BoxNumberRangeStart" class="text-danger small d-block mt-1"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="BoxNumberRangeEnd">Box Number Range End <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" asp-for="BoxNumberRangeEnd" placeholder="Enter end range">
+                                <span asp-validation-for="BoxNumberRangeEnd" class="text-danger small d-block mt-1"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 4: Serial Number Details (Only for Printer) -->
+                    <div class="form-section mb-4 shadow" id="serialNumberSection" style="display: none;">
+                        <div class="mb-3 pb-2 border-bottom">
+                            <small class="fw-bold text-muted mb-0 text-uppercase">
+                                <i class="ti ti-barcode me-2"></i>Serial Number Details
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" asp-for="SerialNumberPrefix">Serial Number Prefix <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" asp-for="SerialNumberPrefix" placeholder="Enter serial number prefix">
+                            <small class="text-muted d-block mt-1">Prefix used before serial numbers</small>
+                            <span asp-validation-for="SerialNumberPrefix" class="text-danger small d-block mt-1"></span>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="SerialNumberRangeStart">Serial Number Range Start <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" asp-for="SerialNumberRangeStart" placeholder="Enter start range">
+                                <span asp-validation-for="SerialNumberRangeStart" class="text-danger small d-block mt-1"></span>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label" asp-for="SerialNumberRangeEnd">Serial Number Range End <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" asp-for="SerialNumberRangeEnd" placeholder="Enter end range">
+                                <span asp-validation-for="SerialNumberRangeEnd" class="text-danger small d-block mt-1"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 5: Documentation -->
+                    <div class="form-section mb-4 shadow">
+                        <div class="mb-3 pb-2 border-bottom">
+                            <small class="fw-bold text-muted mb-0 text-uppercase">
+                                <i class="ti ti-file me-2"></i>Documentation
+                            </small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" asp-for="AttachmentFile">Attachment (PDF) <span class="text-danger">*</span></label>
+                            <input type="file" class="form-control" id="AttachmentFile" name="AttachmentFile" accept=".pdf,application/pdf">
+                            <small class="text-muted d-block mt-2"><i class="ti ti-info-circle me-1"></i>Accepted formats: PDF only. Max size: 10MB</small>
+                            <span asp-validation-for="AttachmentFile" class="text-danger small d-block mt-1"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Form Actions -->
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-check me-1"></i>Save
+                        </button>
+                        <a asp-action="Index" class="btn btn-secondary">
+                            <i class="ti ti-arrow-left me-1"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function () {
+        // Set delivery date to today
+        const today = new Date().toISOString().split('T')[0];
+        $('#DeliveryDate').val(today);
+
+        // Store vendors data grouped by vendor type
+        const vendorsData = {};
+        @if (ViewBag.CurrencyVendors != null)
+        {
+            <text>
+            const allVendors = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.CurrencyVendors));
+            allVendors.forEach(function(vendor) {
+                const vendorTypeId = vendor.VendorTypeId;
+                if (vendorTypeId) {
+                    if (!vendorsData[vendorTypeId]) {
+                        vendorsData[vendorTypeId] = [];
+                    }
+                    vendorsData[vendorTypeId].push(vendor);
+                }
+            });
+            </text>
+        }
+
+        const $denominationSelect = $('#DenominationId');
+        const $numberOfPiecesText = $('#NumberOfPiecesText');
+        const $numberOfPieces = $('#NumberOfPieces');
+        const $amountText = $('#AmountText');
+        const $value = $('#Value');
+        const $numberOfBoxesText = $('#NumberOfBoxesText');
+        const $numberOfBoxes = $('#NumberOfBoxes');
+
+        // Handle Vendor Type Selection
+        $('#VendorTypeId').on('change', function() {
+            const selectedVendorTypeId = $(this).val();
+            const selectedVendorTypeName = $(this).find('option:selected').data('name');
+            const $vendorSelect = $('#CurrencyVendorId');
+            const $boxNumberSection = $('#boxNumberSection');
+            const $serialNumberSection = $('#serialNumberSection');
+
+            // Clear vendor select
+            $vendorSelect.html('<option value="">-- Select Vendor --</option>');
+
+            // Show/Hide Box Number and Serial Number sections based on Vendor Type
+            if (selectedVendorTypeName && selectedVendorTypeName.toLowerCase() === 'printer') {
+                $boxNumberSection.slideDown(300);
+                $serialNumberSection.slideDown(300);
+                
+                // Make fields required
+                $('#boxNumberSection input, #boxNumberSection select').prop('required', true);
+                $('#serialNumberSection input, #serialNumberSection select').prop('required', true);
+            } else {
+                $boxNumberSection.slideUp(300);
+                $serialNumberSection.slideUp(300);
+                
+                // Remove required attribute
+                $('#boxNumberSection input, #boxNumberSection select').prop('required', false);
+                $('#serialNumberSection input, #serialNumberSection select').prop('required', false);
+                
+                // Clear the fields
+                $('#boxNumberSection input, #boxNumberSection select').val('');
+                $('#serialNumberSection input, #serialNumberSection select').val('');
+            }
+
+            if (selectedVendorTypeId) {
+                // Filter and populate vendors
+                const filteredVendors = vendorsData[selectedVendorTypeId] || [];
+                
+                if (filteredVendors.length > 0) {
+                    filteredVendors.forEach(function(vendor) {
+                        $vendorSelect.append(
+                            `<option value="${vendor.Id}">${vendor.Name}</option>`
+                        );
+                    });
+                    $('#vendorTypeError').text('').hide();
+                } else {
+                    $('#vendorTypeError').text('No vendors available for this type').show();
+                }
+            }
+
+            // Reset vendor selection
+            $vendorSelect.val('');
+        });
+
+        // Handle Number of Pieces formatting
+        $numberOfPiecesText.on('input', function() {
+            let input = $(this).val();
+            
+            // Remove all non-numeric characters
+            let sanitized = input.replace(/[^0-9]/g, '');
+
+            const number = parseInt(sanitized);
+            if (!isNaN(number) && sanitized !== "") {
+                // Format with commas
+                $(this).val(number.toLocaleString('en-US'));
+                // Update hidden input with numeric value
+                $numberOfPieces.val(number);
+            } else {
+                $(this).val('');
+                $numberOfPieces.val('');
+            }
+
+            // Recalculate when pieces change
+            calculateAmountAndBoxes();
+        });
+
+        // Handle paste events for Number of Pieces
+        $numberOfPiecesText.on('paste', function() {
+            const $this = $(this);
+            setTimeout(function() {
+                $this.trigger('input');
+            }, 10);
+        });
+
+        // Handle Denomination selection change - recalculate
+        $denominationSelect.on('change', function() {
+            calculateAmountAndBoxes();
+        });
+
+        // Calculate amount and boxes based on pieces and denomination
+        function calculateAmountAndBoxes() {
+            const selectedDenominationId = $denominationSelect.val();
+            const pieces = parseInt($numberOfPieces.val()) || 0;
+
+            if (selectedDenominationId && pieces > 0) {
+                // Get the denomination data from the selected option
+                const selectedOption = $denominationSelect.find('option:selected');
+                const denominationValue = parseFloat(selectedOption.data('denomination-value')) || 0;
+                const piecesInBox = parseInt(selectedOption.data('pieces-in-box')) || 1;
+
+                // Calculate amount: pieces * denominationValue
+                const amount = pieces * denominationValue;
+
+                // Calculate number of boxes: pieces / piecesInBox (rounded up)
+                const numberOfBoxes = Math.ceil(pieces / piecesInBox);
+
+                // Display formatted amount
+                $amountText.val(amount.toLocaleString('en-US', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                }));
+                $value.val(amount);
+
+                // Display formatted boxes
+                $numberOfBoxesText.val(numberOfBoxes.toLocaleString('en-US'));
+                $numberOfBoxes.val(numberOfBoxes);
+            } else {
+                $amountText.val('0');
+                $value.val('0');
+                $numberOfBoxesText.val('0');
+                $numberOfBoxes.val('0');
+            }
+        }
+
+        // Form submission - ensure values are set
+        $('#createForm').on('submit', function(e) {
+            const pieces = $numberOfPieces.val();
+            
+            if (!pieces || pieces === '0') {
+                e.preventDefault();
+                $numberOfPiecesText.focus();
+                alert('Please enter a valid number of pieces');
+                return false;
+            }
+
+            const amount = $value.val();
+            if (!amount || amount === '0') {
+                e.preventDefault();
+                alert('Number of pieces must be greater than 0. Please enter a valid value');
+                return false;
+            }
+
+            // Validate Box Number fields if section is visible
+            if ($('#boxNumberSection').is(':visible')) {
+                const boxPrefix = $('[name="BoxNumberPrefix"]').val();
+                const boxStart = $('[name="BoxNumberRangeStart"]').val();
+                const boxEnd = $('[name="BoxNumberRangeEnd"]').val();
+
+                if (!boxPrefix || !boxStart || !boxEnd) {
+                    e.preventDefault();
+                    alert('Please fill all Box Number fields');
+                    return false;
+                }
+            }
+
+            // Validate Serial Number fields if section is visible
+            if ($('#serialNumberSection').is(':visible')) {
+                const serialPrefix = $('[name="SerialNumberPrefix"]').val();
+                const serialStart = $('[name="SerialNumberRangeStart"]').val();
+                const serialEnd = $('[name="SerialNumberRangeEnd"]').val();
+
+                if (!serialPrefix || !serialStart || !serialEnd) {
+                    e.preventDefault();
+                    alert('Please fill all Serial Number fields');
+                    return false;
+                }
+            }
+        });
+
+        // Clear error on valid input
+        $numberOfPiecesText.on('focus', function() {
+            // Clear any error messages if needed
+        });
+    });
+</script>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

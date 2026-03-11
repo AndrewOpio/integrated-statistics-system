@@ -1,13 +1,15 @@
 using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartBreadcrumbs.Attributes;
 using VMSService.Controllers;
 using VMSService.Core.Models.DenominationTypes;
 using VMSService.Core.Repositories.DenominationTypes;
-using VMSService.Data.Entities;
+using VMSService.Core.Services.Stocks.StockEntities;
 
 namespace VMSService.Web.Controllers
 {
+    [Authorize]
     public class DenominationTypesController(IDenominationTypeRepository _denominationTypeRepository, IMapper _mapper, ILogger<DenominationTypesController> _logger) : Controller
     {
         [Breadcrumb("Denomination Types", FromController = typeof(HomeController), FromAction = nameof(Index))]
@@ -16,7 +18,7 @@ namespace VMSService.Web.Controllers
         {
             try
             {
-                var denominationTypes = (await _denominationTypeRepository.FindAll()).Where(d => d.IsDeleted == false);
+                var denominationTypes = (await _denominationTypeRepository.FindAll());
                 var model = _mapper.Map<List<DenominationTypeViewModel>>(denominationTypes);
                 return View(model);
             }
@@ -72,6 +74,7 @@ namespace VMSService.Web.Controllers
         // POST: DenominationTypes/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Breadcrumb("Create", FromController = typeof(DenominationTypesController), FromAction = nameof(Index))]
         public async Task<IActionResult> Create(DenominationTypeViewModel model)
         {
             if (!ModelState.IsValid)
@@ -143,6 +146,7 @@ namespace VMSService.Web.Controllers
         // POST: DenominationTypes/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Breadcrumb("Edit", FromController = typeof(DenominationTypesController), FromAction = nameof(Index))]
         public async Task<IActionResult> Edit(int id, DenominationTypeViewModel model)
         {
             if (id != model.Id)
@@ -161,6 +165,12 @@ namespace VMSService.Web.Controllers
                 if (denominationType == null)
                 {
                     return NotFound();
+                }
+
+                if (denominationType.Name == model.Name)
+                {
+                    TempData["Error"] = "No changes were made to the denomination type.";
+                    return View(model);
                 }
 
                 denominationType.Name = model.Name;
@@ -224,6 +234,7 @@ namespace VMSService.Web.Controllers
         // POST: DenominationTypes/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
+        [Breadcrumb("Delete", FromController = typeof(DenominationTypesController), FromAction = nameof(Index))]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             try

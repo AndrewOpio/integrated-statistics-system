@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartBreadcrumbs.Attributes;
 using VMSService.Controllers;
@@ -8,6 +9,7 @@ using VMSService.Data.Entities;
 
 namespace VMSService.Web.Controllers
 {
+    [Authorize]
     public class VendorTypesController(IVendorTypeRepository _vendorTypeRepository, IMapper _mapper, ILogger<VendorTypesController> _logger) : Controller
     {
         [Breadcrumb("Vendor Types", FromController = typeof(HomeController), FromAction = nameof(Index))]
@@ -51,7 +53,7 @@ namespace VMSService.Web.Controllers
                     return NotFound();
                 }
 
-                var model = _mapper.Map<VendorTypeViewModel>(vendorType);
+                var model = _mapper.Map<VendorType>(vendorType);
                 return View(model);
             }
             catch (Exception ex)
@@ -72,6 +74,7 @@ namespace VMSService.Web.Controllers
         // POST: VendorTypes/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Breadcrumb("Create", FromController = typeof(VendorTypesController), FromAction = nameof(Index))]
         public async Task<IActionResult> Create(VendorTypeViewModel model)
         {
             if (!ModelState.IsValid)
@@ -143,6 +146,7 @@ namespace VMSService.Web.Controllers
         // POST: VendorTypes/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Breadcrumb("Edit", FromController = typeof(VendorTypesController), FromAction = nameof(Index))]
         public async Task<IActionResult> Edit(int id, VendorTypeViewModel model)
         {
             if (id != model.Id)
@@ -225,6 +229,7 @@ namespace VMSService.Web.Controllers
         // POST: VendorTypes/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
+        [Breadcrumb("Delete", FromController = typeof(VendorTypesController), FromAction = nameof(Index))]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             try

@@ -1,6 +1,6 @@
 ﻿namespace GatewayService.Static
 {
-    public class SystemPolicy
+    public static class SystemPolicy
     {
         public static class Roles
         {
@@ -10,6 +10,7 @@
         public static class ClaimType
         {
             public const string AppRole = "appRole";
+            public const string AppPermission = "Permission";
         }
 
         public static class Claims

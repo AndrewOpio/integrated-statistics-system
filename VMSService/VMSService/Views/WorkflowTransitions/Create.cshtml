@@ -1,0 +1,216 @@
+@using VMSService.Core.Models.StatusTypes
+@using VMSService.Core.Models.WorkflowTransitions
+@model WorkflowTransitionViewModel
+@{
+    ViewData["Title"] = "Create Workflow Transition";
+}
+
+
+<div class="page-header d-print-none">
+    <div class="row align-items-center">
+        <div class="col">
+            <h4 class="page-title">
+                Create Workflow Transition
+            </h4>
+        </div>
+    </div>
+</div>
+
+
+<div class="row row-deck row-cards">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="Create" method="post" class="needs-validation" novalidate>
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        <span asp-validation-summary="All"></span>
+                    </div>
+
+                    <!-- Entity Type -->
+                    <div class="mb-3">
+                        <label class="form-label" for="EntityType">Entity Type <span class="text-danger">*</span></label>
+                        <select asp-for="EntityType" id="EntityType" class="form-select" required>
+                            <option value="">-- Select Entity Type --</option>
+                            <option value="ApprovedCurrencyProcurement">Approved Currency Procurement</option>
+                            <option value="ExPrintMint">ExPrint and ExMint</option>
+                            <option value="ReceivedStock">Received Stock</option>
+                        </select>
+                        <span asp-validation-for="EntityType" class="invalid-feedback"></span>
+                    </div>
+
+                    <!-- From Status -->
+                    <div class="mb-3">
+                        <label class="form-label" for="FromStatusId">From Status <span class="text-danger">*</span></label>
+                        <select asp-for="FromStatusId" id="FromStatusId" class="form-select" required>
+                            <option value="">-- Select Status --</option>
+                            @foreach (var status in (List<StatusTypeViewModel>)ViewBag.AllStatuses)
+                            {
+                                <option value="@status.Id" data-category="@status.Category">@status.Name - @status.Category</option>
+                            }
+                        </select>
+                        <span asp-validation-for="FromStatusId" class="invalid-feedback"></span>
+                    </div>
+
+                    <!-- To Status -->
+                    <div class="mb-3">
+                        <label class="form-label" for="ToStatusId">To Status <span class="text-danger">*</span></label>
+                        <select asp-for="ToStatusId" id="ToStatusId" class="form-select" required>
+                            <option value="">-- Select Status --</option>
+                            @foreach (var status in (List<StatusTypeViewModel>)ViewBag.AllStatuses)
+                            {
+                                <option value="@status.Id" data-category="@status.Category">@status.Name - @status.Category</option>
+                            }
+                        </select>
+                        <span asp-validation-for="ToStatusId" class="invalid-feedback"></span>
+                    </div>
+
+                    <!-- Action Name -->
+                    <div class="mb-3">
+                        <label class="form-label" for="ActionName">Action Name <span class="text-danger">*</span></label>
+                        <input asp-for="ActionName" type="text" class="form-control" placeholder="e.g., Verify, Reject, Resubmit" required />
+                        <span asp-validation-for="ActionName" class="invalid-feedback"></span>
+                        <small class="form-hint">The action/button name that triggers this transition</small>
+                    </div>
+
+                    <!-- Display Label -->
+                    <div class="mb-3">
+                        <label class="form-label" for="DisplayLabel">Display Label <span class="text-danger">*</span></label>
+                        <input asp-for="DisplayLabel" type="text" class="form-control" placeholder="e.g., Click to Verify" required />
+                        <span asp-validation-for="DisplayLabel" class="invalid-feedback"></span>
+                        <small class="form-hint">The button label displayed to users</small>
+                    </div>
+
+                    <!-- Required Role -->
+                    <div class="mb-3">
+                        <label class="form-label" for="RequiredRole">Required Role <span class="text-danger">*</span></label>
+                        <input asp-for="RequiredRole" type="text" class="form-control" placeholder="e.g., Currency Approver" required />
+                        <span asp-validation-for="RequiredRole" class="invalid-feedback"></span>
+                        <small class="form-hint">User role required to perform this transition</small>
+                    </div>
+
+                    <!-- Button Class -->
+                    <div class="mb-3">
+                        <label class="form-label" for="ButtonClass">Button Class <span class="text-danger">*</span></label>
+                        <select asp-for="ButtonClass" class="form-select" required>
+                            <option value="">-- Select Button Class --</option>
+                            @foreach (var buttonClass in (List<string>)ViewBag.ButtonClasses)
+                            {
+                                <option value="@buttonClass">@buttonClass</option>
+                            }
+                        </select>
+                        <span asp-validation-for="ButtonClass" class="invalid-feedback"></span>
+                    </div>
+
+                    <!-- Requires Comments -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input asp-for="RequiresComments" type="checkbox" class="form-check-input" id="RequiresComments" />
+                            <label class="form-check-label" for="RequiresComments">
+                                Requires Comments/Remarks
+                            </label>
+                        </div>
+                        <small class="form-hint d-block mt-2">Check if users must provide comments when performing this transition</small>
+                    </div>
+
+                    <hr/>
+
+                    <!-- Form Actions -->
+                    <div class="form-footer">
+                        <a href="@Url.Action("Index", "WorkflowTransitions")" class="btn btn-secondary"><i class="ti ti-arrow-left me-1"></i>Cancel</a>
+                        <button type="submit" class="btn btn-primary"><i class="ti ti-check me-1"></i>Create Transition</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Card -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Workflow Transition Guide</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Workflow transitions define the valid state changes in your system.
+                </p>
+                <h6 class="mt-3 mb-2">Key Fields:</h6>
+                <ul class="list-unstyled space-y-2 text-sm">
+                    <li><strong>Entity Type:</strong> The object type this applies to</li>
+                    <li><strong>From/To Status:</strong> Source and destination statuses</li>
+                    <li><strong>Action Name:</strong> Internal action identifier</li>
+                    <li><strong>Display Label:</strong> User-facing button text</li>
+                    <li><strong>Required Role:</strong> User must have this role</li>
+                    <li><strong>Button Class:</strong> Bootstrap button styling</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function () {
+        // Map entity types to their categories
+        const entityTypeMapping = {
+            'ApprovedCurrencyProcurement': 'Approved Currency Procurement',
+            'ExPrintMint': 'ExPrint and ExMint',
+            'ReceivedStock': 'Received Stock'
+        };
+
+        const $entityTypeSelect = $('#EntityType');
+        const $fromStatusSelect = $('#FromStatusId');
+        const $toStatusSelect = $('#ToStatusId');
+
+        // Store all status options
+        const allFromStatusOptions = $fromStatusSelect.find('option').clone();
+        const allToStatusOptions = $toStatusSelect.find('option').clone();
+
+        // Function to filter status options based on entity type
+        function filterStatusOptions() {
+            const selectedEntityType = $entityTypeSelect.val();
+            const selectedCategory = entityTypeMapping[selectedEntityType];
+
+            if (!selectedEntityType) {
+                // Reset to all options
+                $fromStatusSelect.html(allFromStatusOptions.clone());
+                $toStatusSelect.html(allToStatusOptions.clone());
+            } else {
+                // Filter from status options
+                const filteredFromOptions = allFromStatusOptions.filter(function () {
+                    const $option = $(this);
+                    const category = $option.data('category');
+                    return category === selectedCategory || $option.val() === ''; // Include the placeholder
+                });
+                $fromStatusSelect.html(filteredFromOptions.clone());
+
+                // Filter to status options
+                const filteredToOptions = allToStatusOptions.filter(function () {
+                    const $option = $(this);
+                    const category = $option.data('category');
+                    return category === selectedCategory || $option.val() === ''; // Include the placeholder
+                });
+                $toStatusSelect.html(filteredToOptions.clone());
+            }
+
+            // Reset selections
+            $fromStatusSelect.val('');
+            $toStatusSelect.val('');
+        }
+
+        // Handle Entity Type change
+        $entityTypeSelect.on('change', function () {
+            filterStatusOptions();
+        });
+
+        // Initialize on page load
+        filterStatusOptions();
+    });
+</script>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}
