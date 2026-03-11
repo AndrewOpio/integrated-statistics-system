@@ -87,7 +87,9 @@ namespace VMSService.Controllers
                 {
                     // Get all categories
                     var allCategories = await _categoryRepository.FindAll();
-                    
+                    List<string> selectedCategories = ["New", "Re-Issue", "Paids", "Cancelled", "CFB", "MI", "Fit", "MWB"];
+                    allCategories = allCategories.Where(c => selectedCategories.Contains(c.Name)).ToList();
+
                     // Get all denominations sorted by value
                     var allDenominations = await _denominationRepository.FindAll();
                     var sortedDenominations = allDenominations?.OrderBy(d => d.Value).ToList();
@@ -107,8 +109,8 @@ namespace VMSService.Controllers
                             // Find stock ledgers for this branch, category, and denomination
                             var totalValue = stockLedgers?
                                 .Where(sl => sl.Store != null && 
-                                           sl.Store.BranchId == kampalaBranch.Id &&
-                                           sl.Store.CategoryId == category.Id &&
+                                           sl.Store.Branch?.Id == kampalaBranch.Id &&
+                                           sl.Store.Category?.Id == category.Id &&
                                            sl.StockLedgerDetails != null)
                                 .SelectMany(sl => sl.StockLedgerDetails)
                                 .Where(sld => sld.DenominationId == denomination.Id)

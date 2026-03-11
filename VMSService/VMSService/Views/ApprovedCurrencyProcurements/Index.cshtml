@@ -2,6 +2,7 @@
 
 @{
     ViewData["Title"] = "Approved Currency Procurements";
+    var userRoles = string.Join(", ", User.FindAll("appRole").Where(c => c.Value.StartsWith("VMS:")).Select(c => c.Value.Split(":")[1]).ToList());
 }
 
 <div class="row">
@@ -12,11 +13,14 @@
                     <div class="col">
                         <h2 class="fs-5 fw-bold mb-0">Approved Currency Procurements</h2>
                     </div>
-                    <div class="col text-end">
-                        <a asp-action="Create" class="btn btn-sm btn-primary">
-                            <i class="ti ti-plus me-1"></i>Add Approved Currency Procurement
-                        </a>
-                    </div>
+                    @if (userRoles.Contains(SystemPolicy.Roles.ContractManager))
+                    {
+                        <div class="col text-end">
+                            <a asp-action="Create" class="btn btn-sm btn-primary">
+                                <i class="ti ti-plus me-1"></i>Add Approved Currency Procurement
+                            </a>
+                        </div>
+                    }
                 </div>
             </div>
             <div class="card-body">
@@ -70,7 +74,7 @@
                                             @{
                                                 bool isEditable = item.CurrentStatus?.Name == StatusConstants.ApprovedCurrencyProcurement.Draft || item.CurrentStatus?.Name == StatusConstants.ApprovedCurrencyProcurement.Returned;
                                             }
-                                            @if (isEditable)
+                                            @if (isEditable && userRoles.Contains(SystemPolicy.Roles.ContractManager))
                                             {
                                                 <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
                                                     <i class="ti ti-edit"></i>

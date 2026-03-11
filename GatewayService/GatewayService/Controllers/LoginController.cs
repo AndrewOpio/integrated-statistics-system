@@ -24,21 +24,37 @@ namespace GatewayService.Controllers
                 {
                     var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
 
-                    // Set authentication cookie
+                    // Set authentication cookie (PROD)
+                    //Response.Cookies.Append("AuthToken", result.Token, new CookieOptions
+                    //{
+                    //    Secure = true, // Set to true in production with HTTPS
+                    //    SameSite = SameSiteMode.None,
+                    //    Expires = DateTimeOffset.UtcNow.AddHours(2),
+                    //    Domain = ".bcnet.bou.or.ug"
+                    //});
+
+                    //Response.Cookies.Append("Username", result.Username, new CookieOptions
+                    //{
+                    //    Secure = true,
+                    //    SameSite = SameSiteMode.None,
+                    //    Expires = DateTimeOffset.UtcNow.AddHours(2),
+                    //    Domain = ".bcnet.bou.or.ug"
+                    //});
+
+                    // Set authentication cookie (TEST)
                     Response.Cookies.Append("AuthToken", result.Token, new CookieOptions
                     {
-                        Secure = true, // Set to true in production with HTTPS
-                        SameSite = SameSiteMode.None,
-                        Expires = DateTimeOffset.UtcNow.AddHours(2),
-                        Domain = ".bcnet.bou.or.ug"
+                        HttpOnly = true,
+                        Secure = false, // Set to true in production with HTTPS
+                        SameSite = SameSiteMode.Lax,
+                        Expires = DateTimeOffset.UtcNow.AddHours(2)
                     });
 
                     Response.Cookies.Append("Username", result.Username, new CookieOptions
                     {
-                        Secure = true,
-                        SameSite = SameSiteMode.None,
-                        Expires = DateTimeOffset.UtcNow.AddHours(2),
-                        Domain = ".bcnet.bou.or.ug"
+                        Secure = false,
+                        SameSite = SameSiteMode.Lax,
+                        Expires = DateTimeOffset.UtcNow.AddHours(2)
                     });
 
                     //ApplicationUser user = new ApplicationUser

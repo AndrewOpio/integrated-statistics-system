@@ -1,0 +1,130 @@
+@{
+    ViewData["Title"] = "About";
+}
+
+<div class="row justify-content-center mt-4">
+    <div class="col-lg-8">
+        <!-- App Info Card -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body text-center py-5">
+                <div class="mb-4">
+                    <img src="~/img/bou.png" alt="BOU Logo" height="80" width="80" />
+                </div>
+                <h2 class="fw-bold mb-1">Vault Management System</h2>
+                <p class="text-muted mb-1">Bank of Uganda</p>
+                <span class="badge bg-primary fs-6 mt-2">Version 1.0.0</span>
+            </div>
+        </div>
+
+        <!-- Description Card -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="ti ti-info-circle me-2"></i>About the Application</h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    The <strong>Vault Management System (VMS)</strong> is a comprehensive solution designed to manage and track currency stock across all branches. It streamlines the
+                    end-to-end process of currency procurement, receipt, storage, and distribution.
+                </p>
+            </div>
+        </div>
+
+        <!-- Key Features Card -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="ti ti-star me-2"></i>Key Features</h5>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex align-items-center">
+                        <span class="badge bg-light text-dark me-3 p-2"><i class="ti ti-chart-pie fs-5 text-primary"></i></span>
+                        <div>
+                            <strong>Dashboard & Stock Position</strong>
+                            <br /><small class="text-muted">Real-time stock overview across branches and denominations</small>
+                        </div>
+                    </li>
+                    <li class="list-group-item d-flex align-items-center">
+                        <span class="badge bg-light text-dark me-3 p-2"><i class="ti ti-cash-banknote-move fs-5 text-success"></i></span>
+                        <div>
+                            <strong>Expected Stock Management</strong>
+                            <br /><small class="text-muted">Track expected currency deliveries from print mints</small>
+                        </div>
+                    </li>
+                    <li class="list-group-item d-flex align-items-center">
+                        <span class="badge bg-light text-dark me-3 p-2"><i class="ti ti-cash-banknote-plus fs-5 text-info"></i></span>
+                        <div>
+                            <strong>Received Stock Tracking</strong>
+                            <br /><small class="text-muted">Record and verify received currency stock</small>
+                        </div>
+                    </li>
+                    <li class="list-group-item d-flex align-items-center">
+                        <span class="badge bg-light text-dark me-3 p-2"><i class="ti ti-currency fs-5 text-warning"></i></span>
+                        <div>
+                            <strong>Approved Currency Procurements</strong>
+                            <br /><small class="text-muted">Manage approved procurement requests and workflows</small>
+                        </div>
+                    </li>
+                    <li class="list-group-item d-flex align-items-center">
+                        <span class="badge bg-light text-dark me-3 p-2"><i class="ti ti-shield-check fs-5 text-danger"></i></span>
+                        <div>
+                            <strong>Role-Based Access Control</strong>
+                            <br /><small class="text-muted">Secure multi-role authorization with workflow approvals</small>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Technical Details Card -->
+        @* <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="ti ti-code me-2"></i>Technical Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-sm table-borderless mb-0">
+                            <tbody>
+                                <tr>
+                                    <td class="text-muted">Platform</td>
+                                    <td><strong>.NET 8</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Framework</td>
+                                    <td><strong>ASP.NET Core MVC</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">UI Theme</td>
+                                    <td><strong>Volt Bootstrap 5</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-sm table-borderless mb-0">
+                            <tbody>
+                                <tr>
+                                    <td class="text-muted">Version</td>
+                                    <td><strong>1.0.0</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Release Date</td>
+                                    <td><strong>June 2026</strong></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Architecture</td>
+                                    <td><strong>Microservices</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div> *@
+
+        <!-- Footer -->
+        <div class="text-center text-muted mb-4">
+            <small>&copy; @DateTime.Now.Year Bank of Uganda. All rights reserved.</small>
+        </div>
+    </div>
+</div>
