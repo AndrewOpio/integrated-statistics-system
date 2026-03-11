@@ -15,7 +15,6 @@
 
   <ItemGroup>
 	<!-- Reference projects outside this solution -->
-	<ProjectReference Include="..\..\OrderService\OrderService\OrderService.Web.csproj" />
 	<ProjectReference Include="..\..\GatewayService\GatewayService\GatewayService.csproj" />
 	<ProjectReference Include="..\..\IdentityService\IdentityService\IdentityService.Web.csproj" />
 	<ProjectReference Include="..\..\StockService\StockService.Web\StockService.Web.csproj" />
