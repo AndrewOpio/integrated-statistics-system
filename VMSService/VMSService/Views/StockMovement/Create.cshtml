@@ -1,0 +1,174 @@
+@model dynamic
+
+@{
+    ViewData["Title"] = "Create Stock Movement";
+}
+
+<div class="row">
+    <div class="col-12 col-lg-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header pb-4">
+                <div class="d-flex flex-column">
+                    <span class="text-muted small mb-2">Create New Stock Movement</span>
+                    <h2 class="fs-4 fw-bold mb-0">Add Stock Movement</h2>
+                </div>
+            </div>
+            <div class="card-body">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <form asp-action="Create" method="post" id="stockMovementForm">
+                    <div class="mb-3">
+                        <label class="form-label">Stock Movement Type <span class="text-danger">*</span></label>
+                        <select class="form-select" id="movementType" name="MovementType" required>
+                            <option value="branch">Branch to Branch</option>
+                            <option value="internal">Buffer to Operational</option>
+                        </select>
+                    </div>
+
+                    <!-- Branch to Branch Section -->
+                    <div id="branchSection">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" name="BranchDate" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Reference Number <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="BranchReferenceNumber" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Dispatching Branch <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="DispatchingBranch" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Receiving Branch <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="ReceivingBranch" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Denomination <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="BranchDenomination" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Number of Bags/Boxes <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" name="BranchNumBagsBoxes" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Number of Bundles <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" name="BranchNumBundles" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Currency Category <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="BranchCurrencyCategory" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Categorization <span class="text-danger">*</span></label>
+                                <select class="form-select" name="BranchCategorization" required>
+                                    <option value="Buffer">Buffer</option>
+                                    <option value="Operational">Operational</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Sub-total Value <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" name="BranchSubTotalValue" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Total Bags/Boxes <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" name="BranchTotalBagsBoxes" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Grand Total Value <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" name="BranchGrandTotalValue" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <small class="text-muted">Note: BOXES only applies to NEW stocks. BAGS apply to Reissue, Paids, and Cancelled.</small>
+                        </div>
+                    </div>
+
+                    <!-- Buffer to Operational Section -->
+                    <div id="internalSection" style="display:none;">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" name="InternalDate">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Reference Number <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="InternalReferenceNumber">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Denomination <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="InternalDenomination">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Serial Number Range <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="InternalSerialNumberRange">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Number of Boxes <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" name="InternalNumBoxes">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Sub-total Value <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" name="InternalSubTotalValue">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Total Boxes <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" name="InternalTotalBoxes">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Grand Total Value <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" name="InternalGrandTotalValue">
+                        </div>
+                        <div class="mb-3">
+                            <small class="text-muted">Note: This process only applies to NEW stocks.</small>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-check me-1"></i>Save
+                        </button>
+                        <a asp-action="Index" class="btn btn-secondary">
+                            <i class="ti ti-arrow-left me-1"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            $('#movementType').on('change', function () {
+                if ($(this).val() === 'branch') {
+                    $('#branchSection').show();
+                    $('#internalSection').hide();
+                } else {
+                    $('#branchSection').hide();
+                    $('#internalSection').show();
+                }
+            });
+        });
+    </script>
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}
