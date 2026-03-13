@@ -21,7 +21,7 @@
                     <input type="text" class="form-control" asp-for="BoardApprovalAttachment" hidden>
                     
                     <div class="mb-3">
-                        <label class="form-label" asp-for="Amount">Total Approved Amount <span class="text-danger">*</span></label>
+                        <label class="form-label" asp-for="Amount">Total Approved Amount </label>
                         <input type="text" class="form-control" id="AmountText" placeholder="0" readonly value="@Model.Amount.ToString("N0")">
                         <span asp-validation-for="Amount" class="text-danger small d-block mt-1"></span>
                     </div>

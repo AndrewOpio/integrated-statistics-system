@@ -19,5 +19,14 @@ namespace GatewayService.Services.Identity
 
             return await client.GetAsync($"{baseUrl}/api/app/applications");
         }
+
+        public async Task<HttpResponseMessage> LogoutAsync(string username)
+        {
+            var baseUrl = _configuration["MicroServices:identityservice"];
+            var client = _clientFactory.CreateClient();
+            var logoutData = new { username };
+
+            return await client.PostAsJsonAsync($"{baseUrl}/api/auth/logout", logoutData);
+        }
     }
 }

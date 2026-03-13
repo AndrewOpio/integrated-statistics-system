@@ -1,6 +1,4 @@
-﻿using System.Security.Claims;
-
-namespace IdentityService.Core.Services.LDAPAuthentication
+﻿namespace IdentityService.Core.Services.LDAPAuthentication
 {
     public class LoginResponse
     {
@@ -8,5 +6,10 @@ namespace IdentityService.Core.Services.LDAPAuthentication
         public string Username { get; set; }
         public string Email { get; set; }
         public string DisplayName { get; set; }
+
+        /// <summary>
+        /// Indicates if the user must change their password before proceeding.
+        /// </summary>
+        public bool MustChangePassword { get; set; } = false;
     }
 }

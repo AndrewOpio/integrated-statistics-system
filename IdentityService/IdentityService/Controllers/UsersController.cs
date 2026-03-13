@@ -32,7 +32,60 @@ namespace IdentityService.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(UserViewModel model)
         {
-            var adUserResult = _adAuthService.IsExistsOnAd(model);
+            User appUser = new()
+            {
+                UserName = model.UserName,
+                EndDate = model.EndDate,
+                FirstName = model.FirstName,
+                MiddleName = model.MiddleName,
+                LastName = model.LastName,
+                Email = model.Email,
+                Title = model.Title,
+                IsStaff = model.IsStaff
+            };
+            AdUserResult adUserResult = new()
+            {
+                AppUser = appUser,
+                IsSuccess = true
+            };
+
+            if (model.IsStaff)
+            {
+                adUserResult = _adAuthService.IsExistsOnAd(model);
+            } else
+            {
+                // Validate password for non-staff users
+                if (string.IsNullOrWhiteSpace(model.Password))
+                {
+                    ModelState.AddModelError("Password", "Password is required for non-staff users.");
+                    return View(model);
+                }
+
+                if (model.Password != model.ConfirmPassword)
+                {
+                    ModelState.AddModelError("ConfirmPassword", "The password and confirmation password do not match.");
+                    return View(model);
+                }
+
+                // Validate required fields for non-staff users
+                if (string.IsNullOrWhiteSpace(model.FirstName))
+                {
+                    ModelState.AddModelError("FirstName", "First Name is required for non-staff users.");
+                    return View(model);
+                }
+
+                if (string.IsNullOrWhiteSpace(model.LastName))
+                {
+                    ModelState.AddModelError("LastName", "Last Name is required for non-staff users.");
+                    return View(model);
+                }
+
+                if (string.IsNullOrWhiteSpace(model.Email))
+                {
+                    ModelState.AddModelError("Email", "Email is required for non-staff users.");
+                    return View(model);
+                }
+            }
 
             if (!adUserResult.IsSuccess)
             {
@@ -66,21 +119,21 @@ namespace IdentityService.Web.Controllers
                 return View(model);
             }
 
-            // Map from AD to domain model
-            //var userDomain = _mapper.Map<ApplicationUser>(adUserResult.AppUser);
+            var result = await _userRepo.Create(adUserResult.AppUser, model.Password);
 
-            var result = await _userRepo.Create(adUserResult.AppUser);
-
-            if (result)
+            if (result.Succeeded)
             {
                 TempData["Success"] = $"User {model.UserName} was created successfully.";
-                _logger.LogInformation($"User {model.UserName} was created successfully.");
+                _logger.LogInformation("User {Username} was created successfully.", model.UserName);
                 return RedirectToAction("Index");
             }
             else
             {
-                ModelState.AddModelError("", "Failed to create user. Please contact administrator.");
-                _logger.LogError("Failed to create user.");
+                foreach (var error in result.Errors)
+                {
+                    ModelState.AddModelError("", error.Description);
+                    _logger.LogError("Error creating user {Username}: {Error}", model.UserName, error.Description);
+                }
                 return View(model);
             }
         }
@@ -96,7 +149,6 @@ namespace IdentityService.Web.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        //[RequirePermission(SystemPermissions.Account.EditApplicationUser)]
         public async Task<IActionResult> Update(UserViewModel model)
         {
             var userInfo = await _userRepo.FindById(model.Id);
@@ -116,7 +168,7 @@ namespace IdentityService.Web.Controllers
 
             if (result)
             {
-                TempData["updated"] = "true";
+                TempData["Success"] = $"User {model.UserName} was updated successfully.";
 
                 if (model.IsActive)
                     _logger.LogInformation($"User account {model.UserName} has been activated.");
@@ -127,9 +179,89 @@ namespace IdentityService.Web.Controllers
             }
             else
             {
-                TempData["updated"] = "false";
+                TempData["Error"] = $"Failed to update user details for {model.UserName}. Please contact Administrator";
                 _logger.LogError($"Failed to update user details for {model.UserName}. Please contact Administrator");
                 return RedirectToAction("Index");
+            }
+        }
+
+        // GET: Users/ResetPassword/5
+        public async Task<IActionResult> ResetPassword(string userId)
+        {
+            if (string.IsNullOrEmpty(userId))
+            {
+                TempData["Error"] = "User ID is required.";
+                return RedirectToAction("Index");
+            }
+
+            var user = await _userRepo.FindById(userId);
+
+            if (user == null)
+            {
+                TempData["Error"] = $"User not found.";
+                return RedirectToAction("Index");
+            }
+
+            if (user.IsStaff)
+            {
+                TempData["Error"] = "Cannot reset password for staff users. Staff users must change their password through Active Directory.";
+                return RedirectToAction("Index");
+            }
+
+            var model = new ResetPasswordViewModel
+            {
+                UserId = user.Id,
+                UserName = user.UserName,
+                DisplayName = $"{user.FirstName} {user.LastName}".Trim()
+            };
+
+            return View(model);
+        }
+
+        // POST: Users/ResetPassword
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            var user = await _userRepo.FindById(model.UserId);
+
+            if (user == null)
+            {
+                TempData["Error"] = "User not found.";
+                return RedirectToAction("Index");
+            }
+
+            if (user.IsStaff)
+            {
+                TempData["Error"] = "Cannot reset password for staff users.";
+                return RedirectToAction("Index");
+            }
+
+            var result = await _userRepo.ResetPassword(model.UserId, model.NewPassword);
+
+            if (result.Succeeded)
+            {
+                TempData["Success"] = $"Password for user {user.UserName} has been reset successfully.";
+                _logger.LogInformation("Password reset for user {Username} by admin", user.UserName);
+                return RedirectToAction("Index");
+            }
+            else
+            {
+                foreach (var error in result.Errors)
+                {
+                    ModelState.AddModelError("", error.Description);
+                }
+                
+                // Repopulate display fields
+                model.UserName = user.UserName;
+                model.DisplayName = $"{user.FirstName} {user.LastName}".Trim();
+                
+                return View(model);
             }
         }
 

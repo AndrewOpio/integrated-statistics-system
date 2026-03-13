@@ -20,6 +20,7 @@ using VMSService.Core.Repositories.BranchCategories;
 using VMSService.Core.Repositories.Branches;
 using VMSService.Core.Repositories.Categories;
 using VMSService.Core.Repositories.CommercialBanks;
+using VMSService.Core.Repositories.CommercialBankUsers;
 using VMSService.Core.Repositories.CounterPartyTypes;
 using VMSService.Core.Repositories.CurrencyVendors;
 using VMSService.Core.Repositories.Denominations;
@@ -34,6 +35,7 @@ using VMSService.Core.Repositories.VendorTypes;
 using VMSService.Core.Repositories.WorkflowTransitions;
 using VMSService.Core.Services.Stocks;
 using VMSService.Core.Services.Workflows;
+using VMSService.Core.Services.Identity;
 using VMSService.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -180,6 +182,7 @@ builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IBranchCategoryRepository, BranchCategoryRepository>();
 builder.Services.AddScoped<IBranchRepository, BranchRepository>();
 builder.Services.AddScoped<ICounterPartyTypeRepository, CounterPartyTypeRepository>();
+builder.Services.AddScoped<ICommercialBankUserRepository, CommercialBankUserRepository>();
 
 // Add this in your service registration section
 builder.Services.AddScoped<IStockService, StockService>();
@@ -188,6 +191,17 @@ builder.Services.AddHttpClient<StockService>()
     {
         var configuration = sp.GetRequiredService<IConfiguration>();
         var baseUrl = configuration["StockApiSettings:BaseUrl"] ?? "https://localhost:7158";
+        client.BaseAddress = new Uri(baseUrl);
+        client.DefaultRequestHeaders.Add("Accept", "application/json");
+    });
+
+// Register Identity Service
+builder.Services.AddScoped<IIdentityService, IdentityService>();
+builder.Services.AddHttpClient<IdentityService>()
+    .ConfigureHttpClient((sp, client) =>
+    {
+        var configuration = sp.GetRequiredService<IConfiguration>();
+        var baseUrl = configuration["MicroServices:identityservice"] ?? "https://localhost:7026";
         client.BaseAddress = new Uri(baseUrl);
         client.DefaultRequestHeaders.Add("Accept", "application/json");
     });

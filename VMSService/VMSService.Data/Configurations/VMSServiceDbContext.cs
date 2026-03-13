@@ -26,6 +26,7 @@ namespace VMSService.Data.Configurations
         public DbSet<ReceivedStock> ReceivedStock { get; set; }
         public DbSet<WorkflowTransition> WorkflowTransitions { get; set; }
         public DbSet<ReceivedStockStatusHistory> ReceivedStockStatusHistory { get; set; }
+        public DbSet<CommercialBankUser> CommercialBankUsers { get; set; }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {

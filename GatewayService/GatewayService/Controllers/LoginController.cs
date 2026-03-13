@@ -24,6 +24,11 @@ namespace GatewayService.Controllers
                 {
                     var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
 
+                    if(result.MustChangePassword)
+                    {
+                        
+                    }
+
                     // Set authentication cookie (PROD)
                     //Response.Cookies.Append("AuthToken", result.Token, new CookieOptions
                     //{
@@ -72,7 +77,8 @@ namespace GatewayService.Controllers
                     return RedirectToAction("Index", "Home");
                 }
 
-                string errorMessage = await response.Content.ReadAsStringAsync();
+                var errorResult = await response.Content.ReadFromJsonAsync<LogoutResponse>();
+                string errorMessage = errorResult.Message;
                 ViewBag.Error = $"{response.ReasonPhrase} - {errorMessage}";
                 _logger.LogError($"{response.ReasonPhrase} - {errorMessage}");
                 return View();
@@ -86,13 +92,30 @@ namespace GatewayService.Controllers
             }
         }
 
-        public IActionResult Logout()
+        public async Task<IActionResult> Logout(string username)
         {
-            Response.Cookies.Delete("AuthToken");
-            Response.Cookies.Delete("Username");
-            return RedirectToAction("Index");
+            var response = await _identityService.LogoutAsync(username);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<LogoutResponse>();
+
+                Response.Cookies.Delete("AuthToken");
+                Response.Cookies.Delete("Username");
+                string message = result?.Message ?? $"{username} logged out successfully";
+                _logger.LogInformation(message);
+
+                return RedirectToAction("Index");
+            }
+
+            string errorMessage = await response.Content.ReadAsStringAsync();
+            ViewBag.Error = $"{response.ReasonPhrase} - {errorMessage}";
+            _logger.LogError($"{response.ReasonPhrase} - {errorMessage}");
+
+            return RedirectToAction("Index", "Home");
         }
     }
 
-    public record LoginResponse(string Token, string Username);
+    public record LoginResponse(string Token, string Username, bool MustChangePassword);
+    public record LogoutResponse(string Message);
 }
