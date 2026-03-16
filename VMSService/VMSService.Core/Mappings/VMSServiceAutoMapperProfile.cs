@@ -22,6 +22,7 @@ using VMSService.Core.Models.WorkflowTransitions;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Data.Entities;
 using VMSService.Core.Services.Identity.IdentityEntities;
+using VMSService.Core.Models.AgentDetails;
 
 namespace VMSService.Core.Mappings
 {
@@ -66,6 +67,7 @@ namespace VMSService.Core.Mappings
             CreateMap<CommercialBank, CommercialBankViewModel>().ReverseMap();
             CreateMap<CommercialBankUser, CommercialBankUserViewModel>().ReverseMap();
             CreateMap<NonStaffUser, NonStaffUserViewModel>().ReverseMap();
+            CreateMap<AgentDetail, AgentDetailViewModel>().ReverseMap();
         }
     }
 }

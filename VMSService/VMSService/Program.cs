@@ -37,6 +37,7 @@ using VMSService.Core.Services.Stocks;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Services.Identity;
 using VMSService.Data;
+using VMSService.Core.Repositories.AgentDetails;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -183,6 +184,7 @@ builder.Services.AddScoped<IBranchCategoryRepository, BranchCategoryRepository>(
 builder.Services.AddScoped<IBranchRepository, BranchRepository>();
 builder.Services.AddScoped<ICounterPartyTypeRepository, CounterPartyTypeRepository>();
 builder.Services.AddScoped<ICommercialBankUserRepository, CommercialBankUserRepository>();
+builder.Services.AddScoped<IAgentDetailRepository, AgentDetailRepository>();
 
 // Add this in your service registration section
 builder.Services.AddScoped<IStockService, StockService>();

@@ -1,0 +1,112 @@
+@model VMSService.Core.Models.AgentDetails.AgentDetailViewModel
+
+@{
+    ViewData["Title"] = "Edit Agent";
+}
+
+<div class="row">
+    <div class="col-12 col-lg-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header pb-4">
+                <div class="d-flex flex-column">
+                    <span class="text-muted small mb-2">Edit Agent</span>
+                    <h2 class="fs-4 fw-bold mb-0">@Model.AgentNames</h2>
+                </div>
+            </div>
+            <div class="card-body">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <form asp-action="Edit" method="post" enctype="multipart/form-data">
+                    <input type="hidden" asp-for="Id">
+                    <input type="hidden" asp-for="PassportPhoto">
+                    <input type="hidden" asp-for="WorkIdScan">
+                    <input type="hidden" asp-for="SignatureScan">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label" asp-for="AgentNames">Agent Names <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" asp-for="AgentNames" required>
+                                <small class="text-muted">Exactly as they appear in their work-issued identity cards</small>
+                                <span asp-validation-for="AgentNames" class="text-danger small d-block mt-1"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" asp-for="NIN">National Identification Number (NIN) <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" asp-for="NIN" required>
+                                <span asp-validation-for="NIN" class="text-danger small d-block mt-1"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" asp-for="PhoneNumber">Phone Number</label>
+                                <input type="tel" class="form-control" asp-for="PhoneNumber">
+                                <span asp-validation-for="PhoneNumber" class="text-danger small d-block mt-1"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" asp-for="BranchId">Branch <span class="text-danger">*</span></label>
+                                <select class="form-select" asp-for="BranchId" asp-items="@Model.BranchList" required>
+                                </select>
+                                <span asp-validation-for="BranchId" class="text-danger small d-block mt-1"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label" asp-for="PassportPhotoFile">Passport Photo</label>
+                                @if (!string.IsNullOrEmpty(Model.PassportPhoto))
+                                {
+                                    <div class="mb-2">
+                                        <img src="@Model.PassportPhoto" alt="Current Photo" class="rounded" style="max-height: 100px;">
+                                        <small class="d-block text-muted">Current photo</small>
+                                    </div>
+                                }
+                                <input type="file" class="form-control" asp-for="PassportPhotoFile" accept="image/*">
+                                <small class="text-muted">Leave empty to keep current photo</small>
+                                <span asp-validation-for="PassportPhotoFile" class="text-danger small d-block mt-1"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" asp-for="WorkIdScanFile">Work ID Scan</label>
+                                @if (!string.IsNullOrEmpty(Model.WorkIdScan))
+                                {
+                                    <div class="mb-2">
+                                        <a href="@Model.WorkIdScan" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                            <i class="ti ti-file me-1"></i>View Current File
+                                        </a>
+                                    </div>
+                                }
+                                <input type="file" class="form-control" asp-for="WorkIdScanFile" accept="image/*,.pdf">
+                                <small class="text-muted">Leave empty to keep current file</small>
+                                <span asp-validation-for="WorkIdScanFile" class="text-danger small d-block mt-1"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" asp-for="SignatureScanFile">Signature Scan</label>
+                                @if (!string.IsNullOrEmpty(Model.SignatureScan))
+                                {
+                                    <div class="mb-2">
+                                        <a href="@Model.SignatureScan" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                            <i class="ti ti-file me-1"></i>View Current File
+                                        </a>
+                                    </div>
+                                }
+                                <input type="file" class="form-control" asp-for="SignatureScanFile" accept="image/*,.pdf">
+                                <small class="text-muted">Leave empty to keep current file</small>
+                                <span asp-validation-for="SignatureScanFile" class="text-danger small d-block mt-1"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-check me-1"></i>Update
+                        </button>
+                        <a asp-action="Index" class="btn btn-secondary">
+                            <i class="ti ti-arrow-left me-1"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}
