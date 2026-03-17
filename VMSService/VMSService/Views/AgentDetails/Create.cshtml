@@ -34,10 +34,11 @@
                                 <span asp-validation-for="PhoneNumber" class="text-danger small d-block mt-1"></span>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label" asp-for="BranchId">Branch <span class="text-danger">*</span></label>
+                                <label class="form-label" asp-for="BranchId">BOU Branch <span class="text-danger">*</span></label>
                                 <select class="form-select" asp-for="BranchId" asp-items="@Model.BranchList" required>
                                     <option value="">-- Select Branch --</option>
                                 </select>
+                                <small class="text-muted">The BOU branch they will be transacting at</small>
                                 <span asp-validation-for="BranchId" class="text-danger small d-block mt-1"></span>
                             </div>
                         </div>
@@ -56,6 +57,11 @@
                                 <label class="form-label" asp-for="SignatureScanFile">Signature Scan <span class="text-danger">*</span></label>
                                 <input type="file" class="form-control" asp-for="SignatureScanFile" accept="image/*,.pdf" required>
                                 <span asp-validation-for="SignatureScanFile" class="text-danger small d-block mt-1"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" asp-for="ApprovalAttachmentFile">Signature Scan <span class="text-danger">*</span></label>
+                                <input type="file" class="form-control" asp-for="ApprovalAttachmentFile" accept="image/*,.pdf" required>
+                                <span asp-validation-for="ApprovalAttachment" class="text-danger small d-block mt-1"></span>
                             </div>
                         </div>
                     </div>

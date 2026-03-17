@@ -1,5 +1,4 @@
-﻿
-namespace GatewayService.Services.Identity
+﻿namespace GatewayService.Services.Identity
 {
     public class IdentityService(IHttpClientFactory _clientFactory, IConfiguration _configuration) : IIdentityService
     {
@@ -27,6 +26,21 @@ namespace GatewayService.Services.Identity
             var logoutData = new { username };
 
             return await client.PostAsJsonAsync($"{baseUrl}/api/auth/logout", logoutData);
+        }
+
+        public async Task<HttpResponseMessage> ChangePasswordAsync(string username, string currentPassword, string newPassword, string confirmNewPassword)
+        {
+            var baseUrl = _configuration["MicroServices:identityservice"];
+            var client = _clientFactory.CreateClient();
+            var changePasswordData = new
+            {
+                username,
+                currentPassword,
+                newPassword,
+                confirmNewPassword
+            };
+
+            return await client.PostAsJsonAsync($"{baseUrl}/api/auth/change-password", changePasswordData);
         }
     }
 }

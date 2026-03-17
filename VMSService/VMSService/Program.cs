@@ -93,10 +93,10 @@ builder.Services.AddHttpContextAccessor();
 
 DataServicesRegistration.AddDataServices(builder.Services, builder.Configuration);
 
-builder.Services
-    .AddDataProtection()
-    .PersistKeysToFileSystem(new DirectoryInfo("/keys"))
-    .SetApplicationName("GatewayService");
+//builder.Services
+//    .AddDataProtection()
+//    .PersistKeysToFileSystem(new DirectoryInfo("/keys"))
+//    .SetApplicationName("GatewayService");
 
 // Configure AutoMapper
 builder.Services.AddAutoMapper(cfg => { }, typeof(VMSServiceAutoMapperProfile));

@@ -26,7 +26,7 @@ namespace GatewayService.Controllers
 
                     if(result.MustChangePassword)
                     {
-                        
+                        return RedirectToAction("ResetPassword", new { username = result.Username });
                     }
 
                     // Set authentication cookie (PROD)
@@ -89,6 +89,58 @@ namespace GatewayService.Controllers
                 ViewBag.Error = errorMessage;
                 _logger.LogError(errorMessage);
                 return View();
+            }
+        }
+
+        public IActionResult ResetPassword(string username)
+        {
+            var model = new ResetPasswordViewModel
+            {
+                UserName = username,
+                DisplayName = username
+            };
+
+            return View(model);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            try
+            {
+                var response = await _identityService.ChangePasswordAsync(
+                    model.UserName!,
+                    model.CurrentPassword,
+                    model.NewPassword,
+                    model.ConfirmNewPassword);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<ChangePasswordResponse>();
+                    //TempData["Success"] = result?.Message ?? "Password changed successfully. Please login with your new password.";
+                    _logger.LogInformation("Password changed successfully for user: {Username}", model.UserName);
+
+                    TempData["Success"] = "Password reset successfully! Please login with your new password.";
+                    return RedirectToAction("Index");
+                }
+
+                var errorResult = await response.Content.ReadFromJsonAsync<ChangePasswordResponse>();
+                string errorMessage = errorResult?.Message ?? "Failed to change password.";
+                ModelState.AddModelError(string.Empty, errorMessage);
+                _logger.LogError("Password change failed for user {Username}: {Error}", model.UserName, errorMessage);
+
+                return View(model);
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError(string.Empty, ex.Message);
+                _logger.LogError(ex, "Error changing password for user: {Username}", model.UserName);
+                return View(model);
             }
         }
 

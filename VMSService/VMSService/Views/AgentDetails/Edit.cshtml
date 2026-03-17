@@ -41,9 +41,10 @@
                                 <span asp-validation-for="PhoneNumber" class="text-danger small d-block mt-1"></span>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label" asp-for="BranchId">Branch <span class="text-danger">*</span></label>
+                                <label class="form-label" asp-for="BranchId">BOU Branch <span class="text-danger">*</span></label>
                                 <select class="form-select" asp-for="BranchId" asp-items="@Model.BranchList" required>
                                 </select>
+                                <small class="text-muted">The BOU branch they will be transacting at</small>
                                 <span asp-validation-for="BranchId" class="text-danger small d-block mt-1"></span>
                             </div>
                         </div>
@@ -88,6 +89,20 @@
                                 <input type="file" class="form-control" asp-for="SignatureScanFile" accept="image/*,.pdf">
                                 <small class="text-muted">Leave empty to keep current file</small>
                                 <span asp-validation-for="SignatureScanFile" class="text-danger small d-block mt-1"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" asp-for="ApprovalAttachmentFile">Signature Scan</label>
+                                @if (!string.IsNullOrEmpty(Model.ApprovalAttachment))
+                                {
+                                    <div class="mb-2">
+                                        <a href="@Model.ApprovalAttachment" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                            <i class="ti ti-file me-1"></i>View Current File
+                                        </a>
+                                    </div>
+                                }
+                                <input type="file" class="form-control" asp-for="ApprovalAttachmentFile" accept="image/*,.pdf">
+                                <small class="text-muted">Leave empty to keep current file</small>
+                                <span asp-validation-for="ApprovalAttachmentFile" class="text-danger small d-block mt-1"></span>
                             </div>
                         </div>
                     </div>

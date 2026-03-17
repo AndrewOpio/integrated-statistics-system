@@ -32,15 +32,21 @@ namespace VMSService.Core.Models.AgentDetails
         [Display(Name = "Signature Scan")]
         public string SignatureScan { get; set; }
 
+        [Display(Name = "Approval Attachment")]
+        public string ApprovalAttachment { get; set; }
+
         // File upload properties
         [Display(Name = "Passport Photo")]
-        public IFormFile? PassportPhotoFile { get; set; }
+        public IFormFile PassportPhotoFile { get; set; }
 
         [Display(Name = "Work ID Scan")]
-        public IFormFile? WorkIdScanFile { get; set; }
+        public IFormFile WorkIdScanFile { get; set; }
 
         [Display(Name = "Signature Scan")]
-        public IFormFile? SignatureScanFile { get; set; }
+        public IFormFile SignatureScanFile { get; set; }
+
+        [Display(Name = "Approval Attachment")]
+        public IFormFile ApprovalAttachmentFile { get; set; }
 
         // Navigation property
         public string? BranchName { get; set; }
