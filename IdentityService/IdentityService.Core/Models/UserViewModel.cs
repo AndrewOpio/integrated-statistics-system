@@ -25,5 +25,27 @@ namespace IdentityService.Core.Models
 
         [Display(Name = "Modifier")]
         public string ModifiedBy { get; set; } = "system";
+
+        // Password fields for non-staff users
+        [DataType(DataType.Password)]
+        [Display(Name = "Password")]
+        public string? Password { get; set; }
+
+        [DataType(DataType.Password)]
+        [Display(Name = "Confirm Password")]
+        [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
+        public string? ConfirmPassword { get; set; }
+
+        [Display(Name = "Phone Number")]
+        [Phone(ErrorMessage = "Please enter a valid phone number.")]
+        public string? PhoneNumber { get; set; }
+
+        // Helper properties for phone number input
+        [Display(Name = "Country Code")]
+        public string? CountryCode { get; set; } = "+256";
+
+        [Display(Name = "Phone")]
+        [RegularExpression(@"^\d{9}$", ErrorMessage = "Please enter a valid 9-digit phone number.")]
+        public string? PhoneNumberLocal { get; set; }
     }
 }

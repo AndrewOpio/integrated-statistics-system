@@ -6,6 +6,7 @@ using VMSService.Core.Models.BranchCategories;
 using VMSService.Core.Models.Branches;
 using VMSService.Core.Models.Categories;
 using VMSService.Core.Models.CommercialBanks;
+using VMSService.Core.Models.CommercialBankUser;
 using VMSService.Core.Models.CounterPartyTypes;
 using VMSService.Core.Models.CurrencyVendors;
 using VMSService.Core.Models.Denominations;
@@ -20,6 +21,8 @@ using VMSService.Core.Models.VendorTypes;
 using VMSService.Core.Models.WorkflowTransitions;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Data.Entities;
+using VMSService.Core.Services.Identity.IdentityEntities;
+using VMSService.Core.Models.AgentDetails;
 
 namespace VMSService.Core.Mappings
 {
@@ -62,6 +65,9 @@ namespace VMSService.Core.Mappings
                 .ReverseMap();
 
             CreateMap<CommercialBank, CommercialBankViewModel>().ReverseMap();
+            CreateMap<CommercialBankUser, CommercialBankUserViewModel>().ReverseMap();
+            CreateMap<NonStaffUser, NonStaffUserViewModel>().ReverseMap();
+            CreateMap<AgentDetail, AgentDetailViewModel>().ReverseMap();
         }
     }
 }
