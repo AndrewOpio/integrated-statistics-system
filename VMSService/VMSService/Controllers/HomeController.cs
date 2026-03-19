@@ -15,7 +15,7 @@ using VMSService.Models;
 
 namespace VMSService.Controllers
 {
-    [Authorize]
+    //[Authorize]
     [DefaultBreadcrumb("Dashboard")]
     public class HomeController : Controller
     {
