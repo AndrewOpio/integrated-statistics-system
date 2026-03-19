@@ -35,6 +35,8 @@
                             <option value="ApprovedCurrencyProcurement">Approved Currency Procurement</option>
                             <option value="ExPrintMint">ExPrint and ExMint</option>
                             <option value="ReceivedStock">Received Stock</option>
+                            <option value="StockMovement">Stock Movement</option>
+                            <option value="StockMovementDiscrepancy">Stock Movement Discrepancy</option>
                         </select>
                         <span asp-validation-for="EntityType" class="invalid-feedback"></span>
                     </div>
@@ -156,7 +158,9 @@
         const entityTypeMapping = {
             'ApprovedCurrencyProcurement': 'Approved Currency Procurement',
             'ExPrintMint': 'ExPrint and ExMint',
-            'ReceivedStock': 'Received Stock'
+            'ReceivedStock': 'Received Stock',
+            'StockMovement': 'Stock Movement',
+            'StockMovementDiscrepancy': 'Stock Movement Discrepancy'
         };
 
         const $entityTypeSelect = $('#EntityType');

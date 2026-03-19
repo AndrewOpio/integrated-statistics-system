@@ -65,6 +65,8 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddScoped<IEncryptionService, EncryptionService>();
+
 //StockService.Core Service settings
 CoreServicesRegistration.AddCoreServices(builder.Services);
 

@@ -9,12 +9,14 @@ namespace StockService.Core.Repository.StockLedgers
         public async Task<ICollection<StockLedger>> FindAllAsync()
         {
             return await _db.StockLedger
-                .Include(cpt => cpt.CounterPartyType)
-                .Include(st => st.Store)
-                .Include(st => st.Store.Branch)
-                .Include(st => st.Store.Category)
+                .AsNoTracking()
+                .AsSplitQuery()  // Runs separate queries instead of one big JOIN
+                .Include(sl => sl.CounterPartyType)
+                .Include(sl => sl.Store)
                 .Include(sl => sl.StockLedgerDetails)
-                .ThenInclude(sld => sld.Denomination)
+                    .ThenInclude(sld => sld.Category)
+                .Include(sl => sl.StockLedgerDetails)
+                    .ThenInclude(sld => sld.Denomination)
                 .ToListAsync();
         }
 
@@ -32,8 +34,8 @@ namespace StockService.Core.Repository.StockLedgers
         {
             // Check for duplicate ReferenceCode
             var duplicate = await _db.StockLedger.AnyAsync(sl => sl.ReferenceCode == entity.ReferenceCode);
-            if (duplicate)
-                throw new InvalidOperationException("A stock ledger with the same reference code already exists.");
+            // if (duplicate)
+            //     throw new InvalidOperationException("A stock ledger with the same reference code already exists.");
 
             ICollection<StockLedgerDetail> stockLedgerDetails = entity.StockLedgerDetails;
             entity.StockLedgerDetails = [];

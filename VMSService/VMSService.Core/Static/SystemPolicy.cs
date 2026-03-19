@@ -10,6 +10,9 @@
             public const string StockApprover = "Stock Approver"; 
             public const string CurrencyApprover = "Currency Approver";
             public const string Director = "Director";
+
+            public const string BranchManager = "Branch Manager";
+            public const string RemittancesOfficer = "Remittances and Control Officer";
         }
 
         public static class ClaimType

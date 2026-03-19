@@ -323,7 +323,11 @@ namespace VMSService.Core.Services.Stocks
                 await EnsureAuthorizationHeaderAsync();
                 var baseUrl = _stockAPISettings.BaseUrl;
                 var response = await _httpClient.GetAsync($"{baseUrl}/api/stockledgers/get-all");
-                
+
+                //var errorContent = await response.Content.ReadAsStringAsync();
+                //_logger.LogError("Failed to create stock ledger. Status: {StatusCode}, Response: {ErrorContent}",
+                //    response.StatusCode, errorContent);
+
                 if (response.IsSuccessStatusCode)
                 {
                     var stockLedgers = await response.Content.ReadFromJsonAsync<ICollection<StockLedger>>();
@@ -376,7 +380,11 @@ namespace VMSService.Core.Services.Stocks
                     _logger.LogInformation("Stock ledger created successfully");
                     return await response.Content.ReadFromJsonAsync<StockLedger>();
                 }
-                
+
+                //var errorContent = await response.Content.ReadAsStringAsync();
+                //_logger.LogError("Failed to create stock ledger. Status: {StatusCode}, Response: {ErrorContent}",
+                //    response.StatusCode, errorContent);
+
                 _logger.LogError("Failed to create stock ledger. Status: {StatusCode}", response.StatusCode);
                 return null;
             }

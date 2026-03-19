@@ -2,9 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using StockService.Data.Entities;
 using StockService.Core.Repository.BranchCategories;
 using Microsoft.AspNetCore.Authorization;
-using StockService.Web.Models.BranchCategories;
-using StockService.Web.Models.Branches;
-using StockService.Web.Models.Categories;
+using StockService.Core.Models.BranchCategories;
+using StockService.Core.Models.Branches;
+using StockService.Core.Models.Categories;
 
 namespace StockService.Web.Controllers
 {

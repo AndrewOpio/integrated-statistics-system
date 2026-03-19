@@ -6,9 +6,9 @@ using StockService.Core.Models.DenominationTypes;
 using StockService.Core.Models.StockLedger;
 using StockService.Core.Repository.StockLedgers;
 using StockService.Data.Entities;
-using StockService.Web.Models.BranchCategories;
-using StockService.Web.Models.Branches;
-using StockService.Web.Models.Categories;
+using StockService.Core.Models.BranchCategories;
+using StockService.Core.Models.Branches;
+using StockService.Core.Models.Categories;
 
 namespace StockService.Web.Controllers
 {
@@ -36,19 +36,10 @@ namespace StockService.Web.Controllers
                 },
                 CounterPartyId = sl.CounterPartyId,
                 StoreId  = sl.StoreId,
-                Store = sl.Store == null ? null : new BranchCategoryDto
+                Store = sl.Store == null ? null : new BranchDto
                 {
                     Id = sl.Store.Id,
-                    Branch = sl.Store.Branch == null ? null : new BranchDto
-                    {
-                        Id = sl.Store.Branch.Id,
-                        Name = sl.Store.Branch.Name
-                    },
-                    Category = sl.Store.Category == null ? null : new CategoryDto
-                    {
-                        Id = sl.Store.Category.Id,
-                        Name = sl.Store.Category.Name
-                    }
+                    Name = sl.Store.Name
                 },
                 Notes = sl.Notes,
                 StockLedgerDetails = sl.StockLedgerDetails?.Select(d => new StockLedgerDetailDto
@@ -67,6 +58,12 @@ namespace StockService.Web.Controllers
                             Id = d.Denomination.DenominationType.Id,
                             Name = d.Denomination.DenominationType.Name
                         }
+                    },
+                    CategoryId = d.CategoryId,
+                    Category = d.Category == null ? null : new CategoryDto
+                    {
+                        Id = d.Category.Id,
+                        Name = d.Category.Name
                     },
                     NumberOfPieces = d.NumberOfPieces,
                     NumberOfBoxes = d.NumberOfBoxes,
@@ -97,6 +94,12 @@ namespace StockService.Web.Controllers
                     Name = item.CounterPartyType.Name
                 },
                 CounterPartyId = item.CounterPartyId,
+                StoreId = item.StoreId,
+                Store = item.Store == null ? null : new BranchDto
+                {
+                    Id = item.Store.Id,
+                    Name = item.Store.Name
+                },
                 Notes = item.Notes,
                 StockLedgerDetails = item.StockLedgerDetails?.Select(d => new StockLedgerDetailDto
                 {
@@ -114,6 +117,12 @@ namespace StockService.Web.Controllers
                             Id = d.Denomination.DenominationType.Id,
                             Name = d.Denomination.DenominationType.Name
                         }
+                    },
+                    CategoryId = d.CategoryId,
+                    Category = d.Category == null ? null : new CategoryDto
+                    {
+                        Id = d.Category.Id,
+                        Name = d.Category.Name
                     },
                     NumberOfPieces = d.NumberOfPieces,
                     NumberOfBoxes = d.NumberOfBoxes,
@@ -140,13 +149,18 @@ namespace StockService.Web.Controllers
                     ReferenceCode = created.ReferenceCode,
                     IsIn = created.IsIn,
                     CounterPartyTypeId = created.CounterPartyTypeId,
-                    StoreId = created.StoreId,
                     CounterPartyType = created.CounterPartyType == null ? null : new CounterPartyTypeDto
                     {
                         Id = created.CounterPartyType.Id,
                         Name = created.CounterPartyType.Name
                     },
                     CounterPartyId = created.CounterPartyId,
+                    StoreId = created.StoreId,
+                    Store = created.Store == null ? null : new BranchDto
+                    {
+                        Id = created.Store.Id,
+                        Name = created.Store.Name
+                    },
                     Notes = created.Notes,
                     StockLedgerDetails = created.StockLedgerDetails?.Select(d => new StockLedgerDetailDto
                     {
@@ -164,6 +178,12 @@ namespace StockService.Web.Controllers
                                 Id = d.Denomination.DenominationType.Id,
                                 Name = d.Denomination.DenominationType.Name
                             }
+                        },
+                        CategoryId = d.CategoryId,
+                        Category = d.Category == null ? null : new CategoryDto
+                        {
+                            Id = d.Category.Id,
+                            Name = d.Category.Name
                         },
                         NumberOfPieces = d.NumberOfPieces,
                         NumberOfBoxes = d.NumberOfBoxes,

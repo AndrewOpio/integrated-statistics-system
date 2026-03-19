@@ -1,3 +1,4 @@
+using StockService.Core.Models.Categories;
 using StockService.Core.Models.DenominationTypes;
 
 namespace StockService.Core.Models.Denominations
