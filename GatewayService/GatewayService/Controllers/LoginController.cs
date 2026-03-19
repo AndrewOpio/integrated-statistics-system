@@ -24,6 +24,11 @@ namespace GatewayService.Controllers
                 {
                     var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
 
+                    if(result.MustChangePassword)
+                    {
+                        return RedirectToAction("ResetPassword", new { username = result.Username });
+                    }
+
                     // Set authentication cookie (PROD)
                     //Response.Cookies.Append("AuthToken", result.Token, new CookieOptions
                     //{
@@ -72,7 +77,8 @@ namespace GatewayService.Controllers
                     return RedirectToAction("Index", "Home");
                 }
 
-                string errorMessage = await response.Content.ReadAsStringAsync();
+                var errorResult = await response.Content.ReadFromJsonAsync<LogoutResponse>();
+                string errorMessage = errorResult.Message;
                 ViewBag.Error = $"{response.ReasonPhrase} - {errorMessage}";
                 _logger.LogError($"{response.ReasonPhrase} - {errorMessage}");
                 return View();
@@ -86,13 +92,82 @@ namespace GatewayService.Controllers
             }
         }
 
-        public IActionResult Logout()
+        public IActionResult ResetPassword(string username)
         {
-            Response.Cookies.Delete("AuthToken");
-            Response.Cookies.Delete("Username");
-            return RedirectToAction("Index");
+            var model = new ResetPasswordViewModel
+            {
+                UserName = username,
+                DisplayName = username
+            };
+
+            return View(model);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            try
+            {
+                var response = await _identityService.ChangePasswordAsync(
+                    model.UserName!,
+                    model.CurrentPassword,
+                    model.NewPassword,
+                    model.ConfirmNewPassword);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<ChangePasswordResponse>();
+                    //TempData["Success"] = result?.Message ?? "Password changed successfully. Please login with your new password.";
+                    _logger.LogInformation("Password changed successfully for user: {Username}", model.UserName);
+
+                    TempData["Success"] = "Password reset successfully! Please login with your new password.";
+                    return RedirectToAction("Index");
+                }
+
+                var errorResult = await response.Content.ReadFromJsonAsync<ChangePasswordResponse>();
+                string errorMessage = errorResult?.Message ?? "Failed to change password.";
+                ModelState.AddModelError(string.Empty, errorMessage);
+                _logger.LogError("Password change failed for user {Username}: {Error}", model.UserName, errorMessage);
+
+                return View(model);
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError(string.Empty, ex.Message);
+                _logger.LogError(ex, "Error changing password for user: {Username}", model.UserName);
+                return View(model);
+            }
+        }
+
+        public async Task<IActionResult> Logout(string username)
+        {
+            var response = await _identityService.LogoutAsync(username);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<LogoutResponse>();
+
+                Response.Cookies.Delete("AuthToken");
+                Response.Cookies.Delete("Username");
+                string message = result?.Message ?? $"{username} logged out successfully";
+                _logger.LogInformation(message);
+
+                return RedirectToAction("Index");
+            }
+
+            string errorMessage = await response.Content.ReadAsStringAsync();
+            ViewBag.Error = $"{response.ReasonPhrase} - {errorMessage}";
+            _logger.LogError($"{response.ReasonPhrase} - {errorMessage}");
+
+            return RedirectToAction("Index", "Home");
         }
     }
 
-    public record LoginResponse(string Token, string Username);
+    public record LoginResponse(string Token, string Username, bool MustChangePassword);
+    public record LogoutResponse(string Message);
 }

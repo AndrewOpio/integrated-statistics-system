@@ -31,6 +31,9 @@ namespace VMSService.Data.Configurations
         public DbSet<StockMovementDenominationSerialNumberRange> StockMovementDenominationSerialNumberRanges { get; set; }
         public DbSet<StockMovementStatusHistory> StockMovementStatusHistory { get; set; }
         public DbSet<StockMovementDiscrepancy> StockMovementDiscrepancies { get; set; }
+        public DbSet<CommercialBankUser> CommercialBankUsers { get; set; }
+        public DbSet<AgentDetail> AgentDetails { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -48,7 +51,7 @@ namespace VMSService.Data.Configurations
                 .WithMany()
                 .HasForeignKey(x => x.NewStatusId)
                 .OnDelete(DeleteBehavior.NoAction);
-
+        
             modelBuilder.Entity<StockMovementStatusHistory>()
                 .HasOne(x => x.StockMovement)
                 .WithMany(x => x.StatusHistory)

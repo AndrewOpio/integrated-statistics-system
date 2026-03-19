@@ -1,3 +1,4 @@
+using IdentityService.Core.Models;
 using IdentityService.Core.Repository.ApplicationPermissions;
 using IdentityService.Core.Repository.ApplicationRoles;
 using IdentityService.Core.Repository.Applications;
@@ -9,12 +10,10 @@ using IdentityService.Core.Static;
 using IdentityService.Data.Configurations;
 using IdentityService.Data.Entities;
 using IdentityService.Mappings;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using OpenTelemetry;
@@ -69,7 +68,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddIdentity<User, Role>()
-    .AddEntityFrameworkStores<ApplicationDbContext>();
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddDefaultTokenProviders();
 
 // Configure LDAP settings
 builder.Services.Configure<LdapSettings>(
@@ -97,6 +97,7 @@ builder.Services.AddScoped<IApplicationPermissionRepository, ApplicationPermissi
 
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
+var authenticationSettings = builder.Configuration.GetSection("Authentication").Get<AuthenticationSettings>();
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -127,6 +128,22 @@ builder.Services.AddAuthentication(options =>
                 context.Token = context.Request.Cookies["AuthToken"];
             }
             return Task.CompletedTask;
+        },
+        OnAuthenticationFailed = context =>
+        {
+            // Handle specific authentication failures
+            context.NoResult();
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            context.Response.Redirect(authenticationSettings?.LoginPath ?? "/logout");
+            return Task.CompletedTask;
+        },
+        OnChallenge = async context =>
+        {
+            // This event fires when authentication fails
+            context.HandleResponse();
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            context.Response.Redirect(authenticationSettings?.LoginPath ?? "/logout");
+            await context.Response.CompleteAsync();
         }
     };
 });

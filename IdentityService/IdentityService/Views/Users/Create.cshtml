@@ -4,6 +4,28 @@
     ViewData["title"] = "User";
     // var title =  Model.Id == null ? "Create User Account" : "Update User Account";
     var action = Model.Id == null ? "Create" : "Update";
+
+    // Parse existing phone number into country code and local number
+    var existingCountryCode = "+256";
+    var existingLocalNumber = "";
+    if (!string.IsNullOrEmpty(Model.PhoneNumber))
+    {
+        // Try to extract country code and local number
+        if (Model.PhoneNumber.StartsWith("+"))
+        {
+            // Common country codes to check
+            var countryCodes = new[] { "+256", "+254", "+255", "+250", "+243", "+211", "+1", "+44", "+91", "+86", "+27" };
+            foreach (var code in countryCodes)
+            {
+                if (Model.PhoneNumber.StartsWith(code))
+                {
+                    existingCountryCode = code;
+                    existingLocalNumber = Model.PhoneNumber.Substring(code.Length);
+                    break;
+                }
+            }
+        }
+    }
 }
 
 <div class="container">
@@ -36,6 +58,7 @@
 
                 <form asp-action="@action" method="post">
                     <input type="hidden" asp-for="Id" />
+                    <input type="hidden" asp-for="PhoneNumber" id="phoneNumberHidden" />
                     <div class="card-body">
                         <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
 
@@ -45,7 +68,7 @@
                             <div class="form-floating mb-3">
                                 <input type="text" asp-for="UserName" class="form-control bg-light"
                                        readonly placeholder="Username">
-                                <label asp-for="UserName">Username</label>
+                                <label asp-for="UserName">Username <span class="text-danger">*</span></label>
                                 <div class="form-text text-muted">
                                     <i class="ti ti-lock-square-rounded text-muted me-1"></i>
                                     Username cannot be changed as it must match Active Directory.
@@ -55,14 +78,81 @@
                             <div class="form-floating mb-3">
                                 <input type="text" asp-for="Title" class="form-control bg-light"
                                        placeholder="Title" required>
-                                <label asp-for="Title">Title</label>
+                                <label asp-for="Title">Title <span class="text-danger">*</span></label>
                                 <span asp-validation-for="Title" class="text-danger"></span>
                             </div>
                             <div class="form-floating mb-3">
                                 <input type="date" asp-for="EndDate" class="form-control bg-light"
                                        placeholder="End Date" required>
-                                <label asp-for="EndDate">End Date</label>
+                                <label asp-for="EndDate">End Date <span class="text-danger">*</span></label>
                                 <span asp-validation-for="EndDate" class="text-danger"></span>
+                            </div>
+                            <!-- IsStaff checkbox (disabled in edit mode) -->
+                            <div class="form-group mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" asp-for="IsStaff" id="isStaffCheckbox" disabled>
+                                    <input type="hidden" asp-for="IsStaff" />
+                                    <label class="form-check-label fw-medium" asp-for="IsStaff">
+                                        Is Staff Member
+                                    </label>
+                                    <div class="form-text text-muted">
+                                        <i class="ti ti-lock-square-rounded text-muted me-1"></i>
+                                        Staff status cannot be changed after user creation.
+                                    </div>
+                                </div>
+                                <span asp-validation-for="IsStaff" class="text-danger"></span>
+                            </div>
+                            <!-- Non-staff fields (shown when IsStaff is unchecked) -->
+                            <div id="nonStaffFields" class="@(Model.IsStaff ? "d-none" : "")">
+                                <div class="form-floating mb-3">
+                                    <input type="text" asp-for="FirstName" class="form-control"
+                                           placeholder="First Name">
+                                    <label asp-for="FirstName">First Name <span class="text-danger">*</span></label>
+                                    <span asp-validation-for="FirstName" class="text-danger"></span>
+                                </div>
+                                <div class="form-floating mb-3">
+                                    <input type="text" asp-for="MiddleName" class="form-control"
+                                           placeholder="Middle Name">
+                                    <label asp-for="MiddleName">Middle Name</label>
+                                    <span asp-validation-for="MiddleName" class="text-danger"></span>
+                                </div>
+                                <div class="form-floating mb-3">
+                                    <input type="text" asp-for="LastName" class="form-control"
+                                           placeholder="Last Name">
+                                    <label asp-for="LastName">Last Name <span class="text-danger">*</span></label>
+                                    <span asp-validation-for="LastName" class="text-danger"></span>
+                                </div>
+                                <div class="form-floating mb-3">
+                                    <input type="email" asp-for="Email" class="form-control"
+                                           placeholder="Email">
+                                    <label asp-for="Email">Email <span class="text-danger">*</span></label>
+                                    <span asp-validation-for="Email" class="text-danger"></span>
+                                </div>
+                                <!-- Phone Number field -->
+                                <div class="mb-3">
+                                    <label class="form-label fw-medium">Phone Number <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <select class="form-select" id="countryCodeEdit" style="max-width: 120px;">
+                                            <option value="+256" selected="@(existingCountryCode == "+256")">+256</option>
+                                            <option value="+254" selected="@(existingCountryCode == "+254")">+254</option>
+                                            <option value="+255" selected="@(existingCountryCode == "+255")">+255</option>
+                                            <option value="+250" selected="@(existingCountryCode == "+250")">+250</option>
+                                            <option value="+243" selected="@(existingCountryCode == "+243")">+243</option>
+                                            <option value="+211" selected="@(existingCountryCode == "+211")">+211</option>
+                                            <option value="+1" selected="@(existingCountryCode == "+1")">+1</option>
+                                            <option value="+44" selected="@(existingCountryCode == "+44")">+44</option>
+                                            <option value="+91" selected="@(existingCountryCode == "+91")">+91</option>
+                                            <option value="+86" selected="@(existingCountryCode == "+86")">+86</option>
+                                            <option value="+27" selected="@(existingCountryCode == "+27")">+27</option>
+                                        </select>
+                                        <input type="tel" class="form-control" id="phoneLocalEdit"
+                                               placeholder="771234567" maxlength="10" value="@existingLocalNumber">
+                                    </div>
+                                    <small class="form-text text-muted">
+                                        Select country code and enter the rest of the phone number (e.g., 771234567)
+                                    </small>
+                                    <span asp-validation-for="PhoneNumber" class="text-danger d-block"></span>
+                                </div>
                             </div>
                             <!-- IsActive toggle switch -->
                             <div class="form-group mb-3">
@@ -86,8 +176,8 @@
                             <div class="form-floating mb-3">
                                 <input type="text" asp-for="UserName" class="form-control"
                                        placeholder="Username" required>
-                                <label asp-for="UserName">Username</label>
-                                <small class="form-text text-muted">
+                                <label asp-for="UserName">Username <span class="text-danger">*</span></label>
+                                <small class="form-text text-muted" id="usernameHelpText">
                                     Please enter a username that exists on Active Directory.
                                 </small>
                                 <span asp-validation-for="UserName" class="text-danger"></span>
@@ -95,14 +185,92 @@
                             <div class="form-floating mb-3">
                                 <input type="text" asp-for="Title" class="form-control bg-light"
                                        placeholder="Title" required>
-                                <label asp-for="Title">Title</label>
+                                <label asp-for="Title">Title <span class="text-danger">*</span></label>
                                 <span asp-validation-for="Title" class="text-danger"></span>
                             </div>
                             <div class="form-floating mb-3">
                                 <input type="date" asp-for="EndDate" class="form-control bg-light"
                                        placeholder="End Date" required>
-                                <label asp-for="EndDate">End Date</label>
+                                <label asp-for="EndDate">End Date <span class="text-danger">*</span></label>
                                 <span asp-validation-for="EndDate" class="text-danger"></span>
+                            </div>
+                            <!-- IsStaff checkbox -->
+                            <div class="form-group mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" asp-for="IsStaff" id="isStaffCheckboxCreate" checked>
+                                    <label class="form-check-label fw-medium" asp-for="IsStaff">
+                                        Is Staff Member
+                                    </label>
+                                    <div class="form-text text-muted">
+                                        Uncheck if the user is not BOU Staff to manually enter their details.
+                                    </div>
+                                </div>
+                                <span asp-validation-for="IsStaff" class="text-danger"></span>
+                            </div>
+                            <!-- Non-staff fields (shown when IsStaff is unchecked) -->
+                            <div id="nonStaffFieldsCreate" class="d-none">
+                                <div class="form-floating mb-3">
+                                    <input type="text" asp-for="FirstName" class="form-control"
+                                           placeholder="First Name">
+                                    <label asp-for="FirstName">First Name <span class="text-danger">*</span></label>
+                                    <span asp-validation-for="FirstName" class="text-danger"></span>
+                                </div>
+                                <div class="form-floating mb-3">
+                                    <input type="text" asp-for="MiddleName" class="form-control"
+                                           placeholder="Middle Name">
+                                    <label asp-for="MiddleName">Middle Name</label>
+                                    <span asp-validation-for="MiddleName" class="text-danger"></span>
+                                </div>
+                                <div class="form-floating mb-3">
+                                    <input type="text" asp-for="LastName" class="form-control"
+                                           placeholder="Last Name">
+                                    <label asp-for="LastName">Last Name <span class="text-danger">*</span></label>
+                                    <span asp-validation-for="LastName" class="text-danger"></span>
+                                </div>
+                                <div class="form-floating mb-3">
+                                    <input type="email" asp-for="Email" class="form-control"
+                                           placeholder="Email">
+                                    <label asp-for="Email">Email <span class="text-danger">*</span></label>
+                                    <span asp-validation-for="Email" class="text-danger"></span>
+                                </div>
+                                <!-- Phone Number field -->
+                                <div class="mb-3">
+                                    <label class="form-label fw-medium">Phone Number <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <select class="form-select" id="countryCodeCreate" style="max-width: 120px;">
+                                            <option value="+256" selected>+256</option>
+                                            <option value="+254">+254</option>
+                                            <option value="+255">+255</option>
+                                            <option value="+250">+250</option>
+                                            <option value="+243">+243</option>
+                                            <option value="+211">+211</option>
+                                            <option value="+1">+1</option>
+                                            <option value="+44">+44</option>
+                                            <option value="+91">+91</option>
+                                            <option value="+86">+86</option>
+                                            <option value="+27">+27</option>
+                                        </select>
+                                        <input type="tel" class="form-control" id="phoneLocalCreate"
+                                               placeholder="771234567" maxlength="10">
+                                    </div>
+                                    <small class="form-text text-muted">
+                                        Select country code and enter the rest of the phone number (e.g., 771234567)
+                                    </small>
+                                    <span asp-validation-for="PhoneNumber" class="text-danger d-block"></span>
+                                </div>
+                                <!-- Password fields for non-staff users -->
+                                <div class="form-floating mb-3">
+                                    <input type="password" asp-for="Password" class="form-control"
+                                           placeholder="Password">
+                                    <label asp-for="Password">Password <span class="text-danger">*</span></label>
+                                    <span asp-validation-for="Password" class="text-danger"></span>
+                                </div>
+                                <div class="form-floating mb-3">
+                                    <input type="password" asp-for="ConfirmPassword" class="form-control"
+                                           placeholder="Confirm Password">
+                                    <label asp-for="ConfirmPassword">Confirm Password <span class="text-danger">*</span></label>
+                                    <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+                                </div>
                             </div>
                         }
                     </div>
@@ -121,17 +289,18 @@
     <partial name="_ValidationScriptsPartial" />
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            // IsActive toggle handling
             const toggle = document.getElementById('flexSwitchIsActive');
             const activeText = document.getElementById('activeText');
             const inactiveText = document.getElementById('inactiveText');
 
             function updateLabel() {
-                if (toggle.checked) {
-                    activeText.classList.remove('d-none');
-                    inactiveText.classList.add('d-none');
-                } else {
-                    activeText.classList.add('d-none');
-                    inactiveText.classList.remove('d-none');
+                if (toggle && toggle.checked) {
+                    activeText?.classList.remove('d-none');
+                    inactiveText?.classList.add('d-none');
+                } else if (toggle) {
+                    activeText?.classList.add('d-none');
+                    inactiveText?.classList.remove('d-none');
                 }
             }
 
@@ -139,7 +308,85 @@
             updateLabel();
 
             // Update on change
-            toggle.addEventListener('change', updateLabel);
+            if (toggle) {
+                toggle.addEventListener('change', updateLabel);
+            }
+
+            // IsStaff checkbox handling - Create mode
+            const isStaffCheckboxCreate = document.getElementById('isStaffCheckboxCreate');
+            const nonStaffFieldsCreate = document.getElementById('nonStaffFieldsCreate');
+            const usernameHelpText = document.getElementById('usernameHelpText');
+
+            if (isStaffCheckboxCreate && nonStaffFieldsCreate) {
+                function toggleNonStaffFieldsCreate() {
+                    if (isStaffCheckboxCreate.checked) {
+                        nonStaffFieldsCreate.classList.add('d-none');
+                        if (usernameHelpText) {
+                            usernameHelpText.textContent = 'Please enter a username that exists on Active Directory.';
+                        }
+                    } else {
+                        nonStaffFieldsCreate.classList.remove('d-none');
+                        if (usernameHelpText) {
+                            usernameHelpText.textContent = 'Enter a unique username for this non-staff user.';
+                        }
+                    }
+                }
+
+                // Initialize
+                toggleNonStaffFieldsCreate();
+
+                // Update on change
+                isStaffCheckboxCreate.addEventListener('change', toggleNonStaffFieldsCreate);
+            }
+
+            // Phone number handling - Combine country code and local number
+            const phoneNumberHidden = document.getElementById('phoneNumberHidden');
+
+            // Create mode phone number handling
+            const countryCodeCreate = document.getElementById('countryCodeCreate');
+            const phoneLocalCreate = document.getElementById('phoneLocalCreate');
+
+            function updatePhoneNumberCreate() {
+                if (countryCodeCreate && phoneLocalCreate && phoneNumberHidden) {
+                    const countryCode = countryCodeCreate.value;
+                    const localNumber = phoneLocalCreate.value.replace(/\D/g, ''); // Remove non-digits
+                    phoneNumberHidden.value = localNumber ? countryCode + localNumber : '';
+                }
+            }
+
+            if (countryCodeCreate && phoneLocalCreate) {
+                countryCodeCreate.addEventListener('change', updatePhoneNumberCreate);
+                phoneLocalCreate.addEventListener('input', function (e) {
+                    // Only allow digits
+                    this.value = this.value.replace(/\D/g, '');
+                    updatePhoneNumberCreate();
+                });
+                // Initialize
+                updatePhoneNumberCreate();
+            }
+
+            // Edit mode phone number handling
+            const countryCodeEdit = document.getElementById('countryCodeEdit');
+            const phoneLocalEdit = document.getElementById('phoneLocalEdit');
+
+            function updatePhoneNumberEdit() {
+                if (countryCodeEdit && phoneLocalEdit && phoneNumberHidden) {
+                    const countryCode = countryCodeEdit.value;
+                    const localNumber = phoneLocalEdit.value.replace(/\D/g, ''); // Remove non-digits
+                    phoneNumberHidden.value = localNumber ? countryCode + localNumber : '';
+                }
+            }
+
+            if (countryCodeEdit && phoneLocalEdit) {
+                countryCodeEdit.addEventListener('change', updatePhoneNumberEdit);
+                phoneLocalEdit.addEventListener('input', function (e) {
+                    // Only allow digits
+                    this.value = this.value.replace(/\D/g, '');
+                    updatePhoneNumberEdit();
+                });
+                // Initialize
+                updatePhoneNumberEdit();
+            }
         });
     </script>
 }

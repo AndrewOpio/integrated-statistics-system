@@ -1,0 +1,89 @@
+@model VMSService.Core.Models.AgentDetails.AgentDetailViewModel
+
+@{
+    ViewData["Title"] = "Agent Details";
+}
+
+<div class="row">
+    <div class="col-12 col-lg-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header pb-4">
+                <div class="d-flex flex-column">
+                    <span class="text-muted small mb-2">Agent Profile</span>
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        @if (!string.IsNullOrEmpty(Model.PassportPhoto))
+                        {
+                            <img src="@Model.PassportPhoto" alt="Passport Photo" class="rounded-circle" style="width: 80px; height: 80px; object-fit: cover;">
+                        }
+                        else
+                        {
+                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                <i class="ti ti-user text-white fs-3"></i>
+                            </div>
+                        }
+                        <h2 class="fs-4 fw-bold mb-0">@Model.AgentNames</h2>
+                    </div>
+                    @if (!string.IsNullOrEmpty(Model.BranchName))
+                    {
+                        <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
+                            <span class="badge bg-primary">
+                                <i class="ti ti-building me-1"></i>@Model.BranchName
+                            </span>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="field mb-4">
+                            <span class="d-block text-muted small mb-2 text-uppercase">National Identification Number (NIN)</span>
+                            <span class="d-block fw-normal">@Model.NIN</span>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(Model.PhoneNumber))
+                        {
+                            <div class="field mb-4">
+                                <span class="d-block text-muted small mb-2 text-uppercase">Phone Number</span>
+                                <span class="d-block fw-normal">@Model.PhoneNumber</span>
+                            </div>
+                        }
+                    </div>
+                    <div class="col-md-6">
+                        @if (!string.IsNullOrEmpty(Model.WorkIdScan))
+                        {
+                            <div class="field mb-4">
+                                <span class="d-block text-muted small mb-2 text-uppercase">Work ID Scan</span>
+                                <a href="@Model.WorkIdScan" target="_blank" class="btn btn-sm btn-outline-primary">
+                                    <i class="ti ti-file me-1"></i>View Work ID
+                                </a>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(Model.SignatureScan))
+                        {
+                            <div class="field mb-4">
+                                <span class="d-block text-muted small mb-2 text-uppercase">Signature Scan</span>
+                                <a href="@Model.SignatureScan" target="_blank" class="btn btn-sm btn-outline-primary">
+                                    <i class="ti ti-file me-1"></i>View Signature
+                                </a>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-footer bg-transparent border-top pt-3">
+                <div class="d-flex gap-2">
+                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">
+                        <i class="ti ti-pencil me-1"></i>Edit
+                    </a>
+                    <a asp-action="Index" class="btn btn-secondary">
+                        <i class="ti ti-arrow-left me-1"></i>Back
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
