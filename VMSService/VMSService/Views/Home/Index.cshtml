@@ -225,9 +225,34 @@
         <div class="col-12">
             <div class="card border-0 shadow">
                 <div class="card-header py-3 bg-primary text-white">
-                    <div class="d-flex align-items-center">
-                        <i class="ti ti-database me-3 fs-5"></i>
-                        <h5 class="mb-0 fw-bold">Stock Position - @kampalaBranch.Name</h5>
+                    <div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-3">
+                        <div class="d-flex align-items-center flex-shrink-0">
+                            <i class="ti ti-database me-3 fs-5"></i>
+                            <h5 class="mb-0 fw-bold">Stock Position - <span id="selectedBranchName">@kampalaBranch.Name</span></h5>
+                        </div>
+                        <div class="ms-sm-auto" style="width: 100%; max-width: 250px;">
+                            <select id="branchSelector" class="form-select form-select-sm w-100" onchange="loadBranchData()">
+                                <option value="">-- Select Branch --</option>
+                                @{
+                                    var allBranches = ViewBag.AllBranches;
+                                    var selectedBranchId = ViewBag.SelectedBranchId;
+                                    if (allBranches != null)
+                                    {
+                                        foreach (var branch in allBranches)
+                                        {
+                                            if (branch.Id == selectedBranchId)
+                                            {
+                                                <option value="@branch.Id" selected>@branch.Name</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@branch.Id">@branch.Name</option>
+                                            }
+                                        }
+                                    }
+                                }
+                            </select>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -345,3 +370,15 @@
         </div>
     </div>
 }
+
+<script>
+    function loadBranchData() {
+        const branchSelector = document.getElementById('branchSelector');
+        const branchId = branchSelector.value;
+        
+        if (branchId) {
+            // Reload page with selected branch
+            window.location.href = `@Url.Action("Index", "Home")?branchId=${branchId}`;
+        }
+    }
+</script>

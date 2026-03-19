@@ -1,0 +1,933 @@
+@using VMSService.Core.Models.StockMovement
+@using VMSService.Core.Services.Stocks.StockEntities
+@model VMSService.Data.Entities.StockMovement
+
+@{
+    ViewData["Title"] = "Stock Movement Details";
+}
+
+<div class="row">
+    <div class="col-12 col-lg-12">
+        <div class="d-flex justify-content-end align-items-center mb-3 gap-2">
+            @if (Model.CurrentStatus?.Name == "Draft")
+            {
+                <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">
+                    <i class="ti ti-edit me-1"></i> Edit
+                </a>
+            }
+            <a asp-action="Index" class="btn btn-outline-secondary">
+                <i class="ti ti-arrow-left me-1"></i> Back to List
+            </a>
+        </div>
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header pb-4 bg-light">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="d-flex flex-column">
+                        <span class="text-muted small mb-2">Stock Movement</span>
+                        <h2 class="fs-4 fw-bold mb-3">@Model.ReferenceNumber</h2>
+                        <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
+                            <span class="badge bg-info">
+                                <i class="ti ti-badge me-1"></i>@Model.CurrentStatus?.Name
+                            </span>
+                        </div>
+                    </div>
+                    <!-- Action Buttons -->
+                    <div class="d-flex gap-2 flex-row align-items-end">
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                @{
+                    var allBranches = ViewBag.Branches as List<Branch>;
+                    var allDenominations = ViewBag.Denominations as List<Denomination>;
+                    var allCategories = ViewBag.Categories as List<Category>;
+                }
+                <dl class="row">
+                    <dt class="col-sm-4">Movement Type</dt>
+                    <dd class="col-sm-8">@Model.MovementType?.ToUpperInvariant()</dd>
+
+                    <dt class="col-sm-4">Date</dt>
+                    <dd class="col-sm-8">@Model.Date.ToString("dd/MMM/yyyy")</dd>
+
+                    <dt class="col-sm-4">Status</dt>
+                    @if (Model.CurrentStatus != null && !string.IsNullOrEmpty(Model.CurrentStatus.Name))
+                    {
+                        <dd class="col-sm-8">@Model.CurrentStatus.Name</dd>
+                    }
+                    else
+                    {
+                        <dd class="col-sm-8 text-muted">-</dd>
+                    }
+
+                    @if (Model.MovementType == "branch")
+                    {
+                        <dt class="col-sm-4">Dispatching Branch</dt>
+                        <dd class="col-sm-8">
+                            @{
+                                var dispatchingBranch = allBranches?.FirstOrDefault(b => b.Id == Model.DispatchingBranchId);
+                            }
+                            @(dispatchingBranch != null ? dispatchingBranch.Name : Model.DispatchingBranchId.ToString())
+                        </dd>
+                        <dt class="col-sm-4">Receiving Branch</dt>
+                        <dd class="col-sm-8">
+                            @{
+                                var receivingBranch = allBranches?.FirstOrDefault(b => b.Id == Model.ReceivingBranchId);
+                            }
+                            @(receivingBranch != null ? receivingBranch.Name : Model.ReceivingBranchId.ToString())
+                        </dd>
+                        <dt class="col-sm-4">Categorization</dt>
+                        <dd class="col-sm-8">@Model.Categorization</dd>
+                    }
+                    <dt class="col-sm-4">Total Bags/Boxes</dt>
+                    <dd class="col-sm-8">@Model.TotalBagsBoxes</dd>
+                    <dt class="col-sm-4">Grand Total Value</dt>
+                    <dd class="col-sm-8">@Model.GrandTotalValue?.ToString("N2")</dd>
+                </dl>
+
+                <h5 class="fw-bold mt-4">Denomination Details</h5>
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Denomination</th>
+                                <th>Number of Bags/Boxes</th>
+                                @if (Model.MovementType == "branch")
+                                {
+                                    <th>Number of Bundles</th>
+                                }
+                                <th>Category</th>
+                                <th>Sub-total Value</th>
+                                @if (Model.MovementType == "internal")
+                                {
+                                    <th>Serial Number Ranges</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var denom in (Model.Denominations ?? new List<VMSService.Data.Entities.StockMovementDenomination>()).Where(d => string.IsNullOrEmpty(d.DenominationType) || d.DenominationType == "Sent"))
+                        {
+                            <tr>
+                                <td>
+                                    @{
+                                        var denomObj = allDenominations?.FirstOrDefault(d => d.Id == denom.DenominationId);
+                                    }
+                                    @(denomObj != null ? denomObj.Name : denom.DenominationId.ToString())
+                                </td>
+                                <td>@denom.NumBagsBoxes</td>
+                                @if (Model.MovementType == "branch")
+                                {
+                                    <td>@denom.NumBundles</td>
+                                }
+                                <td>
+                                    @{
+                                        var catObj = allCategories?.FirstOrDefault(c => c.Id == denom.CategoryId);
+                                    }
+                                    @(catObj != null ? catObj.Name : (denom.CategoryId.HasValue ? denom.CategoryId.Value.ToString() : ""))
+                                </td>
+                                <td>@denom.SubTotalValue.ToString("N2")</td>
+                                @if (Model.MovementType == "internal")
+                                {
+                                    <td>
+                                        @if (denom.SerialNumberRanges != null && denom.SerialNumberRanges.Any())
+                                        {
+                                            <ul class="mb-0 ps-3">
+                                            @foreach (var range in denom.SerialNumberRanges)
+                                            {
+                                                <li>
+                                                    <span class="fw-semibold">@range.Prefix</span>:
+                                                    @range.Start - @range.End
+                                                </li>
+                                            }
+                                            </ul>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">N/A</span>
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Received Denominations Section -->
+                @{
+                    bool isDispatchedStatus = Model.CurrentStatus?.Name == "Dispatched";
+                    var userRoles = User.FindAll("appRole").Select(c => c.Value);
+                    bool isAssistantBranchManager = userRoles.Contains("VMS:Assistant Branch Manager");
+                    var receivedDenominations = (Model.Denominations ?? new List<VMSService.Data.Entities.StockMovementDenomination>()).Where(d => d.DenominationType == "Received").ToList();
+                    bool hasReceivedDenominations = receivedDenominations.Any();
+                }
+                
+                @if (Model.MovementType == "branch")
+                {
+                    @if (!hasReceivedDenominations && isDispatchedStatus && isAssistantBranchManager)
+                    {
+                        <h5 class="fw-bold mt-5 mb-3">
+                            <i class="ti ti-input-check me-2 text-primary"></i>Received Denomination Details
+                        </h5>
+                        <p class="text-muted small mb-3">Please enter the denominations you received to compare with what was sent.</p>
+                        <form id="receivedDenominationForm" method="post" asp-action="ReceivedStock" asp-route-id="@Model.Id">
+                            <input type="hidden" id="receivedDataInput" name="receivedData" />
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover" id="receivedDenominationTable" style="border-radius: 8px; overflow: hidden;">
+                                    <thead class="table-light" style="background-color: #fcfcfc;">
+                                        <tr>
+                                            <th>Denomination</th>
+                                            <th>Received (Bags/Boxes) <span class="text-danger">*</span></th>
+                                            <th>Received (Bundles) <span class="text-danger">*</span></th>
+                                            <th>Category</th>
+                                            <th>Subtotal</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="d-flex justify-content-end mt-3 gap-2">
+                                <button type="button" class="btn btn-success btn-sm" id="addReceivedRow">
+                                    <i class="ti ti-plus me-1"></i>Add Row
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="ti ti-check me-1"></i>Save
+                                </button>
+                            </div>
+                        </form>
+                    }
+                    
+                    @if (hasReceivedDenominations)
+                    {
+                        <h5 class="fw-bold mt-5 mb-3">
+                            <i class="ti ti-check me-2 text-success"></i>Received Denomination Details
+                        </h5>
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Denomination</th>
+                                        <th>Received (Bags/Boxes)</th>
+                                        <th>Received (Bundles)</th>
+                                        <th>Category</th>
+                                        <th>Sub-total Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                @foreach (var denom in receivedDenominations)
+                                {
+                                    <tr>
+                                        <td>
+                                            @{
+                                                var denomObj = allDenominations?.FirstOrDefault(d => d.Id == denom.DenominationId);
+                                            }
+                                            @(denomObj != null ? denomObj.Name : denom.DenominationId.ToString())
+                                        </td>
+                                        <td>@denom.NumBagsBoxes</td>
+                                        <td>@denom.NumBundles</td>
+                                        <td>
+                                            @{
+                                                var catObj = allCategories?.FirstOrDefault(c => c.Id == denom.CategoryId);
+                                            }
+                                            @(catObj != null ? catObj.Name : (denom.CategoryId.HasValue ? denom.CategoryId.Value.ToString() : ""))
+                                        </td>
+                                        <td>@denom.SubTotalValue.ToString("N2")</td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Discrepancy Section -->
+@{
+    var currentDiscrepancy = ViewBag.CurrentDiscrepancy as VMSService.Data.Entities.StockMovementDiscrepancy;
+    var discrepancyTransitions = ViewBag.DiscrepancyTransitions as List<WorkflowTransitionDto>;
+}
+
+@if (currentDiscrepancy != null)
+{
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow mb-3">
+                <div class="card-header bg-white border-bottom no-after">
+                    <h6 class="card-title mb-0">
+                        <i class="ti ti-alert-circle me-2 text-warning"></i>Discrepancy Management
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <!-- Discrepancy Summary -->
+                    <div class="alert alert-warning mb-4">
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <small class="text-muted d-block">Sent Total Value</small>
+                                <strong class="h5 d-block">@{
+                                    var sentTotal = (Model?.Denominations ?? new List<VMSService.Data.Entities.StockMovementDenomination>())
+                                        .Where(d => d.DenominationType == "Sent" || d.DenominationType == null)
+                                        .Sum(d => d.SubTotalValue);
+                                }@sentTotal.ToString("N2")</strong>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted d-block">Received Total Value</small>
+                                <strong class="h5 d-block">@{
+                                    var receivedTotal = (Model?.Denominations ?? new List<VMSService.Data.Entities.StockMovementDenomination>())
+                                        .Where(d => d.DenominationType == "Received")
+                                        .Sum(d => d.SubTotalValue);
+                                }@receivedTotal.ToString("N2")</strong>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted d-block">Difference</small>
+                                <strong class="h5 d-block text-danger">@((sentTotal - receivedTotal).ToString("N2"))</strong>
+                            </div>
+                        </div>
+
+                        <!-- Denomination Mismatch Alert -->
+                        @{
+                            var sentDenomIds = (Model?.Denominations ?? new List<VMSService.Data.Entities.StockMovementDenomination>())
+                                .Where(d => d.DenominationType == "Sent" || d.DenominationType == null)
+                                .Select(d => d.DenominationId)
+                                .Distinct()
+                                .ToList();
+
+                            var receivedDenomIds = (Model?.Denominations ?? new List<VMSService.Data.Entities.StockMovementDenomination>())
+                                .Where(d => d.DenominationType == "Received")
+                                .Select(d => d.DenominationId)
+                                .Distinct()
+                                .ToList();
+
+                            var missingDenoms = sentDenomIds.Except(receivedDenomIds).ToList();
+                            var extraDenoms = receivedDenomIds.Except(sentDenomIds).ToList();
+                            var denomMismatch = missingDenoms.Any() || extraDenoms.Any();
+                        }
+
+                        @if (denomMismatch)
+                        {
+                            <div class="alert alert-danger mt-3 mb-0">
+                                <strong><i class="ti ti-alert-triangle me-2"></i>Denomination Mismatch Detected</strong>
+                                @if (missingDenoms.Any())
+                                {
+                                    <div class="mt-2">
+                                        <small><strong>Missing from Receipt:</strong></small>
+                                        <div>
+                                            @foreach (var denomId in missingDenoms)
+                                            {
+                                                var denomName = (ViewBag.Denominations as List<Denomination>)?
+                                                    .FirstOrDefault(d => d.Id == denomId)?.Name ?? $"Denom {denomId}";
+                                                <span class="badge bg-danger me-2">@denomName</span>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                                @if (extraDenoms.Any())
+                                {
+                                    <div class="mt-2">
+                                        <small><strong>Extra in Receipt:</strong></small>
+                                        <div>
+                                            @foreach (var denomId in extraDenoms)
+                                            {
+                                                var denomName = (ViewBag.Denominations as List<Denomination>)?
+                                                    .FirstOrDefault(d => d.Id == denomId)?.Name ?? $"Denom {denomId}";
+                                                <span class="badge bg-warning me-2">@denomName</span>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        <!-- Denomination-Level Comparison -->
+                        <div class="mt-4">
+                            <h6 class="mb-3">Denomination Details Comparison</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Denomination</th>
+                                            <th class="text-center">Sent Boxes</th>
+                                            <th class="text-center">Received Boxes</th>
+                                            <th class="text-center">Box Difference</th>
+                                            <th class="text-end">Sent Value</th>
+                                            <th class="text-end">Received Value</th>
+                                            <th class="text-end">Value Difference</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @{
+                                            var denominations = ViewBag.Denominations as List<Denomination> ?? new List<Denomination>();
+                                            var denomMap = denominations.ToDictionary(d => d.Id, d => d.Name);
+
+                                            var sentDenoms = (Model?.Denominations ?? new List<VMSService.Data.Entities.StockMovementDenomination>())
+                                                .Where(d => d.DenominationType == "Sent" || d.DenominationType == null)
+                                                .GroupBy(d => d.DenominationId)
+                                                .ToDictionary(g => g.Key, g => new { 
+                                                    TotalBoxes = g.Sum(d => d.NumBagsBoxes ?? 0), 
+                                                    TotalValue = g.Sum(d => d.SubTotalValue) 
+                                                });
+
+                                            var receivedDenoms = (Model?.Denominations ?? new List<VMSService.Data.Entities.StockMovementDenomination>())
+                                                .Where(d => d.DenominationType == "Received")
+                                                .GroupBy(d => d.DenominationId)
+                                                .ToDictionary(g => g.Key, g => new { 
+                                                    TotalBoxes = g.Sum(d => d.NumBagsBoxes ?? 0), 
+                                                    TotalValue = g.Sum(d => d.SubTotalValue) 
+                                                });
+
+                                            var allDenomIds = sentDenoms.Keys.Union(receivedDenoms.Keys).Distinct().OrderBy(x => x);
+                                        }
+                                        @foreach (var denomId in allDenomIds)
+                                        {
+                                            var sentBoxes = sentDenoms.ContainsKey(denomId) ? sentDenoms[denomId].TotalBoxes : 0;
+                                            var sentValue = sentDenoms.ContainsKey(denomId) ? sentDenoms[denomId].TotalValue : 0m;
+                                            var receivedBoxes = receivedDenoms.ContainsKey(denomId) ? receivedDenoms[denomId].TotalBoxes : 0;
+                                            var receivedValue = receivedDenoms.ContainsKey(denomId) ? receivedDenoms[denomId].TotalValue : 0m;
+                                            var boxDiff = sentBoxes - receivedBoxes;
+                                            var valueDiff = sentValue - receivedValue;
+                                            var hasDiscrepancy = boxDiff != 0 || valueDiff != 0;
+                                            var denomName = denomMap.ContainsKey(denomId) ? denomMap[denomId] : $"Denom {denomId}";
+                                        <tr class="@(hasDiscrepancy ? "table-warning" : "")">
+                                            <td>
+                                                <strong>@denomName</strong>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge bg-info">@sentBoxes</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge bg-info">@receivedBoxes</span>
+                                            </td>
+                                            <td class="text-center">
+                                                @if (boxDiff != 0)
+                                                {
+                                                    if (boxDiff > 0)
+                                                    {
+                                                        <span class="badge bg-danger">@boxDiff (Short)</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-success">@Math.Abs(boxDiff) (Over)</span>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                            <td class="text-end">@sentValue.ToString("N2")</td>
+                                            <td class="text-end">@receivedValue.ToString("N2")</td>
+                                            <td class="text-end">
+                                                @if (valueDiff != 0)
+                                                {
+                                                    if (valueDiff > 0)
+                                                    {
+                                                        <span class="text-danger fw-bold">@valueDiff.ToString("N2") (Short)</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-success fw-bold">@Math.Abs(valueDiff).ToString("N2") (Over)</span>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Discrepancy Status -->
+                    <div class="mb-3">
+                        <label class="form-label">Current Status</label>
+                        <span class="badge bg-warning">@currentDiscrepancy.CurrentStatus?.Name</span>
+                    </div>
+
+                    @if (discrepancyTransitions != null && discrepancyTransitions.Any())
+                    {
+                        <form method="post" asp-action="ExecuteDiscrepancyAction" asp-route-id="@Model.Id" id="discrepancyForm">
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    Action <span class="text-danger">*</span>
+                                </label>
+                                <select id="discrepancyActionSelect" name="actionName" class="form-select" required>
+                                    <option value="">-- Select an action --</option>
+                                    @foreach (var transition in discrepancyTransitions)
+                                    {
+                                        <option value="@transition.ActionName" data-requires-comments="@transition.RequiresComments.ToString().ToLower()" data-button-class="@transition.ButtonClass" data-display-label="@transition.DisplayLabel">
+                                            @transition.DisplayLabel
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    Comments/Resolution
+                                    <span id="discrepancyCommentRequired" class="text-danger" style="display: none;">*</span>
+                                </label>
+                                <textarea id="discrepancyRemarksTextarea"
+                                          class="form-control"
+                                          name="remarks"
+                                          rows="3"
+                                          placeholder="Enter your comments or resolution details..."></textarea>
+                                <small id="discrepancyCommentHint" class="text-muted d-block mt-1"></small>
+                            </div>
+
+                            <button type="submit" id="discrepancySubmitBtn" class="text-white btn btn-warning" disabled>
+                                <i class="ti ti-send me-1"></i><span id="discrepancySubmitBtnLabel">Submit</span>
+                            </button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="row">
+    <div class="col-12">
+        <!-- Workflow Actions Section -->
+        @{
+            var availableTransitions = ViewBag.AvailableTransitions as List<WorkflowTransitionDto>;
+            // Hide the workflow form only for branch movements with Dispatched status until received denominations are saved
+            bool showWorkflowForm = !(Model.MovementType == "branch" && isDispatchedStatus && !hasReceivedDenominations);
+        }
+        @if (showWorkflowForm && availableTransitions != null && availableTransitions.Any())
+        {
+            <div class="card border-0 bg-light mb-3 shadow-sm">
+                <div class="card-header bg-white border-bottom no-after">
+                    <h6 class="card-title mb-0">
+                        <i class="ti ti-checkbox me-2 text-primary"></i>Available Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="post" asp-action="ExecuteAction" asp-route-id="@Model.Id" id="workflowForm">
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Action <span class="text-danger">*</span>
+                            </label>
+                            <select id="actionSelect" name="actionName" class="form-select" required>
+                                <option value="">-- Select an action --</option>
+                                @foreach (var transition in availableTransitions)
+                                {
+                                    <option value="@transition.ActionName" data-requires-comments="@transition.RequiresComments.ToString().ToLower()" data-button-class="@transition.ButtonClass" data-display-label="@transition.DisplayLabel">
+                                        @transition.DisplayLabel
+                                    </option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Comments
+                                <span id="commentRequired" class="text-danger" style="display: none;">*</span>
+                            </label>
+                            <textarea id="remarksTextarea"
+                                      class="form-control"
+                                      name="remarks"
+                                      rows="3"
+                                      placeholder="Enter your comments..."></textarea>
+                            <small id="commentHint" class="text-muted d-block mt-1"></small>
+                        </div>
+
+                        <button type="submit" id="submitBtn" class="text-white btn btn-primary" disabled>
+                            <i class="ti ti-check me-1"></i><span id="submitBtnLabel">Submit</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <!-- Status History Section -->
+        <div class="card border-0 shadow mb-3">
+            <div class="card-header bg-white border-bottom no-after">
+                <h6 class="card-title mb-0">
+                    <i class="ti ti-message me-2 text-secondary"></i>Status History
+                </h6>
+            </div>
+            <div class="card-body">
+                @{
+                    var statusHistory = ViewBag.StatusHistory as List<VMSService.Data.Entities.StockMovementStatusHistory>;
+                }
+                @if (statusHistory != null && statusHistory.Any())
+                {
+                    <div class="timeline">
+                        @foreach (var history in statusHistory)
+                        {
+                            <div class="timeline-item mb-4">
+                                <div class="d-flex gap-3">
+                                    <div class="timeline-marker">
+                                        <i class="ti ti-circle-check text-success"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h6 class="mb-1 small">
+                                                    <strong>@history.OldStatus?.Name</strong>
+                                                    <i class="ti ti-arrow-right text-muted"></i>
+                                                    <strong>@history.NewStatus?.Name</strong>
+                                                </h6>
+                                                <small class="text-muted">
+                                                    By: <strong>@history.ChangedBy</strong>
+                                                </small>
+                                            </div>
+                                            <small class="text-muted">
+                                                @history.ChangedAt.ToString("dd/MMM/yyyy HH:mm:ss")
+                                            </small>
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(history.Remarks))
+                                        {
+                                            <div class="mt-2 p-2 bg-white rounded border">
+                                                @{
+                                                    // Extract user comments from remarks
+                                                    string remarks = history.Remarks;
+                                                    string displayText = remarks;
+                                                    
+                                                    // If it's a discrepancy remark, extract just the user's comment
+                                                    if (remarks.StartsWith("[Discrepancy]"))
+                                                    {
+                                                        var lastDot = remarks.LastIndexOf(". ");
+                                                        if (lastDot > 0)
+                                                        {
+                                                            displayText = remarks.Substring(lastDot + 2);
+                                                        }
+                                                    }
+                                                }
+                                                <span class="d-block">@displayText</span>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted text-center">
+                        <i class="ti ti-inbox me-2"></i>No status history yet.
+                    </p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .timeline {
+        position: relative;
+        padding-left: 0;
+    }
+
+    .timeline-item {
+        position: relative;
+    }
+
+    .timeline-marker {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background-color: #f0f0f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+</style>
+
+<script>
+    const actionSelect = document.getElementById('actionSelect');
+    if (actionSelect) {
+        actionSelect.addEventListener('change', function () {
+            const selectedOption = this.options[this.selectedIndex];
+            const requiresComments = selectedOption.getAttribute('data-requires-comments') === 'true';
+            const buttonClass = selectedOption.getAttribute('data-button-class') || 'btn-primary';
+            const displayLabel = selectedOption.getAttribute('data-display-label') || 'Submit';
+
+            const commentRequired = document.getElementById('commentRequired');
+            const remarksTextarea = document.getElementById('remarksTextarea');
+            const submitBtn = document.getElementById('submitBtn');
+            const submitBtnLabel = document.getElementById('submitBtnLabel');
+            const commentHint = document.getElementById('commentHint');
+
+            if (this.value === '') {
+                submitBtn.disabled = true;
+                commentRequired.style.display = 'none';
+                remarksTextarea.required = false;
+                commentHint.textContent = '';
+            } else {
+                submitBtn.disabled = false;
+                submitBtnLabel.textContent = displayLabel;
+                submitBtn.className = `text-white btn ${buttonClass}`;
+
+                if (requiresComments) {
+                    commentRequired.style.display = 'inline';
+                    remarksTextarea.required = true;
+                    commentHint.textContent = 'Comments are required for this action.';
+                } else {
+                    commentRequired.style.display = 'none';
+                    remarksTextarea.required = false;
+                    commentHint.textContent = 'Comments are optional.';
+                }
+            }
+        });
+    }
+
+    const workflowForm = document.getElementById('workflowForm');
+    if (workflowForm) {
+        workflowForm.addEventListener('submit', function (e) {
+            const actionSelect = document.getElementById('actionSelect');
+            const remarksTextarea = document.getElementById('remarksTextarea');
+            const requiresComments = actionSelect.options[actionSelect.selectedIndex].getAttribute('data-requires-comments') === 'true';
+
+            if (requiresComments && !remarksTextarea.value.trim()) {
+                e.preventDefault();
+                alert('Comments are required for this action.');
+                remarksTextarea.focus();
+            }
+        });
+    }
+
+    // ─── Received Denomination Reconciliation ───────────────────────────────────
+    const denominations = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.Denominations ?? new List<object>()));
+    const categories = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.Categories ?? new List<object>()));
+
+    const sentDenominations = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(
+        (Model?.Denominations ?? new List<VMSService.Data.Entities.StockMovementDenomination>())
+            .Select(d => new { 
+                denomId = d.DenominationId, 
+                numBagsBoxes = d.NumBagsBoxes, 
+                numBundles = d.NumBundles,
+                categoryId = d.CategoryId
+            }).ToList()
+    ));
+
+    let receivedRows = [
+        { sentDenomId: '', sentBagsBoxes: '', sentBundles: '', categoryId: '', receivedBagsBoxes: '', receivedBundles: '' }
+    ];
+
+    function getDenominationDropdown(selectedId, idx) {
+        const options = denominations.map(d => 
+            `<option value="${d.Id}" ${d.Id == selectedId ? 'selected' : ''}>${d.Name}</option>`
+        ).join('');
+        return `<select class="form-select form-select-sm received-denomination" data-idx="${idx}" required>
+            <option value="">-- Select Denomination --</option>
+            ${options}
+        </select>`;
+    }
+
+    function getCategoryDropdown(selectedId, idx) {
+        const options = categories.map(c => 
+            `<option value="${c.Id}" ${c.Id == selectedId ? 'selected' : ''}>${c.Name}</option>`
+        ).join('');
+        return `<select class="form-select form-select-sm received-category" data-idx="${idx}" required>
+            <option value="">-- Select Category --</option>
+            ${options}
+        </select>`;
+    }
+
+    function renderReceivedTable() {
+        const $tbody = $('#receivedDenominationTable tbody');
+        $tbody.empty();
+
+        receivedRows.forEach((row, idx) => {
+            const isDefaultRow = idx === 0;
+            const deleteButton = isDefaultRow 
+                ? '<td></td>'
+                : `<td><button type="button" class="btn btn-danger btn-sm remove-received-row" data-idx="${idx}"><i class="ti ti-trash"></i></button></td>`;
+            
+            // Find denomination to get its value for subtotal
+            const selectedDenom = denominations.find(d => d.Id == row.sentDenomId);
+            const denomValue = selectedDenom ? selectedDenom.Value : 0;
+            const subtotal = (parseInt(row.receivedBagsBoxes) || 0) * denomValue;
+            
+            $tbody.append(`
+                <tr data-idx="${idx}" ${isDefaultRow ? 'data-default="true"' : ''}>
+                    <td>
+                        ${getDenominationDropdown(row.sentDenomId, idx)}
+                    </td>
+                    <td>
+                        <input type="number" class="form-control form-control-sm received-bags" 
+                               data-idx="${idx}" 
+                               value="${row.receivedBagsBoxes}" 
+                               placeholder="0" required />
+                    </td>
+                    <td>
+                        <input type="number" class="form-control form-control-sm received-bundles" 
+                               data-idx="${idx}" 
+                               value="${row.receivedBundles}" 
+                               placeholder="0" required />
+                    </td>
+                    <td>
+                        ${getCategoryDropdown(row.categoryId, idx)}
+                    </td>
+                    <td><input type="number" class="form-control form-control-sm received-subtotal" data-idx="${idx}" value="${subtotal.toFixed(2)}" step="0.01" /></td>
+                    ${deleteButton}
+                </tr>
+            `);
+        });
+
+        attachReceivedRowEventHandlers();
+    }
+
+    function attachReceivedRowEventHandlers() {
+        $('.received-denomination').off().on('change', function () {
+            const idx = $(this).data('idx');
+            receivedRows[idx].sentDenomId = $(this).val();
+        });
+
+        $('.received-category').off().on('change', function () {
+            const idx = $(this).data('idx');
+            receivedRows[idx].categoryId = $(this).val();
+        });
+
+        $('.received-bags').off().on('change', function () {
+            const idx = $(this).data('idx');
+            receivedRows[idx].receivedBagsBoxes = $(this).val();
+        });
+
+        $('.received-bundles').off().on('change', function () {
+            const idx = $(this).data('idx');
+            receivedRows[idx].receivedBundles = $(this).val();
+        });
+
+        $('.received-subtotal').off().on('change', function () {
+            const idx = $(this).data('idx');
+            receivedRows[idx].receivedSubtotal = $(this).val();
+        });
+
+        $('.remove-received-row').off().on('click', function (e) {
+            e.preventDefault();
+            const idx = $(this).data('idx');
+            // Don't allow deletion of the default first row
+            if (idx > 0) {
+                receivedRows.splice(idx, 1);
+                renderReceivedTable();
+            }
+        });
+    }
+
+    const addReceivedRowBtn = document.getElementById('addReceivedRow');
+    if (addReceivedRowBtn) {
+        addReceivedRowBtn.addEventListener('click', function () {
+            receivedRows.push({
+                sentDenomId: '',
+                sentBagsBoxes: '',
+                sentBundles: '',
+                categoryId: '',
+                receivedBagsBoxes: '',
+                receivedBundles: ''
+            });
+            renderReceivedTable();
+        });
+    }
+
+    const receivedDenominationForm = document.getElementById('receivedDenominationForm');
+    if (receivedDenominationForm) {
+        receivedDenominationForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            
+            // Validate that all fields are filled
+            let isValid = true;
+            receivedRows.forEach((row, idx) => {
+                if (row.receivedBagsBoxes === '' || row.receivedBundles === '') {
+                    isValid = false;
+                }
+            });
+
+            if (!isValid) {
+                alert('Please fill in all received quantities.');
+                return;
+            }
+
+            // Serialize receivedRows data
+            const dataToSubmit = receivedRows.map(row => ({
+                sentDenominationId: row.sentDenomId,
+                sentBagsBoxes: parseInt(row.sentBagsBoxes) || 0,
+                sentBundles: parseInt(row.sentBundles) || 0,
+                receivedBagsBoxes: parseInt(row.receivedBagsBoxes) || 0,
+                receivedBundles: parseInt(row.receivedBundles) || 0,
+                categoryId: parseInt(row.categoryId) || null,
+                subTotalValue: parseFloat(row.receivedSubtotal) || 0
+            }));
+
+            // Set the hidden input with JSON data
+            document.getElementById('receivedDataInput').value = JSON.stringify(dataToSubmit);
+
+            // Submit the form
+            this.submit();
+        });
+    }
+
+    // Initialize received table on page load if it exists
+    document.addEventListener('DOMContentLoaded', function() {
+        if (document.getElementById('receivedDenominationTable')) {
+            renderReceivedTable();
+        }
+    });
+
+    // ─── Discrepancy Action Form Handling ───────────────────────────────────
+    const discrepancyActionSelect = document.getElementById('discrepancyActionSelect');
+    if (discrepancyActionSelect) {
+        discrepancyActionSelect.addEventListener('change', function () {
+            const selectedOption = this.options[this.selectedIndex];
+            const requiresComments = selectedOption.getAttribute('data-requires-comments') === 'true';
+            const buttonClass = selectedOption.getAttribute('data-button-class') || 'btn-warning';
+            const displayLabel = selectedOption.getAttribute('data-display-label') || 'Submit';
+
+            const commentRequired = document.getElementById('discrepancyCommentRequired');
+            const remarksTextarea = document.getElementById('discrepancyRemarksTextarea');
+            const submitBtn = document.getElementById('discrepancySubmitBtn');
+            const submitBtnLabel = document.getElementById('discrepancySubmitBtnLabel');
+            const commentHint = document.getElementById('discrepancyCommentHint');
+
+            if (this.value === '') {
+                submitBtn.disabled = true;
+                commentRequired.style.display = 'none';
+                remarksTextarea.required = false;
+                commentHint.textContent = '';
+            } else {
+                submitBtn.disabled = false;
+                submitBtnLabel.textContent = displayLabel;
+                submitBtn.className = `text-white btn ${buttonClass}`;
+
+                if (requiresComments) {
+                    commentRequired.style.display = 'inline';
+                    remarksTextarea.required = true;
+                    commentHint.textContent = 'Comments are required for this action.';
+                } else {
+                    commentRequired.style.display = 'none';
+                    remarksTextarea.required = false;
+                    commentHint.textContent = 'Comments are optional.';
+                }
+            }
+        });
+    }
+
+    const discrepancyForm = document.getElementById('discrepancyForm');
+    if (discrepancyForm) {
+        discrepancyForm.addEventListener('submit', function (e) {
+            const actionSelect = document.getElementById('discrepancyActionSelect');
+            const remarksTextarea = document.getElementById('discrepancyRemarksTextarea');
+            const requiresComments = actionSelect.options[actionSelect.selectedIndex].getAttribute('data-requires-comments') === 'true';
+
+            if (requiresComments && !remarksTextarea.value.trim()) {
+                e.preventDefault();
+                alert('Comments are required for this action.');
+                remarksTextarea.focus();
+            }
+        });
+    }
+</script>

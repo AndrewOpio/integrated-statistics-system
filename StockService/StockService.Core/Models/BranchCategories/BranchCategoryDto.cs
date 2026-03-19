@@ -1,7 +1,7 @@
-using StockService.Web.Models.Branches;
-using StockService.Web.Models.Categories;
+using StockService.Core.Models.Branches;
+using StockService.Core.Models.Categories;
 
-namespace StockService.Web.Models.BranchCategories
+namespace StockService.Core.Models.BranchCategories
 {
     public class BranchCategoryDto
     {

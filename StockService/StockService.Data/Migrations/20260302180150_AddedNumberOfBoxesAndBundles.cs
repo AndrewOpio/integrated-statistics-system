@@ -47,8 +47,7 @@ namespace StockService.Data.Migrations
                 name: "StoreId",
                 table: "StockLedger",
                 type: "int",
-                nullable: false,
-                defaultValue: 0);
+                nullable: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_StockLedger_StoreId",

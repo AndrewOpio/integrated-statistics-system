@@ -9,6 +9,10 @@ using VMSService.Core.Repositories.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.ReceivedStocks;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
 using VMSService.Core.Repositories.WorkflowTransitions;
+using VMSService.Core.Repositories.StockMovements;
+using VMSService.Core.Repositories.StockMovementStatusHistories;
+using VMSService.Core.Repositories.StockMovementDiscrepancies;
+using VMSService.Core.Repositories.StatusTypes;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
 
@@ -23,7 +27,11 @@ namespace VMSService.Core.Services.Workflows
         IExPrintMintRepository _exPrintMintRepository,
         IReceivedStockRepository _receivedStockRepository,
         IExPrintMintStatusHistoryRepository _exPrintMintStatusHistoryRepository,
-        IReceivedStockStatusHistoryRepository _receivedStockStatusHistoryRepository ) : IWorkflowService
+        IReceivedStockStatusHistoryRepository _receivedStockStatusHistoryRepository,
+        IStockMovementRepository _stockMovementRepository,
+        IStockMovementStatusHistoryRepository _stockMovementStatusHistoryRepository,
+        IStockMovementDiscrepancyRepository _stockMovementDiscrepancyRepository,
+        IStatusTypeRepository _statusTypeRepository) : IWorkflowService
     {
         public async Task<ICollection<WorkflowTransitionViewModel>> GetAvailableTransitions(
             string entityType, int currentStatusId, string userRole)
@@ -126,6 +134,12 @@ namespace VMSService.Core.Services.Workflows
                     return await HandleReceivedStockTransitions(entityId, currentStatusId, actionName, userId, remarks, transition);
                 }
 
+                // Handle StockMovement transitions
+                if (entityType == StatusConstants.Entity.StockMovement)
+                {
+                    return await HandleStockMovementTransitions(entityId, currentStatusId, actionName, userId, remarks, transition);
+                }
+
                 return false;
             }
             catch (Exception ex)
@@ -220,6 +234,102 @@ namespace VMSService.Core.Services.Workflows
                 entityId, currentStatusId, transition.ToStatusId, userId, actionName);
 
             return true;
+        }
+
+        private async Task<bool> HandleStockMovementTransitions(int entityId, int currentStatusId, string actionName,
+            string userId, string remarks, WorkflowTransition transition)
+        {
+
+            var stockMovement = await _stockMovementRepository.FindByIdAsync(entityId);
+            if (stockMovement == null)
+            {
+                _logger.LogWarning("Stock Movement {Id} not found", entityId);
+                return false;
+            }
+
+            // Verify current status matches
+            if (stockMovement.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Stock Movement {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, stockMovement.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            // Create status history record
+            var statusHistory = new StockMovementStatusHistory
+            {
+                StockMovementId = entityId,
+                OldStatusId = stockMovement.CurrentStatusId ?? 0,
+                NewStatusId = transition.ToStatusId,
+                ChangedBy = userId,
+                ChangedAt = DateTime.Now,
+                Remarks = remarks,
+                IsDeleted = false
+            };
+
+            await _stockMovementStatusHistoryRepository.Create(statusHistory);
+
+            // Update stock movement status
+            stockMovement.CurrentStatusId = transition.ToStatusId;
+            await _stockMovementRepository.UpdateAsync(stockMovement);
+
+            _logger.LogInformation("Stock Movement {Id} transitioned from status {From} to {To} by user {UserId} with action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, userId, actionName);
+
+            return true;
+        }
+
+        /// <summary>
+        /// Handles discrepancy resolution status transitions
+        /// </summary>
+        public async Task<bool> ExecuteDiscrepancyTransition(
+            int discrepancyId, int currentStatusId, int newStatusId,
+            string userId, string remarks)
+        {
+            try
+            {
+                var discrepancy = await _stockMovementDiscrepancyRepository.GetByIdAsync(discrepancyId);
+
+                if (discrepancy == null)
+                {
+                    _logger.LogWarning("Discrepancy {Id} not found", discrepancyId);
+                    return false;
+                }
+
+                if (discrepancy.CurrentStatusId != currentStatusId)
+                {
+                    _logger.LogWarning("Discrepancy {Id} status mismatch", discrepancyId);
+                    return false;
+                }
+
+                // Create status history record for the stock movement
+                var statusHistory = new StockMovementStatusHistory
+                {
+                    StockMovementId = discrepancy.StockMovementId,
+                    OldStatusId = currentStatusId,
+                    NewStatusId = newStatusId,
+                    ChangedBy = userId,
+                    ChangedAt = DateTime.Now,
+                    Remarks = remarks,
+                    IsDeleted = false
+                };
+
+                await _stockMovementStatusHistoryRepository.Create(statusHistory);
+
+                // Update discrepancy status
+                discrepancy.CurrentStatusId = newStatusId;
+                await _stockMovementDiscrepancyRepository.UpdateAsync(discrepancy);
+
+                _logger.LogInformation("Discrepancy {Id} transitioned to status {To} by user {UserId}",
+                    discrepancyId, newStatusId, userId);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing discrepancy transition for Discrepancy {Id}", discrepancyId);
+                return false;
+            }
         }
     }
 }

@@ -11,7 +11,7 @@ namespace StockService.Data.Entities
         public CounterPartyType? CounterPartyType { get; set; }
         public int CounterPartyId { get; set; }
         public int StoreId { get; set; }
-        public BranchCategory? Store { get; set; }
+        public Branch? Store { get; set; }
         //public int CategoryId { get; set; }
         //public Category? Category { get; set; }
         public string Notes { get; set; }

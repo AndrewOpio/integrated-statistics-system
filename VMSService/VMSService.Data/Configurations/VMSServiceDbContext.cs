@@ -7,8 +7,8 @@ namespace VMSService.Data.Configurations
 {
     public class VMSServiceDbContext : DbContext
     {
-        public readonly IHttpContextAccessor _httpContextAccessor;
-        public VMSServiceDbContext(DbContextOptions<VMSServiceDbContext> options, IHttpContextAccessor httpContextAccessor) : base(options)
+        public readonly IHttpContextAccessor? _httpContextAccessor;
+        public VMSServiceDbContext(DbContextOptions<VMSServiceDbContext> options, IHttpContextAccessor? httpContextAccessor = null) : base(options)
         {
             _httpContextAccessor = httpContextAccessor;
         }
@@ -26,6 +26,35 @@ namespace VMSService.Data.Configurations
         public DbSet<ReceivedStock> ReceivedStock { get; set; }
         public DbSet<WorkflowTransition> WorkflowTransitions { get; set; }
         public DbSet<ReceivedStockStatusHistory> ReceivedStockStatusHistory { get; set; }
+        public DbSet<StockMovement> StockMovements { get; set; }
+        public DbSet<StockMovementDenomination> StockMovementDenominations { get; set; }
+        public DbSet<StockMovementDenominationSerialNumberRange> StockMovementDenominationSerialNumberRanges { get; set; }
+        public DbSet<StockMovementStatusHistory> StockMovementStatusHistory { get; set; }
+        public DbSet<StockMovementDiscrepancy> StockMovementDiscrepancies { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            // Configure StockMovementStatusHistory foreign keys to prevent cascade delete conflicts
+            modelBuilder.Entity<StockMovementStatusHistory>()
+                .HasOne(x => x.OldStatus)
+                .WithMany()
+                .HasForeignKey(x => x.OldStatusId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<StockMovementStatusHistory>()
+                .HasOne(x => x.NewStatus)
+                .WithMany()
+                .HasForeignKey(x => x.NewStatusId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<StockMovementStatusHistory>()
+                .HasOne(x => x.StockMovement)
+                .WithMany(x => x.StatusHistory)
+                .HasForeignKey(x => x.StockMovementId)
+                .OnDelete(DeleteBehavior.Cascade);
+        }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
@@ -59,3 +88,4 @@ namespace VMSService.Data.Configurations
         }
     }
 }
+

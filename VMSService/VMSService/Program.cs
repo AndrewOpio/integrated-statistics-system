@@ -29,11 +29,15 @@ using VMSService.Core.Repositories.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.ReceivedStocks;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
 using VMSService.Core.Repositories.StatusTypes;
+using VMSService.Core.Repositories.StockMovements;
+using VMSService.Core.Repositories.StockMovementStatusHistories;
+using VMSService.Core.Repositories.StockMovementDiscrepancies;
 using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Repositories.VendorTypes;
 using VMSService.Core.Repositories.WorkflowTransitions;
 using VMSService.Core.Services.Stocks;
 using VMSService.Core.Services.Workflows;
+using VMSService.Core.Services.StockPositions;
 using VMSService.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -173,6 +177,7 @@ builder.Services.AddScoped<IReceivedStockRepository, ReceivedStockRepository>();
 builder.Services.AddScoped<IWorkflowTransitionRepository, WorkflowTransitionRepository>();
 builder.Services.AddScoped<IWorkflowService, WorkflowService>();
 builder.Services.AddScoped<IReceivedStockStatusHistoryRepository, ReceivedStockStatusHistoryRepository>();
+builder.Services.AddScoped<IStockMovementStatusHistoryRepository, StockMovementStatusHistoryRepository>();
 builder.Services.AddScoped<IStockLedgerRepository, StockLedgerRepository>();
 builder.Services.AddScoped<IStockLedgerDetailRepository, StockLedgerDetailRepository>();
 builder.Services.AddScoped<ICommercialBankRepository, CommercialBankRepository>();
@@ -180,9 +185,12 @@ builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IBranchCategoryRepository, BranchCategoryRepository>();
 builder.Services.AddScoped<IBranchRepository, BranchRepository>();
 builder.Services.AddScoped<ICounterPartyTypeRepository, CounterPartyTypeRepository>();
+builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
+builder.Services.AddScoped<IStockMovementDiscrepancyRepository, StockMovementDiscrepancyRepository>();
 
 // Add this in your service registration section
 builder.Services.AddScoped<IStockService, StockService>();
+builder.Services.AddScoped<IStockPositionService, StockPositionService>();
 builder.Services.AddHttpClient<StockService>()
     .ConfigureHttpClient((sp, client) =>
     {
@@ -205,6 +213,12 @@ builder.Services.AddBreadcrumbs(Assembly.GetExecutingAssembly(), options =>
     options.LiClasses = "breadcrumb-item";
     options.ActiveLiClasses = "breadcrumb-item active";
 });
+
+builder.Services.AddControllersWithViews()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+    });
 
 var app = builder.Build();
 
