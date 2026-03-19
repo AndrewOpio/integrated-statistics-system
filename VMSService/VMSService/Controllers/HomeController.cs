@@ -11,6 +11,7 @@ using VMSService.Core.Repositories.Categories;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.Stocks;
+using VMSService.Core.Services.StockPositions;
 using VMSService.Models;
 
 namespace VMSService.Controllers
@@ -25,6 +26,7 @@ namespace VMSService.Controllers
         private readonly IBranchRepository _branchRepository;
         private readonly ICategoryRepository _categoryRepository;
         private readonly IStockLedgerRepository _stockLedgerRepository;
+        private readonly IStockPositionService _stockPositionService;
         private readonly IMapper _mapper;
         private readonly IConfiguration _configuration;
 
@@ -35,6 +37,7 @@ namespace VMSService.Controllers
             IBranchRepository branchRepository,
             ICategoryRepository categoryRepository,
             IStockLedgerRepository stockLedgerRepository,
+            IStockPositionService stockPositionService,
             IMapper mapper,
             IConfiguration configuration)
         {
@@ -44,11 +47,12 @@ namespace VMSService.Controllers
             _branchRepository = branchRepository;
             _categoryRepository = categoryRepository;
             _stockLedgerRepository = stockLedgerRepository;
+            _stockPositionService = stockPositionService;
             _mapper = mapper;
             _configuration = configuration;
         }
 
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(int? branchId)
         {
             try
             {
@@ -80,10 +84,32 @@ namespace VMSService.Controllers
                     }
                 }
 
-                // Get Kampala Branch data for stock position
-                var kampalaBranch = await _branchRepository.FindByName("Kampala Branch");
+                // Get all branches for dropdown
+                var allBranches = await _branchRepository.FindAll();
+                ViewBag.AllBranches = allBranches;
+
+                // Determine which branch to display (use branchId param or default to Kampala)
+                BranchViewModel selectedBranch = null;
+                if (branchId.HasValue)
+                {
+                    var branch = await _branchRepository.FindById(branchId.Value);
+                    if (branch != null)
+                    {
+                        selectedBranch = _mapper.Map<BranchViewModel>(branch);
+                    }
+                }
                 
-                if (kampalaBranch != null)
+                // Fallback to Kampala if no valid branchId provided
+                if (selectedBranch == null)
+                {
+                    var kampalaBranch = await _branchRepository.FindByName("Kampala Branch");
+                    if (kampalaBranch != null)
+                    {
+                        selectedBranch = _mapper.Map<BranchViewModel>(kampalaBranch);
+                    }
+                }
+
+                if (selectedBranch != null)
                 {
                     // Get all categories
                     var allCategories = await _categoryRepository.FindAll();
@@ -94,36 +120,17 @@ namespace VMSService.Controllers
                     var allDenominations = await _denominationRepository.FindAll();
                     var sortedDenominations = allDenominations?.OrderBy(d => d.Value).ToList();
                     
-                    // Get all stock ledgers for Kampala Branch
-                    var stockLedgers = await _stockLedgerRepository.FindAll();
+                    // Get stock position matrix from service with filtered categories and denominations
+                    var stockPositionMatrix = await _stockPositionService.GetStockMatrixAsync(
+                        selectedBranch.Id, 
+                        allCategories.Select(c => c.Id).ToList(),
+                        sortedDenominations.Select(d => d.Id).ToList());
                     
-                    // Build stock position matrix: [Denomination][Category] = Total Value
-                    var stockMatrix = new Dictionary<int, Dictionary<int, decimal>>();
-                    
-                    foreach (var denomination in sortedDenominations)
-                    {
-                        stockMatrix[denomination.Id] = new Dictionary<int, decimal>();
-                        
-                        foreach (var category in allCategories)
-                        {
-                            // Find stock ledgers for this branch, category, and denomination
-                            var totalValue = stockLedgers?
-                                .Where(sl => sl.Store != null && 
-                                           sl.Store.Branch?.Id == kampalaBranch.Id &&
-                                           sl.Store.Category?.Id == category.Id &&
-                                           sl.StockLedgerDetails != null)
-                                .SelectMany(sl => sl.StockLedgerDetails)
-                                .Where(sld => sld.DenominationId == denomination.Id)
-                                .Sum(sld => sld.Value) ?? 0;
-                            
-                            stockMatrix[denomination.Id][category.Id] = totalValue;
-                        }
-                    }
-                    
-                    ViewBag.KampalaBranch = kampalaBranch;
+                    ViewBag.KampalaBranch = selectedBranch;
+                    ViewBag.SelectedBranchId = selectedBranch.Id;
                     ViewBag.Categories = allCategories;
                     ViewBag.Denominations = sortedDenominations;
-                    ViewBag.StockMatrix = stockMatrix;
+                    ViewBag.StockMatrix = stockPositionMatrix;
                 }
 
                 return View(model);

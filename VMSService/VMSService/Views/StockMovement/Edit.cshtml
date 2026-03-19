@@ -1,0 +1,657 @@
+@model dynamic
+
+@using VMSService.Core.Services.Stocks.StockEntities
+@using VMSService.Web.Controllers;
+
+@{
+    ViewData["Title"] = "Edit Stock Movement";
+    var branches = ViewBag.Branches as List<Branch>;
+    var denominations = ViewBag.Denominations as List<Denomination>;
+    var categories = ViewBag.Categories as List<Category>;
+}
+
+<div class="row">
+    <div class="col-12 col-lg-12">
+        <div class="d-flex justify-content-end align-items-center mb-3">
+            <a asp-action="Index" class="btn btn-outline-secondary">
+                <i class="ti ti-arrow-left me-1"></i> Back to List
+            </a>
+        </div>
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header pb-4">
+                <div class="d-flex flex-column">
+                    <span class="text-muted small mb-2">Edit Stock Movement</span>
+                    <h2 class="fs-4 fw-bold mb-0">Edit Stock Movement</h2>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="formAlerts"></div>
+                <form id="stockMovementForm">
+                    <div class="mb-3">
+                        <label class="form-label">Stock Movement Type <span class="text-danger">*</span></label>
+                        <select class="form-select" id="movementType">
+                            @if (Model.MovementType == "branch")
+                            {
+                                <option value="branch" selected>Branch to Branch</option>
+                                <option value="internal">Buffer to Operational</option>
+                            }
+                            else
+                            {
+                                <option value="branch">Branch to Branch</option>
+                                <option value="internal" selected>Buffer to Operational</option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- Branch to Branch Section -->
+                    <div id="branchSection">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="branchDate" value="@Model.Date?.ToString("yyyy-MM-dd")">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Reference Number <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="branchReferenceNumber" value="@Model.ReferenceNumber">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Dispatching Branch <span class="text-danger">*</span></label>
+                                <select class="form-select" id="dispatchingBranch">
+                                    <option value="">-- Select Branch --</option>
+                                    @if (branches != null)
+                                    {
+                                        foreach (var branch in branches)
+                                        {
+                                            if (branch.Id == Model.DispatchingBranchId)
+                                            {
+                                                <option value="@branch.Id" selected>@branch.Name</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@branch.Id">@branch.Name</option>
+                                            }
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Receiving Branch <span class="text-danger">*</span></label>
+                                <select class="form-select" id="receivingBranch">
+                                    <option value="">-- Select Branch --</option>
+                                    @if (branches != null)
+                                    {
+                                        foreach (var branch in branches)
+                                        {
+                                            if (branch.Id == Model.ReceivingBranchId)
+                                            {
+                                                <option value="@branch.Id" selected>@branch.Name</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@branch.Id">@branch.Name</option>
+                                            }
+                                        }
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Categorization <span class="text-danger">*</span></label>
+                            <select class="form-select" id="categorization">
+                                @if (Model.Categorization == "buffer")
+                                {
+                                    <option value="buffer" selected>Buffer Stocks</option>
+                                    <option value="operational">Operational Stocks</option>
+                                }
+                                else
+                                {
+                                    <option value="buffer">Buffer Stocks</option>
+                                    <option value="operational" selected>Operational Stocks</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Denomination Details</label>
+                            <table class="table table-bordered" id="denominationTable">
+                                <thead>
+                                    <tr>
+                                        <th>Denomination</th>
+                                        <th>Number of Bags/Boxes</th>
+                                        <th>Number of Bundles</th>
+                                        <th>Currency Category</th>
+                                        <th>Sub-total Value</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                                <tfoot style="background-color: #f8f9fa;">
+                                    <tr>
+                                        <td colspan="4"></td>
+                                        <td class="text-end align-middle">Total Bags/Boxes</td>
+                                        <td style="min-width: 140px;"><input type="text" class="form-control text-end" id="totalBagsBoxes" readonly placeholder="0"></td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="4"></td>
+                                        <td class="text-end align-middle">Grand Total Value</td>
+                                        <td style="min-width: 140px;"><input type="text" class="form-control text-end" id="grandTotalValue" readonly placeholder="0"></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                            <div class="d-flex justify-content-end mt-3">
+                                <button type="button" class="btn btn-success btn-sm" id="addDenominationRow">
+                                    <i class="ti ti-plus"></i> Add Row
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Buffer to Operational Section -->
+                    <div id="internalSection">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="internalDate" value="@Model.Date?.ToString("yyyy-MM-dd")">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Reference Number <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="internalReferenceNumber" value="@Model.ReferenceNumber">
+                            </div>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Denomination Details</label>
+                            <table class="table table-bordered" id="internalDenominationTable">
+                                <thead>
+                                    <tr>
+                                        <th>Denomination</th>
+                                        <th>Serial Number Ranges</th>
+                                        <th>Number of Boxes</th>
+                                        <th>Sub-total Value</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                                <tfoot style="background-color: #f8f9fa;">
+                                    <tr>
+                                        <td colspan="2"></td>
+                                        <td class="text-end align-middle">Total Boxes</td>
+                                        <td style="min-width: 140px;"><input type="text" class="form-control text-end" id="internalTotalBoxes" readonly placeholder="0"></td>
+                                        <td></td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="2"></td>
+                                        <td class="text-end align-middle">Grand Total Value</td>
+                                        <td style="min-width: 140px;"><input type="text" class="form-control text-end" id="internalGrandTotalValue" readonly placeholder="0"></td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                            <div class="d-flex justify-content-end mt-3">
+                                <button type="button" class="btn btn-success btn-sm" id="addInternalDenominationRow">
+                                    <i class="ti ti-plus"></i> Add Row
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            <i class="ti ti-check me-1"></i>Save
+                        </button>
+                        <a asp-action="Index" class="btn btn-secondary">
+                            <i class="ti ti-arrow-left me-1"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function () {
+
+    // ─── Razor data passed into JS ────────────────────────────────────────────
+    const denominationOptions = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(
+    denominations != null
+        ? denominations.Select(d => new { id = d.Id, name = d.Name, value = d.Value, piecesInBox = d.NumberOfPiecesInABox }).ToList()
+        : new List<object>()
+    ));
+    const categoryOptions = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(
+    categories != null
+        ? categories.Select(c => new { id = c.Id, name = c.Name }).ToList()
+        : new List<object>()
+    ));
+
+    // Build a map of denomination ID to pieces in box for quick lookup
+    const denominationPiecesInBox = {};
+    denominationOptions.forEach(d => {
+        denominationPiecesInBox[d.id] = d.piecesInBox;
+    });
+
+    // ─── State — single source of truth ──────────────────────────────────────
+
+    @{
+        var branchRowsList = new List<dynamic>();
+        if (Model.MovementType == "branch" && Model.Denominations != null)
+        {
+            foreach (var r in Model.Denominations)
+            {
+                branchRowsList.Add(new { 
+                    denominationId = r.DenominationId, 
+                    numBagsBoxes = r.NumBagsBoxes, 
+                    numBundles = r.NumBundles, 
+                    categoryId = r.CategoryId, 
+                    subTotalValue = r.SubTotalValue 
+                });
+            }
+        }
+        else
+        {
+            branchRowsList.Add(new { denominationId = "", numBagsBoxes = "", numBundles = "", categoryId = "", subTotalValue = "" });
+        }
+    }
+
+    let branchRows = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(branchRowsList));
+
+    @{
+        var internalRowsList = new List<dynamic>();
+        if (Model.MovementType == "internal" && Model.Denominations != null)
+        {
+            foreach (var r in Model.Denominations)
+            {
+                var serialRangesList = new List<dynamic>();
+                if (r.SerialNumberRanges != null)
+                {
+                    foreach (var s in r.SerialNumberRanges)
+                    {
+                        serialRangesList.Add(new { prefix = s.Prefix ?? "", start = s.Start ?? "", end = s.End ?? "" });
+                    }
+                }
+                else
+                {
+                    serialRangesList.Add(new { prefix = "", start = "", end = "" });
+                }
+                
+                internalRowsList.Add(new { 
+                    denominationId = r.DenominationId, 
+                    serialRanges = serialRangesList,
+                    numBoxes = r.NumBagsBoxes, 
+                    subTotalValue = r.SubTotalValue 
+                });
+            }
+        }
+        else
+        {
+            var defaultRanges = new List<dynamic> { new { prefix = "", start = "", end = "" } };
+            internalRowsList.Add(new { denominationId = "", serialRanges = defaultRanges, numBoxes = "", subTotalValue = "" });
+        }
+    }
+
+    let internalRows = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(internalRowsList));
+
+    // ─── Option builders ──────────────────────────────────────────────────────
+
+    function buildDenomOptions(selectedId) {
+        let html = '<option value="">-- Select Denomination --</option>';
+        denominationOptions.forEach(d => {
+            html += `<option value="${d.id}" ${String(d.id) === String(selectedId) ? 'selected' : ''}>${d.name} (${d.value})</option>`;
+        });
+        return html;
+    }
+
+    function buildCategoryOptions(selectedId) {
+        let html = '<option value="">-- Select Category --</option>';
+        categoryOptions.forEach(c => {
+            html += `<option value="${c.id}" ${String(c.id) === String(selectedId) ? 'selected' : ''}>${c.name}</option>`;
+        });
+        return html;
+    }
+
+    // ─── Render branch table ──────────────────────────────────────────────────
+
+    function renderBranchTable() {
+        const $tbody = $('#denominationTable tbody');
+        $tbody.empty();
+        branchRows.forEach((row, idx) => {
+            $tbody.append(`
+                <tr data-idx="${idx}">
+                    <td><select class="form-select branch-denom-id" data-pieces-in-box="0">${buildDenomOptions(row.denominationId)}</select></td>
+                    <td><input type="number" class="form-control branch-num-bags" value="${row.numBagsBoxes}" placeholder="0" /></td>
+                    <td><input type="number" class="form-control branch-num-bundles" value="${row.numBundles}" placeholder="0" readonly /></td>
+                    <td><select class="form-select branch-category-id">${buildCategoryOptions(row.categoryId)}</select></td>
+                    <td><input type="number" class="form-control branch-subtotal" value="${row.subTotalValue}" placeholder="0" readonly /></td>
+                    <td><button type="button" class="btn btn-danger btn-sm remove-branch-row"><i class="ti ti-trash"></i></button></td>
+                </tr>
+            `);
+        });
+        
+        // Update denomination select with pieces-in-box data
+        $('#denominationTable tbody .branch-denom-id').each(function() {
+            const denomId = $(this).val();
+            const denom = denominationOptions.find(d => d.id == denomId);
+            if (denom) {
+                $(this).attr('data-denomination-value', denom.value);
+            }
+        });
+        
+        recalculateBranchTotals();
+    }
+
+    // ─── Render internal table ────────────────────────────────────────────────
+
+    function renderInternalTable() {
+        const $tbody = $('#internalDenominationTable tbody');
+        $tbody.empty();
+        internalRows.forEach((row, denomIdx) => {
+            let serialRowsHtml = '';
+            row.serialRanges.forEach((range, rangeIdx) => {
+                serialRowsHtml += `
+                    <tr data-range-idx="${rangeIdx}">
+                        <td><input type="text" class="form-control serial-prefix" value="${range.prefix}" placeholder="Prefix" /></td>
+                        <td><input type="text" class="form-control serial-start"  value="${range.start}"  placeholder="Start"  /></td>
+                        <td><input type="text" class="form-control serial-end"    value="${range.end}"    placeholder="End"    /></td>
+                        <td><button type="button" class="btn btn-danger btn-sm remove-serial-range"><i class="ti ti-trash"></i></button></td>
+                    </tr>
+                `;
+            });
+            $tbody.append(`
+                <tr data-idx="${denomIdx}">
+                    <td><select class="form-select internal-denom-id">${buildDenomOptions(row.denominationId)}</select></td>
+                    <td>
+                        <table class="table table-sm mb-0">
+                            <tbody>${serialRowsHtml}</tbody>
+                        </table>
+                        <div class="d-flex justify-content-end mt-1">
+                            <button type="button" class="btn btn-success btn-sm add-serial-range">
+                                <i class="ti ti-plus"></i> Add Range
+                            </button>
+                        </div>
+                    </td>
+                    <td><input type="number" class="form-control internal-num-boxes" value="${row.numBoxes}" placeholder="0" /></td>
+                    <td><input type="number" class="form-control internal-subtotal"  value="${row.subTotalValue}" placeholder="0" readonly /></td>
+                    <td><button type="button" class="btn btn-danger btn-sm remove-internal-row"><i class="ti ti-trash"></i></button></td>
+                </tr>
+            `);
+        });
+        recalculateInternalTotals();
+    }
+
+    // ─── Formatting ───────────────────────────────────────────────────────────────
+    
+    function formatNumber(value) {
+        // Remove decimals and add thousand separators
+        return Math.round(value).toLocaleString('en-US');
+    }
+
+    // ─── Section toggle ───────────────────────────────────────────────────────
+
+    function toggleSections() {
+        if ($('#movementType').val() === 'branch') {
+            $('#branchSection').show();
+            $('#internalSection').hide();
+        } else {
+            $('#branchSection').hide();
+            $('#internalSection').show();
+        }
+    }
+
+    // ─── Branch events ────────────────────────────────────────────────────────
+
+    $('#denominationTable').on('input change', '.branch-denom-id, .branch-num-bags, .branch-category-id', function () {
+        const idx = $(this).closest('tr').data('idx');
+        if (idx === undefined) return;
+        if ($(this).hasClass('branch-denom-id'))    branchRows[idx].denominationId = $(this).val();
+        if ($(this).hasClass('branch-num-bags'))    branchRows[idx].numBagsBoxes   = $(this).val();
+        if ($(this).hasClass('branch-category-id')) branchRows[idx].categoryId     = $(this).val();
+        
+        // Auto-calculate bundles and subtotal
+        calculateBranchRowValues(idx);
+        recalculateBranchTotals();
+    });
+
+    function calculateBranchRowValues(idx) {
+        const row = branchRows[idx];
+        const $row = $(`#denominationTable tbody tr[data-idx="${idx}"]`);
+        
+        if (!$row.length) return; // Early exit if row not found
+        
+        // Get denomination value and pieces in box
+        const denom = denominationOptions.find(d => d.id == row.denominationId);
+        const denomValue = denom ? denom.value : 0;
+        const piecesInBox = denom ? denom.piecesInBox : 1;
+        const numBoxes = parseInt(row.numBagsBoxes) || 0;
+        
+        // Only calculate if we have valid denomination and number of boxes
+        if (!denom || numBoxes === 0) {
+            $row.find('.branch-num-bundles').val('');
+            $row.find('.branch-subtotal').val('');
+            branchRows[idx].numBundles = '';
+            branchRows[idx].subTotalValue = '';
+            return;
+        }
+        
+        // Formula: number of bundles = (Number of Boxes) × (NumberOfPiecesInABox / 100)
+        const numBundles = numBoxes * (piecesInBox / 100);
+        
+        // Calculate subtotal: piecesInBox * denomination value * number of boxes
+        const subTotal = piecesInBox * denomValue * numBoxes;
+        
+        // Update state and DOM
+        branchRows[idx].numBundles = numBundles;
+        branchRows[idx].subTotalValue = subTotal;
+        
+        $row.find('.branch-num-bundles').val(numBundles.toFixed(0));
+        $row.find('.branch-subtotal').val(subTotal.toFixed(0));
+    }
+
+    $('#addDenominationRow').on('click', function () {
+        branchRows.push({ denominationId: '', numBagsBoxes: '', numBundles: '', categoryId: '', subTotalValue: '' });
+        renderBranchTable();
+    });
+
+    $('#denominationTable').on('click', '.remove-branch-row', function () {
+        if (branchRows.length > 1) {
+            branchRows.splice($(this).closest('tr').data('idx'), 1);
+            renderBranchTable();
+        }
+    });
+
+    // ─── Internal events ──────────────────────────────────────────────────────
+
+    $('#internalDenominationTable').on('input change', '.internal-denom-id, .internal-num-boxes', function () {
+        const idx = $(this).closest('tr[data-idx]').data('idx');
+        if (idx === undefined) return;
+        if ($(this).hasClass('internal-denom-id')) internalRows[idx].denominationId = $(this).val();
+        if ($(this).hasClass('internal-num-boxes')) internalRows[idx].numBoxes = $(this).val();
+        
+        // Auto-calculate subtotal
+        calculateInternalRowValues(idx);
+        recalculateInternalTotals();
+    });
+
+    function calculateInternalRowValues(idx) {
+        const row = internalRows[idx];
+        const $row = $(`#internalDenominationTable tbody tr[data-idx="${idx}"]`);
+        
+        if (!$row.length) return; // Early exit if row not found
+        
+        // Get denomination value and pieces in box
+        const denom = denominationOptions.find(d => d.id == row.denominationId);
+        const denomValue = denom ? denom.value : 0;
+        const piecesInBox = denom ? denom.piecesInBox : 1;
+        const numBoxes = parseInt(row.numBoxes) || 0;
+        
+        // Only calculate if we have valid denomination and number of boxes
+        if (!denom || numBoxes === 0) {
+            $row.find('.internal-subtotal').val('');
+            internalRows[idx].subTotalValue = '';
+            return;
+        }
+        
+        // Calculate subtotal: piecesInBox * denomination value * number of boxes
+        const subTotal = piecesInBox * denomValue * numBoxes;
+        
+        // Update state and DOM
+        internalRows[idx].subTotalValue = subTotal;
+        
+        $row.find('.internal-subtotal').val(subTotal.toFixed(0));
+    }
+
+    // Serial range input — update state in real time
+    $('#internalDenominationTable').on('input', '.serial-prefix, .serial-start, .serial-end', function () {
+        const denomIdx = $(this).closest('tr[data-idx]').data('idx');
+        const rangeIdx = $(this).closest('tr[data-range-idx]').data('range-idx');
+        if (denomIdx === undefined || rangeIdx === undefined) return;
+        if ($(this).hasClass('serial-prefix')) internalRows[denomIdx].serialRanges[rangeIdx].prefix = $(this).val();
+        if ($(this).hasClass('serial-start'))  internalRows[denomIdx].serialRanges[rangeIdx].start  = $(this).val();
+        if ($(this).hasClass('serial-end'))    internalRows[denomIdx].serialRanges[rangeIdx].end    = $(this).val();
+    });
+
+    $('#addInternalDenominationRow').on('click', function () {
+        internalRows.push({ denominationId: '', serialRanges: [{ prefix: '', start: '', end: '' }], numBoxes: '', subTotalValue: '' });
+        renderInternalTable();
+    });
+
+    $('#internalDenominationTable').on('click', '.remove-internal-row', function () {
+        if (internalRows.length > 1) {
+            internalRows.splice($(this).closest('tr[data-idx]').data('idx'), 1);
+            renderInternalTable();
+        }
+    });
+
+    $('#internalDenominationTable').on('click', '.add-serial-range', function () {
+        const idx = $(this).closest('tr[data-idx]').data('idx');
+        internalRows[idx].serialRanges.push({ prefix: '', start: '', end: '' });
+        renderInternalTable();
+    });
+
+    $('#internalDenominationTable').on('click', '.remove-serial-range', function () {
+        const denomIdx = $(this).closest('tr[data-idx]').data('idx');
+        const rangeIdx = $(this).closest('tr[data-range-idx]').data('range-idx');
+        if (internalRows[denomIdx].serialRanges.length > 1) {
+            internalRows[denomIdx].serialRanges.splice(rangeIdx, 1);
+            renderInternalTable();
+        }
+    });
+
+    // ─── Totals ───────────────────────────────────────────────────────────────
+
+    function recalculateBranchTotals() {
+        const totalBags  = branchRows.reduce((s, r) => s + (parseInt(r.numBagsBoxes)    || 0), 0);
+        const grandTotal = branchRows.reduce((s, r) => s + (parseFloat(r.subTotalValue) || 0), 0);
+        $('#totalBagsBoxes').val(totalBags.toFixed(0));
+        $('#grandTotalValue').val(grandTotal.toFixed(0));
+    }
+
+    function recalculateInternalTotals() {
+        const totalBoxes = internalRows.reduce((s, r) => s + (parseInt(r.numBoxes)       || 0), 0);
+        const grandTotal = internalRows.reduce((s, r) => s + (parseFloat(r.subTotalValue) || 0), 0);
+        $('#internalTotalBoxes').val(totalBoxes.toFixed(0));
+        $('#internalGrandTotalValue').val(grandTotal.toFixed(0));
+    }
+
+    // ─── AJAX Submit ──────────────────────────────────────────────────────────
+
+    $('#stockMovementForm').on('submit', function (event) {
+        event.preventDefault();
+
+        const $submitBtn = $('#submitBtn');
+        const isBranch   = $('#movementType').val() === 'branch';
+
+        // Build payload directly from state — no DOM scraping needed
+        const payload = { MovementType: $('#movementType').val() };
+
+        if (isBranch) {
+            payload.BranchDate            = $('#branchDate').val();
+            payload.BranchReferenceNumber = $('#branchReferenceNumber').val();
+            payload.DispatchingBranch     = $('#dispatchingBranch').val();
+            payload.ReceivingBranch       = $('#receivingBranch').val();
+            payload.Categorization        = $('#categorization').val();
+            payload.BranchTotalBagsBoxes  = parseInt($('#totalBagsBoxes').val().replace(/,/g,'')) || 0;
+            payload.BranchGrandTotalValue = parseFloat($('#grandTotalValue').val().replace(/,/g,'')) || 0;
+            payload.DenominationRows      = branchRows.filter(r => r.denominationId !== '');
+        } else {
+            payload.InternalDate            = $('#internalDate').val();
+            payload.InternalReferenceNumber = $('#internalReferenceNumber').val();
+            payload.InternalTotalBoxes      = parseInt($('#internalTotalBoxes').val().replace(/,/g,'')) || 0;
+            payload.InternalGrandTotalValue = parseFloat($('#internalGrandTotalValue').val().replace(/,/g,'')) || 0;           
+            payload.InternalDenominationRows = internalRows
+                .filter(r => r.denominationId !== '')
+                .map(r => ({
+                    ...r,
+                    serialRanges: r.serialRanges.filter(s => s.prefix !== '' || s.start !== '' || s.end !== '')
+                }));
+        }
+
+        $submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Saving...');
+        $('#formAlerts').empty();
+
+        $.ajax({
+            url:         '@Url.Action("Edit", new { id = Model.Id })',
+            type:        'POST',
+            contentType: 'application/json',
+            data:        JSON.stringify(payload),
+            success: function (response) {
+                if (response && response.redirectUrl) {
+                    window.location.href = response.redirectUrl;
+                    return;
+                }
+                if (response && response.success === true) {
+                    $('#formAlerts').html(
+                        '<div class="alert alert-success alert-dismissible fade show">' +
+                        '<i class="ti ti-check me-1"></i>Stock movement saved successfully.' +
+                        '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>'
+                    );
+                    return;
+                }
+                if (response && response.errors) {
+                    let html = '<div class="alert alert-danger alert-dismissible fade show"><ul class="mb-0">';
+                    Object.values(response.errors).forEach(msg => { html += `<li>${msg}</li>`; });
+                    html += '</ul><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
+                    $('#formAlerts').html(html);
+                }
+            },
+            error: function (xhr) {
+                if (xhr.responseJSON) {
+                    let errors = xhr.responseJSON;
+                    let html = '<div class="alert alert-danger"><ul>';
+
+                    for (let key in errors) {
+                        if (errors[key] && errors[key].length) {
+                            errors[key].forEach(e => {
+                                html += `<li>${e}</li>`;
+                            });
+                        }
+                    }
+
+                    html += '</ul></div>';
+                    $('#formAlerts').html(html);
+                } else {
+                    $('#formAlerts').html(
+                        '<div class="alert alert-danger">Unexpected error occurred</div>'
+                    );
+                }
+            },
+            complete: function () {
+                $submitBtn.prop('disabled', false).html('<i class="ti ti-check me-1"></i>Save');
+            }
+        });
+    });
+
+    // ─── Init ─────────────────────────────────────────────────────────────────
+
+    $('#movementType').on('change', toggleSections);
+    toggleSections();
+    renderBranchTable();
+    renderInternalTable();
+
+});
+</script>
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

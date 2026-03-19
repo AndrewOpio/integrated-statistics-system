@@ -349,6 +349,9 @@ namespace StockService.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
 
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("int");
+
                     b.Property<string>("CreatedBy")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -382,6 +385,8 @@ namespace StockService.Data.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
 
                     b.HasIndex("DenominationId");
 
@@ -432,7 +437,7 @@ namespace StockService.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("StockService.Data.Entities.BranchCategory", "Store")
+                    b.HasOne("StockService.Data.Entities.Branch", "Store")
                         .WithMany()
                         .HasForeignKey("StoreId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -445,6 +450,12 @@ namespace StockService.Data.Migrations
 
             modelBuilder.Entity("StockService.Data.Entities.StockLedgerDetail", b =>
                 {
+                    b.HasOne("StockService.Data.Entities.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("StockService.Data.Entities.Denomination", "Denomination")
                         .WithMany("StockLedgerDetails")
                         .HasForeignKey("DenominationId")
@@ -456,6 +467,8 @@ namespace StockService.Data.Migrations
                         .HasForeignKey("StockLedgerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Category");
 
                     b.Navigation("Denomination");
 

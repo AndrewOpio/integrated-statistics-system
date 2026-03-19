@@ -25,6 +25,12 @@
     bool isContractManager = userRoles.Contains("VMS:Contract Manager");
     bool isStockVerifier = userRoles.Contains("VMS:Stock Verifier");
     bool isStockApprover = userRoles.Contains("VMS:Stock Approver");
+    
+    bool isRemittancesOfficer = userRoles.Contains("VMS:Remittances and Control Officer");
+    bool isHeadOfBackOffice = userRoles.Contains("VMS:Head of Back Office");
+    bool isBranchManager = userRoles.Contains("VMS:Branch Manager");
+    bool isAssistantBranchManager = userRoles.Contains("VMS:Assistant Branch Manager");
+
     bool isCommercialBank = userRoles.Contains("VMS:Commercial Bank");
     // bool isStockReceiver = userRoles.Contains("VMS:StockReceiver");
     // bool isStockManager = userRoles.Contains("VMS:StockManager");
@@ -145,6 +151,19 @@
                                 <i class="ti ti-users"></i>
                             </span>
                             <span class="sidebar-text">Agent Details</span>
+                        </a>
+                    </li>
+                }
+
+
+                @if (isRemittancesOfficer || isCurrencyApprover || isBranchManager || isAssistantBranchManager || isHeadOfBackOffice)
+                {
+                    <li class="nav-item">
+                        <a asp-controller="StockMovement" asp-action="Index" class="nav-link d-flex align-items-center">
+                            <span class="sidebar-icon fs-5 me-4">
+                                <i class="ti ti-cash-banknote-move"></i>
+                            </span>
+                            <span class="sidebar-text">Stock Movement</span>
                         </a>
                     </li>
                 }
