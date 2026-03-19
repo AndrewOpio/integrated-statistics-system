@@ -1,10 +1,10 @@
+using ConfigurationsService.Dto;
 using VMSService.Core.Repository.Common;
-using VMSService.Core.Services.Stocks.StockEntities;
 
 namespace VMSService.Core.Repositories.Branches
 {
-    public interface IBranchRepository : IRepositoryBase<Branch, int>
+    public interface IBranchRepository : IRepositoryBase<BranchDto, int>
     {
-        Task<Branch> FindByName(string branchName);
+        Task<BranchDto> FindByName(string branchName);
     }
 }

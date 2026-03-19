@@ -1,4 +1,4 @@
-@model ConfigurationsService.Core.Models.Branches.BranchDto
+@model ConfigurationsService.Core.Models.Branches.BranchViewModel
 
 @{
     ViewData["Title"] = "Delete Branch";
@@ -20,14 +20,14 @@
             <div class="card-body">
                 <div class="alert alert-warning" role="alert">
                     <i class="ti ti-alert-triangle me-2"></i>
-                    <strong>Warning:</strong> This action will soft-delete the branch record. It will be marked as deleted but retained in the database.
+                    <strong>Warning:</strong> This action will delete the branch record.
                 </div>
 
                 <hr />
 
                 <dl class="row">
                     <dt class="col-sm-3">
-                        <i class="ti ti-git-branch me-2"></i>
+                        <i class="ti ti-building-bank me-2"></i>
                         @Html.DisplayNameFor(model => model.Name)
                     </dt>
                     <dd class="col-sm-9">

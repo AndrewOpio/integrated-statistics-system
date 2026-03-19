@@ -34,7 +34,14 @@ namespace VMSService.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ApprovalAttachment")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("BranchId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CommercialBankBranchId")
                         .HasColumnType("int");
 
                     b.Property<string>("CreatedBy")

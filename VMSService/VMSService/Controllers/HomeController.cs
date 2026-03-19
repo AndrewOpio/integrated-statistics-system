@@ -109,7 +109,7 @@ namespace VMSService.Controllers
                             // Find stock ledgers for this branch, category, and denomination
                             var totalValue = stockLedgers?
                                 .Where(sl => sl.Store != null && 
-                                           sl.Store.Branch?.Id == kampalaBranch.Id &&
+                                           sl.Store.BranchId == kampalaBranch.Id &&
                                            sl.Store.Category?.Id == category.Id &&
                                            sl.StockLedgerDetails != null)
                                 .SelectMany(sl => sl.StockLedgerDetails)

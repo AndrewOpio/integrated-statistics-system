@@ -1,7 +1,4 @@
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
@@ -38,6 +35,7 @@ using VMSService.Core.Services.Workflows;
 using VMSService.Core.Services.Identity;
 using VMSService.Data;
 using VMSService.Core.Repositories.AgentDetails;
+using VMSService.Core.Services.Configurations;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -204,6 +202,17 @@ builder.Services.AddHttpClient<IdentityService>()
     {
         var configuration = sp.GetRequiredService<IConfiguration>();
         var baseUrl = configuration["MicroServices:identityservice"] ?? "https://localhost:7026";
+        client.BaseAddress = new Uri(baseUrl);
+        client.DefaultRequestHeaders.Add("Accept", "application/json");
+    });
+
+// Register Configurations Service
+builder.Services.AddScoped<IConfigurationService, ConfigurationService>();
+builder.Services.AddHttpClient<ConfigurationService>()
+    .ConfigureHttpClient((sp, client) =>
+    {
+        var configuration = sp.GetRequiredService<IConfiguration>();
+        var baseUrl = configuration["MicroServices:configurationsservice"] ?? "https://localhost:7026";
         client.BaseAddress = new Uri(baseUrl);
         client.DefaultRequestHeaders.Add("Accept", "application/json");
     });

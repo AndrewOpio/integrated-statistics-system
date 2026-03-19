@@ -8,7 +8,7 @@
     <div class="col-12 col-lg-12">
         <div class="card border-0 shadow mb-4">
             <div class="card-header">
-                <h2 class="fs-5 fw-bold mb-0">Create New Agent</h2>
+                <h2 class="fs-5 fw-bold mb-0">Register New Agent</h2>
             </div>
             <div class="card-body">
                 <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -36,6 +36,14 @@
                             <div class="mb-3">
                                 <label class="form-label" asp-for="BranchId">BOU Branch <span class="text-danger">*</span></label>
                                 <select class="form-select" asp-for="BranchId" asp-items="@Model.BranchList" required>
+                                    <option value="">-- Select Branch --</option>
+                                </select>
+                                <small class="text-muted">The BOU branch they will be transacting at</small>
+                                <span asp-validation-for="BranchId" class="text-danger small d-block mt-1"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" asp-for="CommercialBankBranchId">Commercial Bank Branch <span class="text-danger">*</span></label>
+                                <select class="form-select" asp-for="CommercialBankBranchId" asp-items="@Model.CommercialBankBranchList" required>
                                     <option value="">-- Select Branch --</option>
                                 </select>
                                 <small class="text-muted">The BOU branch they will be transacting at</small>

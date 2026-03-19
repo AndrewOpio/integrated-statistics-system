@@ -1,4 +1,4 @@
-@model List<ConfigurationsService.Core.Models.Branches.BranchDto>
+@model List<ConfigurationsService.Core.Models.Branches.BranchViewModel>
 
 @{
     ViewData["Title"] = "Branches";
@@ -9,7 +9,7 @@
     <div class="card-header d-flex justify-content-between align-items-center">
         <div>
             <h3>Branches</h3>
-            <h6 class="card-subtitle my-1 text-body-secondary">Manage bank branches in the system</h6>
+            <h6 class="card-subtitle my-1 text-body-secondary">Manage BOU Branches in the system</h6>
         </div>
         <a asp-action="Create" class="btn btn-crimson btn-md">
             <i class="ti ti-plus ti-light"></i> Create Branch
@@ -17,24 +17,6 @@
     </div>
 
     <div class="card-body">
-        @if (TempData["Success"] != null)
-        {
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <i class="ti ti-circle-check me-2"></i>
-                @TempData["Success"]
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        }
-
-        @if (TempData["Error"] != null)
-        {
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <i class="ti ti-alert-circle me-2"></i>
-                @TempData["Error"]
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        }
-
         @if (!Model.Any())
         {
             <div class="alert alert-info">
@@ -45,11 +27,11 @@
         else
         {
             <div class="table-responsive">
-                <table class="table table-hover table-striped align-middle w-100">
+                <table class="table table-hover table-striped align-middle w-100 datatable">
                     <thead>
                         <tr>
                             <th>
-                                <i class="ti ti-git-branch me-2"></i>Branch Name
+                                <i class="ti ti-building-bank me-2"></i>Branch Name
                             </th>
                             <th>Actions</th>
                         </tr>
@@ -60,13 +42,13 @@
                             <tr>
                                 <td class="fw-bold">@item.Name</td>
                                 <td>
-                                    <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-info">
+                                    <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info">
                                         <i class="ti ti-eye me-1"></i>Details
                                     </a> |
-                                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-warning">
+                                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-warning">
                                         <i class="ti ti-edit me-1"></i>Edit
                                     </a> |
-                                    <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-danger">
+                                    <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger">
                                         <i class="ti ti-trash me-1"></i>Delete
                                     </a>
                                 </td>

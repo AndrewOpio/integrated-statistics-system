@@ -54,6 +54,7 @@
                                 <thead class="thead-light">
                                     <tr>
                                         <th class="fw-bold">Denomination</th>
+                                        <th class="fw-bold">Currency Vendor</th>
                                         <th class="fw-bold">Number of Pieces</th>
                                         <th class="fw-bold">Amount (UGX)</th>
                                     </tr>
@@ -64,6 +65,9 @@
                                         <tr>
                                             <td>
                                                 <span>@denomination.Denomination?.Name</span>
+                                            </td>
+                                            <td>
+                                                <span>@denomination.CurrencyVendor?.Name</span>
                                             </td>
                                             <td>
                                                 <span>@denomination.NumberOfPieces.ToString("N0")</span>

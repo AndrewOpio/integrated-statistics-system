@@ -23,6 +23,7 @@ using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Data.Entities;
 using VMSService.Core.Services.Identity.IdentityEntities;
 using VMSService.Core.Models.AgentDetails;
+using ConfigurationsService.Dto;
 
 namespace VMSService.Core.Mappings
 {
@@ -61,10 +62,10 @@ namespace VMSService.Core.Mappings
             CreateMap<BranchCategory, BranchCategoryViewModel>()
                 .ReverseMap();
 
-            CreateMap<Branch, BranchViewModel>()
+            CreateMap<BranchDto, BranchViewModel>()
                 .ReverseMap();
 
-            CreateMap<CommercialBank, CommercialBankViewModel>().ReverseMap();
+            CreateMap<CommercialBankDto, CommercialBankViewModel>().ReverseMap();
             CreateMap<CommercialBankUser, CommercialBankUserViewModel>().ReverseMap();
             CreateMap<NonStaffUser, NonStaffUserViewModel>().ReverseMap();
             CreateMap<AgentDetail, AgentDetailViewModel>().ReverseMap();

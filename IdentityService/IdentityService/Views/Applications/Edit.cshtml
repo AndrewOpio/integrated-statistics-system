@@ -41,8 +41,9 @@
                     </div>
                     <div class="form-floating mb-3">
                         <input type="text" asp-for="Acronym" class="form-control"
-                               placeholder="Acronym" required>
+                               placeholder="Acronym" maxlength="3" required>
                         <label asp-for="Acronym">Acronym</label>
+                        <small class="form-text text-muted">Maximum 3 characters</small>
                         <span asp-validation-for="Acronym" class="text-danger"></span>
                     </div>
                     <div class="form-floating mb-3">
