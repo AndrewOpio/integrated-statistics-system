@@ -1,3 +1,4 @@
+using StockService.Core.Models.Categories;
 using StockService.Core.Models.Denominations;
 
 namespace StockService.Core.Models.StockLedger
@@ -7,6 +8,8 @@ namespace StockService.Core.Models.StockLedger
         public int Id { get; set; }
         public int DenominationId { get; set; }
         public DenominationDto? Denomination { get; set; }
+        public int CategoryId { get; set; }
+        public CategoryDto? Category { get; set; }
         public int NumberOfPieces { get; set; }
         public int NumberOfBoxes { get; set; }
         public int? NumberOfBundles { get; set; }

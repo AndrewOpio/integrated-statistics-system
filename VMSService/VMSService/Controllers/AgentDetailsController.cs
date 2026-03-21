@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using SmartBreadcrumbs.Attributes;
 using VMSService.Core.Models.AgentDetails;
 using VMSService.Core.Repositories.AgentDetails;
-using VMSService.Core.Services.Stocks;
+using VMSService.Core.Services.Configurations;
 using VMSService.Data.Entities;
 
 namespace VMSService.Controllers
@@ -13,7 +13,7 @@ namespace VMSService.Controllers
     [Authorize]
     public class AgentDetailsController(
         IAgentDetailRepository _agentDetailRepository,
-        IStockService _stockService,
+        IConfigurationService _configService,
         IMapper _mapper,
         IWebHostEnvironment _webHostEnvironment,
         ILogger<AgentDetailsController> _logger) : Controller
@@ -28,7 +28,7 @@ namespace VMSService.Controllers
                 var model = _mapper.Map<List<AgentDetailViewModel>>(agentDetails);
 
                 // Populate branch names
-                var branches = await _stockService.GetAllBranches();
+                var branches = await _configService.GetAllBranches();
                 foreach (var agent in model)
                 {
                     var branch = branches.FirstOrDefault(b => b.Id == agent.BranchId);
@@ -71,7 +71,7 @@ namespace VMSService.Controllers
                 var model = _mapper.Map<AgentDetailViewModel>(agentDetail);
 
                 // Populate branch name
-                var branches = await _stockService.GetAllBranches();
+                var branches = await _configService.GetAllBranches();
                 var branch = branches.FirstOrDefault(b => b.Id == model.BranchId);
                 model.BranchName = branch?.Name ?? "Unknown";
 
@@ -91,7 +91,7 @@ namespace VMSService.Controllers
         {
             try
             {
-                var branches = await _stockService.GetAllBranches();
+                var branches = await _configService.GetAllBranches();
                 var model = new AgentDetailViewModel
                 {
                     BranchList = branches.Select(b => new SelectListItem
@@ -126,7 +126,7 @@ namespace VMSService.Controllers
                 }
                 ModelState.AddModelError("", "Please correct the errors and try again.");
 
-                var branches = await _stockService.GetAllBranches();
+                var branches = await _configService.GetAllBranches();
                 model.BranchList = branches.Select(b => new SelectListItem
                 {
                     Value = b.Id.ToString(),
@@ -164,7 +164,7 @@ namespace VMSService.Controllers
                 TempData["Error"] = ex.Message;
             }
 
-            var branchList = await _stockService.GetAllBranches();
+            var branchList = await _configService.GetAllBranches();
             model.BranchList = branchList.Select(b => new SelectListItem
             {
                 Value = b.Id.ToString(),
@@ -196,7 +196,7 @@ namespace VMSService.Controllers
                     return NotFound();
                 }
 
-                var branches = await _stockService.GetAllBranches();
+                var branches = await _configService.GetAllBranches();
                 var model = _mapper.Map<AgentDetailViewModel>(agentDetail);
                 model.BranchList = branches.Select(b => new SelectListItem
                 {
@@ -234,7 +234,7 @@ namespace VMSService.Controllers
                 }
                 ModelState.AddModelError("", "Please correct the errors and try again.");
 
-                var branches = await _stockService.GetAllBranches();
+                var branches = await _configService.GetAllBranches();
                 model.BranchList = branches.Select(b => new SelectListItem
                 {
                     Value = b.Id.ToString(),
@@ -289,7 +289,7 @@ namespace VMSService.Controllers
                 TempData["Error"] = ex.Message;
             }
 
-            var branchList = await _stockService.GetAllBranches();
+            var branchList = await _configService.GetAllBranches();
             model.BranchList = branchList.Select(b => new SelectListItem
             {
                 Value = b.Id.ToString(),
@@ -324,7 +324,7 @@ namespace VMSService.Controllers
                 var model = _mapper.Map<AgentDetailViewModel>(agentDetail);
 
                 // Populate branch name
-                var branches = await _stockService.GetAllBranches();
+                var branches = await _configService.GetAllBranches();
                 var branch = branches.FirstOrDefault(b => b.Id == model.BranchId);
                 model.BranchName = branch?.Name ?? "Unknown";
 

@@ -1,4 +1,4 @@
-namespace StockService.Web.Models.Categories
+namespace StockService.Core.Models.Categories
 {
     public class CategoryDto
     {

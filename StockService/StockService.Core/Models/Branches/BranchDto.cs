@@ -1,4 +1,4 @@
-namespace StockService.Web.Models.Branches
+namespace StockService.Core.Models.Branches
 {
     public class BranchDto
     {

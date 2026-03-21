@@ -1,7 +1,4 @@
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
@@ -30,14 +27,19 @@ using VMSService.Core.Repositories.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.ReceivedStocks;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
 using VMSService.Core.Repositories.StatusTypes;
+using VMSService.Core.Repositories.StockMovements;
+using VMSService.Core.Repositories.StockMovementStatusHistories;
+using VMSService.Core.Repositories.StockMovementDiscrepancies;
 using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Repositories.VendorTypes;
 using VMSService.Core.Repositories.WorkflowTransitions;
 using VMSService.Core.Services.Stocks;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Services.Identity;
+using VMSService.Core.Services.StockPositions;
 using VMSService.Data;
 using VMSService.Core.Repositories.AgentDetails;
+using VMSService.Core.Services.Configurations;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -176,6 +178,7 @@ builder.Services.AddScoped<IReceivedStockRepository, ReceivedStockRepository>();
 builder.Services.AddScoped<IWorkflowTransitionRepository, WorkflowTransitionRepository>();
 builder.Services.AddScoped<IWorkflowService, WorkflowService>();
 builder.Services.AddScoped<IReceivedStockStatusHistoryRepository, ReceivedStockStatusHistoryRepository>();
+builder.Services.AddScoped<IStockMovementStatusHistoryRepository, StockMovementStatusHistoryRepository>();
 builder.Services.AddScoped<IStockLedgerRepository, StockLedgerRepository>();
 builder.Services.AddScoped<IStockLedgerDetailRepository, StockLedgerDetailRepository>();
 builder.Services.AddScoped<ICommercialBankRepository, CommercialBankRepository>();
@@ -185,9 +188,12 @@ builder.Services.AddScoped<IBranchRepository, BranchRepository>();
 builder.Services.AddScoped<ICounterPartyTypeRepository, CounterPartyTypeRepository>();
 builder.Services.AddScoped<ICommercialBankUserRepository, CommercialBankUserRepository>();
 builder.Services.AddScoped<IAgentDetailRepository, AgentDetailRepository>();
+builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
+builder.Services.AddScoped<IStockMovementDiscrepancyRepository, StockMovementDiscrepancyRepository>();
 
 // Add this in your service registration section
 builder.Services.AddScoped<IStockService, StockService>();
+builder.Services.AddScoped<IStockPositionService, StockPositionService>();
 builder.Services.AddHttpClient<StockService>()
     .ConfigureHttpClient((sp, client) =>
     {
@@ -208,6 +214,17 @@ builder.Services.AddHttpClient<IdentityService>()
         client.DefaultRequestHeaders.Add("Accept", "application/json");
     });
 
+// Register Configurations Service
+builder.Services.AddScoped<IConfigurationService, ConfigurationService>();
+builder.Services.AddHttpClient<ConfigurationService>()
+    .ConfigureHttpClient((sp, client) =>
+    {
+        var configuration = sp.GetRequiredService<IConfiguration>();
+        var baseUrl = configuration["MicroServices:configurationsservice"] ?? "https://localhost:7026";
+        client.BaseAddress = new Uri(baseUrl);
+        client.DefaultRequestHeaders.Add("Accept", "application/json");
+    });
+
 // Configure LDAP settings
 builder.Services.Configure<StockAPISettings>(
     builder.Configuration.GetSection("StockApiSettings"));
@@ -221,6 +238,12 @@ builder.Services.AddBreadcrumbs(Assembly.GetExecutingAssembly(), options =>
     options.LiClasses = "breadcrumb-item";
     options.ActiveLiClasses = "breadcrumb-item active";
 });
+
+builder.Services.AddControllersWithViews()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+    });
 
 var app = builder.Build();
 

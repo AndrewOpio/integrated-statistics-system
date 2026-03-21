@@ -1,4 +1,5 @@
 using AutoMapper;
+using ConfigurationsService.Dto;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartBreadcrumbs.Attributes;
@@ -6,7 +7,6 @@ using VMSService.Core.Helpers;
 using VMSService.Core.Models.CommercialBankUser;
 using VMSService.Core.Repositories.CommercialBanks;
 using VMSService.Core.Repositories.CommercialBankUsers;
-using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Data.Entities;
 
 namespace VMSService.Controllers
@@ -110,7 +110,7 @@ namespace VMSService.Controllers
 
                 var model = new CommercialBankUserViewModel
                 {
-                    CommercialBankList = CommercialBanksHelper.GetCommercialBanksAsSelectList((List<CommercialBank>)commercialBanks),
+                    CommercialBankList = CommercialBanksHelper.GetCommercialBanksAsSelectList((List<CommercialBankDto>)commercialBanks),
                     NonStaffUserList = _mapper.Map<List<NonStaffUserViewModel>>(nonStaffUsers)
                 };
                 return View(model);
@@ -145,7 +145,7 @@ namespace VMSService.Controllers
 
                 var commercialBanks = await _commercialBankRepository.FindAll();
                 var nonStaffUsers = await _commercialBankUserRepository.GetNonStaffUsers();
-                model.CommercialBankList = CommercialBanksHelper.GetCommercialBanksAsSelectList((List<CommercialBank>)commercialBanks);
+                model.CommercialBankList = CommercialBanksHelper.GetCommercialBanksAsSelectList((List<CommercialBankDto>)commercialBanks);
                 model.NonStaffUserList = _mapper.Map<List<NonStaffUserViewModel>>(nonStaffUsers);
                 return View(model);
             }
@@ -176,7 +176,7 @@ namespace VMSService.Controllers
 
             var banks = await _commercialBankRepository.FindAll();
             var users = await _commercialBankUserRepository.GetNonStaffUsers();
-            model.CommercialBankList = CommercialBanksHelper.GetCommercialBanksAsSelectList((List<CommercialBank>)banks);
+            model.CommercialBankList = CommercialBanksHelper.GetCommercialBanksAsSelectList((List<CommercialBankDto>)banks);
             model.NonStaffUserList = _mapper.Map<List<NonStaffUserViewModel>>(users);
             return View(model);
         }
@@ -208,7 +208,7 @@ namespace VMSService.Controllers
                 var nonStaffUsers = await _commercialBankUserRepository.GetNonStaffUsers();
 
                 var model = _mapper.Map<CommercialBankUserViewModel>(commercialBankUser);
-                model.CommercialBankList = CommercialBanksHelper.GetCommercialBanksAsSelectList((List<CommercialBank>)commercialBanks);
+                model.CommercialBankList = CommercialBanksHelper.GetCommercialBanksAsSelectList((List<CommercialBankDto>)commercialBanks);
                 model.NonStaffUserList = _mapper.Map<List<NonStaffUserViewModel>>(nonStaffUsers);
 
                 // Set display name for current user
@@ -256,7 +256,7 @@ namespace VMSService.Controllers
 
                 var commercialBanks = await _commercialBankRepository.FindAll();
                 var nonStaffUsers = await _commercialBankUserRepository.GetNonStaffUsers();
-                model.CommercialBankList = CommercialBanksHelper.GetCommercialBanksAsSelectList((List<CommercialBank>)commercialBanks);
+                model.CommercialBankList = CommercialBanksHelper.GetCommercialBanksAsSelectList((List<CommercialBankDto>)commercialBanks);
                 model.NonStaffUserList = _mapper.Map<List<NonStaffUserViewModel>>(nonStaffUsers);
                 return View(model);
             }
@@ -294,7 +294,7 @@ namespace VMSService.Controllers
 
             var banks = await _commercialBankRepository.FindAll();
             var users = await _commercialBankUserRepository.GetNonStaffUsers();
-            model.CommercialBankList = CommercialBanksHelper.GetCommercialBanksAsSelectList((List<CommercialBank>)banks);
+            model.CommercialBankList = CommercialBanksHelper.GetCommercialBanksAsSelectList((List<CommercialBankDto>)banks);
             model.NonStaffUserList = _mapper.Map<List<NonStaffUserViewModel>>(users);
             return View(model);
         }

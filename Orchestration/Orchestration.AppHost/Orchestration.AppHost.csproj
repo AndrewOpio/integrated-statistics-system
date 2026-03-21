@@ -19,6 +19,7 @@
 	<ProjectReference Include="..\..\IdentityService\IdentityService\IdentityService.Web.csproj" />
 	<ProjectReference Include="..\..\StockService\StockService.Web\StockService.Web.csproj" />
 	<ProjectReference Include="..\..\VMSService\VMSService\VMSService.Web.csproj" />
+	<ProjectReference Include="..\..\ConfigurationsService\ConfigurationsService.Web\ConfigurationsService.Web.csproj" />
 	<!--<ProjectReference Include="..\..\Orchestration\Orchestration.ServiceDefaults\Orchestration.ServiceDefaults.csproj" />-->
   </ItemGroup>
 

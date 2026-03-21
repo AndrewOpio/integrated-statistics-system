@@ -8,8 +8,12 @@ namespace VMSService.Core.Models.AgentDetails
     {
         public int Id { get; set; }
 
-        [Required(ErrorMessage = "Branch is required")]
-        [Display(Name = "Branch")]
+        [Required(ErrorMessage = "Commercial Bank Branch is required")]
+        [Display(Name = "Commercial Bank Branch")]
+        public int CommercialBankBranchId { get; set; }
+
+        [Required(ErrorMessage = "BOU Branch is required")]
+        [Display(Name = "BOU Branch")]
         public int BranchId { get; set; }
 
         [Required(ErrorMessage = "Agent Names are required")]
@@ -53,5 +57,6 @@ namespace VMSService.Core.Models.AgentDetails
 
         // Select lists
         public List<SelectListItem> BranchList { get; set; } = new List<SelectListItem>();
+        public List<SelectListItem> CommercialBankBranchList { get; set; } = new List<SelectListItem>();
     }
 }

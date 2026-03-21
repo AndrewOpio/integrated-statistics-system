@@ -1,47 +1,31 @@
+using ConfigurationsService.Dto;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using VMSService.Core.Services.Stocks;
-using VMSService.Core.Services.Stocks.StockEntities;
+using VMSService.Core.Services.Configurations;
 
 namespace VMSService.Core.Repositories.Branches
 {
-    public class BranchRepository(IStockService _stockService, ILogger<BranchRepository> _logger, 
+    public class BranchRepository(IConfigurationService _configService, ILogger<BranchRepository> _logger, 
         IHttpContextAccessor _httpContextAccessor) : IBranchRepository
     {
-        public async Task<bool> Create(Branch model)
+        public async Task<ICollection<BranchDto>> FindAll()
         {
             try
             {
-                var user = _httpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "unknown";
-                model.CreatedBy = user;
-                model.ModifiedBy = user;
-                return await _stockService.CreateBranch(model);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating branch");
-                return false;
-            }
-        }
-
-        public async Task<ICollection<Branch>> FindAll()
-        {
-            try
-            {
-                return await _stockService.GetAllBranches();
+                return await _configService.GetAllBranches();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving all branches");
-                return new List<Branch>();
+                return new List<BranchDto>();
             }
         }
 
-        public async Task<Branch> FindById(int id)
+        public async Task<BranchDto> FindById(int id)
         {
             try
             {
-                var branch = await _stockService.GetBranchById(id);
+                var branch = await _configService.GetBranchById(id);
                 if (branch == null)
                     return null;
 
@@ -59,7 +43,7 @@ namespace VMSService.Core.Repositories.Branches
             try
             {
                 var branch = await FindById(id);
-                return branch != null && !branch.IsDeleted;
+                return branch != null;
             }
             catch (Exception ex)
             {
@@ -73,26 +57,19 @@ namespace VMSService.Core.Repositories.Branches
             return true;
         }
 
-        public async Task<bool> Update(Branch model)
-        {
-            try
-            {
-                var user = _httpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "unknown";
-                var now = DateTime.Now;
-                model.ModifiedBy = user;
-                model.ModifiedDate = now;
-                return await _stockService.UpdateBranch(model);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating branch");
-                return false;
-            }
-        }
-
-        public async Task<Branch> FindByName(string branchName)
+        public async Task<BranchDto> FindByName(string branchName)
         {
             return (await FindAll()).Where(b => b.Name == branchName).FirstOrDefault();
+        }
+
+        public Task<bool> Create(BranchDto entity)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<bool> Update(BranchDto entity)
+        {
+            throw new NotImplementedException();
         }
     }
 }

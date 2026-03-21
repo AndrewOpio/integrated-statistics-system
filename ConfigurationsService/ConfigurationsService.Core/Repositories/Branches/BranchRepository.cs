@@ -1,5 +1,5 @@
 using ConfigurationsService.Data.Configurations;
-using ConfigurationsService.Entities;
+using ConfigurationsService.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 using VMSService.Core.Repositories.Branches;
 

@@ -22,7 +22,7 @@ namespace ConfigurationsService.Data.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("ConfigurationsService.Entities.Branch", b =>
+            modelBuilder.Entity("ConfigurationsService.Data.Entities.Branch", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -56,7 +56,7 @@ namespace ConfigurationsService.Data.Migrations
                     b.ToTable("Branches");
                 });
 
-            modelBuilder.Entity("ConfigurationsService.Entities.CommercialBank", b =>
+            modelBuilder.Entity("ConfigurationsService.Data.Entities.CommercialBank", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -94,7 +94,7 @@ namespace ConfigurationsService.Data.Migrations
                     b.ToTable("CommercialBanks");
                 });
 
-            modelBuilder.Entity("ConfigurationsService.Entities.CommercialBankBranch", b =>
+            modelBuilder.Entity("ConfigurationsService.Data.Entities.CommercialBankBranch", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -142,7 +142,7 @@ namespace ConfigurationsService.Data.Migrations
                     b.ToTable("CommercialBankBranches");
                 });
 
-            modelBuilder.Entity("ConfigurationsService.Entities.District", b =>
+            modelBuilder.Entity("ConfigurationsService.Data.Entities.District", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -176,15 +176,15 @@ namespace ConfigurationsService.Data.Migrations
                     b.ToTable("Districts");
                 });
 
-            modelBuilder.Entity("ConfigurationsService.Entities.CommercialBankBranch", b =>
+            modelBuilder.Entity("ConfigurationsService.Data.Entities.CommercialBankBranch", b =>
                 {
-                    b.HasOne("ConfigurationsService.Entities.CommercialBank", "CommercialBank")
+                    b.HasOne("ConfigurationsService.Data.Entities.CommercialBank", "CommercialBank")
                         .WithMany()
                         .HasForeignKey("CommercialBankId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("ConfigurationsService.Entities.District", "District")
+                    b.HasOne("ConfigurationsService.Data.Entities.District", "District")
                         .WithMany()
                         .HasForeignKey("DistrictId")
                         .OnDelete(DeleteBehavior.Cascade)

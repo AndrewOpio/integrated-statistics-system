@@ -1,0 +1,72 @@
+@model ConfigurationsService.Core.Models.CommercialBankBranches.CommercialBankBranchViewModel
+
+@{
+    ViewData["Title"] = "Delete Commercial Bank Branch";
+    Layout = "_Layout";
+}
+
+<div class="row g-4 mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h2>Delete Commercial Bank Branch</h2>
+                    <h6 class="card-subtitle my-1 text-body-secondary">
+                        <span>Are you sure you want to delete this commercial bank branch?</span>
+                    </h6>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <div class="alert alert-warning" role="alert">
+                    <i class="ti ti-alert-triangle me-2"></i>
+                    <strong>Warning:</strong> This action will delete the commercial bank branch record.
+                </div>
+
+                <hr />
+
+                <dl class="row">
+                    <dt class="col-sm-3">
+                        <i class="ti ti-git-branch me-2"></i>
+                        @Html.DisplayNameFor(model => model.Name)
+                    </dt>
+                    <dd class="col-sm-9">
+                        @Html.DisplayFor(model => model.Name)
+                    </dd>
+                    <dt class="col-sm-3">
+                        <i class="ti ti-building me-2"></i>
+                        Commercial Bank
+                    </dt>
+                    <dd class="col-sm-9">
+                        @Html.DisplayFor(model => model.CommercialBank.Name)
+                    </dd>
+
+                    <dt class="col-sm-3">
+                        <i class="ti ti-map-pin me-2"></i>
+                        @Html.DisplayNameFor(model => model.Location)
+                    </dt>
+                    <dd class="col-sm-9">
+                        @Html.DisplayFor(model => model.Location)
+                    </dd>
+                    <dt class="col-sm-3">
+                        <i class="ti ti-map me-2"></i>
+                        District
+                    </dt>
+                    <dd class="col-sm-9">
+                        @Html.DisplayFor(model => model.District.Name)
+                    </dd>
+                </dl>
+            </div>
+
+            <div class="card-footer d-flex justify-content-between">
+                <form asp-action="Delete" method="post">
+                    <input type="hidden" asp-for="Id" />
+                    <button type="submit" value="Delete" class="btn btn-danger">
+                        <i class="ti ti-trash me-1"></i>Delete
+                    </button>
+                </form>
+                <a asp-action="Index" class="btn btn-secondary">Back to List</a>
+            </div>
+        </div>
+    </div>
+</div>
