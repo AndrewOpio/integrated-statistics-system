@@ -1,4 +1,5 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
@@ -10,6 +11,7 @@ using System.Reflection;
 using System.Text;
 using VMSService.Core.Mappings;
 using VMSService.Core.Models.Authentication;
+using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.ApprovedCurrencyDenominations;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
@@ -27,19 +29,20 @@ using VMSService.Core.Repositories.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.ReceivedStocks;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
 using VMSService.Core.Repositories.StatusTypes;
+using VMSService.Core.Repositories.StockMovementDiscrepancies;
 using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.StockMovementStatusHistories;
-using VMSService.Core.Repositories.StockMovementDiscrepancies;
 using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Repositories.VendorTypes;
 using VMSService.Core.Repositories.WorkflowTransitions;
-using VMSService.Core.Services.Stocks;
-using VMSService.Core.Services.Workflows;
+using VMSService.Core.Services.Configurations;
 using VMSService.Core.Services.Identity;
 using VMSService.Core.Services.StockPositions;
+using VMSService.Core.Services.Stocks;
+using VMSService.Core.Services.Workflows;
 using VMSService.Data;
-using VMSService.Core.Repositories.AgentDetails;
-using VMSService.Core.Services.Configurations;
+using VMSService.Core.Authorization;
+using VMSService.Core.Repositories.CommercialBankBranches;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -107,6 +110,17 @@ builder.Services.AddAutoMapper(cfg => { }, typeof(VMSServiceAutoMapperProfile));
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["SecretKey"];
 var authenticationSettings = builder.Configuration.GetSection("Authentication").Get<AuthenticationSettings>();
+
+
+
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(RolePolicy.CbOnly, policy =>
+        policy.RequireAuthenticatedUser()
+              .RequireRole(RolePolicy.CbMaker, RolePolicy.CbApprover))
+    .AddPolicy(RolePolicy.BouOnly, policy =>
+        policy.RequireAuthenticatedUser()
+              .RequireRole(RolePolicy.BouChecker, RolePolicy.PanelA, RolePolicy.PanelB));
+
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -185,11 +199,16 @@ builder.Services.AddScoped<ICommercialBankRepository, CommercialBankRepository>(
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IBranchCategoryRepository, BranchCategoryRepository>();
 builder.Services.AddScoped<IBranchRepository, BranchRepository>();
+builder.Services.AddScoped<ICommercialBankBranchRepository, CommercialBankBranchRepository>();
 builder.Services.AddScoped<ICounterPartyTypeRepository, CounterPartyTypeRepository>();
 builder.Services.AddScoped<ICommercialBankUserRepository, CommercialBankUserRepository>();
 builder.Services.AddScoped<IAgentDetailRepository, AgentDetailRepository>();
 builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
 builder.Services.AddScoped<IStockMovementDiscrepancyRepository, StockMovementDiscrepancyRepository>();
+
+
+// ── Resource-based ownership check ────────────────────────────
+builder.Services.AddSingleton<IAuthorizationHandler, CbOwnershipAuthorizationHandler>();
 
 // Add this in your service registration section
 builder.Services.AddScoped<IStockService, StockService>();

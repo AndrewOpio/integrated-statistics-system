@@ -111,6 +111,30 @@ namespace VMSService.Core.Services.Identity
             }
         }
 
+        //public async Task<CommercialBankBranchDto> GetCbBranchesByCommercialBankId(int id)
+        //{
+        //    try
+        //    {
+        //        var response = await _httpClient.GetAsync($"{_baseUrl}/api/commercialbankbranch/{id}");
+
+        //        if (response.IsSuccessStatusCode)
+        //        {
+        //            return await response.Content.ReadFromJsonAsync<CommercialBankBranchDto>();
+        //        }
+
+        //        _logger.LogWarning("Commercial bank branch with id Commercial Bank Id: {CommercialBankId} not found", id);
+        //        return null;
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Error retrieving commercial bank branch with Commercial Bank Id:{CommercialBankId} from API", id);
+        //        return null;
+        //    }
+        //}
+
+
+
+
         #endregion
     }
 }

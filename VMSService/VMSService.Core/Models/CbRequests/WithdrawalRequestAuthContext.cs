@@ -1,0 +1,13 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace VMSService.Core.Models.CbRequests
+{
+    public class WithdrawalRequestAuthContext
+    {
+        public Guid CbId { get; init; }
+    }
+}

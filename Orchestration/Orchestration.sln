@@ -35,6 +35,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConfigurationsService.Dto",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConfigurationsService.Web", "..\ConfigurationsService\ConfigurationsService.Web\ConfigurationsService.Web.csproj", "{7BC08FF3-D57B-F23D-FE90-1F9FD251FCBB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockService.Dto", "StockService.Dto\StockService.Dto.csproj", "{42B5CF58-AF1A-4297-A9DC-324C43D6BDE2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -237,6 +239,18 @@ Global
 		{7BC08FF3-D57B-F23D-FE90-1F9FD251FCBB}.Release|x64.Build.0 = Release|Any CPU
 		{7BC08FF3-D57B-F23D-FE90-1F9FD251FCBB}.Release|x86.ActiveCfg = Release|Any CPU
 		{7BC08FF3-D57B-F23D-FE90-1F9FD251FCBB}.Release|x86.Build.0 = Release|Any CPU
+		{42B5CF58-AF1A-4297-A9DC-324C43D6BDE2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{42B5CF58-AF1A-4297-A9DC-324C43D6BDE2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{42B5CF58-AF1A-4297-A9DC-324C43D6BDE2}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{42B5CF58-AF1A-4297-A9DC-324C43D6BDE2}.Debug|x64.Build.0 = Debug|Any CPU
+		{42B5CF58-AF1A-4297-A9DC-324C43D6BDE2}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{42B5CF58-AF1A-4297-A9DC-324C43D6BDE2}.Debug|x86.Build.0 = Debug|Any CPU
+		{42B5CF58-AF1A-4297-A9DC-324C43D6BDE2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{42B5CF58-AF1A-4297-A9DC-324C43D6BDE2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{42B5CF58-AF1A-4297-A9DC-324C43D6BDE2}.Release|x64.ActiveCfg = Release|Any CPU
+		{42B5CF58-AF1A-4297-A9DC-324C43D6BDE2}.Release|x64.Build.0 = Release|Any CPU
+		{42B5CF58-AF1A-4297-A9DC-324C43D6BDE2}.Release|x86.ActiveCfg = Release|Any CPU
+		{42B5CF58-AF1A-4297-A9DC-324C43D6BDE2}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

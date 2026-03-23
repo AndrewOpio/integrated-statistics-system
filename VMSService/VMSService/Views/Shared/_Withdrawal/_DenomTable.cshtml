@@ -1,559 +1,80 @@
-﻿@*
-    Views/Shared/_DenomTable.cshtml
-    Self-contained — no @model, no partials, no service injection.
-    Drop this into any view with: @await Html.PartialAsync("_DenomTable")
-    Hook up @model DenomTableViewModel later when ready.
-*@
+﻿<div class="mb-4">
 
-@* ── Inline styles (move to site.css / cashdesk.css when ready) ── *@
-<style>
-    .denom-section {
-        background: #fff;
-        border: 1px solid #e5e4e0;
-        border-radius: 10px;
-        overflow: hidden;
-        margin-bottom: 10px;
-    }
-
-    .denom-section-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 13px 18px;
-        border-bottom: 1px solid #e5e4e0;
-    }
-
-    .denom-sec-left {
-        display: flex;
-        align-items: center;
-        gap: 9px;
-    }
-
-    .denom-sec-num {
-        width: 21px;
-        height: 21px;
-        border-radius: 50%;
-        background: #1a6bbf;
-        color: #fff;
-        font-size: 10px;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-
-    .denom-sec-title {
-        font-size: 13px;
-        font-weight: 600;
-        color: #111110;
-    }
-
-    .denom-grand-badge {
-        font-size: 11px;
-        padding: 3px 8px;
-        border-radius: 20px;
-        background: #f7f7f5;
-        color: #a8a8a2;
-        border: 1px solid #e5e4e0;
-        display: none;
-    }
-
-    .denom-body {
-        padding: 16px;
-    }
-
-    /* Groups */
-    .denom-group {
-        margin-bottom: 14px;
-    }
-
-        .denom-group:last-of-type {
-            margin-bottom: 0;
-        }
-
-    .dg-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 8px;
-    }
-
-    .dg-line {
-        flex: 1;
-        height: 1px;
-        background: #e5e4e0;
-    }
-
-    .dg-label {
-        font-size: 10px;
-        font-weight: 700;
-        color: #a8a8a2;
-        white-space: nowrap;
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        font-family: inherit;
-    }
-
-        .dg-label svg {
-            width: 11px;
-            height: 11px;
-            stroke: currentColor;
-            fill: none;
-            stroke-width: 2;
-            stroke-linecap: round;
-        }
-
-    .dg-subtotal {
-        font-size: 11px;
-        font-weight: 600;
-        white-space: nowrap;
-        padding: 2px 8px;
-        border-radius: 10px;
-    }
-
-        .dg-subtotal.note-t {
-            background: #e6f0fa;
-            color: #0f4a8a;
-        }
-
-        .dg-subtotal.coin-t {
-            background: #fdf3dc;
-            color: #92600a;
-        }
-
-        .dg-subtotal.zero {
-            background: #f7f7f5;
-            color: #a8a8a2;
-        }
-
-    /* Denom row */
-    .denom-item {
-        padding: 10px 0;
-        border-bottom: 1px solid #f7f7f5;
-    }
-
-        .denom-item:last-child {
-            border-bottom: none;
-        }
-
-        .denom-item .row {
-            align-items: center;
-        }
-
-    .denom-face-val {
-        font-size: 15px;
-        font-weight: 700;
-        color: #111110;
-        line-height: 1.1;
-    }
-
-    .denom-face-type {
-        font-size: 10px;
-        color: #a8a8a2;
-        font-weight: 500;
-        margin-top: 2px;
-    }
-
-    .stepper {
-        display: inline-flex;
-        align-items: center;
-        border: 1.5px solid #e5e4e0;
-        border-radius: 7px;
-        overflow: hidden;
-        flex-shrink: 0;
-        transition: border-color .15s;
-    }
-
-        .stepper:focus-within {
-            border-color: #1a6bbf;
-        }
-
-        .stepper.coin-s:focus-within {
-            border-color: #92600a;
-        }
-
-    .s-btn {
-        width: 36px;
-        height: 36px;
-        border: none;
-        background: #f7f7f5;
-        color: #6b6b66;
-        font-size: 18px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        user-select: none;
-        flex-shrink: 0;
-        font-family: inherit;
-        transition: background .12s;
-    }
-
-        .s-btn:hover {
-            background: #e8e7e3;
-            color: #111110;
-        }
-
-    .s-qty {
-        width: 72px;
-        border: none;
-        border-left: 1.5px solid #e5e4e0;
-        border-right: 1.5px solid #e5e4e0;
-        text-align: center;
-        font-size: 14px;
-        font-weight: 700;
-        color: #111110;
-        background: #fff;
-        outline: none;
-        height: 36px;
-        font-family: inherit;
-    }
-
-        .s-qty:focus {
-            background: #e6f0fa;
-        }
-
-    .denom-sub-col {
-        text-align: right;
-    }
-
-    .denom-sub-label {
-        font-size: 9px;
-        color: #a8a8a2;
-        text-transform: uppercase;
-        letter-spacing: .5px;
-        line-height: 1.2;
-    }
-
-    .denom-sub-val {
-        font-size: 13px;
-        font-weight: 700;
-        color: #a8a8a2;
-        line-height: 1.3;
-    }
-
-        .denom-sub-val.note-v {
-            color: #1a6bbf;
-        }
-
-        .denom-sub-val.coin-v {
-            color: #92600a;
-        }
-
-    .denom-err {
-        font-size: 11px;
-        color: #c0392b;
-        margin-top: 6px;
-        display: none;
-    }
-
-        .denom-err.on {
-            display: block;
-        }
-
-    /* Totals table */
-    .totals-table {
-        border: 1px solid #e5e4e0;
-        border-radius: 7px;
-        overflow: hidden;
-        margin-top: 14px;
-    }
-
-    .tt-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 10px 14px;
-        border-bottom: 1px solid #e5e4e0;
-        font-size: 13px;
-    }
-
-        .tt-row:last-child {
-            border-bottom: none;
-        }
-
-        .tt-row.grand {
-            background: #dc3545;
-        }
-
-    .tt-label {
-        display: flex;
-        align-items: center;
-        gap: 7px;
-        color: #6b6b66;
-    }
-
-    .tt-row.grand .tt-label {
-        color: rgba(255,255,255,.75);
-    }
-
-    .tt-dot {
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        flex-shrink: 0;
-    }
-
-        .tt-dot.note {
-            background: #1a6bbf;
-        }
-
-        .tt-dot.coin {
-            background: #92600a;
-        }
-
-        .tt-dot.total {
-            background: #fff;
-        }
-
-    .tt-val {
-        font-size: 13px;
-        font-weight: 700;
-        color: #111110;
-    }
-
-    .tt-row.grand .tt-val {
-        color: #fff;
-        font-size: 15px;
-    }
-
-    .tt-val.zero {
-        color: #a8a8a2;
-        font-weight: 400;
-    }
-
-    .tt-breakdown {
-        font-size: 11px;
-        color: #a8a8a2;
-        margin-top: 2px;
-    }
-
-    .tt-row.grand .tt-breakdown {
-        color: rgba(255,255,255,.55);
-    }
-
-    @@media (max-width: 480px) {
-        .s-qty {
-            width: 56px;
-        }
-    }
-</style>
-
-<div class="">
-    
-    <div class="">
-
-        {{-- Banknotes --}}
-        <div class="denom-group">
-            <div class="dg-header">
-                <div class="dg-line"></div>
-                <div class="dg-label">
-                    <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" /><line x1="1" y1="10" x2="23" y2="10" /></svg>
-                    Banknotes (UGX)
-                </div>
-                <span class="dg-subtotal zero" id="dt-notes-badge">UGX 0</span>
-                <div class="dg-line"></div>
-            </div>
-            <div id="dt-list-notes"></div>
-            <div class="denom-err" id="dt-err-notes">Add at least one denomination.</div>
+    @* ── Banknotes ── *@
+    <div class="mb-3">
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="ti ti-notes text-primary"></i>
+            <span class="text-uppercase text-muted small fw-semibold">Banknotes (UGX)</span>
+            <span class="badge rounded-pill bg-primary-subtle text-primary ms-auto" id="dt-notes-badge">UGX 0</span>
         </div>
-
-        {{-- Coins --}}
-        <div class="denom-group">
-            <div class="dg-header">
-                <div class="dg-line"></div>
-                <div class="dg-label">
-                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 6v.5M12 17v.5M9.5 9A2.5 2.5 0 0 1 12 7h0a2.5 2.5 0 0 1 0 5h0a2.5 2.5 0 0 1 0 5h0a2.5 2.5 0 0 1-2.5-2" /></svg>
-                    Coins (UGX)
-                </div>
-                <span class="dg-subtotal zero" id="dt-coins-badge">UGX 0</span>
-                <div class="dg-line"></div>
-            </div>
-            <div id="dt-list-coins"></div>
-        </div>
-
-        {{-- Totals --}}
-        <div class="totals-table">
-            <div class="tt-row">
-                <div>
-                    <div class="tt-label fs-5"><span class="tt-dot note"></span> Banknotes Total</div>
-                    <div class="tt-breakdown" id="dt-notes-breakdown">No notes selected</div>
-                </div>
-                <div class="tt-val zero" id="dt-notes-total">UGX 0</div>
-            </div>
-            <div class="tt-row">
-                <div>
-                    <div class="tt-label fs-5"><span class="tt-dot coin"></span> Coins Total</div>
-                    <div class="tt-breakdown" id="dt-coins-breakdown">No coins selected</div>
-                </div>
-                <div class="tt-val zero" id="dt-coins-total">UGX 0</div>
-            </div>
-            <div class="tt-row grand" style="flex-direction:column;align-items:stretch;gap:6px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;">
-                    <div class="tt-label fs-3"><span class="tt-dot total"></span> Grand Total</div>
-                    <div class="tt-val fs-4" id="dt-grand-total">UGX 0</div>
-                </div>
-                <div id="dt-grand-words" style="font-size:15px;color:white;font-style:italic;padding-left:14px;">Zero shillings only</div>
+        <div class="card border-0 shadow-sm rounded-3">
+            <div class="card-body p-0">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">Denomination</th>
+                            <th>Bundles</th>
+                            <th class="text-end pe-3">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dt-list-notes"></tbody>
+                </table>
             </div>
         </div>
-
     </div>
+
+    @* ── Coins ── *@
+    <div class="mb-3">
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="ti ti-coin text-warning"></i>
+            <span class="text-uppercase text-muted small fw-semibold">Coins (UGX)</span>
+            <span class="badge rounded-pill bg-warning-subtle text-warning ms-auto" id="dt-coins-badge">UGX 0</span>
+        </div>
+        <div class="card border-0 shadow-sm rounded-3">
+            <div class="card-body p-0">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">Denomination</th>
+                            <th>Bundles</th>
+                            <th class="text-end pe-3">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dt-list-coins"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @* ── Totals ── *@
+    <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+        <ul class="list-group list-group-flush">
+            <li class="list-group-item d-flex justify-content-between align-items-center py-3 px-3">
+                <div>
+                    <span class="fw-semibold">Banknotes Total</span>
+                    <div class="text-muted small" id="dt-notes-breakdown">No notes selected</div>
+                </div>
+                <span class="fw-bold text-primary" id="dt-notes-total">UGX 0</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center py-3 px-3">
+                <div>
+                    <span class="fw-semibold">Coins Total</span>
+                    <div class="text-muted small" id="dt-coins-breakdown">No coins selected</div>
+                </div>
+                <span class="fw-bold text-warning" id="dt-coins-total">UGX 0</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center py-3 px-3 bg-danger text-white">
+                <div>
+                    <span class="fw-bold fs-6">Grand Total</span>
+                    <div class="small opacity-75" id="dt-grand-words">Zero shillings only</div>
+                </div>
+                <span class="fw-bold fs-5" id="dt-grand-total">UGX 0</span>
+            </li>
+        </ul>
+    </div>
+
+    <div class="invalid-feedback d-block mt-1" id="dt-err-notes" style="display:none!important;">
+        Please add at least one denomination.
+    </div>
+
 </div>
-
-@* ── JavaScript (move to cashdesk.js when ready) ── *@
-<script>
-    (function () {
-        const NOTES = [50000, 20000, 10000, 5000, 2000, 1000];
-        const COINS = [1000, 500, 200, 100, 50];
-        const qty = {};
-        [...NOTES, ...COINS].forEach(d => qty[d] = 0);
-
-        const $ = id => document.getElementById(id);
-        const fmtN = n => Math.round(n).toLocaleString();
-        const fmt  = n => 'UGX ' + fmtN(n);
-        const noteTotal  = () => NOTES.reduce((s, d) => s + qty[d] * d, 0);
-        const coinTotal  = () => COINS.reduce((s, d) => s + qty[d] * d, 0);
-        const grandTotal = () => noteTotal() + coinTotal();
-
-        /* Build rows */
-        function buildRows(denoms, listId, type) {
-            $(listId).innerHTML = denoms.map(d => `
-                <div class="denom-item">
-                    <div class="row align-items-center">
-                        <div class="col-4">
-                            <div class="denom-face-val">${fmtN(d)} <span style="font-size:10px;color:#a8a8a2;font-weight:400">UGX</span></div>
-                            <div class="denom-face-type">${type === 'note' ? 'Banknote' : 'Coin'}</div>
-                        </div>
-                        <div class="col-4">
-                            <div class="stepper ${type === 'coin' ? 'coin-s' : ''}">
-                                <button class="s-btn" type="button" onclick="dtAdj(${d}, -1, '${type}')">−</button>
-                                <input  class="s-qty" id="dt-qty-${d}" type="number" min="0" value="0"
-                                        oninput="dtInput(${d}, '${type}')" onchange="dtClamp(${d})">
-                                <button class="s-btn" type="button" onclick="dtAdj(${d},  1, '${type}')">+</button>
-                            </div>
-                        </div>
-                        <div class="col-4 denom-sub-col">
-                            <div class="denom-sub-label">Subtotal</div>
-                            <div class="denom-sub-val" id="dt-sub-${d}">—</div>
-                        </div>
-                    </div>
-                </div>`).join('');
-        }
-
-        /* Exposed on window so inline onclick handlers can reach them */
-        window.dtAdj = function (d, delta, type) {
-            qty[d] = Math.max(0, qty[d] + delta);
-            $('dt-qty-' + d).value = qty[d];
-            refreshRow(d, type);
-            refreshTotals();
-            notifyParent();
-        };
-        window.dtInput = function (d, type) {
-            qty[d] = Math.max(0, parseInt($('dt-qty-' + d).value) || 0);
-            refreshRow(d, type);
-            refreshTotals();
-            notifyParent();
-        };
-        window.dtClamp = function (d) {
-            $('dt-qty-' + d).value = qty[d];
-        };
-
-        /* Expose read-only getters for the parent form to use */
-        window.dtGetQty        = () => ({ ...qty });
-        window.dtGetGrandTotal = () => grandTotal();
-        window.dtHasValue      = () => grandTotal() > 0;
-        window.dtShowError     = () => $('dt-err-notes').classList.add('on');
-        window.dtHideError     = () => $('dt-err-notes').classList.remove('on');
-
-        function refreshRow(d, type) {
-            const q = qty[d], sub = q * d;
-            const vc = type === 'note' ? 'note-v' : 'coin-v';
-            const sv = $('dt-sub-' + d);
-            sv.textContent = q > 0 ? fmt(sub) : '—';
-            sv.className   = 'denom-sub-val' + (q > 0 ? ' ' + vc : '');
-            const pool = type === 'note' ? NOTES : COINS;
-            const mx   = Math.max(...pool.map(x => qty[x] * x), 1);
-
-        }
-
-        function refreshTotals() {
-            const nt = noteTotal(), ct = coinTotal(), gt = grandTotal();
-
-            /* Subtotal badges */
-            const nb = $('dt-notes-badge');
-            nb.textContent = fmt(nt);
-            nb.className   = 'dg-subtotal ' + (nt > 0 ? 'note-t' : 'zero');
-
-            const cb = $('dt-coins-badge');
-            cb.textContent = fmt(ct);
-            cb.className   = 'dg-subtotal ' + (ct > 0 ? 'coin-t' : 'zero');
-
-            /* Totals table */
-            const noteParts = NOTES.filter(d => qty[d] > 0).map(d => `${fmtN(d)} × ${qty[d]}`);
-            const coinParts = COINS.filter(d => qty[d] > 0).map(d => `${fmtN(d)} × ${qty[d]}`);
-
-            const ntv = $('dt-notes-total');
-            ntv.textContent = fmt(nt);
-            ntv.className   = 'tt-val' + (nt === 0 ? ' zero' : '');
-            $('dt-notes-breakdown').textContent = noteParts.length ? noteParts.join(' · ') : 'No notes selected';
-
-            const ctv = $('dt-coins-total');
-            ctv.textContent = fmt(ct);
-            ctv.className   = 'tt-val' + (ct === 0 ? ' zero' : '');
-            $('dt-coins-breakdown').textContent = coinParts.length ? coinParts.join(' · ') : 'No coins selected';
-
-            $('dt-grand-total').textContent = fmt(gt);
-            $('dt-grand-words').textContent = toWords(gt);
-
-            /* Section header badge */
-            const gb = $('dt-grand-badge');
-            if (gt > 0) { gb.textContent = 'Total: ' + fmt(gt); gb.style.display = ''; }
-            else          gb.style.display = 'none';
-
-            /* Refresh all bars relative to new max */
-            NOTES.forEach(d => refreshRow(d, 'note'));
-            COINS.forEach(d => refreshRow(d, 'coin'));
-        }
-
-        /* Amount in words */
-        const ONES = ['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine',
-                      'Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen',
-                      'Seventeen','Eighteen','Nineteen'];
-        const TENS = ['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
-
-        function wordsUnder1000(n) {
-            if (n === 0) return '';
-            if (n < 20)  return ONES[n];
-            if (n < 100) return TENS[Math.floor(n/10)] + (n%10 ? ' ' + ONES[n%10] : '');
-            return ONES[Math.floor(n/100)] + ' Hundred' + (n%100 ? ' ' + wordsUnder1000(n%100) : '');
-        }
-
-        function toWords(n) {
-            if (n === 0) return 'Zero shillings only';
-            const parts = [];
-            const billions  = Math.floor(n / 1_000_000_000); n %= 1_000_000_000;
-            const millions  = Math.floor(n / 1_000_000);     n %= 1_000_000;
-            const thousands = Math.floor(n / 1_000);         n %= 1_000;
-            const remainder = n;
-            if (billions)  parts.push(wordsUnder1000(billions)  + ' Billion');
-            if (millions)  parts.push(wordsUnder1000(millions)  + ' Million');
-            if (thousands) parts.push(wordsUnder1000(thousands) + ' Thousand');
-            if (remainder) parts.push(wordsUnder1000(remainder));
-            return parts.join(' ') + ' shillings only';
-        }
-
-        /* Fire a custom event so the parent form can react (e.g. enable submit) */
-        function notifyParent() {
-            document.dispatchEvent(new CustomEvent('denomChanged', {
-                detail: { grandTotal: grandTotal(), qty: { ...qty } }
-            }));
-        }
-
-        /* Init */
-        buildRows(NOTES, 'dt-list-notes', 'note');
-        buildRows(COINS, 'dt-list-coins', 'coin');
-        refreshTotals();
-    })();
-</script>
