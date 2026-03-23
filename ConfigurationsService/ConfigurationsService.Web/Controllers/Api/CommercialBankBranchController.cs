@@ -75,5 +75,33 @@ namespace ConfigurationsService.Web.Controllers.Api
                     new { message = "An error occurred while retrieving the commercial bank branch", error = ex.Message });
             }
         }
+
+        /// <summary>
+        /// Get commercial bank branches for a specific commercial bank
+        /// </summary>
+        /// <param name="commercialBankId">Commercial Bank ID</param>
+        /// <returns>List of all commercial bank branches for a specific commercial bank</returns>
+        [HttpGet("bybank/{commercialBankId}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<IEnumerable<CommercialBankBranchDto>>> GetByCommercialBankId(int commercialBankId)
+        {
+            try
+            {
+                if (commercialBankId <= 0)
+                    return BadRequest(new { message = "Invalid commercial bank ID" });
+
+                var branches = await _branchRepository.FindByCommercialBankId(commercialBankId);
+                var branchDtos = _mapper.Map<List<CommercialBankBranchDto>>(branches);
+                return Ok(branchDtos);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving commercial bank branches");
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { message = "An error occurred while retrieving commercial bank branches", error = ex.Message });
+            }
+        }
     }
 }

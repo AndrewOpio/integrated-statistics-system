@@ -113,6 +113,8 @@ namespace IdentityService.Controllers
 
                 // Add IsStaff claim
                 claims.Add(new Claim("isStaff", dbUser.IsStaff.ToString().ToLower()));
+                claims.Add(new Claim(ClaimTypes.Name, request.Username));
+                claims.Add(new Claim(ClaimTypes.NameIdentifier, dbUser.Id));
 
                 LdapUser user = new()
                 {

@@ -112,5 +112,74 @@ namespace VMSService.Core.Services.Identity
         }
 
         #endregion
+
+        #region CommercialBankBranch Methods
+
+        public async Task<ICollection<CommercialBankBranchDto>> GetAllCommercialBankBranches()
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync($"{_baseUrl}/api/commercialbankbranch");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var commercialBankBranches = await response.Content.ReadFromJsonAsync<ICollection<CommercialBankBranchDto>>();
+                    return commercialBankBranches ?? new List<CommercialBankBranchDto>();
+                }
+
+                _logger.LogError("Failed to retrieve commercial bank branches. Status: {StatusCode}", response.StatusCode);
+                return new List<CommercialBankBranchDto>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving commercial bank branches from API");
+                return new List<CommercialBankBranchDto>();
+            }
+        }
+
+        public async Task<CommercialBankBranchDto> GetCommercialBankBranchById(int id)
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync($"{_baseUrl}/api/commercialbankbranch/{id}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    return await response.Content.ReadFromJsonAsync<CommercialBankBranchDto>();
+                }
+
+                _logger.LogWarning("Commercial bank branch with id {CommercialBankBranchId} not found", id);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving commercial bank branch {CommercialBankBranchId} from API", id);
+                return null;
+            }
+        }
+
+        public async Task<ICollection<CommercialBankBranchDto>> GetCommercialBankBranchesByBankId(int commercialBankId)
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync($"{_baseUrl}/api/commercialbankbranch/bybank/{commercialBankId}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var commercialBankBranches = await response.Content.ReadFromJsonAsync<ICollection<CommercialBankBranchDto>>();
+                    return commercialBankBranches ?? new List<CommercialBankBranchDto>();
+                }
+
+                _logger.LogError("Failed to retrieve commercial bank branches. Status: {StatusCode}", response.StatusCode);
+                return new List<CommercialBankBranchDto>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving commercial bank branches from API");
+                return new List<CommercialBankBranchDto>();
+            }
+        }
+
+        #endregion
     }
 }

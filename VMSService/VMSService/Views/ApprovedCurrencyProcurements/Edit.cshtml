@@ -61,12 +61,13 @@
                         @if (!string.IsNullOrEmpty(Model.BoardApprovalAttachment))
                         {
                             <div class="mb-2">
-                                <a href="@Url.Action("ViewAttachment", "ApprovedCurrencyProcurements", new { id = Model.Id })" target="_blank" class="btn btn-outline-primary">
-                                    <i class="ti ti-file-type-pdf me-1"></i>Current Attachment
+                                <a href="@Url.Action("ViewAttachment", "ApprovedCurrencyProcurements", new { id = Model.Id })" target="_blank" class="btn btn-outline-secondary">
+                                    <i class="ti ti-file-type-pdf me-1"></i>View Current Attachment
                                 </a>
                             </div>
                         }
                         <input type="file" class="form-control" id="BoardApprovalAttachment" name="BoardApprovalAttachment" accept=".pdf,application/pdf">
+                        <small class="text-muted">Leave empty to keep current attachment</small>
                         <span asp-validation-for="BoardApprovalAttachment" class="text-danger small d-block mt-1"></span>
                     </div>
 

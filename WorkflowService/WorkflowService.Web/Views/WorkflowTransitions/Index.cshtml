@@ -1,0 +1,113 @@
+@using WorkflowService.Core.Models.WorkflowTransitions
+@model List<WorkflowTransitionViewModel>
+@{
+    ViewData["Title"] = "Workflow Transitions";
+}
+
+<div class="page-header d-print-none">
+    <div class="row align-items-center">
+        <div class="col">
+            <h4 class="page-title">
+                Workflow Transitions
+            </h4>
+        </div>
+        <div class="col-auto">
+            <a asp-controller="WorkflowTransitions" asp-action="Create" asp-route-applicationId="@ViewBag.ApplicationId" class="btn btn-primary btn-sm">
+                <i class="ti ti-plus"></i> New Transition
+            </a>
+        </div>
+    </div>
+</div>
+
+
+<div class="card p-4">
+    <div class="table-responsive">
+        <table class="table table-centered datatable">
+            <thead class="thead-light">
+                <tr>
+                    <th class="rounded-start">Entity Type</th>
+                    <th class="">From Status</th>
+                    <th class="">Action</th>
+                    <th class="">To Status</th>
+                    <th class="">Required Role</th>
+                    <th class="">Button Class</th>
+                    <th class="">Comments Required</th>
+                    <th class="">Status</th>
+                    <th class="rounded-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var transition in Model)
+                    {
+                        <tr>
+                            <td class="px-1">
+                                <span class="badge bg-tertiary">@transition.EntityTypeName</span>
+                            </td>
+                            <td class="px-1">
+                                <span class="badge bg-info">@transition.FromStatusName</span>
+                            </td>
+                            <td class="px-1">
+                                <a href="@Url.Action("Details", "WorkflowTransitions", new { id = transition.Id })" class="btn btn-gray-200">
+                                    <strong>@transition.ActionName</strong>
+                                    <br />
+                                    <small class="text-muted">@transition.DisplayLabel</small>
+                                </a>
+                            </td>
+                            <td class="px-1">
+                                <span class="badge bg-success">@transition.ToStatusName</span>
+                            </td>
+                            <td class="px-1">
+                                <span class="badge bg-tertiary">@transition.RequiredRoleName</span>
+                            </td>
+                            <td class="px-1">
+                                <span class="badge" style="background-color: var(--bs-@(transition.ButtonClass.Replace("btn-", "")));">
+                                    @transition.ButtonClass
+                                </span>
+                            </td>
+                            <td class="px-1">
+                                @if (transition.RequiresComments)
+                                {
+                                    <span class="badge badge-pill bg-danger">Yes</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-pill bg-success">No</span>
+                                }
+                            </td>
+                            <td class="px-1">
+                                @if (transition.IsActive)
+                                {
+                                    <span class="badge badge-pill bg-success">Active</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-pill bg-secondary">Inactive</span>
+                                }
+                            </td>
+                            <td class="px-1">
+                                @* <div class="btn-list flex-nowrap">
+                                    <a href="@Url.Action("Edit", "WorkflowTransitions", new { id = transition.Id })" class="btn btn-icon btn-ghost-primary" title="Edit">
+                                        <i class="ti ti-edit"></i>
+                                    </a>
+                                    <a href="@Url.Action("Delete", "WorkflowTransitions", new { id = transition.Id })" class="btn btn-icon btn-ghost-danger" title="Delete">
+                                        <i class="ti ti-trash"></i>
+                                    </a>
+                                </div> *@
+                                <div class="btn-group" role="group">
+                                <a asp-action="Details" asp-route-id="@transition.Id" asp-route-applicationId="@ViewBag.ApplicationId" class="btn btn-sm btn-outline-info" title="View Details">
+                                        <i class="ti ti-eye"></i>
+                                    </a>
+                                <a asp-action="Edit" asp-route-id="@transition.Id" asp-route-applicationId="@ViewBag.ApplicationId" class="btn btn-sm btn-outline-primary" title="Edit">
+                                        <i class="ti ti-edit"></i>
+                                    </a>
+                                <a asp-action="Delete" asp-route-id="@transition.Id" asp-route-applicationId="@ViewBag.ApplicationId" class="btn btn-sm btn-outline-danger" title="Delete">
+                                        <i class="ti ti-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+            </tbody>
+        </table>
+    </div>
+</div>

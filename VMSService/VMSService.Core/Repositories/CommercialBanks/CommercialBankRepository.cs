@@ -67,15 +67,5 @@ namespace VMSService.Core.Repositories.CommercialBanks
         {
             throw new NotImplementedException();
         }
-
-        Task<ICollection<CommercialBankDto>> IRepositoryBase<CommercialBankDto, int>.FindAll()
-        {
-            throw new NotImplementedException();
-        }
-
-        Task<CommercialBankDto> IRepositoryBase<CommercialBankDto, int>.FindById(int id)
-        {
-            throw new NotImplementedException();
-        }
     }
 }

@@ -13,5 +13,12 @@ namespace IdentityService.Controllers
             var data = await _appRepo.FindAll();
             return Ok(data);
         }
+
+        [HttpGet("get-application")]
+        public async Task<IActionResult> GetApplicationById(int applicationId)
+        {
+            var data = await _appRepo.FindById(applicationId);
+            return Ok(data);
+        }
     }
 }

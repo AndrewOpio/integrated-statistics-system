@@ -61,5 +61,12 @@ namespace VMSService.Core.Repositories.ApprovedCurrencyProcurements
                 .Include(x => x.CurrentStatus)
                 .ToListAsync();
         }
+
+        public async Task<int> CreateNew(ApprovedCurrencyProcurement model)
+        {
+            _db.ApprovedCurrencyProcurements.Add(model);
+            await Save();
+            return model.Id;
+        }
     }
 }

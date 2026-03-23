@@ -1,0 +1,165 @@
+@using WorkflowService.Core.Models.WorkflowTransitions
+@model WorkflowTransitionViewModel
+@{
+    ViewData["Title"] = "Edit Workflow Transition";
+    var applicationId = Context.Request.Query["applicationId"].ToString();
+}
+
+<div class="page-header d-print-none">
+    <div class="row align-items-center">
+        <div class="col">
+            <h4 class="page-title">
+                Edit Workflow Transition
+            </h4>
+        </div>
+    </div>
+</div>
+
+<div class="row row-deck row-cards">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="Edit" method="post" asp-route-applicationId="@applicationId" class="needs-validation" novalidate>
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        <span asp-validation-summary="All"></span>
+                    </div>
+                    <input asp-for="Id" type="hidden" />
+                    <input asp-for="EntityTypeId" type="hidden" />
+                    <input asp-for="EntityTypeName" type="hidden" />
+                    <input asp-for="FromStatusId" type="hidden" />
+                    <input asp-for="FromStatusName" type="hidden" />
+                    <input asp-for="ToStatusId" type="hidden" />
+                    <input asp-for="ToStatusName" type="hidden" />
+                    <input asp-for="ActionName" type="hidden" />
+
+                    <!-- Entity Type (Read-only) -->
+                    <div class="mb-3">
+                        <label class="form-label small text-muted text-uppercase m-0">Entity Type</label>
+                        <div>
+                            <span class="badge bg-tertiary">@Model.EntityTypeName</span>
+                        </div>
+                    </div>
+
+                    <!-- From Status (Read-only) -->
+                    <div class="mb-3">
+                        <label class="form-label small text-muted text-uppercase m-0">From Status</label>
+                        <div>
+                            <span class="badge bg-info">@Model.FromStatusName</span>
+                        </div>
+                    </div>
+
+                    <!-- To Status (Read-only) -->
+                    <div class="mb-3">
+                        <label class="form-label small text-muted text-uppercase m-0">To Status</label>
+                        <div>
+                            <span class="badge bg-success">@Model.ToStatusName</span>
+                        </div>
+                    </div>
+
+                    <!-- Action Name (Read-only) -->
+                    <div class="mb-3">
+                        <label class="form-label small text-muted text-uppercase m-0">Action Name</label>
+                        <div>
+                            <div class="btn btn-gray-200">
+                                @Model.ActionName
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Display Label -->
+                    <div class="mb-3">
+                        <label class="form-label" for="DisplayLabel">Display Label <span class="text-danger">*</span></label>
+                        <input asp-for="DisplayLabel" type="text" class="form-control" required />
+                        <span asp-validation-for="DisplayLabel" class="invalid-feedback"></span>
+                    </div>
+
+                    <!-- Required Role -->
+                    <div class="mb-3">
+                        <label class="form-label" for="RequiredRole">Required Role <span class="text-danger">*</span></label>
+                        <select asp-for="RequiredRole" id="RequiredRole" asp-items="Model.RequiredRoleList" class="form-select" required>
+                            <option value="">-- Select Role --</option>
+                        </select>
+                        <span asp-validation-for="RequiredRole" class="invalid-feedback"></span>
+                        <small class="form-hint">User role required to perform this transition</small>
+                    </div>
+
+                    <!-- Button Class -->
+                    <div class="mb-3">
+                        <label class="form-label" for="ButtonClass">Button Class <span class="text-danger">*</span></label>
+                        <select asp-for="ButtonClass" class="form-select" required>
+                            <option value="">-- Select Button Class --</option>
+                            @foreach (var buttonClass in (List<string>)ViewBag.ButtonClasses)
+                            {
+                                <option value="@buttonClass">@buttonClass</option>
+                            }
+                        </select>
+                        <span asp-validation-for="ButtonClass" class="invalid-feedback"></span>
+                    </div>
+
+                    <!-- Requires Comments -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input asp-for="RequiresComments" type="checkbox" class="form-check-input" id="RequiresComments" />
+                            <label class="form-check-label" for="RequiresComments">
+                                Requires Comments/Remarks
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Active Status -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input asp-for="IsActive" type="checkbox" class="form-check-input" id="IsActive" />
+                            <label class="form-check-label" for="IsActive">
+                                Active
+                            </label>
+                        </div>
+                        <small class="form-hint d-block mt-2">Uncheck to disable this transition</small>
+                    </div>
+
+                    <hr />
+
+                    <!-- Form Actions -->
+                    <div class="form-footer">
+                        <a href="@Url.Action("Index", "WorkflowTransitions", new { applicationId })" class="btn btn-secondary"><i class="ti ti-arrow-left me-1"></i>Cancel</a>
+                        <button type="submit" class="btn btn-primary"><i class="ti ti-check me-1"></i>Update Transition</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Card -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header ">
+                <h5 class="card-title m-0">Transition Details</h5>
+            </div>
+            <div class="card-body text-sm">
+                <p>
+                    <strong class="small text-muted text-uppercase">Entity Type:</strong><br />
+                    <span class="text-primary">@Model.EntityTypeName</span>
+                </p>
+                <p>
+                    <strong class="small text-muted text-uppercase">From Status:</strong><br />
+                    <span class="text-primary">@Model.FromStatusName</span>
+                </p>
+                <p>
+                    <strong class="small text-muted text-uppercase">To Status:</strong><br />
+                    <span class="text-primary">@Model.ToStatusName</span>
+                </p>
+                <p>
+                    <strong class="small text-muted text-uppercase">Action Name:</strong><br />
+                    <span class="text-primary">@Model.ActionName</span>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

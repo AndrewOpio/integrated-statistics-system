@@ -220,12 +220,13 @@ namespace VMSService.Web.Controllers
                 model.CurrentStatusId = status.Id;
 
                 ExPrintMint newExPrintMint = _mapper.Map<ExPrintMint>(model);
-                bool isCreated = await _exPrintMintRepository.Create(newExPrintMint);
+                //bool isCreated = await _exPrintMintRepository.Create(newExPrintMint);
+                int newExPrintMintId = await _exPrintMintRepository.CreateNew(newExPrintMint);
 
-                if (isCreated)
+                if (newExPrintMintId > 0)
                 {
                     TempData["Success"] = "Expected Stock created successfully!";
-                    return RedirectToAction(nameof(Index));
+                    return RedirectToAction(nameof(Details), new { id = newExPrintMintId });
                 }
                 else
                 {
@@ -511,7 +512,7 @@ namespace VMSService.Web.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
-                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "System";
+                var username = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? "System";
                 var userRoles = User.FindAll("appRole")
                     .Where(c => c.Value.StartsWith("VMS:"))
                     .Select(c => c.Value.Split(":")[1])
@@ -522,7 +523,7 @@ namespace VMSService.Web.Controllers
                     id,
                     exPrintMint.CurrentStatusId,
                     actionName,
-                    userId,
+                    username,
                     userRoles,
                     remarks);
 

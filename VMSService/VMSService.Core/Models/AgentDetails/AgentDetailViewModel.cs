@@ -28,16 +28,16 @@ namespace VMSService.Core.Models.AgentDetails
         public string? PhoneNumber { get; set; }
 
         [Display(Name = "Passport Photo")]
-        public string PassportPhoto { get; set; }
+        public string? PassportPhoto { get; set; }
 
         [Display(Name = "Work ID Scan")]
-        public string WorkIdScan { get; set; }
+        public string? WorkIdScan { get; set; }
 
         [Display(Name = "Signature Scan")]
-        public string SignatureScan { get; set; }
+        public string? SignatureScan { get; set; }
 
         [Display(Name = "Approval Attachment")]
-        public string ApprovalAttachment { get; set; }
+        public string? ApprovalAttachment { get; set; }
 
         // File upload properties
         [Display(Name = "Passport Photo")]

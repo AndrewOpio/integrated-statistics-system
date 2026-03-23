@@ -1,12 +1,10 @@
 using AutoMapper;
-using ConfigurationsService.Dto;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartBreadcrumbs.Attributes;
 using VMSService.Controllers;
 using VMSService.Core.Models.CommercialBanks;
 using VMSService.Core.Repositories.CommercialBanks;
-using VMSService.Core.Services.Stocks.StockEntities;
 
 namespace VMSService.Web.Controllers
 {

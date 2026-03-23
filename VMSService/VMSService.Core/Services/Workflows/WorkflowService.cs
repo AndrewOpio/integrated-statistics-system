@@ -1,5 +1,4 @@
 using AutoMapper;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.Extensions.Logging;
 using VMSService.Core.Models.WorkflowTransitions;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
@@ -58,7 +57,7 @@ namespace VMSService.Core.Services.Workflows
 
         public async Task<bool> ExecuteTransition(
             string entityType, int entityId, int currentStatusId, 
-            string actionName, string userId, List<string> userRoles, string remarks)
+            string actionName, string username, List<string> userRoles, string remarks)
         {
             try
             {
@@ -75,8 +74,8 @@ namespace VMSService.Core.Services.Workflows
                 // Verify user role matches transition requirement
                 if (!userRoles.Contains(transition.RequiredRole))
                 {
-                    _logger.LogWarning("User {UserId} with role {Role} attempted transition requiring role {RequiredRole}", 
-                        userId, userRoles, transition.RequiredRole);
+                    _logger.LogWarning("User {Username} with role {Role} attempted transition requiring role {RequiredRole}",
+                        username, userRoles, transition.RequiredRole);
                     return false;
                 }
 
@@ -104,7 +103,7 @@ namespace VMSService.Core.Services.Workflows
                         ApprovedCurrencyProcurementId = entityId,
                         OldStatusId = procurement.CurrentStatusId,
                         NewStatusId = transition.ToStatusId,
-                        ChangedBy = userId,
+                        ChangedBy = username,
                         ChangedAt = DateTime.Now,
                         Remarks = remarks,
                         IsDeleted = false
@@ -116,8 +115,8 @@ namespace VMSService.Core.Services.Workflows
                     procurement.CurrentStatusId = transition.ToStatusId;
                     await _procurementRepository.Update(procurement);
 
-                    _logger.LogInformation("Procurement {Id} transitioned from status {From} to {To} by user {UserId} with action {Action}",
-                        entityId, currentStatusId, transition.ToStatusId, userId, actionName);
+                    _logger.LogInformation("Procurement {Id} transitioned from status {From} to {To} by user {Usrename} with action {Action}",
+                        entityId, currentStatusId, transition.ToStatusId, username, actionName);
 
                     return true;
                 }
@@ -125,19 +124,19 @@ namespace VMSService.Core.Services.Workflows
                 // Handle ExPrintMint transitions
                 if (entityType == StatusConstants.Entity.ExPrintMint)
                 {
-                    return await HandleExPrintMintTransitions(entityId, currentStatusId, actionName, userId, remarks, transition);
+                    return await HandleExPrintMintTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
                 }
 
                 // Handle ReceivedStock transitions
                 if (entityType == StatusConstants.Entity.ReceivedStock)
                 {
-                    return await HandleReceivedStockTransitions(entityId, currentStatusId, actionName, userId, remarks, transition);
+                    return await HandleReceivedStockTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
                 }
 
                 // Handle StockMovement transitions
                 if (entityType == StatusConstants.Entity.StockMovement)
                 {
-                    return await HandleStockMovementTransitions(entityId, currentStatusId, actionName, userId, remarks, transition);
+                    return await HandleStockMovementTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
                 }
 
                 return false;
@@ -237,7 +236,7 @@ namespace VMSService.Core.Services.Workflows
         }
 
         private async Task<bool> HandleStockMovementTransitions(int entityId, int currentStatusId, string actionName,
-            string userId, string remarks, WorkflowTransition transition)
+            string username, string remarks, WorkflowTransition transition)
         {
 
             var stockMovement = await _stockMovementRepository.FindByIdAsync(entityId);
@@ -261,7 +260,7 @@ namespace VMSService.Core.Services.Workflows
                 StockMovementId = entityId,
                 OldStatusId = stockMovement.CurrentStatusId ?? 0,
                 NewStatusId = transition.ToStatusId,
-                ChangedBy = userId,
+                ChangedBy = username,
                 ChangedAt = DateTime.Now,
                 Remarks = remarks,
                 IsDeleted = false
@@ -274,7 +273,7 @@ namespace VMSService.Core.Services.Workflows
             await _stockMovementRepository.UpdateAsync(stockMovement);
 
             _logger.LogInformation("Stock Movement {Id} transitioned from status {From} to {To} by user {UserId} with action {Action}",
-                entityId, currentStatusId, transition.ToStatusId, userId, actionName);
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
 
             return true;
         }
@@ -284,7 +283,7 @@ namespace VMSService.Core.Services.Workflows
         /// </summary>
         public async Task<bool> ExecuteDiscrepancyTransition(
             int discrepancyId, int currentStatusId, int newStatusId,
-            string userId, string remarks)
+            string username, string remarks)
         {
             try
             {
@@ -308,7 +307,7 @@ namespace VMSService.Core.Services.Workflows
                     StockMovementId = discrepancy.StockMovementId,
                     OldStatusId = currentStatusId,
                     NewStatusId = newStatusId,
-                    ChangedBy = userId,
+                    ChangedBy = username,
                     ChangedAt = DateTime.Now,
                     Remarks = remarks,
                     IsDeleted = false
@@ -321,7 +320,7 @@ namespace VMSService.Core.Services.Workflows
                 await _stockMovementDiscrepancyRepository.UpdateAsync(discrepancy);
 
                 _logger.LogInformation("Discrepancy {Id} transitioned to status {To} by user {UserId}",
-                    discrepancyId, newStatusId, userId);
+                    discrepancyId, newStatusId, username);
 
                 return true;
             }

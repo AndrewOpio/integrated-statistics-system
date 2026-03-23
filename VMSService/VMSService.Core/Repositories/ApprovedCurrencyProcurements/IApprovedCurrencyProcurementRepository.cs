@@ -6,5 +6,6 @@ namespace VMSService.Core.Repositories.ApprovedCurrencyProcurements
     public interface IApprovedCurrencyProcurementRepository : IRepositoryBase<ApprovedCurrencyProcurement, int>
     {
         Task<ICollection<ApprovedCurrencyProcurement>> FindVerified();
+        Task<int> CreateNew(ApprovedCurrencyProcurement model);
     }
 }

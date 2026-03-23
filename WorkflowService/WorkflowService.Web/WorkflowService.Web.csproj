@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="IdentityService.Dto" Version="1.0.0" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.23" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.23" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.23">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.23" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.23">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="8.10.0" />
+		<PackageReference Include="Microsoft.Extensions.ServiceDiscovery" Version="9.3.0" />
+		<PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.15.0" />
+		<PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
+		<PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.23" />
+		<PackageReference Include="Novell.Directory.Ldap.NETStandard" Version="4.0.0" />
+		<PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.15.0" />
+		<PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.15.0" />
+		<PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.0" />
+		<PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.15.0" />
+		<PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.0" />
+		<PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+		<PackageReference Include="System.DirectoryServices.AccountManagement" Version="8.0.1" />
+		<PackageReference Include="System.DirectoryServices.Protocols" Version="8.0.2" />
+		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
+		<PackageReference Include="SmartBreadcrumbs" Version="3.6.1" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\WorkflowService.Core\WorkflowService.Core.csproj" />
+		<ProjectReference Include="..\WorkflowService.Data\WorkflowService.Data.csproj" />
+	</ItemGroup>
+
+</Project>
