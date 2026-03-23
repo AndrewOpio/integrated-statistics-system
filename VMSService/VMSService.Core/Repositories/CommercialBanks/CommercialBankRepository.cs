@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using VMSService.Core.Services.Stocks;
 using VMSService.Core.Services.Stocks.StockEntities;
-using VMSService.Data.Configurations;
 
 namespace VMSService.Core.Repositories.CommercialBanks
 {

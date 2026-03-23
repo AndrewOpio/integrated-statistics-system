@@ -334,7 +334,7 @@ namespace IdentityService.Core.Services.LDAPAuthentication
                     // Search for the user by SAM account name
                     var user = UserPrincipal.FindByIdentity(context, IdentityType.SamAccountName, model.UserName);
 
-                    // If the user is found, return true; otherwise, return false
+                    // If the user is found, return IsSuccess = true; otherwise, return IsSuccess = false
                     if (user != null)
                     {
                         User appUser = new User()
@@ -359,7 +359,6 @@ namespace IdentityService.Core.Services.LDAPAuthentication
                     else
                     {
                         // User not found
-                        //return null;
                         return new AdUserResult
                         {
                             IsSuccess = false,

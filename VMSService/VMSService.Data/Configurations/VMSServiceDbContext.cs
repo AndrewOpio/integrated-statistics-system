@@ -34,6 +34,9 @@ namespace VMSService.Data.Configurations
         public DbSet<Logistics> Logistics { get; set; }
         public DbSet<LogisticsCategory> LogisticsCategories { get; set; }
         public DbSet<LogisticsDetail> LogisticsDetails { get; set; }
+        public DbSet<CommercialBankUser> CommercialBankUsers { get; set; }
+        public DbSet<AgentDetail> AgentDetails { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -51,7 +54,7 @@ namespace VMSService.Data.Configurations
                 .WithMany()
                 .HasForeignKey(x => x.NewStatusId)
                 .OnDelete(DeleteBehavior.NoAction);
-
+        
             modelBuilder.Entity<StockMovementStatusHistory>()
                 .HasOne(x => x.StockMovement)
                 .WithMany(x => x.StatusHistory)

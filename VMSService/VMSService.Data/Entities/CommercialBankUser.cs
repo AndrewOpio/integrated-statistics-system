@@ -1,0 +1,13 @@
+﻿using VMSService.Data.AuditColumns;
+
+namespace VMSService.Data.Entities
+{
+    public class CommercialBankUser : AuditableEntity
+    {
+       public int Id { get; set; }
+       public string UserId { get; set; }
+       public int CommercialBankId { get; set; }
+       public int? CommercialBankBranchId { get; set; }
+       public bool IsDeleted { get; set; }
+    }
+}

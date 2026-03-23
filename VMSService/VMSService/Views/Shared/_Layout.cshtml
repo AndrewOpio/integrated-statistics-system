@@ -31,6 +31,7 @@
     bool isBranchManager = userRoles.Contains("VMS:Branch Manager");
     bool isAssistantBranchManager = userRoles.Contains("VMS:Assistant Branch Manager");
 
+    bool isCommercialBank = userRoles.Contains("VMS:Commercial Bank");
     // bool isStockReceiver = userRoles.Contains("VMS:StockReceiver");
     // bool isStockManager = userRoles.Contains("VMS:StockManager");
 }
@@ -141,6 +142,19 @@
                         </a>
                     </li>
                 }
+
+                @if (isCommercialBank)
+                {
+                    <li class="nav-item">
+                        <a asp-controller="AgentDetails" asp-action="Index" class="nav-link d-flex align-items-center">
+                            <span class="sidebar-icon fs-5 me-4">
+                                <i class="ti ti-users"></i>
+                            </span>
+                            <span class="sidebar-text">Agent Details</span>
+                        </a>
+                    </li>
+                }
+
 
                 @if (isRemittancesOfficer || isCurrencyApprover || isBranchManager || isAssistantBranchManager || isHeadOfBackOffice)
                 {
@@ -254,6 +268,11 @@
                                 <li class="nav-item">
                                     <a asp-controller="StatusTypes" asp-action="Index" class="nav-link">
                                         <span class="sidebar-text">Status Types</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a asp-controller="CommercialBankUsers" asp-action="Index" class="nav-link">
+                                        <span class="sidebar-text">Commercial Bank Users</span>
                                     </a>
                                 </li>
                                 <li class="nav-item">
