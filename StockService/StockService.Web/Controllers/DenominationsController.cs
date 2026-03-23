@@ -9,12 +9,14 @@ namespace StockService.Web.Controllers
 {
     [ApiController]
     [Route("api/denominations")]
-    [Authorize]
+    //[Authorize]
     public class DenominationsController(IDenominationRepository _denominationRepository) : ControllerBase
     {
 
         [HttpGet]
         [Route("get-all")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GetDenominations()
         {
             var items = await _denominationRepository.FindAllAsync();

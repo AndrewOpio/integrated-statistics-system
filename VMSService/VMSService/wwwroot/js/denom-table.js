@@ -1,74 +1,73 @@
 ﻿(function () {
     const BUNDLE_SIZE = 1000;
-    const MAX_BUNDLES = 500;
-    const bundles = {};
+    const MAX_BUNDLES = 1000;
+    const bundles = {};  // keyed by d.id to avoid value clashes (e.g. 1000 note vs 1000 coin)
 
     const $ = id => document.getElementById(id);
     const fmtN = n => Math.round(n).toLocaleString();
     const fmt = n => 'UGX ' + fmtN(n);
-    const amount = v => (bundles[v] || 0) * BUNDLE_SIZE * v;
-    const allValues = () => Object.keys(bundles).map(Number);
-    const grandTotal = () => allValues().reduce((s, v) => s + amount(v), 0);
+
+    // amount uses id to look up bundles, value for multiplication
+    const amount = (id, value) => (bundles[id] || 0) * BUNDLE_SIZE * value;
+    const noteTotal = () => window.denomData.notes.reduce((s, d) => s + amount(d.id, d.value), 0);
+    const coinTotal = () => window.denomData.coins.reduce((s, d) => s + amount(d.id, d.value), 0);
+    const grandTotal = () => noteTotal() + coinTotal();
 
     function buildRows(denoms, listId, type) {
-        denoms.forEach(d => bundles[d.value] = 0);
+        denoms.forEach(d => bundles[d.id] = 0);
         $(listId).innerHTML = denoms.map(d => `
             <tr>
                 <td class="ps-3">
-                    <span class="fw-bold">${d.displayLabel}</span>
+                    <span class="fw-bold">${d.label}</span>
                 </td>
                 <td style="min-width:200px;">
                     <div class="d-flex align-items-center gap-2">
                         <input type="range"
                                class="form-range flex-grow-1"
-                               id="dt-slider-${d.value}"
+                               id="dt-slider-${d.id}"
                                min="0" max="${MAX_BUNDLES}" value="0" step="1"
-                               oninput="dtSlide(${d.value}, '${type}', this.value)" />
+                               oninput="dtSlide('${d.id}', ${d.value}, '${type}', this.value)" />
                         <input type="number"
                                class="form-control form-control-sm text-center"
-                               id="dt-qty-${d.value}"
+                               id="dt-qty-${d.id}"
                                min="0" max="${MAX_BUNDLES}" value="0"
                                style="width:70px;"
-                               oninput="dtInput(${d.value}, '${type}', this.value)" />
-                        <span class="text-muted small text-nowrap">bdl</span>
+                               oninput="dtInput('${d.id}', ${d.value}, '${type}', this.value)" />
+                        <span class="text-muted small text-nowrap">bundle</span>
                     </div>
                 </td>
                 <td class="text-end pe-3">
                     <span class="fw-bold ${type === 'note' ? 'text-primary' : 'text-warning'}"
-                          id="dt-sub-${d.value}">—</span>
+                          id="dt-sub-${d.id}">—</span>
                 </td>
             </tr>`).join('');
     }
 
-    window.dtSlide = function (d, type, val) {
-        bundles[d] = parseInt(val) || 0;
-        $('dt-qty-' + d).value = bundles[d];
+    window.dtSlide = function (id, value, type, val) {
+        bundles[id] = parseInt(val) || 0;
+        $('dt-qty-' + id).value = bundles[id];
         refreshTotals();
         notifyParent();
     };
 
-    window.dtInput = function (d, type, val) {
-        bundles[d] = Math.min(MAX_BUNDLES, Math.max(0, parseInt(val) || 0));
-        $('dt-qty-' + d).value = bundles[d];
-        $('dt-slider-' + d).value = bundles[d];
+    window.dtInput = function (id, value, type, val) {
+        bundles[id] = Math.min(MAX_BUNDLES, Math.max(0, parseInt(val) || 0));
+        $('dt-qty-' + id).value = bundles[id];
+        $('dt-slider-' + id).value = bundles[id];
         refreshTotals();
         notifyParent();
     };
 
     function refreshTotals() {
         // Row subtotals
-        allValues().forEach(v => {
-            const sub = $('dt-sub-' + v);
+        [...window.denomData.notes, ...window.denomData.coins].forEach(d => {
+            const sub = $('dt-sub-' + d.id);
             if (!sub) return;
-            const a = amount(v);
+            const a = amount(d.id, d.value);
             sub.textContent = a > 0 ? fmt(a) : '—';
         });
 
-        const notes = window.denomData.notes.map(d => d.value);
-        const coins = window.denomData.coins.map(d => d.value);
-        const nt = notes.reduce((s, v) => s + amount(v), 0);
-        const ct = coins.reduce((s, v) => s + amount(v), 0);
-        const gt = grandTotal();
+        const nt = noteTotal(), ct = coinTotal(), gt = grandTotal();
 
         // Badges
         $('dt-notes-badge').textContent = fmt(nt);
@@ -81,8 +80,12 @@
         $('dt-grand-words').textContent = toWords(gt);
 
         // Breakdowns
-        const noteParts = notes.filter(v => bundles[v] > 0).map(v => `${fmtN(v)} × ${bundles[v]} bdl`);
-        const coinParts = coins.filter(v => bundles[v] > 0).map(v => `${fmtN(v)} × ${bundles[v]} bdl`);
+        const noteParts = window.denomData.notes
+            .filter(d => bundles[d.id] > 0)
+            .map(d => `${d.label} × ${bundles[d.id]} bdl`);
+        const coinParts = window.denomData.coins
+            .filter(d => bundles[d.id] > 0)
+            .map(d => `${d.label} × ${bundles[d.id]} bdl`);
 
         $('dt-notes-breakdown').textContent = noteParts.length ? noteParts.join(' · ') : 'No notes selected';
         $('dt-coins-breakdown').textContent = coinParts.length ? coinParts.join(' · ') : 'No coins selected';
@@ -128,7 +131,7 @@
         }));
     }
 
-    // ── Init — data comes from window.denomData set in the view ──
+    // ── Init ──────────────────────────────────
     buildRows(window.denomData.notes, 'dt-list-notes', 'note');
     buildRows(window.denomData.coins, 'dt-list-coins', 'coin');
     refreshTotals();

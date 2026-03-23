@@ -1,18 +1,20 @@
 ﻿@model VMSService.Core.Models.CbRequests.BranchSelectionViewModel
 
+<p class="text-uppercase text-muted small fw-semibold mb-3">Sender & Receiver Branch Details</p>
+
 <div class="card mb-3">
-    <div class="card-header d-flex justify-content-between align-items-center">
+    @* <div class="card-header d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center gap-3">
             <i class="ti ti-building text-primary me-2"></i><h5 class="card-title mb-0">Sender & Receiver</h5>
         </div>
-    </div>
+    </div> *@
     <div class="card-body">
         @* <h6 class="fw-semibold mb-3">
             <i class="ti ti-building text-primary me-2"></i>Sender and Receiver
         </h6> *@
         <div class="row g-4">
 
-            @* ── Company Branch ── *@
+            @* ── CB Branch ── *@
             <div class="col-md-6">
                 <div class="text-muted mb-2 d-flex align-items-center gap-2">
                     <i class="ti ti-user"></i>
@@ -21,7 +23,7 @@
                 <select id="companyBranchSelect"
                         name="CompanyBranchId"
                         class="form-select mb-3"
-                        onchange="loadBranchDetails('company', this.value)">
+                        onchange="loadBranchDetails('cb', this.value)">
                     <option value="">— Select Commercial Bank Branch —</option>
                     @foreach (var branch in Model.CbBranches)
                     {
@@ -43,7 +45,7 @@
                 <select id="bankBranchSelect"
                         name="BankBranchId"
                         class="form-select mb-3"
-                        onchange="loadBranchDetails('bank', this.value)">
+                        onchange="loadBranchDetails('bou', this.value)">
                     <option value="">— Select BOU Branch —</option>
                     @foreach (var branch in Model.BouBranches)
                     {
@@ -59,30 +61,3 @@
         </div>
     </div>
 </div>
-
-@section Scripts {
-    <script>
-        async function loadBranchDetails(type, id) {
-            const nameEl = document.getElementById(`${type}BranchName`);
-            const codeEl = document.getElementById(`${type}BranchCode`);
-            const detailsEl = document.getElementById(`${type}BranchDetails`);
-
-            if (!id) {
-                detailsEl.style.display = 'none';
-                return;
-            }
-
-            try {
-                const res = await fetch(`/company/withdrawal/branch-details?type=${type}&id=${id}`);
-                if (!res.ok) throw new Error('Failed to load branch details');
-
-                const data = await res.json();
-                nameEl.textContent = data.name;
-                codeEl.textContent = `Code: ${data.code}`;
-                detailsEl.style.display = 'block';
-            } catch {
-                detailsEl.style.display = 'none';
-            }
-        }
-    </script>
-}

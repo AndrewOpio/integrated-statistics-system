@@ -1,11 +1,12 @@
-﻿@model VMSService.Core.Models.CbWithdrawRequest.CreateWithdrawViewModel
+﻿@using System.Security.Claims
+@model VMSService.Core.Models.CbWithdrawRequest.CreateWithdrawViewModel
 @{
     Layout = "_CbLayout";
     ViewData["Title"] = "Submit Withdraw Request";
 
     var currentRole = "requestor";
 
-    
+
 }
 
 @await Html.PartialAsync("~/Views/Shared/_Withdrawal/_WithdrawNavSteps.cshtml", Model.Steps)
@@ -17,7 +18,7 @@
             <i class="ti ti-circle-arrow-up-right-filled text-danger fs-4"></i>
         </div>
         <div>
-            <h6 class="mb-0 fw-semibold text-danger">Withdrawal Request </h6>
+            <h6 class="mb-0 fw-semibold text-danger">Withdrawal Request - @User.FindFirst("cbName")?.Value</h6>
             <p class="mb-0 text-muted small">Fill in your details and the denominations you need.</p>
         </div>
     </div>
@@ -47,10 +48,10 @@
                                 { "Mode", "input" }, { "FieldPrefix", "Denoms" },
                                 { "Denoms", new Dictionary<int,int>() }
                                 })
-                
+
                 <div class="d-flex gap-2 mt-3">
                     <button type="submit" class="btn btn-sm btn-primary">
-                        <i class="bi bi-send me-1"></i>Submit 
+                        <i class="bi bi-send me-1"></i>Submit
                     </button>
                     <button type="reset" class="btn btn-sm btn-outline-secondary">
                         <i class="bi bi-arrow-counterclockwise me-1"></i>Clear
@@ -62,8 +63,13 @@
 </div>
 
 @section Scripts {
-
-           
+    <script>
+        window.denomData = {
+            notes: @Html.Raw(Json.Serialize(Model.Denoms.Notes.Select(d => new { id = d.Id, value = d.Value, label = $"UGX {d.Value:N0}" }))),
+            coins: @Html.Raw(Json.Serialize(Model.Denoms.Coins.Select(d => new { id = d.Id, value = d.Value, label = $"UGX {d.Value:N0}" })))
+        };
+    </script>
+    <script src="~/js/branch-selection.js"></script>
     <script src="~/js/agent-selection.js"></script>
     <script src="~/js/denom-table.js"></script>
 }

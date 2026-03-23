@@ -43,6 +43,8 @@ using VMSService.Core.Services.Workflows;
 using VMSService.Data;
 using VMSService.Core.Authorization;
 using VMSService.Core.Repositories.CommercialBankBranches;
+using ConfigurationsService.Client;
+using StockService.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -211,9 +213,9 @@ builder.Services.AddScoped<IStockMovementDiscrepancyRepository, StockMovementDis
 builder.Services.AddSingleton<IAuthorizationHandler, CbOwnershipAuthorizationHandler>();
 
 // Add this in your service registration section
-builder.Services.AddScoped<IStockService, StockService>();
+builder.Services.AddScoped<IStockService, VMSService.Core.Services.Stocks.StockService>();
 builder.Services.AddScoped<IStockPositionService, StockPositionService>();
-builder.Services.AddHttpClient<StockService>()
+builder.Services.AddHttpClient<VMSService.Core.Services.Stocks.StockService>()
     .ConfigureHttpClient((sp, client) =>
     {
         var configuration = sp.GetRequiredService<IConfiguration>();
@@ -235,6 +237,7 @@ builder.Services.AddHttpClient<IdentityService>()
 
 // Register Configurations Service
 builder.Services.AddScoped<IConfigurationService, ConfigurationService>();
+
 builder.Services.AddHttpClient<ConfigurationService>()
     .ConfigureHttpClient((sp, client) =>
     {
@@ -243,6 +246,9 @@ builder.Services.AddHttpClient<ConfigurationService>()
         client.BaseAddress = new Uri(baseUrl);
         client.DefaultRequestHeaders.Add("Accept", "application/json");
     });
+
+builder.Services.AddConfigurationsServiceClient(builder.Configuration["MicroServices:configurationService"]);
+builder.Services.AddStockServiceClient(builder.Configuration["StockApiSettings:BaseUrl"]);
 
 // Configure LDAP settings
 builder.Services.Configure<StockAPISettings>(
