@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace VMSService.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialMigration : Migration
+    public partial class vmsInit : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -58,6 +58,27 @@ namespace VMSService.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Logistics",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    Date = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ReferenceNumber = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CreatedByName = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Logistics", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "StatusTypes",
                 columns: table => new
                 {
@@ -92,6 +113,28 @@ namespace VMSService.Data.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_VendorTypes", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "LogisticsCategories",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    LogisticsId = table.Column<int>(type: "int", nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    SortOrder = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_LogisticsCategories", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_LogisticsCategories_Logistics_LogisticsId",
+                        column: x => x.LogisticsId,
+                        principalTable: "Logistics",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -216,6 +259,32 @@ namespace VMSService.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "LogisticsDetails",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    LogisticsCategoryId = table.Column<int>(type: "int", nullable: false),
+                    ItemName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    Quantity = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    UnitPrice = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    TotalPrice = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Notes = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    SortOrder = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_LogisticsDetails", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_LogisticsDetails_LogisticsCategories_LogisticsCategoryId",
+                        column: x => x.LogisticsCategoryId,
+                        principalTable: "LogisticsCategories",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ApprovedCurrencyStatusHistory",
                 columns: table => new
                 {
@@ -266,6 +335,7 @@ namespace VMSService.Data.Migrations
                     NumBagsBoxes = table.Column<int>(type: "int", nullable: true),
                     NumBundles = table.Column<int>(type: "int", nullable: true),
                     CategoryId = table.Column<int>(type: "int", nullable: true),
+                    ContainerType = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     SubTotalValue = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     DenominationType = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     StockMovementId = table.Column<int>(type: "int", nullable: false)
@@ -648,6 +718,16 @@ namespace VMSService.Data.Migrations
                 column: "OldStatusId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_LogisticsCategories_LogisticsId",
+                table: "LogisticsCategories",
+                column: "LogisticsId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LogisticsDetails_LogisticsCategoryId",
+                table: "LogisticsDetails",
+                column: "LogisticsCategoryId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ReceivedStock_CurrentStatusId",
                 table: "ReceivedStock",
                 column: "CurrentStatusId");
@@ -742,6 +822,9 @@ namespace VMSService.Data.Migrations
                 name: "ExPrintMintStatusHistory");
 
             migrationBuilder.DropTable(
+                name: "LogisticsDetails");
+
+            migrationBuilder.DropTable(
                 name: "ReceivedStockStatusHistory");
 
             migrationBuilder.DropTable(
@@ -757,10 +840,16 @@ namespace VMSService.Data.Migrations
                 name: "WorkflowTransitions");
 
             migrationBuilder.DropTable(
+                name: "LogisticsCategories");
+
+            migrationBuilder.DropTable(
                 name: "ReceivedStock");
 
             migrationBuilder.DropTable(
                 name: "StockMovementDenominations");
+
+            migrationBuilder.DropTable(
+                name: "Logistics");
 
             migrationBuilder.DropTable(
                 name: "ExPrintMints");
