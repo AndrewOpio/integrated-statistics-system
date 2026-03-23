@@ -12,16 +12,16 @@
 
 <div class="row">
     <div class="col-12 col-lg-12">
-        <div class="d-flex justify-content-end align-items-center mb-3">
-            <a asp-action="Index" class="btn btn-outline-secondary">
-                <i class="ti ti-arrow-left me-1"></i> Back to List
-            </a>
-        </div>
         <div class="card border-0 shadow mb-4">
             <div class="card-header pb-4">
-                <div class="d-flex flex-column">
-                    <span class="text-muted small mb-2">Edit Stock Movement</span>
-                    <h2 class="fs-4 fw-bold mb-0">Edit Stock Movement</h2>
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="d-flex flex-column">
+                        <span class="text-muted small mb-2">Edit Stock Movement</span>
+                        <h2 class="fs-4 fw-bold mb-0">Edit Stock Movement</h2>
+                    </div>
+                    <a asp-action="Index" class="btn btn-outline-secondary">
+                        <i class="ti ti-arrow-left me-1"></i> Back to List
+                    </a>
                 </div>
             </div>
             <div class="card-body">
@@ -118,9 +118,10 @@
                                 <thead>
                                     <tr>
                                         <th>Denomination</th>
+                                        <th>Currency Category</th>
+                                        <th>Container Type</th>
                                         <th>Number of Bags/Boxes</th>
                                         <th>Number of Bundles</th>
-                                        <th>Currency Category</th>
                                         <th>Sub-total Value</th>
                                         <th></th>
                                     </tr>
@@ -128,12 +129,12 @@
                                 <tbody></tbody>
                                 <tfoot style="background-color: #f8f9fa;">
                                     <tr>
-                                        <td colspan="4"></td>
+                                        <td colspan="5"></td>
                                         <td class="text-end align-middle">Total Bags/Boxes</td>
                                         <td style="min-width: 140px;"><input type="text" class="form-control text-end" id="totalBagsBoxes" readonly placeholder="0"></td>
                                     </tr>
                                     <tr>
-                                        <td colspan="4"></td>
+                                        <td colspan="5"></td>
                                         <td class="text-end align-middle">Grand Total Value</td>
                                         <td style="min-width: 140px;"><input type="text" class="form-control text-end" id="grandTotalValue" readonly placeholder="0"></td>
                                     </tr>
@@ -157,6 +158,48 @@
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Reference Number <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="internalReferenceNumber" value="@Model.ReferenceNumber">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Dispatching Branch <span class="text-danger">*</span></label>
+                                <select class="form-select" id="internalDispatchingBranch">
+                                    <option value="">-- Select Branch --</option>
+                                    @if (branches != null)
+                                    {
+                                        foreach (var branch in branches)
+                                        {
+                                            if (branch.Id == Model.DispatchingBranchId)
+                                            {
+                                                <option value="@branch.Id" selected>@branch.Name</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@branch.Id">@branch.Name</option>
+                                            }
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Receiving Branch <span class="text-danger">*</span></label>
+                                <select class="form-select" id="internalReceivingBranch">
+                                    <option value="">-- Select Branch --</option>
+                                    @if (branches != null)
+                                    {
+                                        foreach (var branch in branches)
+                                        {
+                                            if (branch.Id == Model.ReceivingBranchId)
+                                            {
+                                                <option value="@branch.Id" selected>@branch.Name</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@branch.Id">@branch.Name</option>
+                                            }
+                                        }
+                                    }
+                                </select>
                             </div>
                         </div>
                         <div class="mb-4">
@@ -232,6 +275,22 @@ $(document).ready(function () {
         denominationPiecesInBox[d.id] = d.piecesInBox;
     });
 
+    // Build a map of category ID to name for determining Bags vs Boxes
+    const categoryNames = {};
+    categoryOptions.forEach(c => {
+        categoryNames[c.id] = c.name;
+    });
+
+    // Helper to get container label based on category name
+    // "New" category uses Boxes, all others use Bags
+    function getContainerLabel(categoryId) {
+        const name = categoryNames[categoryId];
+        if (name && name.toLowerCase() === 'new') {
+            return 'Boxes';
+        }
+        return 'Bags';
+    }
+
     // ─── State — single source of truth ──────────────────────────────────────
 
     @{
@@ -242,7 +301,8 @@ $(document).ready(function () {
             {
                 branchRowsList.Add(new { 
                     denominationId = r.DenominationId, 
-                    numBagsBoxes = r.NumBagsBoxes, 
+                    numBagsBoxes = r.NumBagsBoxes,
+                    containerType = r.ContainerType ?? "Bag",
                     numBundles = r.NumBundles, 
                     categoryId = r.CategoryId, 
                     subTotalValue = r.SubTotalValue 
@@ -251,7 +311,7 @@ $(document).ready(function () {
         }
         else
         {
-            branchRowsList.Add(new { denominationId = "", numBagsBoxes = "", numBundles = "", categoryId = "", subTotalValue = "" });
+            branchRowsList.Add(new { denominationId = "", numBagsBoxes = "", containerType = "Bag", numBundles = "", categoryId = "", subTotalValue = "" });
         }
     }
 
@@ -279,7 +339,8 @@ $(document).ready(function () {
                 internalRowsList.Add(new { 
                     denominationId = r.DenominationId, 
                     serialRanges = serialRangesList,
-                    numBoxes = r.NumBagsBoxes, 
+                    numBoxes = r.NumBagsBoxes,
+                    containerType = r.ContainerType ?? "Box",
                     subTotalValue = r.SubTotalValue 
                 });
             }
@@ -287,7 +348,7 @@ $(document).ready(function () {
         else
         {
             var defaultRanges = new List<dynamic> { new { prefix = "", start = "", end = "" } };
-            internalRowsList.Add(new { denominationId = "", serialRanges = defaultRanges, numBoxes = "", subTotalValue = "" });
+            internalRowsList.Add(new { denominationId = "", serialRanges = defaultRanges, numBoxes = "", containerType = "Box", subTotalValue = "" });
         }
     }
 
@@ -317,12 +378,20 @@ $(document).ready(function () {
         const $tbody = $('#denominationTable tbody');
         $tbody.empty();
         branchRows.forEach((row, idx) => {
+            const defaultContainerType = getContainerLabel(row.categoryId);
+            const containerType = row.containerType || defaultContainerType;
             $tbody.append(`
                 <tr data-idx="${idx}">
                     <td><select class="form-select branch-denom-id" data-pieces-in-box="0">${buildDenomOptions(row.denominationId)}</select></td>
+                    <td><select class="form-select branch-category-id">${buildCategoryOptions(row.categoryId)}</select></td>
+                    <td>
+                        <select class="form-select branch-container-type">
+                            <option value="Bag" ${containerType === 'Bag' ? 'selected' : ''}>Bag</option>
+                            <option value="Box" ${containerType === 'Box' ? 'selected' : ''}>Box</option>
+                        </select>
+                    </td>
                     <td><input type="number" class="form-control branch-num-bags" value="${row.numBagsBoxes}" placeholder="0" /></td>
                     <td><input type="number" class="form-control branch-num-bundles" value="${row.numBundles}" placeholder="0" readonly /></td>
-                    <td><select class="form-select branch-category-id">${buildCategoryOptions(row.categoryId)}</select></td>
                     <td><input type="number" class="form-control branch-subtotal" value="${row.subTotalValue}" placeholder="0" readonly /></td>
                     <td><button type="button" class="btn btn-danger btn-sm remove-branch-row"><i class="ti ti-trash"></i></button></td>
                 </tr>
@@ -401,12 +470,13 @@ $(document).ready(function () {
 
     // ─── Branch events ────────────────────────────────────────────────────────
 
-    $('#denominationTable').on('input change', '.branch-denom-id, .branch-num-bags, .branch-category-id', function () {
+    $('#denominationTable').on('input change', '.branch-denom-id, .branch-num-bags, .branch-container-type, .branch-category-id', function () {
         const idx = $(this).closest('tr').data('idx');
         if (idx === undefined) return;
-        if ($(this).hasClass('branch-denom-id'))    branchRows[idx].denominationId = $(this).val();
-        if ($(this).hasClass('branch-num-bags'))    branchRows[idx].numBagsBoxes   = $(this).val();
-        if ($(this).hasClass('branch-category-id')) branchRows[idx].categoryId     = $(this).val();
+        if ($(this).hasClass('branch-denom-id'))      branchRows[idx].denominationId = $(this).val();
+        if ($(this).hasClass('branch-num-bags'))      branchRows[idx].numBagsBoxes   = $(this).val();
+        if ($(this).hasClass('branch-container-type')) branchRows[idx].containerType  = $(this).val();
+        if ($(this).hasClass('branch-category-id'))   branchRows[idx].categoryId     = $(this).val();
         
         // Auto-calculate bundles and subtotal
         calculateBranchRowValues(idx);
@@ -449,7 +519,7 @@ $(document).ready(function () {
     }
 
     $('#addDenominationRow').on('click', function () {
-        branchRows.push({ denominationId: '', numBagsBoxes: '', numBundles: '', categoryId: '', subTotalValue: '' });
+        branchRows.push({ denominationId: '', numBagsBoxes: '', containerType: 'Bag', numBundles: '', categoryId: '', subTotalValue: '' });
         renderBranchTable();
     });
 
@@ -512,7 +582,7 @@ $(document).ready(function () {
     });
 
     $('#addInternalDenominationRow').on('click', function () {
-        internalRows.push({ denominationId: '', serialRanges: [{ prefix: '', start: '', end: '' }], numBoxes: '', subTotalValue: '' });
+        internalRows.push({ denominationId: '', serialRanges: [{ prefix: '', start: '', end: '' }], numBoxes: '', containerType: 'Box', subTotalValue: '' });
         renderInternalTable();
     });
 
@@ -577,6 +647,8 @@ $(document).ready(function () {
         } else {
             payload.InternalDate            = $('#internalDate').val();
             payload.InternalReferenceNumber = $('#internalReferenceNumber').val();
+            payload.DispatchingBranch       = $('#internalDispatchingBranch').val();
+            payload.ReceivingBranch         = $('#internalReceivingBranch').val();
             payload.InternalTotalBoxes      = parseInt($('#internalTotalBoxes').val().replace(/,/g,'')) || 0;
             payload.InternalGrandTotalValue = parseFloat($('#internalGrandTotalValue').val().replace(/,/g,'')) || 0;           
             payload.InternalDenominationRows = internalRows
@@ -616,15 +688,35 @@ $(document).ready(function () {
                 }
             },
             error: function (xhr) {
+                console.error('Edit submission error:', xhr.status, xhr.statusText, xhr.responseText);
                 if (xhr.responseJSON) {
                     let errors = xhr.responseJSON;
                     let html = '<div class="alert alert-danger"><ul>';
 
-                    for (let key in errors) {
-                        if (errors[key] && errors[key].length) {
-                            errors[key].forEach(e => {
-                                html += `<li>${e}</li>`;
-                            });
+                    // Handle { message: "..." } format
+                    if (errors.message) {
+                        html += `<li>${errors.message}</li>`;
+                    }
+                    // Handle { errors: { field: [...] } } format
+                    else if (errors.errors) {
+                        for (let key in errors.errors) {
+                            if (errors.errors[key] && errors.errors[key].length) {
+                                errors.errors[key].forEach(e => {
+                                    html += `<li>${e}</li>`;
+                                });
+                            }
+                        }
+                    }
+                    // Handle { field: [...] } format
+                    else {
+                        for (let key in errors) {
+                            if (Array.isArray(errors[key])) {
+                                errors[key].forEach(e => {
+                                    html += `<li>${e}</li>`;
+                                });
+                            } else if (typeof errors[key] === 'string') {
+                                html += `<li>${errors[key]}</li>`;
+                            }
                         }
                     }
 
@@ -632,7 +724,7 @@ $(document).ready(function () {
                     $('#formAlerts').html(html);
                 } else {
                     $('#formAlerts').html(
-                        '<div class="alert alert-danger">Unexpected error occurred</div>'
+                        '<div class="alert alert-danger">Unexpected error occurred: ' + xhr.status + ' ' + xhr.statusText + '</div>'
                     );
                 }
             },

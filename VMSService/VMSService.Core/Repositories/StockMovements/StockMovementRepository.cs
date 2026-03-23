@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using VMSService.Core.Static;
 using VMSService.Data.Configurations;
 using VMSService.Data.Entities;
 
@@ -29,12 +30,39 @@ namespace VMSService.Core.Repositories.StockMovements
         public async Task<StockMovement> FindByIdAsync(int id)
         {
             return await _context.StockMovements
-                 .AsNoTracking() // EF won't track changes, less memory overhead
                  .AsSplitQuery()  // Runs separate queries instead of one big JOIN
                 .Include(m => m.CurrentStatus)
                 .Include(m => m.Denominations)
                     .ThenInclude(d => d.SerialNumberRanges)
                 .FirstOrDefaultAsync(m => m.Id == id);
+        }
+
+        public async Task<StockMovement> FindByIdForEditAsync(int id)
+        {
+            return await _context.StockMovements
+                 .AsSplitQuery()
+                .Include(m => m.CurrentStatus)
+                .Include(m => m.Denominations)
+                    .ThenInclude(d => d.SerialNumberRanges)
+                .FirstOrDefaultAsync(m => m.Id == id);
+        }
+
+        public async Task<List<StockMovement>> FindByIdsAsync(List<int> branchIds)
+        {
+            return await _context.StockMovements
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Include(m => m.CurrentStatus)
+                .Include(m => m.Denominations)
+                    .ThenInclude(d => d.SerialNumberRanges)
+                .Include(m => m.StockMovementDiscrepancies)
+                    .ThenInclude(d => d.CurrentStatus)
+                .Where(m => branchIds.Contains(m.DispatchingBranchId ?? 0) 
+                         || (branchIds.Contains(m.ReceivingBranchId ?? 0) 
+                             && (m.CurrentStatus.Name == StatusConstants.StockMovement.Dispatched 
+                                 || m.CurrentStatus.Name == StatusConstants.StockMovement.PendingReceipt
+                                 || m.CurrentStatus.Name == StatusConstants.StockMovement.Received)))
+                .ToListAsync();
         }
 
         public async Task<ICollection<StockMovement>> FindAllAsync()

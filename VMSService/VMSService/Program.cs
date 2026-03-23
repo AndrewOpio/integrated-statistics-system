@@ -32,6 +32,7 @@ using VMSService.Core.Repositories.StatusTypes;
 using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.StockMovementStatusHistories;
 using VMSService.Core.Repositories.StockMovementDiscrepancies;
+using VMSService.Core.Repositories.Logistics;
 using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Repositories.VendorTypes;
 using VMSService.Core.Repositories.WorkflowTransitions;
@@ -187,6 +188,7 @@ builder.Services.AddScoped<IBranchRepository, BranchRepository>();
 builder.Services.AddScoped<ICounterPartyTypeRepository, CounterPartyTypeRepository>();
 builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
 builder.Services.AddScoped<IStockMovementDiscrepancyRepository, StockMovementDiscrepancyRepository>();
+builder.Services.AddScoped<ILogisticsRepository, LogisticsRepository>();
 
 // Add this in your service registration section
 builder.Services.AddScoped<IStockService, StockService>();

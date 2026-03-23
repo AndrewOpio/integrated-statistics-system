@@ -31,6 +31,9 @@ namespace VMSService.Data.Configurations
         public DbSet<StockMovementDenominationSerialNumberRange> StockMovementDenominationSerialNumberRanges { get; set; }
         public DbSet<StockMovementStatusHistory> StockMovementStatusHistory { get; set; }
         public DbSet<StockMovementDiscrepancy> StockMovementDiscrepancies { get; set; }
+        public DbSet<Logistics> Logistics { get; set; }
+        public DbSet<LogisticsCategory> LogisticsCategories { get; set; }
+        public DbSet<LogisticsDetail> LogisticsDetails { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

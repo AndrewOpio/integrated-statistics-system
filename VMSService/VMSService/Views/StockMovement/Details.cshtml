@@ -8,17 +8,6 @@
 
 <div class="row">
     <div class="col-12 col-lg-12">
-        <div class="d-flex justify-content-end align-items-center mb-3 gap-2">
-            @if (Model.CurrentStatus?.Name == "Draft")
-            {
-                <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">
-                    <i class="ti ti-edit me-1"></i> Edit
-                </a>
-            }
-            <a asp-action="Index" class="btn btn-outline-secondary">
-                <i class="ti ti-arrow-left me-1"></i> Back to List
-            </a>
-        </div>
         <div class="card border-0 shadow mb-4">
             <div class="card-header pb-4 bg-light">
                 <div class="d-flex justify-content-between align-items-start">
@@ -29,10 +18,24 @@
                             <span class="badge bg-info">
                                 <i class="ti ti-badge me-1"></i>@Model.CurrentStatus?.Name
                             </span>
+                            @if (Model.CurrentStatus?.Name == "Dispatched")
+                            {
+                                <span class="badge bg-warning text-dark">
+                                    <i class="ti ti-truck me-1"></i>IN TRANSIT
+                                </span>
+                            }
                         </div>
                     </div>
-                    <!-- Action Buttons -->
-                    <div class="d-flex gap-2 flex-row align-items-end">
+                    <div class="d-flex gap-2">
+                        @if (Model.CurrentStatus?.Name == "Draft")
+                        {
+                            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">
+                                <i class="ti ti-edit me-1"></i> Edit
+                            </a>
+                        }
+                        <a asp-action="Index" class="btn btn-outline-secondary">
+                            <i class="ti ti-arrow-left me-1"></i> Back to List
+                        </a>
                     </div>
                 </div>
             </div>
@@ -59,7 +62,7 @@
                         <dd class="col-sm-8 text-muted">-</dd>
                     }
 
-                    @if (Model.MovementType == "branch")
+                    @if (Model.MovementType == "branch" || Model.MovementType == "internal")
                     {
                         <dt class="col-sm-4">Dispatching Branch</dt>
                         <dd class="col-sm-8">
@@ -75,8 +78,11 @@
                             }
                             @(receivingBranch != null ? receivingBranch.Name : Model.ReceivingBranchId.ToString())
                         </dd>
-                        <dt class="col-sm-4">Categorization</dt>
-                        <dd class="col-sm-8">@Model.Categorization</dd>
+                        @if (Model.MovementType == "branch")
+                        {
+                            <dt class="col-sm-4">Categorization</dt>
+                            <dd class="col-sm-8">@Model.Categorization</dd>
+                        }
                     }
                     <dt class="col-sm-4">Total Bags/Boxes</dt>
                     <dd class="col-sm-8">@Model.TotalBagsBoxes</dd>
@@ -91,6 +97,7 @@
                             <tr>
                                 <th>Denomination</th>
                                 <th>Number of Bags/Boxes</th>
+                                <th>Container Type</th>
                                 @if (Model.MovementType == "branch")
                                 {
                                     <th>Number of Bundles</th>
@@ -114,6 +121,7 @@
                                     @(denomObj != null ? denomObj.Name : denom.DenominationId.ToString())
                                 </td>
                                 <td>@denom.NumBagsBoxes</td>
+                                <td>@(!string.IsNullOrEmpty(denom.ContainerType) ? denom.ContainerType : "Bag")</td>
                                 @if (Model.MovementType == "branch")
                                 {
                                     <td>@denom.NumBundles</td>
@@ -701,8 +709,16 @@
     }
 
     // ─── Received Denomination Reconciliation ───────────────────────────────────
-    const denominations = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.Denominations ?? new List<object>()));
-    const categories = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.Categories ?? new List<object>()));
+    const denominations = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(
+        allDenominations != null 
+            ? allDenominations.Select(d => new { id = d.Id, name = d.Name, value = d.Value, piecesInBox = d.NumberOfPiecesInABox })
+            : Enumerable.Empty<object>()
+    ));
+    const categories = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(
+        allCategories != null 
+            ? allCategories.Select(c => new { id = c.Id, name = c.Name })
+            : Enumerable.Empty<object>()
+    ));
 
     const sentDenominations = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(
         (Model?.Denominations ?? new List<VMSService.Data.Entities.StockMovementDenomination>())
@@ -715,12 +731,12 @@
     ));
 
     let receivedRows = [
-        { sentDenomId: '', sentBagsBoxes: '', sentBundles: '', categoryId: '', receivedBagsBoxes: '', receivedBundles: '' }
+        { sentDenomId: '', sentBagsBoxes: '', sentBundles: '', categoryId: '', receivedBagsBoxes: '', receivedBundles: '', receivedSubtotal: '' }
     ];
 
     function getDenominationDropdown(selectedId, idx) {
         const options = denominations.map(d => 
-            `<option value="${d.Id}" ${d.Id == selectedId ? 'selected' : ''}>${d.Name}</option>`
+            `<option value="${d.id}" ${d.id == selectedId ? 'selected' : ''}>${d.name}</option>`
         ).join('');
         return `<select class="form-select form-select-sm received-denomination" data-idx="${idx}" required>
             <option value="">-- Select Denomination --</option>
@@ -730,7 +746,7 @@
 
     function getCategoryDropdown(selectedId, idx) {
         const options = categories.map(c => 
-            `<option value="${c.Id}" ${c.Id == selectedId ? 'selected' : ''}>${c.Name}</option>`
+            `<option value="${c.id}" ${c.id == selectedId ? 'selected' : ''}>${c.name}</option>`
         ).join('');
         return `<select class="form-select form-select-sm received-category" data-idx="${idx}" required>
             <option value="">-- Select Category --</option>
@@ -748,11 +764,6 @@
                 ? '<td></td>'
                 : `<td><button type="button" class="btn btn-danger btn-sm remove-received-row" data-idx="${idx}"><i class="ti ti-trash"></i></button></td>`;
             
-            // Find denomination to get its value for subtotal
-            const selectedDenom = denominations.find(d => d.Id == row.sentDenomId);
-            const denomValue = selectedDenom ? selectedDenom.Value : 0;
-            const subtotal = (parseInt(row.receivedBagsBoxes) || 0) * denomValue;
-            
             $tbody.append(`
                 <tr data-idx="${idx}" ${isDefaultRow ? 'data-default="true"' : ''}>
                     <td>
@@ -768,12 +779,12 @@
                         <input type="number" class="form-control form-control-sm received-bundles" 
                                data-idx="${idx}" 
                                value="${row.receivedBundles}" 
-                               placeholder="0" required />
+                               placeholder="0" readonly />
                     </td>
                     <td>
                         ${getCategoryDropdown(row.categoryId, idx)}
                     </td>
-                    <td><input type="number" class="form-control form-control-sm received-subtotal" data-idx="${idx}" value="${subtotal.toFixed(2)}" step="0.01" /></td>
+                    <td><input type="number" class="form-control form-control-sm received-subtotal" data-idx="${idx}" value="${row.receivedSubtotal}" step="0.01" readonly /></td>
                     ${deleteButton}
                 </tr>
             `);
@@ -782,10 +793,41 @@
         attachReceivedRowEventHandlers();
     }
 
+    function calculateReceivedRow(idx) {
+        const row = receivedRows[idx];
+        const $row = $(`#receivedDenominationTable tbody tr[data-idx="${idx}"]`);
+        if (!$row.length) return;
+
+        const denom = denominations.find(d => d.id == row.sentDenomId);
+        const denomValue = denom ? denom.value : 0;
+        const piecesInBox = denom ? denom.piecesInBox : 1;
+        const numBoxes = parseInt(row.receivedBagsBoxes) || 0;
+
+        if (!denom || numBoxes === 0) {
+            $row.find('.received-bundles').val('');
+            $row.find('.received-subtotal').val('');
+            row.receivedBundles = '';
+            row.receivedSubtotal = '';
+            return;
+        }
+
+        // Formula: number of bundles = (Number of Boxes) × (PiecesInBox / 100)
+        const numBundles = numBoxes * (piecesInBox / 100);
+        // Calculate subtotal: piecesInBox * denomination value * number of boxes
+        const subTotal = piecesInBox * denomValue * numBoxes;
+
+        row.receivedBundles = numBundles;
+        row.receivedSubtotal = subTotal;
+
+        $row.find('.received-bundles').val(numBundles.toFixed(0));
+        $row.find('.received-subtotal').val(subTotal.toFixed(0));
+    }
+
     function attachReceivedRowEventHandlers() {
         $('.received-denomination').off().on('change', function () {
             const idx = $(this).data('idx');
             receivedRows[idx].sentDenomId = $(this).val();
+            calculateReceivedRow(idx);
         });
 
         $('.received-category').off().on('change', function () {
@@ -793,19 +835,10 @@
             receivedRows[idx].categoryId = $(this).val();
         });
 
-        $('.received-bags').off().on('change', function () {
+        $('.received-bags').off().on('input change', function () {
             const idx = $(this).data('idx');
             receivedRows[idx].receivedBagsBoxes = $(this).val();
-        });
-
-        $('.received-bundles').off().on('change', function () {
-            const idx = $(this).data('idx');
-            receivedRows[idx].receivedBundles = $(this).val();
-        });
-
-        $('.received-subtotal').off().on('change', function () {
-            const idx = $(this).data('idx');
-            receivedRows[idx].receivedSubtotal = $(this).val();
+            calculateReceivedRow(idx);
         });
 
         $('.remove-received-row').off().on('click', function (e) {
@@ -828,7 +861,8 @@
                 sentBundles: '',
                 categoryId: '',
                 receivedBagsBoxes: '',
-                receivedBundles: ''
+                receivedBundles: '',
+                receivedSubtotal: ''
             });
             renderReceivedTable();
         });
@@ -839,16 +873,16 @@
         receivedDenominationForm.addEventListener('submit', function (e) {
             e.preventDefault();
             
-            // Validate that all fields are filled
+            // Validate that denomination and bags/boxes are filled (bundles and subtotal are auto-calculated)
             let isValid = true;
             receivedRows.forEach((row, idx) => {
-                if (row.receivedBagsBoxes === '' || row.receivedBundles === '') {
+                if (row.receivedBagsBoxes === '' || row.sentDenomId === '') {
                     isValid = false;
                 }
             });
 
             if (!isValid) {
-                alert('Please fill in all received quantities.');
+                alert('Please select a denomination and fill in received bags/boxes.');
                 return;
             }
 

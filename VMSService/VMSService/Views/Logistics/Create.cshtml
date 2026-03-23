@@ -1,0 +1,302 @@
+@model VMSService.Data.Entities.Logistics
+
+@{
+    ViewData["Title"] = "Create Logistics";
+}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h2 class="fs-5 fw-bold mb-0">Create Logistics</h2>
+                <a asp-action="Index" class="btn btn-sm btn-outline-secondary">
+                    <i class="ti ti-arrow-left me-1"></i>Back to List
+                </a>
+            </div>
+            <div class="card-body">
+                <form id="logisticsForm">
+                    <!-- Basic Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label">Title <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="title" required />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="date" value="@DateTime.Today.ToString("yyyy-MM-dd")" required />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Reference Number</label>
+                            <input type="text" class="form-control" id="referenceNumber" />
+                        </div>
+                    </div>
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" id="description" rows="2"></textarea>
+                        </div>
+                    </div>
+
+                    <hr class="my-4" />
+
+                    <!-- Categories Section -->
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold mb-0">Categories</h5>
+                        <button type="button" class="btn btn-sm btn-success" id="addCategoryBtn">
+                            <i class="ti ti-plus me-1"></i>Add Category
+                        </button>
+                    </div>
+
+                    <div id="categoriesContainer">
+                        <!-- Categories will be added here dynamically -->
+                    </div>
+
+                    <hr class="my-4" />
+
+                    <!-- Submit Button -->
+                    <div class="d-flex justify-content-end gap-2">
+                        <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            <i class="ti ti-device-floppy me-1"></i>Save
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Category Template -->
+<template id="categoryTemplate">
+    <div class="card border mb-3 category-card" data-category-index="">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
+            <div class="d-flex align-items-center gap-2 flex-grow-1">
+                <i class="ti ti-grip-vertical text-muted"></i>
+                <input type="text" class="form-control form-control-sm category-name" placeholder="Category Name *" style="max-width: 300px;" required />
+                <input type="text" class="form-control form-control-sm category-description" placeholder="Description (optional)" style="max-width: 400px;" />
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-outline-primary add-detail-btn" title="Add Detail Row">
+                    <i class="ti ti-plus"></i> Add Row
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger remove-category-btn" title="Remove Category">
+                    <i class="ti ti-trash"></i>
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 25%;">Item Name</th>
+                            <th style="width: 20%;">Description</th>
+                            <th style="width: 12%;">Quantity</th>
+                            <th style="width: 12%;">Unit Price</th>
+                            <th style="width: 12%;">Total</th>
+                            <th style="width: 14%;">Notes</th>
+                            <th style="width: 5%;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="details-container">
+                        <!-- Detail rows will be added here -->
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <td colspan="4" class="text-end fw-bold">Category Total:</td>
+                            <td class="fw-bold category-total">0.00</td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</template>
+
+<!-- Detail Row Template -->
+<template id="detailRowTemplate">
+    <tr class="detail-row">
+        <td>
+            <input type="text" class="form-control form-control-sm detail-item-name" placeholder="Item name" />
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm detail-description" placeholder="Description" />
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm detail-quantity" placeholder="0" step="0.01" min="0" value="0" />
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm detail-unit-price" placeholder="0.00" step="0.01" min="0" value="0" />
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm detail-total" placeholder="0.00" step="0.01" readonly />
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm detail-notes" placeholder="Notes" />
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-sm btn-outline-danger remove-detail-btn" title="Remove Row">
+                <i class="ti ti-x"></i>
+            </button>
+        </td>
+    </tr>
+</template>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            let categoryIndex = 0;
+
+            // Add Category
+            $('#addCategoryBtn').on('click', function () {
+                addCategory();
+            });
+
+            function addCategory() {
+                const template = document.getElementById('categoryTemplate').content.cloneNode(true);
+                const card = template.querySelector('.category-card');
+                card.setAttribute('data-category-index', categoryIndex);
+
+                // Setup event handlers
+                card.querySelector('.add-detail-btn').addEventListener('click', function () {
+                    addDetailRow(card);
+                });
+
+                card.querySelector('.remove-category-btn').addEventListener('click', function () {
+                    card.remove();
+                    updateGrandTotal();
+                });
+
+                $('#categoriesContainer').append(card);
+
+                // Add initial detail row
+                addDetailRow(document.querySelector(`[data-category-index="${categoryIndex}"]`));
+
+                categoryIndex++;
+            }
+
+            function addDetailRow(categoryCard) {
+                const template = document.getElementById('detailRowTemplate').content.cloneNode(true);
+                const row = template.querySelector('.detail-row');
+
+                // Setup calculation on quantity/price change
+                const quantityInput = row.querySelector('.detail-quantity');
+                const unitPriceInput = row.querySelector('.detail-unit-price');
+                const totalInput = row.querySelector('.detail-total');
+
+                function calculateRowTotal() {
+                    const quantity = parseFloat(quantityInput.value) || 0;
+                    const unitPrice = parseFloat(unitPriceInput.value) || 0;
+                    const total = quantity * unitPrice;
+                    totalInput.value = total.toFixed(2);
+                    updateCategoryTotal(categoryCard);
+                }
+
+                quantityInput.addEventListener('input', calculateRowTotal);
+                unitPriceInput.addEventListener('input', calculateRowTotal);
+
+                // Remove row button
+                row.querySelector('.remove-detail-btn').addEventListener('click', function () {
+                    row.remove();
+                    updateCategoryTotal(categoryCard);
+                });
+
+                categoryCard.querySelector('.details-container').appendChild(row);
+            }
+
+            function updateCategoryTotal(categoryCard) {
+                let total = 0;
+                categoryCard.querySelectorAll('.detail-total').forEach(function (input) {
+                    total += parseFloat(input.value) || 0;
+                });
+                categoryCard.querySelector('.category-total').textContent = total.toFixed(2);
+                updateGrandTotal();
+            }
+
+            function updateGrandTotal() {
+                let grandTotal = 0;
+                document.querySelectorAll('.category-total').forEach(function (el) {
+                    grandTotal += parseFloat(el.textContent) || 0;
+                });
+                // You can display grand total somewhere if needed
+            }
+
+            // Form Submit
+            $('#logisticsForm').on('submit', function (e) {
+                e.preventDefault();
+
+                const categories = [];
+                document.querySelectorAll('.category-card').forEach(function (categoryCard) {
+                    const categoryName = categoryCard.querySelector('.category-name').value.trim();
+                    if (!categoryName) return;
+
+                    const details = [];
+                    categoryCard.querySelectorAll('.detail-row').forEach(function (row) {
+                        details.push({
+                            itemName: row.querySelector('.detail-item-name').value.trim(),
+                            description: row.querySelector('.detail-description').value.trim(),
+                            quantity: parseFloat(row.querySelector('.detail-quantity').value) || 0,
+                            unitPrice: parseFloat(row.querySelector('.detail-unit-price').value) || 0,
+                            totalPrice: parseFloat(row.querySelector('.detail-total').value) || 0,
+                            notes: row.querySelector('.detail-notes').value.trim()
+                        });
+                    });
+
+                    categories.push({
+                        name: categoryName,
+                        description: categoryCard.querySelector('.category-description').value.trim(),
+                        details: details
+                    });
+                });
+
+                const model = {
+                    title: $('#title').val(),
+                    description: $('#description').val(),
+                    referenceNumber: $('#referenceNumber').val(),
+                    date: $('#date').val(),
+                    categories: categories
+                };
+
+                // Validate
+                if (!model.title) {
+                    alert('Please enter a title');
+                    return;
+                }
+
+                if (categories.length === 0) {
+                    alert('Please add at least one category');
+                    return;
+                }
+
+                $('#submitBtn').prop('disabled', true).html('<i class="ti ti-loader me-1"></i>Saving...');
+
+                $.ajax({
+                    url: '@Url.Action("Create", "Logistics")',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(model),
+                    headers: {
+                        'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function (result) {
+                        if (result.success) {
+                            window.location.href = '@Url.Action("Index", "Logistics")';
+                        } else {
+                            alert(result.message || 'Error saving record');
+                            $('#submitBtn').prop('disabled', false).html('<i class="ti ti-device-floppy me-1"></i>Save');
+                        }
+                    },
+                    error: function (xhr) {
+                        alert('Error saving record: ' + (xhr.responseJSON?.message || 'Unknown error'));
+                        $('#submitBtn').prop('disabled', false).html('<i class="ti ti-device-floppy me-1"></i>Save');
+                    }
+                });
+            });
+
+            // Add initial category
+            addCategory();
+        });
+    </script>
+    @Html.AntiForgeryToken()
+}

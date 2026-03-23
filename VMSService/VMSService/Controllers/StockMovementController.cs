@@ -1,5 +1,7 @@
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using Azure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartBreadcrumbs.Attributes;
@@ -32,74 +34,44 @@ namespace VMSService.Web.Controllers
         IStockService _stockService,
         IStockPositionService _stockPositionService) : Controller
     {
-        private const string StockServiceBaseUrl = "https://localhost:7158";
-        private const string StockServiceTokenEndpoint = "/api/token";
-        private const string StockServiceBranchesEndpoint = "/api/branches/get-all";
-        private const string StockServiceUsername = "vms";
-        private const string StockServicePassword = "12345";
-
         [Breadcrumb("Stock Movement", FromController = typeof(HomeController), FromAction = nameof(Index))]
         public async Task<IActionResult> Index()
         {
-            var movements = await _stockMovementRepository.FindAllAsync();
-            return View(movements);
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var userRoles = User.FindAll("appRole")
+               .Where(c => c.Value.StartsWith("VMS:"))
+               .Select(c => c.Value.Split(":")[1])
+               .ToList();
+
+            var branches = await _stockService.GetAllBranches();
+
+            var branchNames = branches.ToDictionary(b => b.Name, b => b.Id);
+
+            var userBranchIds = userRoles
+                .Where(role => branchNames.ContainsKey(role))
+                .Select(role => branchNames[role])
+                .ToList();
+
+            var movements = await _stockMovementRepository.FindByIdsAsync(userBranchIds);
+
+            var filteredMovements = movements
+                .Where(m => m.CurrentStatus?.Name != StatusConstants.StockMovement.Draft || m.CreatedBy == currentUserId)
+                .ToList();
+
+            var movmt = await _stockMovementRepository.FindAllAsync();
+
+            return View(movmt);
         }
 
         [HttpGet]
         [Breadcrumb("Create", FromController = typeof(StockMovementController), FromAction = nameof(Index))]
         public async Task<IActionResult> Create()
         {
-            var client = _httpClientFactory.CreateClient();
-            string token = string.Empty;
-            string tokenType = "Bearer";
-            var branches = new List<Branch>();
-            var denominations = new List<Denomination>();
-            var categories = new List<Category>();
-            try
-            {
-                // Step 1: Get JWT token
-                var tokenPayload = new { clientId = StockServiceUsername, clientSecret = StockServicePassword };
-                var tokenContent = new StringContent(JsonSerializer.Serialize(tokenPayload), Encoding.UTF8, "application/json");
-                var tokenResponse = await client.PostAsync($"{StockServiceBaseUrl}{StockServiceTokenEndpoint}", tokenContent);
-                if (tokenResponse.IsSuccessStatusCode)
-                {
-                    var tokenJson = await tokenResponse.Content.ReadAsStringAsync();
-                    using var doc = JsonDocument.Parse(tokenJson);
-                    token = doc.RootElement.GetProperty("accessToken").GetString();
-                    if (doc.RootElement.TryGetProperty("tokenType", out var typeProp))
-                    {
-                        tokenType = typeProp.GetString() ?? "Bearer";
-                    }
-                }
+            var branches = await _stockService.GetAllBranches();
+            var denominations = await _stockService.GetAllDenominations();
+            var categories = await _stockService.GetAllCategories();
 
-                // Step 2: Use token to fetch branches, denominations, categories
-                if (!string.IsNullOrEmpty(token))
-                {
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(tokenType, token);
-                    // Branches
-                    var response = await client.GetAsync($"{StockServiceBaseUrl}{StockServiceBranchesEndpoint}");
-                    if (response.IsSuccessStatusCode)
-                    {
-                        branches = await response.Content.ReadFromJsonAsync<List<Branch>>() ?? new List<Branch>();
-                    }
-                    // Denominations
-                    var denomResponse = await client.GetAsync($"{StockServiceBaseUrl}/api/denominations/get-all");
-                    if (denomResponse.IsSuccessStatusCode)
-                    {
-                        denominations = await denomResponse.Content.ReadFromJsonAsync<List<Denomination>>() ?? new List<Denomination>();
-                    }
-                    // Categories
-                    var catResponse = await client.GetAsync($"{StockServiceBaseUrl}/api/categories/get-all");
-                    if (catResponse.IsSuccessStatusCode)
-                    {
-                        categories = await catResponse.Content.ReadFromJsonAsync<List<Category>>() ?? new List<Category>();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to fetch data from StockService");
-            }
             ViewBag.Branches = branches;
             ViewBag.Denominations = denominations;
             ViewBag.Categories = categories;
@@ -127,6 +99,8 @@ namespace VMSService.Web.Controllers
 
             if (model.MovementType == "branch")
             {
+                var categories = await _stockService.GetAllCategories();
+                
                 var filteredDenoms = model.DenominationRows?
                     .Where(x => x.DenominationId > 0 && (x.NumBagsBoxes.HasValue || x.NumBundles.HasValue || x.SubTotalValue > 0))
                     .ToList();
@@ -142,13 +116,16 @@ namespace VMSService.Web.Controllers
                     TotalBagsBoxes = model.BranchTotalBagsBoxes,
                     GrandTotalValue = model.BranchGrandTotalValue,
                     CurrentStatusId = draftStatus.Id,
-                    Denominations = filteredDenoms?.Select(x => new StockMovementDenomination
-                    {
-                        DenominationId = x.DenominationId,
-                        NumBagsBoxes = x.NumBagsBoxes,
-                        NumBundles = x.NumBundles,
-                        CategoryId = x.CategoryId,
-                        SubTotalValue = x.SubTotalValue
+                    Denominations = filteredDenoms.Select(x => {
+                        return new StockMovementDenomination
+                        {
+                            DenominationId = x.DenominationId,
+                            NumBagsBoxes = x.NumBagsBoxes,
+                            NumBundles = x.NumBundles,
+                            CategoryId = x.CategoryId,
+                            ContainerType = x.ContainerType,
+                            SubTotalValue = x.SubTotalValue
+                        };
                     }).ToList()
                 };
 
@@ -157,6 +134,9 @@ namespace VMSService.Web.Controllers
             }
             else if (model.MovementType == "internal")
             {
+                var category = await _stockService.GetAllCategories();
+                var newCategory = category.FirstOrDefault(c => c.Name == "New");
+
                 var filteredDenoms = model.InternalDenominationRows?
                     .Where(x => x.DenominationId > 0 && (
                         x.NumBoxes.HasValue ||
@@ -167,40 +147,24 @@ namespace VMSService.Web.Controllers
                             !string.IsNullOrWhiteSpace(r.End)))))
                     .ToList();
 
-                // Debug logging
-                if (filteredDenoms != null)
-                {
-                    foreach (var denom in filteredDenoms)
-                    {
-                        _logger.LogInformation($"DenominationId: {denom.DenominationId}, NumBoxes: {denom.NumBoxes}, SubTotal: {denom.SubTotalValue}");
-                        if (denom.SerialRanges != null)
-                        {
-                            foreach (var range in denom.SerialRanges)
-                            {
-                                _logger.LogInformation($"  SerialRange - Prefix: {range.Prefix}, Start: {range.Start}, End: {range.End}");
-                            }
-                        }
-                    }
-                }
-
-                var category = await _stockService.GetAllCategories();
-                var newCategory = category.FirstOrDefault(c => c.Name == "New");
-
                 var movement = new StockMovement
                 {
                     MovementType = model.MovementType,
                     Date = model.InternalDate ?? DateTime.Now,
                     ReferenceNumber = model.InternalReferenceNumber,
+                    DispatchingBranchId = model.DispatchingBranch,
+                    ReceivingBranchId = model.ReceivingBranch,
                     TotalBagsBoxes = model.InternalTotalBoxes,
                     GrandTotalValue = model.InternalGrandTotalValue,
                     CurrentStatusId = draftStatus.Id,
-                    Denominations = filteredDenoms?.Select(x => new StockMovementDenomination
+                    Denominations = filteredDenoms.Select(x => new StockMovementDenomination
                     {
                         DenominationId = x.DenominationId,
                         NumBagsBoxes = x.NumBoxes,
                         CategoryId = newCategory?.Id,
+                        ContainerType = x.ContainerType ?? "Box",
                         SubTotalValue = x.SubTotalValue,
-                        SerialNumberRanges = x.SerialRanges?
+                        SerialNumberRanges = x.SerialRanges
                             .Where(r =>
                                 !string.IsNullOrWhiteSpace(r.Prefix) ||
                                 !string.IsNullOrWhiteSpace(r.Start) ||
@@ -231,57 +195,9 @@ namespace VMSService.Web.Controllers
                 return NotFound();
             }
 
-            var client = _httpClientFactory.CreateClient();
-            string token = string.Empty;
-            string tokenType = "Bearer";
-            var branches = new List<Branch>();
-            var denominations = new List<Denomination>();
-            var categories = new List<Category>();
-            try
-            {
-                // Step 1: Get JWT token
-                var tokenPayload = new { clientId = StockServiceUsername, clientSecret = StockServicePassword };
-                var tokenContent = new StringContent(JsonSerializer.Serialize(tokenPayload), Encoding.UTF8, "application/json");
-                var tokenResponse = await client.PostAsync($"{StockServiceBaseUrl}{StockServiceTokenEndpoint}", tokenContent);
-                if (tokenResponse.IsSuccessStatusCode)
-                {
-                    var tokenJson = await tokenResponse.Content.ReadAsStringAsync();
-                    using var doc = JsonDocument.Parse(tokenJson);
-                    token = doc.RootElement.GetProperty("accessToken").GetString();
-                    if (doc.RootElement.TryGetProperty("tokenType", out var typeProp))
-                    {
-                        tokenType = typeProp.GetString() ?? "Bearer";
-                    }
-                }
-
-                // Step 2: Use token to fetch branches, denominations, categories
-                if (!string.IsNullOrEmpty(token))
-                {
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(tokenType, token);
-                    // Branches
-                    var response = await client.GetAsync($"{StockServiceBaseUrl}{StockServiceBranchesEndpoint}");
-                    if (response.IsSuccessStatusCode)
-                    {
-                        branches = await response.Content.ReadFromJsonAsync<List<Branch>>() ?? new List<Branch>();
-                    }
-                    // Denominations
-                    var denomResponse = await client.GetAsync($"{StockServiceBaseUrl}/api/denominations/get-all");
-                    if (denomResponse.IsSuccessStatusCode)
-                    {
-                        denominations = await denomResponse.Content.ReadFromJsonAsync<List<Denomination>>() ?? new List<Denomination>();
-                    }
-                    // Categories
-                    var catResponse = await client.GetAsync($"{StockServiceBaseUrl}/api/categories/get-all");
-                    if (catResponse.IsSuccessStatusCode)
-                    {
-                        categories = await catResponse.Content.ReadFromJsonAsync<List<Category>>() ?? new List<Category>();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to fetch data from StockService");
-            }
+            var branches = await _stockService.GetAllBranches();
+            var denominations = await _stockService.GetAllDenominations();
+            var categories = await _stockService.GetAllCategories();
 
             ViewBag.Branches = branches;
             ViewBag.Denominations = denominations;
@@ -362,6 +278,7 @@ namespace VMSService.Web.Controllers
             return View(movement);
         }
 
+
         [HttpGet]
         [Breadcrumb("Edit", FromController = typeof(StockMovementController), FromAction = nameof(Index))]
         public async Task<IActionResult> Edit(int id)
@@ -381,62 +298,16 @@ namespace VMSService.Web.Controllers
                 return RedirectToAction("Details", new { id });
             }
 
-            var client = _httpClientFactory.CreateClient();
-            string token = string.Empty;
-            string tokenType = "Bearer";
-            var branches = new List<Branch>();
-            var denominations = new List<Denomination>();
-            var categories = new List<Category>();
-            try
-            {
-                // Step 1: Get JWT token
-                var tokenPayload = new { clientId = StockServiceUsername, clientSecret = StockServicePassword };
-                var tokenContent = new StringContent(JsonSerializer.Serialize(tokenPayload), Encoding.UTF8, "application/json");
-                var tokenResponse = await client.PostAsync($"{StockServiceBaseUrl}{StockServiceTokenEndpoint}", tokenContent);
-                if (tokenResponse.IsSuccessStatusCode)
-                {
-                    var tokenJson = await tokenResponse.Content.ReadAsStringAsync();
-                    using var doc = JsonDocument.Parse(tokenJson);
-                    token = doc.RootElement.GetProperty("accessToken").GetString();
-                    if (doc.RootElement.TryGetProperty("tokenType", out var typeProp))
-                    {
-                        tokenType = typeProp.GetString() ?? "Bearer";
-                    }
-                }
+            var branches = await _stockService.GetAllBranches();
+            var denominations = await _stockService.GetAllDenominations();
+            var categories = await _stockService.GetAllCategories();
 
-                // Step 2: Use token to fetch branches, denominations, categories
-                if (!string.IsNullOrEmpty(token))
-                {
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(tokenType, token);
-                    // Branches
-                    var response = await client.GetAsync($"{StockServiceBaseUrl}{StockServiceBranchesEndpoint}");
-                    if (response.IsSuccessStatusCode)
-                    {
-                        branches = await response.Content.ReadFromJsonAsync<List<Branch>>() ?? new List<Branch>();
-                    }
-                    // Denominations
-                    var denomResponse = await client.GetAsync($"{StockServiceBaseUrl}/api/denominations/get-all");
-                    if (denomResponse.IsSuccessStatusCode)
-                    {
-                        denominations = await denomResponse.Content.ReadFromJsonAsync<List<Denomination>>() ?? new List<Denomination>();
-                    }
-                    // Categories
-                    var catResponse = await client.GetAsync($"{StockServiceBaseUrl}/api/categories/get-all");
-                    if (catResponse.IsSuccessStatusCode)
-                    {
-                        categories = await catResponse.Content.ReadFromJsonAsync<List<Category>>() ?? new List<Category>();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to fetch data from StockService");
-            }
             ViewBag.Branches = branches;
             ViewBag.Denominations = denominations;
             ViewBag.Categories = categories;
             return View(movement);
         }
+
 
         [HttpPost]
         [Breadcrumb("Edit", FromController = typeof(StockMovementController), FromAction = nameof(Index))]
@@ -447,7 +318,7 @@ namespace VMSService.Web.Controllers
                 return BadRequest(ModelState);
             }
 
-            var movement = await _stockMovementRepository.FindByIdAsync(id);
+            var movement = await _stockMovementRepository.FindByIdForEditAsync(id);
             if (movement == null)
             {
                 return BadRequest(new { message = "Stock movement not found." });
@@ -463,6 +334,8 @@ namespace VMSService.Web.Controllers
 
             if (movement.MovementType == "branch")
             {
+                var categories = await _stockService.GetAllCategories();
+                
                 var filteredDenoms = model.DenominationRows?
                     .Where(x => x.DenominationId > 0 && (x.NumBagsBoxes.HasValue || x.NumBundles.HasValue || x.SubTotalValue > 0))
                     .ToList();
@@ -477,17 +350,32 @@ namespace VMSService.Web.Controllers
                 movement.GrandTotalValue = model.BranchGrandTotalValue;
 
                 // Update denominations - clear existing and add new ones
-                movement.Denominations?.Clear();
-                movement.Denominations = filteredDenoms?.Select(x => new StockMovementDenomination
+                if (movement.Denominations != null)
                 {
-                    DenominationId = x.DenominationId,
-                    NumBagsBoxes = x.NumBagsBoxes,
-                    NumBundles = x.NumBundles,
-                    CategoryId = x.CategoryId,
-                    SubTotalValue = x.SubTotalValue
-                }).ToList();
+                    movement.Denominations.Clear();
+                }
+                else
+                {
+                    movement.Denominations = new List<StockMovementDenomination>();
+                }
+                
+                if (filteredDenoms != null)
+                {
+                    foreach (var x in filteredDenoms)
+                    {
+                        movement.Denominations.Add(new StockMovementDenomination
+                        {
+                            DenominationId = x.DenominationId,
+                            NumBagsBoxes = x.NumBagsBoxes,
+                            NumBundles = x.NumBundles,
+                            CategoryId = x.CategoryId,
+                            ContainerType = x.ContainerType,
+                            SubTotalValue = x.SubTotalValue
+                        });
+                    }
+                }
 
-                await _stockMovementRepository.UpdateAsync(movement);
+                await _stockMovementRepository.SaveAsync();
                 return Json(new { redirectUrl = Url.Action("Details", new { id }) });
             }
             else if (movement.MovementType == "internal")
@@ -502,38 +390,60 @@ namespace VMSService.Web.Controllers
                             !string.IsNullOrWhiteSpace(r.End)))))
                     .ToList();
 
+                var categories = await _stockService.GetAllCategories();
+                var newCategory = categories.FirstOrDefault(c => c.Name == "New");
+
                 // Update movement properties
                 movement.Date = model.InternalDate ?? DateTime.Now;
                 movement.ReferenceNumber = model.InternalReferenceNumber;
+                movement.DispatchingBranchId = model.DispatchingBranch;
+                movement.ReceivingBranchId = model.ReceivingBranch;
                 movement.TotalBagsBoxes = model.InternalTotalBoxes;
                 movement.GrandTotalValue = model.InternalGrandTotalValue;
 
                 // Update denominations - clear existing and add new ones
-                movement.Denominations?.Clear();
-                movement.Denominations = filteredDenoms?.Select(x => new StockMovementDenomination
+                if (movement.Denominations != null)
                 {
-                    DenominationId = x.DenominationId,
-                    NumBagsBoxes = x.NumBoxes,
-                    SubTotalValue = x.SubTotalValue,
-                    SerialNumberRanges = x.SerialRanges?
-                        .Where(r =>
-                            !string.IsNullOrWhiteSpace(r.Prefix) ||
-                            !string.IsNullOrWhiteSpace(r.Start) ||
-                            !string.IsNullOrWhiteSpace(r.End))
-                        .Select(r => new StockMovementDenominationSerialNumberRange
-                        {
-                            Prefix = r.Prefix,
-                            Start = r.Start,
-                            End = r.End
-                        }).ToList()
-                }).ToList();
+                    movement.Denominations.Clear();
+                }
+                else
+                {
+                    movement.Denominations = new List<StockMovementDenomination>();
+                }
 
-                await _stockMovementRepository.UpdateAsync(movement);
+                if (filteredDenoms != null)
+                {
+                    foreach (var x in filteredDenoms)
+                    {
+                        movement.Denominations.Add(new StockMovementDenomination
+                        {
+                            DenominationId = x.DenominationId,
+                            NumBagsBoxes = x.NumBoxes,
+                            CategoryId = newCategory?.Id,
+                            ContainerType = x.ContainerType ?? "Box",
+                            SubTotalValue = x.SubTotalValue,
+                            SerialNumberRanges = x.SerialRanges?
+                                .Where(r =>
+                                    !string.IsNullOrWhiteSpace(r.Prefix) ||
+                                    !string.IsNullOrWhiteSpace(r.Start) ||
+                                    !string.IsNullOrWhiteSpace(r.End))
+                                .Select(r => new StockMovementDenominationSerialNumberRange
+                                {
+                                    Prefix = r.Prefix,
+                                    Start = r.Start,
+                                    End = r.End
+                                }).ToList()
+                        });
+                    }
+                }
+
+                await _stockMovementRepository.SaveAsync();
                 return Json(new { redirectUrl = Url.Action("Details", new { id }) });
             }
 
             return BadRequest(new { message = "Invalid movement type." });
         }
+
 
         [HttpPost]
         public async Task<IActionResult> ExecuteAction(int id, string actionName, string remarks)
