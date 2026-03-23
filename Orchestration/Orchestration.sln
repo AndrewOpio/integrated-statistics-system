@@ -35,6 +35,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConfigurationsService.Dto",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConfigurationsService.Web", "..\ConfigurationsService\ConfigurationsService.Web\ConfigurationsService.Web.csproj", "{7BC08FF3-D57B-F23D-FE90-1F9FD251FCBB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NotificationService.Infrastructure", "..\NotificationService\NotificationService.Infrastructure\NotificationService.Infrastructure.csproj", "{E2303C56-097A-48B7-1E2C-F2BE730732A8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -237,6 +239,18 @@ Global
 		{7BC08FF3-D57B-F23D-FE90-1F9FD251FCBB}.Release|x64.Build.0 = Release|Any CPU
 		{7BC08FF3-D57B-F23D-FE90-1F9FD251FCBB}.Release|x86.ActiveCfg = Release|Any CPU
 		{7BC08FF3-D57B-F23D-FE90-1F9FD251FCBB}.Release|x86.Build.0 = Release|Any CPU
+		{E2303C56-097A-48B7-1E2C-F2BE730732A8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E2303C56-097A-48B7-1E2C-F2BE730732A8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E2303C56-097A-48B7-1E2C-F2BE730732A8}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E2303C56-097A-48B7-1E2C-F2BE730732A8}.Debug|x64.Build.0 = Debug|Any CPU
+		{E2303C56-097A-48B7-1E2C-F2BE730732A8}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E2303C56-097A-48B7-1E2C-F2BE730732A8}.Debug|x86.Build.0 = Debug|Any CPU
+		{E2303C56-097A-48B7-1E2C-F2BE730732A8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E2303C56-097A-48B7-1E2C-F2BE730732A8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E2303C56-097A-48B7-1E2C-F2BE730732A8}.Release|x64.ActiveCfg = Release|Any CPU
+		{E2303C56-097A-48B7-1E2C-F2BE730732A8}.Release|x64.Build.0 = Release|Any CPU
+		{E2303C56-097A-48B7-1E2C-F2BE730732A8}.Release|x86.ActiveCfg = Release|Any CPU
+		{E2303C56-097A-48B7-1E2C-F2BE730732A8}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
