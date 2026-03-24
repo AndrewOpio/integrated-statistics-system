@@ -41,10 +41,22 @@ using VMSService.Core.Services.StockPositions;
 using VMSService.Core.Services.Stocks;
 using VMSService.Core.Services.Workflows;
 using VMSService.Data;
+
+using VMSService.Core.Repositories.AgentDetails;
+using VMSService.Core.Services.Configurations;
+using NotificationService.Client;
+using ConfigurationsService.Client;
 using VMSService.Core.Authorization;
 using VMSService.Core.Repositories.CommercialBankBranches;
 using ConfigurationsService.Client;
 using StockService.Client;
+
+//using VMSService.Core.Authorization;
+//using VMSService.Core.Repositories.CommercialBankBranches;
+//using ConfigurationsService.Client;
+//using StockService.Client;
+//using NotificationService.Client;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -246,9 +258,6 @@ builder.Services.AddHttpClient<ConfigurationService>()
         client.BaseAddress = new Uri(baseUrl);
         client.DefaultRequestHeaders.Add("Accept", "application/json");
     });
-
-builder.Services.AddConfigurationsServiceClient(builder.Configuration["MicroServices:configurationService"]);
-builder.Services.AddStockServiceClient(builder.Configuration["StockApiSettings:BaseUrl"]);
 
 // Configure LDAP settings
 builder.Services.Configure<StockAPISettings>(
