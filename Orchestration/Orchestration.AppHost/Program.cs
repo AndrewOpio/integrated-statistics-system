@@ -5,6 +5,7 @@ var gateway = builder.AddProject<Projects.GatewayService>("gatewayservice");
 var stock = builder.AddProject<Projects.StockService_Web>("stockservice");
 var vms = builder.AddProject<Projects.VMSService_Web>("vmsservice");
 var configurations = builder.AddProject<Projects.ConfigurationsService_Web>("configurations");
+var notifications = builder.AddProject<Projects.NotificationService_Api>("notifications");
 
 
 builder.Build().Run();

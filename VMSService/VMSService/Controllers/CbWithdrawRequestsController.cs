@@ -10,6 +10,7 @@ using VMSService.Core.Models.CbWithdrawRequest;
 using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.Branches;
 using VMSService.Core.Repositories.CommercialBankBranches;
+using VMSService.Core.Repositories.Denominations;
 
 namespace VMSService.Web.Controllers
 {
@@ -21,22 +22,15 @@ namespace VMSService.Web.Controllers
     IAuthorizationService authorizationService,
     IAgentDetailRepository _agentRepo, 
     IConfigurationsServiceClient _configServiceClient,
-    IStockServiceClient _stockServiceClient,
+    //IStockServiceClient _stockServiceClient,
+    IDenominationRepository _denomRepo,
     IMapper _mapper) : BaseWithdrawController(authorizationService)
     {
         public IActionResult Index()
         {
             return View();
         }
-        //public IActionResult Create()
-        //{
-        //    var stepVm = WithdrawalStepViewModelFactory.Build(
-        //        currentStepKey: "CbMaker",
-        //        isRequestApproved: false,
-        //        user: User);
-
-        //    return View(stepVm);
-        //}
+        
         // ── Create ───────────────────────────────
         public async Task<IActionResult> Create(CancellationToken ct)
         {
@@ -54,18 +48,15 @@ namespace VMSService.Web.Controllers
             var agentDetails = (await _agentRepo.FindAll()).Where(a => a.IsDeleted == false);
             var agentDetailsVm = _mapper.Map<List<AgentDetailViewModel>>(agentDetails);
 
-            var allDenoms = await _stockServiceClient.GetAllDenominations();
+            var allDenoms = await _denomRepo.FindAll();
 
             var denomList = allDenoms.ToList();
 
             var denomVm = new DenomTableViewModel
             {
-                Notes = denomList.Where(d => d.DenominationType.Name.Equals("Note", StringComparison.OrdinalIgnoreCase)),
-                Coins = denomList.Where(d => d.DenominationType.Name.Equals("Coin", StringComparison.OrdinalIgnoreCase)),
+                Notes = denomList.Where(d => d.DenominationType.Name.Equals("Note")),
+                Coins = denomList.Where(d => d.DenominationType.Name.Equals("Coin")),
             };
-
-
-            var denom = await _stockServiceClient.GetAllDenominations();
 
             var agentVm = new AgentSelectionViewModel
             {

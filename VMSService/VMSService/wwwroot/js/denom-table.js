@@ -1,13 +1,12 @@
 ﻿(function () {
     const BUNDLE_SIZE = 1000;
-    const MAX_BUNDLES = 1000;
+    const MAX_BUNDLES = 10000;
     const bundles = {};  // keyed by d.id to avoid value clashes (e.g. 1000 note vs 1000 coin)
 
     const $ = id => document.getElementById(id);
     const fmtN = n => Math.round(n).toLocaleString();
     const fmt = n => 'UGX ' + fmtN(n);
 
-    // amount uses id to look up bundles, value for multiplication
     const amount = (id, value) => (bundles[id] || 0) * BUNDLE_SIZE * value;
     const noteTotal = () => window.denomData.notes.reduce((s, d) => s + amount(d.id, d.value), 0);
     const coinTotal = () => window.denomData.coins.reduce((s, d) => s + amount(d.id, d.value), 0);
@@ -33,7 +32,7 @@
                                min="0" max="${MAX_BUNDLES}" value="0"
                                style="width:70px;"
                                oninput="dtInput('${d.id}', ${d.value}, '${type}', this.value)" />
-                        <span class="text-muted small text-nowrap">bundle</span>
+                        <span class="text-muted small text-nowrap">${type === 'note' ? 'bdl' : 'box'}</span>
                     </div>
                 </td>
                 <td class="text-end pe-3">
@@ -79,16 +78,9 @@
         $('dt-grand-total').textContent = fmt(gt);
         $('dt-grand-words').textContent = toWords(gt);
 
-        // Breakdowns
-        const noteParts = window.denomData.notes
-            .filter(d => bundles[d.id] > 0)
-            .map(d => `${d.label} × ${bundles[d.id]} bdl`);
-        const coinParts = window.denomData.coins
-            .filter(d => bundles[d.id] > 0)
-            .map(d => `${d.label} × ${bundles[d.id]} bdl`);
-
-        $('dt-notes-breakdown').textContent = noteParts.length ? noteParts.join(' · ') : 'No notes selected';
-        $('dt-coins-breakdown').textContent = coinParts.length ? coinParts.join(' · ') : 'No coins selected';
+        // Breakdowns — hidden, just clear them
+        $('dt-notes-breakdown').textContent = '';
+        $('dt-coins-breakdown').textContent = '';
     }
 
     // ── Amount in words ───────────────────────────────────────

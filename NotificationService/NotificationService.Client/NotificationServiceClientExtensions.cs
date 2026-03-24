@@ -10,6 +10,10 @@ namespace NotificationService.Client
 {
     public static class NotificationServiceClientExtensions
     {
+        /// <summary>
+        /// Registers the HTTP notifications.
+        /// Use when your service needs a response back.
+        /// </summary>
         public static IServiceCollection AddNotificationServiceClient(
         this IServiceCollection services, string baseUrl)
         {
