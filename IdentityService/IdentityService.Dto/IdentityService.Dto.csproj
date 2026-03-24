@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<PackageId>IdentityService.Dto</PackageId>
+		<Version>1.0.0</Version>
+		<Authors>BOU</Authors>
+		<Description>Shared Dto classes: Application, Role and ApplicationRole</Description>
+		<PackageIcon>bou.png</PackageIcon>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Include="bou.png" Pack="true" PackagePath="\" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.23" />
+	</ItemGroup>
+
+</Project>

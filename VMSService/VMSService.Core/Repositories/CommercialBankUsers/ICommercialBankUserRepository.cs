@@ -8,5 +8,6 @@ namespace VMSService.Core.Repositories.CommercialBankUsers
     {
         Task<ICollection<NonStaffUser>> GetNonStaffUsers();
         Task<bool> IsUserIdExists(string userId, int? excludeId = null);
+        Task<CommercialBankUser> FindByUserId(string userId);
     }
 }

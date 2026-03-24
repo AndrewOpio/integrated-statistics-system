@@ -6,5 +6,6 @@ namespace VMSService.Core.Repositories.ExpectedCurrencies
     public interface IExPrintMintRepository : IRepositoryBase<ExPrintMint, int>
     {
         Task<ICollection<ExPrintMint>> FindPendingDeliveries();
+        Task<int> CreateNew(ExPrintMint model);
     }
 }

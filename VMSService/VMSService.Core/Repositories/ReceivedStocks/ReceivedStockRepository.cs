@@ -50,5 +50,12 @@ namespace VMSService.Core.Repositories.ReceivedStocks
             _db.ReceivedStock.Update(model);
             return await Save();
         }
+
+        public async Task<int> CreateNew(ReceivedStock model)
+        {
+            _db.ReceivedStock.Add(model);
+            await Save();
+            return model.Id;
+        }
     }
 }

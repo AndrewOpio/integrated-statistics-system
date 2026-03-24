@@ -1,0 +1,106 @@
+@model WorkflowService.Core.Models.StatusTypes.StatusTypeViewModel
+
+@{
+    ViewData["Title"] = "Edit Status Type";
+}
+
+<div class="row">
+    <div>
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header">
+                <h2 class="fs-5 fw-bold mb-0">Edit Status Type</h2>
+            </div>
+            <div class="card-body">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+
+                <form asp-action="Edit" method="post">
+                    <input type="hidden" asp-for="Id">
+
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="Name">Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" asp-for="Name" placeholder="Enter status type name" required>
+                        <span asp-validation-for="Name" class="text-danger small d-block mt-1"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="ApplicationId">Application <span class="text-danger">*</span></label>
+                        <select asp-for="ApplicationId" id="ApplicationId" class="form-select" required>
+                            <option value="">-- Select Application --</option>
+                            @foreach (var app in Model.Applications)
+                            {
+                                <option value="@app.Value" selected="@(app.Value == Model.ApplicationId.ToString())">@app.Text</option>
+                            }
+                        </select>
+                        <span asp-validation-for="ApplicationId" class="text-danger small d-block mt-1"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="EntityTypeId">Entity Type/Category <span class="text-danger">*</span></label>
+                        <select asp-for="EntityTypeId" id="EntityTypeId" class="form-select" required>
+                            <option value="">-- Select Entity Type --</option>
+                            @foreach (var entityType in Model.EntityTypes)
+                            {
+                                <option value="@entityType.Value" selected="@(entityType.Value == Model.EntityTypeId.ToString())">@entityType.Text</option>
+                            }
+                        </select>
+                        <small class="text-muted d-block mt-1">Filter by application to see relevant entity types</small>
+                        <span asp-validation-for="EntityTypeId" class="text-danger small d-block mt-1"></span>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-check me-1"></i>Update
+                        </button>
+                        <a asp-action="Index" class="btn btn-secondary">
+                            <i class="ti ti-arrow-left me-1"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const applicationSelect = document.getElementById('ApplicationId');
+            const entityTypeSelect = document.getElementById('EntityTypeId');
+
+            applicationSelect.addEventListener('change', async function () {
+                const applicationId = this.value;
+
+                if (applicationId) {
+                    try {
+                        const response = await fetch(`/StatusTypes/GetEntityTypesByApplication?applicationId=${applicationId}`);
+                        const entityTypes = await response.json();
+
+                        // Store current selection
+                        const currentSelection = entityTypeSelect.value;
+
+                        // Clear current options except the first one
+                        entityTypeSelect.innerHTML = '<option value="">-- Select Entity Type --</option>';
+
+                        // Add filtered entity types
+                        entityTypes.forEach(function (entityType) {
+                            const option = document.createElement('option');
+                            option.value = entityType.id;
+                            option.textContent = entityType.name;
+                            if (entityType.id.toString() === currentSelection) {
+                                option.selected = true;
+                            }
+                            entityTypeSelect.appendChild(option);
+                        });
+                    } catch (error) {
+                        console.error('Error loading entity types:', error);
+                    }
+                } else {
+                    // Reset to empty if no application selected
+                    entityTypeSelect.innerHTML = '<option value="">-- Select Entity Type --</option>';
+                }
+            });
+        });
+    </script>
+}

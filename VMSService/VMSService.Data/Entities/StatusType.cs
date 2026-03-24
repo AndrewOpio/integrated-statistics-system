@@ -1,5 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-using VMSService.Data.AuditColumns;
+﻿using VMSService.Data.AuditColumns;
 
 namespace VMSService.Data.Entities
 {

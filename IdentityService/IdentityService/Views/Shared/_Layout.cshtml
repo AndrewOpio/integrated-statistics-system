@@ -1,5 +1,11 @@
 ﻿@using Microsoft.Extensions.Configuration
+@using System.Security.Claims
 @inject IConfiguration Configuration
+
+@{
+    string logoutUrl = $"{Configuration["MicroServices:gatewayservice"]}/Login/Logout?username={User.FindFirstValue(ClaimTypes.Name)}";
+}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -46,7 +52,7 @@
                             <span class="navbar-text me-3">@Context.Request.Cookies["Username"]</span>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="@Configuration["MicroServices:gatewayservice"]/Login/Logout">Logout</a>
+                            <a class="nav-link" href="@logoutUrl">Logout</a>
                         </li>
                     }
                 </ul>

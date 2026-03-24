@@ -194,9 +194,10 @@ namespace VMSService.Web.Controllers
                 model.CurrentStatusId = status.Id;
 
                 ApprovedCurrencyProcurement newApprovedCurrencyProcurement = _mapper.Map<ApprovedCurrencyProcurement>(model);
-                bool isCreated = await _approvedCurrencyProcurementRepository.Create(newApprovedCurrencyProcurement);
+                //bool isCreated = await _approvedCurrencyProcurementRepository.Create(newApprovedCurrencyProcurement);
+                int newApprovedCurrencyProcurementId = await _approvedCurrencyProcurementRepository.CreateNew(newApprovedCurrencyProcurement);
 
-                if (isCreated)
+                if (newApprovedCurrencyProcurementId > 0)
                 {
                     foreach (var denomination in model.ApprovedCurrencyDenominations)
                     {
@@ -213,7 +214,7 @@ namespace VMSService.Web.Controllers
                     }
 
                     TempData["Success"] = "Approved currency procurement created successfully!";
-                    return RedirectToAction(nameof(Index));
+                    return RedirectToAction(nameof(Details), new { id = newApprovedCurrencyProcurementId });
                 }
                 else
                 {
@@ -533,7 +534,7 @@ namespace VMSService.Web.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
-                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "System";
+                var username = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? "System";
                 //var userRole = User.FindFirst(SystemPolicy.ClaimType.AppRole)?.Value ?? "";
                 var userRoles = User.FindAll("appRole")
                     .Where(c => c.Value.StartsWith("VMS:"))
@@ -545,7 +546,7 @@ namespace VMSService.Web.Controllers
                     id,
                     procurement.CurrentStatusId,
                     actionName,
-                    userId,
+                    username,
                     userRoles,
                     remarks);
 

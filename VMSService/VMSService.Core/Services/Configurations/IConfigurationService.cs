@@ -12,6 +12,9 @@ namespace VMSService.Core.Services.Configurations
         Task<ICollection<CommercialBankDto>> GetAllCommercialBanks();
         Task<CommercialBankDto> GetCommercialBankById(int id);
 
-        //Task<ICollection<CommercialBankBranchDto>> GetCbBranchesByCommercialBankId(int id);
+        // CommercialBankBranch methods
+        Task<ICollection<CommercialBankBranchDto>> GetAllCommercialBankBranches();
+        Task<CommercialBankBranchDto> GetCommercialBankBranchById(int id);
+        Task<ICollection<CommercialBankBranchDto>> GetCommercialBankBranchesByBankId(int commercialBankId);
     }
 }

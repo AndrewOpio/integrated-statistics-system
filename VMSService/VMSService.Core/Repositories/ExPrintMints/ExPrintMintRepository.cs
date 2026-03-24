@@ -21,6 +21,7 @@ namespace VMSService.Core.Repositories.ExpectedCurrencies
                 .Include(x => x.CurrencyVendor)
                 .Include(x => x.CurrencyVendor.VendorType)
                 .Include(x => x.ApprovedCurrencyProcurement)
+                .OrderByDescending(x => x.CreatedDate)
                 .ToListAsync();
         }
 
@@ -54,10 +55,20 @@ namespace VMSService.Core.Repositories.ExpectedCurrencies
         public async Task<ICollection<ExPrintMint>> FindPendingDeliveries()
         {
             return await _db.ExPrintMints.Where(x => x.CurrentStatus.Name == StatusConstants.ExPrintMint.Verified)
+                .Where(x => !x.IsDeleted)
                 .Include(x => x.CurrentStatus)
                 .Include(x => x.CurrencyVendor)
                 .Include(x => x.CurrencyVendor.VendorType)
-                .Include(x => x.ApprovedCurrencyProcurement).ToListAsync();
+                .Include(x => x.ApprovedCurrencyProcurement)
+                .OrderByDescending(x => x.CreatedDate)
+                .ToListAsync();
+        }
+
+        public async Task<int> CreateNew(ExPrintMint model)
+        {
+            _db.ExPrintMints.Add(model);
+            await Save();
+            return model.Id;
         }
     }
 }

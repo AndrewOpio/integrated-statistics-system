@@ -1,0 +1,311 @@
+@using WorkflowService.Core.Models.WorkflowTransitions
+@model WorkflowTransitionViewModel
+@{
+    ViewData["Title"] = "Workflow Transition Details";
+}
+
+
+<!-- Page title -->
+<div class="page-header d-print-none">
+    <div class="row align-items-center">
+        <div class="col">
+            <h5 class="page-title">
+                Workflow Transition Details
+            </h5>
+        </div>
+    </div>
+</div>
+
+
+<div class="row row-deck row-cards">
+    <!-- Main Details Card -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between">
+                <h4 class="card-title m-0">
+                    Transition: <strong>@Model.ActionName</strong>
+                </h4>
+                <div class="col-auto">
+                    <div class="btn-list">
+                        <a href="@Url.Action("Edit", "WorkflowTransitions", new { id = Model.Id })" class="btn btn-primary btn-sm">
+                            <i class="ti ti-edit"></i> Edit
+                        </a>
+                        <a href="@Url.Action("Delete", "WorkflowTransitions", new { id = Model.Id })" class="btn btn-danger btn-sm">
+                            <i class="ti ti-trash"></i> Delete Transition
+                        </a>
+                        <a href="@Url.Action("Index", "WorkflowTransitions")" class="btn btn-secondary btn-sm">
+                            <i class="ti ti-arrow-left"></i> Back to List
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Entity Type -->
+                <div class="row mb-2">
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small text-uppercase">Entity Type</label>
+                        <p class="mb-0">
+                            <span class="badge bg-tertiary p-2 more-rounded">@Model.EntityTypeName</span>
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small text-uppercase">Status</label>
+                        <p class="mb-0">
+                            @if (Model.IsActive)
+                            {
+                                <span class="badge bg-success p-2 more-rounded">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary p-2 more-rounded">Inactive</span>
+                            }
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Status Transition Flow -->
+                <div class="mb-2">
+                    <label class="form-label text-muted small text-uppercase">Status Transition Flow</label>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="badge more-rounded bg-info p-2">
+                            <i class="ti ti-badge me-1"></i>
+                            <strong>@Model.FromStatusName</strong>
+                        </span>
+                        <div>
+                            <i class="ti ti-arrow-right" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <span class="badge more-rounded bg-info p-2">
+                            <i class="ti ti-badge me-1"></i>
+                            <strong>@Model.ToStatusName</strong>
+                        </span>
+                    </div>
+                </div>
+
+                <hr class="my-4" />
+
+                <!-- Action Details -->
+                <h6 class="mb-3">Action Configuration</h6>
+
+                <div class="row mb-2">
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small text-uppercase">Action Name</label>
+                        <p class="mb-0">
+                            <code>@Model.ActionName</code>
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small text-uppercase">Display Label</label>
+                        <p class="mb-0">
+                            <strong>@Model.DisplayLabel</strong>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row mb-2">
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small text-uppercase">Required Role</label>
+                        <p class="mb-0">
+                            <span class="badge bg-tertiary p-2 more-rounded">@Model.RequiredRoleName</span>
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small text-uppercase">Button Class</label>
+                        <p class="mb-0">
+                            <span class="badge p-2 more-rounded" style="background-color: var(--bs-@(Model.ButtonClass.Replace("btn-", "")));">@Model.ButtonClass</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Comments Requirement -->
+                <div class="row mb-2">
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small text-uppercase">Comments Required</label>
+                        <p class="mb-0">
+                            @if (Model.RequiresComments)
+                            {
+                                <span class="badge bg-danger">
+                                    <i class="ti ti-check me-1"></i> Yes
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">
+                                    <i class="ti ti-x me-1"></i> No
+                                </span>
+                            }
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Button Preview Card -->
+        <div class="card mt-2">
+            <div class="card-header">
+                <h5 class="card-title m-0">Button Preview</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">This is how the button will appear to users:</p>
+                <button class="btn @Model.ButtonClass" disabled>
+                    @Model.DisplayLabel
+                </button>
+                @if (Model.RequiresComments)
+                {
+                    <p class="text-muted mt-3 small">
+                        <i class="ti ti-info-circle me-1"></i>
+                        Users will be prompted to enter comments/remarks when clicking this button.
+                    </p>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Card -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title m-0">Transition Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="space-y-4">
+                    <!-- Quick Info -->
+                    <div>
+                        <h6 class="text-sm mb-2">Quick Info</h6>
+                        <div class="text-sm space-y-2">
+                            <div>
+                                <span class="text-muted small text-uppercase">Transition ID:</span>
+                                <strong>#@Model.Id</strong>
+                            </div>
+                            <div>
+                                <span class="text-muted small text-uppercase">Entity Type:</span>
+                                <strong>@Model.EntityTypeName</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <!-- Flow Details --> 
+                    <div>
+                        <h6 class="text-sm mb-2">Flow Details</h6>
+                        <div class="text-sm space-y-2">
+                            <div>
+                                <span class="text-muted small text-uppercasesmall text-uppercase">From:</span><br />
+                                <span class="badge bg-info">@Model.FromStatusName</span>
+                            </div>
+                            <div>
+                                <span class="text-muted small text-uppercase">To:</span><br />
+                                <span class="badge bg-info">@Model.ToStatusName</span>
+                            </div>
+                            <div>
+                                <span class="text-muted small text-uppercase">Via Action:</span><br />
+                                <code>@Model.ActionName</code>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <!-- Permission Details -->
+                    <div>
+                        <h6 class="text-sm mb-2">Permission Details</h6>
+                        <div class="text-sm space-y-2">
+                            <div>
+                                <span class="text-muted small text-uppercase">Required Role:</span><br />
+                                <span class="badge bg-tertiary">@Model.RequiredRoleName</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <!-- Configuration -->
+                    <div>
+                        <h6 class="text-sm mb-2">Configuration</h6>
+                        <div class="text-sm space-y-2">
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted small text-uppercase">Comments Required:</span>
+                                @if (Model.RequiresComments)
+                                {
+                                    <i class="ti ti-check text-success"></i>
+                                }
+                                else
+                                {
+                                    <i class="ti ti-x text-danger"></i>
+                                }
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted small text-uppercase">Active:</span>
+                                @if (Model.IsActive)
+                                {
+                                    <i class="ti ti-check text-success"></i>
+                                }
+                                else
+                                {
+                                    <i class="ti ti-x text-danger"></i>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <!-- UI Configuration -->
+                    <div>
+                        <h6 class="text-sm mb-2">UI Configuration</h6>
+                        <div class="text-sm space-y-2">
+                            <div class="mb-1">
+                                <span class="text-muted small text-uppercase">Button Class:</span><br />
+                                <code>@Model.ButtonClass</code>
+                            </div>
+                            <div>
+                                <span class="text-muted small text-uppercase">Display Label:</span><br />
+                                <em>@Model.DisplayLabel</em>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions Card -->
+        @* <div class="card mt-4">
+            <div class="card-header">
+                <h3 class="card-title">Actions</h3>
+            </div>
+            <div class="card-body">
+                <div class="space-y-2">
+                    <a href="@Url.Action("Edit", "WorkflowTransitions", new { id = Model.Id })" class="btn btn-primary w-100">
+                        <i class="ti ti-edit me-2"></i> Edit Transition
+                    </a>
+                    <a href="@Url.Action("Delete", "WorkflowTransitions", new { id = Model.Id })" class="btn btn-danger w-100">
+                        <i class="ti ti-trash me-2"></i> Delete Transition
+                    </a>
+                    <a href="@Url.Action("Index", "WorkflowTransitions")" class="btn btn-secondary w-100">
+                        <i class="ti ti-arrow-left me-2"></i> Back to List
+                    </a>
+                </div>
+            </div>
+        </div> *@
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Optional: Add copy-to-clipboard functionality for code elements
+        document.querySelectorAll('code').forEach(element => {
+            element.style.cursor = 'pointer';
+            element.title = 'Click to copy';
+            element.addEventListener('click', function() {
+                const text = this.textContent;
+                navigator.clipboard.writeText(text).then(() => {
+                    const originalText = this.textContent;
+                    this.textContent = 'Copied!';
+                    setTimeout(() => {
+                        this.textContent = originalText;
+                    }, 2000);
+                });
+            });
+        });
+    </script>
+}

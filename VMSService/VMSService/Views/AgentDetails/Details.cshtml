@@ -70,6 +70,16 @@
                                 </a>
                             </div>
                         }
+
+                        @if (!string.IsNullOrEmpty(Model.ApprovalAttachment))
+                        {
+                            <div class="field mb-4">
+                                <span class="d-block text-muted small mb-2 text-uppercase">MD Approval</span>
+                                <a href="@Model.ApprovalAttachment" target="_blank" class="btn btn-sm btn-outline-primary">
+                                    <i class="ti ti-file me-1"></i>View MD Approval
+                                </a>
+                            </div>
+                        }
                     </div>
                 </div>
             </div>

@@ -2,6 +2,7 @@ using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartBreadcrumbs.Attributes;
+using System.Security.Claims;
 using VMSService.Controllers;
 using VMSService.Core.Models.Branches;
 using VMSService.Core.Models.Denominations;
@@ -224,12 +225,13 @@ namespace VMSService.Web.Controllers
                 model.CurrentStatusId = status.Id;
 
                 ReceivedStock newReceivedStock = _mapper.Map<ReceivedStock>(model);
-                bool isCreated = await _receivedStockRepository.Create(newReceivedStock);
+                //bool isCreated = await _receivedStockRepository.Create(newReceivedStock);
+                int newReceivedStockId = await _receivedStockRepository.CreateNew(newReceivedStock);
 
-                if (isCreated)
+                if (newReceivedStockId > 0)
                 {
                     TempData["Success"] = "Received stock created successfully!";
-                    return RedirectToAction(nameof(Index));
+                    return RedirectToAction(nameof(Details), new { id = newReceivedStockId });
                 }
                 else
                 {
@@ -473,12 +475,11 @@ namespace VMSService.Web.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
-                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "System";
                 var userRoles = User.FindAll("appRole")
                     .Where(c => c.Value.StartsWith("VMS:"))
                     .Select(c => c.Value.Split(":")[1])
                     .ToList();
-                var username = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value;
+                var username = User.FindFirst(ClaimTypes.Name)?.Value ?? "System";
                 if (username == null)
                 {
                     //_logger.LogWarning("Username claim not found for user executing action {Action} on Received Stock {ReceivedStockId}", actionName, id);
@@ -491,7 +492,7 @@ namespace VMSService.Web.Controllers
                     id,
                     receivedStock.CurrentStatusId,
                     actionName,
-                    userId,
+                    username,
                     userRoles,
                     remarks);
 
