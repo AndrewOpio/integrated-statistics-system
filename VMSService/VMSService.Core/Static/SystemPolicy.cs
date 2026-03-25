@@ -30,5 +30,10 @@
             public const string CurrencyApprover = "VMS:Currency Approver";
             public const string Director = "VMS:Director";
         }
+
+        public static class SystemSettings
+        {
+            public const string AppAcronym = "VMS";
+        }
     }
 }

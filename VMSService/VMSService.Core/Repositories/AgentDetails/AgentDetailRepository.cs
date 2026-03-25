@@ -15,6 +15,7 @@ namespace VMSService.Core.Repositories.AgentDetails
         public async Task<ICollection<AgentDetail>> FindAll()
         {
             return await _db.AgentDetails.Where(x => x.IsDeleted == false)
+                .OrderByDescending(x => x.CreatedDate)
                 .ToListAsync();
         }
 
@@ -39,6 +40,13 @@ namespace VMSService.Core.Repositories.AgentDetails
         {
             _db.AgentDetails.Update(model);
             return await Save();
+        }
+
+        public async Task<int> CreateNew(AgentDetail model)
+        {
+            _db.AgentDetails.Add(model);
+            await Save();
+            return model.Id;
         }
     }
 }

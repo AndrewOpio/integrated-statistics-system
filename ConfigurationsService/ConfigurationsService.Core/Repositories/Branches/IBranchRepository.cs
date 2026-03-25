@@ -1,5 +1,5 @@
 using ConfigurationsService.Core.Repository.Common;
-using ConfigurationsService.Entities;
+using ConfigurationsService.Data.Entities;
 
 namespace VMSService.Core.Repositories.Branches
 {

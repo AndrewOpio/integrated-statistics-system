@@ -79,7 +79,7 @@ namespace VMSService.Web.Controllers
             {
                 var branches = await _branchRepository.FindAll();
                 var categories = await _categoryRepository.FindAll();
-                ViewBag.Branches = branches.Where(b => !b.IsDeleted).ToList();
+                ViewBag.Branches = branches.ToList();
                 ViewBag.Categories = categories.Where(c => !c.IsDeleted).ToList();
                 return View(new BranchCategoryViewModel());
             }
@@ -109,7 +109,7 @@ namespace VMSService.Web.Controllers
 
                 var branches = await _branchRepository.FindAll();
                 var categories = await _categoryRepository.FindAll();
-                ViewBag.Branches = branches.Where(b => !b.IsDeleted).ToList();
+                ViewBag.Branches = branches.ToList();
                 ViewBag.Categories = categories.Where(c => !c.IsDeleted).ToList();
                 return View(model);
             }
@@ -140,7 +140,7 @@ namespace VMSService.Web.Controllers
 
             var branchList = await _branchRepository.FindAll();
             var catList = await _categoryRepository.FindAll();
-            ViewBag.Branches = branchList.Where(b => !b.IsDeleted).ToList();
+            ViewBag.Branches = branchList.ToList();
             ViewBag.Categories = catList.Where(c => !c.IsDeleted).ToList();
             return View(model);
         }
@@ -170,7 +170,7 @@ namespace VMSService.Web.Controllers
 
                 var branches = await _branchRepository.FindAll();
                 var categories = await _categoryRepository.FindAll();
-                ViewBag.Branches = branches.Where(b => !b.IsDeleted).ToList();
+                ViewBag.Branches = branches.ToList();
                 ViewBag.Categories = categories.Where(c => !c.IsDeleted).ToList();
 
                 var model = _mapper.Map<BranchCategoryViewModel>(branchCategory);
@@ -207,7 +207,7 @@ namespace VMSService.Web.Controllers
 
                 var branches = await _branchRepository.FindAll();
                 var categories = await _categoryRepository.FindAll();
-                ViewBag.Branches = branches.Where(b => !b.IsDeleted).ToList();
+                ViewBag.Branches = branches.ToList();
                 ViewBag.Categories = categories.Where(c => !c.IsDeleted).ToList();
                 return View(model);
             }
@@ -225,7 +225,7 @@ namespace VMSService.Web.Controllers
                 {
                     var branches = await _branchRepository.FindAll();
                     var categories = await _categoryRepository.FindAll();
-                    ViewBag.Branches = branches.Where(b => !b.IsDeleted).ToList();
+                    ViewBag.Branches = branches.ToList();
                     ViewBag.Categories = categories.Where(c => !c.IsDeleted).ToList();
                     TempData["Error"] = "No changes Made";
                     return View(model);
@@ -255,7 +255,7 @@ namespace VMSService.Web.Controllers
 
             var branchList = await _branchRepository.FindAll();
             var catList = await _categoryRepository.FindAll();
-            ViewBag.Branches = branchList.Where(b => !b.IsDeleted).ToList();
+            ViewBag.Branches = branchList.ToList();
             ViewBag.Categories = catList.Where(c => !c.IsDeleted).ToList();
             return View(model);
         }

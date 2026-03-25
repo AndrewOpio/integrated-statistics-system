@@ -2,13 +2,13 @@ using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartBreadcrumbs.Attributes;
+using System.Security.Claims;
 using VMSService.Controllers;
 using VMSService.Core.Models.Branches;
 using VMSService.Core.Models.Denominations;
 using VMSService.Core.Models.ExPrintMints;
 using VMSService.Core.Models.ReceivedStocks;
 using VMSService.Core.Models.ReceivedStockStatusHistories;
-using VMSService.Core.Models.WorkflowTransitions;
 using VMSService.Core.Repositories.BranchCategories;
 using VMSService.Core.Repositories.Branches;
 using VMSService.Core.Repositories.CounterPartyTypes;
@@ -16,12 +16,13 @@ using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ReceivedStocks;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
-using VMSService.Core.Repositories.StatusTypes;
 using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
+using WorkflowService.Client;
+using WorkflowService.Client.Dto;
 
 namespace VMSService.Web.Controllers
 {
@@ -29,7 +30,6 @@ namespace VMSService.Web.Controllers
     public class ReceivedStocksController(
         IReceivedStockRepository _receivedStockRepository,
         IExPrintMintRepository _exPrintMintRepository,
-        IStatusTypeRepository _statusTypeRepository,
         IMapper _mapper,
         ILogger<ReceivedStocksController> _logger,
         IWorkflowService _workflowService,
@@ -39,7 +39,8 @@ namespace VMSService.Web.Controllers
         IDenominationRepository _denominationRepository,
         IBranchRepository _branchRepository,
         ICounterPartyTypeRepository _counterPartyTypeRepository,
-        IBranchCategoryRepository _branchCategoryRepository) : Controller
+        IBranchCategoryRepository _branchCategoryRepository,
+        IWorkflowServiceClient _workflowServiceClient) : Controller
     {
         [Breadcrumb("Received Stock", FromController = typeof(HomeController), FromAction = nameof(Index))]
         // GET: ReceivedStocks
@@ -103,18 +104,25 @@ namespace VMSService.Web.Controllers
                 var model = _mapper.Map<ReceivedStockViewModel>(receivedStock);
 
                 // Get available transitions for current user
-                var userRoles = User.FindAll("appRole")
+                var userRoles = User.FindAll("appRoleId")
                     .Where(c => c.Value.StartsWith("VMS:"))
-                    .Select(c => c.Value.Split(":")[1])
+                    .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
+                    .Where(id => id.HasValue)
+                    .Select(id => id.Value)
                     .ToList();
 
-                var availableTransitions = new List<WorkflowTransitionViewModel>();
+                var availableTransitions = new List<WorkflowTransitionDto>();
                 foreach (var userRole in userRoles)
                 {
-                    var transitions = await _workflowService.GetAvailableTransitions(
-                        StatusConstants.Entity.ReceivedStock,
-                        receivedStock.CurrentStatusId,
-                        userRole);
+                    var requestData = new GetAvailableTransitionsRequestDto
+                    {
+                        ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                        EntityTypeName = StatusConstants.Entity.ReceivedStock,
+                        CurrentStatusId = receivedStock.CurrentStatusId,
+                        AppRole = userRole,
+                    };
+
+                    var transitions = await _workflowServiceClient.GetAvailableTransitions(requestData);
                     if (transitions != null)
                     {
                         availableTransitions.AddRange(transitions);
@@ -220,16 +228,24 @@ namespace VMSService.Web.Controllers
 
             try
             {
-                StatusType status = await _statusTypeRepository.FindByName(StatusConstants.ReceivedStock.Draft, StatusConstants.Category.ReceivedStock);
+                var requestData = new GetStatusByNameRequestDto
+                {
+                    ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                    StatusName = StatusConstants.ReceivedStock.Draft,
+                    EntityTypeName = StatusConstants.Entity.ReceivedStock
+                };
+                StatusTypeDto status = await _workflowServiceClient.FindStatusByName(requestData);
                 model.CurrentStatusId = status.Id;
+                model.CurrentStatusName = status.Name;
 
                 ReceivedStock newReceivedStock = _mapper.Map<ReceivedStock>(model);
-                bool isCreated = await _receivedStockRepository.Create(newReceivedStock);
+                //bool isCreated = await _receivedStockRepository.Create(newReceivedStock);
+                int newReceivedStockId = await _receivedStockRepository.CreateNew(newReceivedStock);
 
-                if (isCreated)
+                if (newReceivedStockId > 0)
                 {
                     TempData["Success"] = "Received stock created successfully!";
-                    return RedirectToAction(nameof(Index));
+                    return RedirectToAction(nameof(Details), new { id = newReceivedStockId });
                 }
                 else
                 {
@@ -473,12 +489,13 @@ namespace VMSService.Web.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
-                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "System";
-                var userRoles = User.FindAll("appRole")
+                var userRoles = User.FindAll("appRoleId")
                     .Where(c => c.Value.StartsWith("VMS:"))
-                    .Select(c => c.Value.Split(":")[1])
+                    .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
+                    .Where(id => id.HasValue)
+                    .Select(id => id.Value)
                     .ToList();
-                var username = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value;
+                var username = User.FindFirst(ClaimTypes.Name)?.Value ?? "System";
                 if (username == null)
                 {
                     //_logger.LogWarning("Username claim not found for user executing action {Action} on Received Stock {ReceivedStockId}", actionName, id);
@@ -491,7 +508,7 @@ namespace VMSService.Web.Controllers
                     id,
                     receivedStock.CurrentStatusId,
                     actionName,
-                    userId,
+                    username,
                     userRoles,
                     remarks);
 

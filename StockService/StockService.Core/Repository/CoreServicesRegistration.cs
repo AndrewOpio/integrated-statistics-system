@@ -2,9 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using StockService.Core.Repository.BranchCategories;
-using StockService.Core.Repository.Branches;
 using StockService.Core.Repository.Categories;
-using StockService.Core.Repository.CommercialBanks;
 using StockService.Core.Repository.CounterPartyTypes;
 using StockService.Core.Repository.Denominations;
 using StockService.Core.Repository.DenominationTypes;
@@ -18,9 +16,7 @@ public static class CoreServicesRegistration
     public static IServiceCollection AddCoreServices(this IServiceCollection services)
     {
         services.AddScoped<IBranchCategoryRepository, BranchCategoryRepository>();
-        services.AddScoped<IBranchRepository, BranchRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();
-        services.AddScoped<ICommercialBankRepository, CommercialBankRepository>();
         services.AddScoped<ICounterPartyTypeRepository, CounterPartyTypeRepository>();
         services.AddScoped<IStockLedgerRepository, StockLedgerRepository>();
         services.AddScoped<IDenominationRepository, DenominationRepository>();

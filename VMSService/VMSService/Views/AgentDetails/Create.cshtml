@@ -8,7 +8,7 @@
     <div class="col-12 col-lg-12">
         <div class="card border-0 shadow mb-4">
             <div class="card-header">
-                <h2 class="fs-5 fw-bold mb-0">Create New Agent</h2>
+                <h2 class="fs-5 fw-bold mb-0">Register New Agent</h2>
             </div>
             <div class="card-body">
                 <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -41,6 +41,13 @@
                                 <small class="text-muted">The BOU branch they will be transacting at</small>
                                 <span asp-validation-for="BranchId" class="text-danger small d-block mt-1"></span>
                             </div>
+                            <div class="mb-3">
+                                <label class="form-label" asp-for="CommercialBankBranchId">Commercial Bank Branch <span class="text-danger">*</span></label>
+                                <select class="form-select" asp-for="CommercialBankBranchId" asp-items="@Model.CommercialBankBranchList" required>
+                                    <option value="">-- Select Branch --</option>
+                                </select>
+                                <span asp-validation-for="CommercialBankBranchId" class="text-danger small d-block mt-1"></span>
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
@@ -59,9 +66,9 @@
                                 <span asp-validation-for="SignatureScanFile" class="text-danger small d-block mt-1"></span>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label" asp-for="ApprovalAttachmentFile">Signature Scan <span class="text-danger">*</span></label>
+                                <label class="form-label" asp-for="ApprovalAttachmentFile">MD Approval Attachment <span class="text-danger">*</span></label>
                                 <input type="file" class="form-control" asp-for="ApprovalAttachmentFile" accept="image/*,.pdf" required>
-                                <span asp-validation-for="ApprovalAttachment" class="text-danger small d-block mt-1"></span>
+                                <span asp-validation-for="ApprovalAttachmentFile" class="text-danger small d-block mt-1"></span>
                             </div>
                         </div>
                     </div>

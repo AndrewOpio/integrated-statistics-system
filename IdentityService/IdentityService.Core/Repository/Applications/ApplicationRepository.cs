@@ -47,5 +47,12 @@ namespace IdentityService.Core.Repository.Applications
             _db.Applications.Remove(model);
             return await Save();
         }
+
+        public async Task<Application> FindByAcronym(string acronym)
+        {
+            var application = await _db.Applications
+                .FirstOrDefaultAsync(x => x.Acronym == acronym);
+            return application;
+        }
     }
 }

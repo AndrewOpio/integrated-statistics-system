@@ -1,0 +1,255 @@
+@using WorkflowService.Core.Models.WorkflowTransitions
+@model WorkflowTransitionViewModel
+@{
+    ViewData["Title"] = "Create Workflow Transition";
+    var applicationId = Context.Request.Query["applicationId"].ToString();
+}
+
+<div class="page-header d-print-none">
+    <div class="row align-items-center">
+        <div class="col">
+            <h4 class="page-title">
+                Create Workflow Transition
+            </h4>
+        </div>
+    </div>
+</div>
+
+<div class="row row-deck row-cards">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="Create" method="post" asp-route-applicationId="@applicationId" class="needs-validation" novalidate>
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        <span asp-validation-summary="All"></span>
+                    </div>
+
+                    <!-- Entity Type -->
+                    <div class="mb-3">
+                        <label class="form-label" for="EntityTypeId">Entity Type <span class="text-danger">*</span></label>
+                        <select asp-for="EntityTypeId" id="EntityTypeId" asp-items="Model.EntityTypesList" class="form-select" required>
+                            <option value="">-- Select Entity Type --</option>
+                        </select>
+                        <span asp-validation-for="EntityTypeId" class="invalid-feedback"></span>
+                    </div>
+
+                    <!-- From Status -->
+                    <div class="mb-3">
+                        <label class="form-label" for="FromStatusId">From Status <span class="text-danger">*</span></label>
+                        <select asp-for="FromStatusId" id="FromStatusId" asp-items="Model.FromStatusesList" class="form-select" required data-entity-type="">
+                            <option value="">-- Select Status --</option>
+                        </select>
+                        <span asp-validation-for="FromStatusId" class="invalid-feedback"></span>
+                    </div>
+
+                    <!-- To Status -->
+                    <div class="mb-3">
+                        <label class="form-label" for="ToStatusId">To Status <span class="text-danger">*</span></label>
+                        <select asp-for="ToStatusId" id="ToStatusId" asp-items="Model.ToStatusesList" class="form-select" required data-entity-type="">
+                            <option value="">-- Select Status --</option>
+                        </select>
+                        <span asp-validation-for="ToStatusId" class="invalid-feedback"></span>
+                    </div>
+
+                    <!-- Action Name -->
+                    <div class="mb-3">
+                        <label class="form-label" for="ActionName">Action Name <span class="text-danger">*</span></label>
+                        <input asp-for="ActionName" type="text" class="form-control" placeholder="e.g., Verify, Reject, Resubmit" required />
+                        <span asp-validation-for="ActionName" class="invalid-feedback"></span>
+                        <small class="form-hint">The action/button name that triggers this transition</small>
+                    </div>
+
+                    <!-- Display Label -->
+                    <div class="mb-3">
+                        <label class="form-label" for="DisplayLabel">Display Label <span class="text-danger">*</span></label>
+                        <input asp-for="DisplayLabel" type="text" class="form-control" placeholder="e.g., Click to Verify" required />
+                        <span asp-validation-for="DisplayLabel" class="invalid-feedback"></span>
+                        <small class="form-hint">The button label displayed to users</small>
+                    </div>
+
+                    <!-- Required Role -->
+                    <div class="mb-3">
+                        <label class="form-label" for="RequiredRole">Required Role <span class="text-danger">*</span></label>
+                        <select asp-for="RequiredRole" id="RequiredRole" asp-items="Model.RequiredRoleList" class="form-select" required>
+                            <option value="">-- Select Role --</option>
+                        </select>
+                        <span asp-validation-for="RequiredRole" class="invalid-feedback"></span>
+                        <small class="form-hint">User role required to perform this transition</small>
+                    </div>
+
+                    <!-- Button Class -->
+                    <div class="mb-3">
+                        <label class="form-label" for="ButtonClass">Button Class <span class="text-danger">*</span></label>
+                        <select asp-for="ButtonClass" class="form-select" required>
+                            <option value="">-- Select Button Class --</option>
+                            @foreach (var buttonClass in (List<string>)ViewBag.ButtonClasses)
+                            {
+                                <option value="@buttonClass">@buttonClass</option>
+                            }
+                        </select>
+                        <span asp-validation-for="ButtonClass" class="invalid-feedback"></span>
+                    </div>
+
+                    <!-- Requires Comments -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input asp-for="RequiresComments" type="checkbox" class="form-check-input" id="RequiresComments" />
+                            <label class="form-check-label" for="RequiresComments">
+                                Requires Comments/Remarks
+                            </label>
+                        </div>
+                        <small class="form-hint d-block mt-2">Check if users must provide comments when performing this transition</small>
+                    </div>
+
+                    <hr/>
+
+                    <!-- Form Actions -->
+                    <div class="form-footer">
+                        <a href="@Url.Action("Index", "WorkflowTransitions", new { applicationId })" class="btn btn-secondary"><i class="ti ti-arrow-left me-1"></i>Cancel</a>
+                        <button type="submit" class="btn btn-primary"><i class="ti ti-check me-1"></i>Create Transition</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Card -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Workflow Transition Guide</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Workflow transitions define the valid state changes in your system.
+                </p>
+                <h6 class="mt-3 mb-2">Key Fields:</h6>
+                <ul class="list-unstyled space-y-2 text-sm">
+                    <li><strong>Entity Type:</strong> The object type this applies to</li>
+                    <li><strong>From/To Status:</strong> Source and destination statuses</li>
+                    <li><strong>Action Name:</strong> Internal action identifier</li>
+                    <li><strong>Display Label:</strong> User-facing button text</li>
+                    <li><strong>Required Role:</strong> User must have this role</li>
+                    <li><strong>Button Class:</strong> Bootstrap button styling</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const $entityTypeSelect = document.getElementById('EntityTypeId');
+            const $fromStatusSelect = document.getElementById('FromStatusId');
+            const $toStatusSelect = document.getElementById('ToStatusId');
+
+            // Build a map of entity types to their status options
+            const entityTypeStatusMap = {};
+
+            // Populate the map from the initial options
+            Array.from($fromStatusSelect.options).forEach(option => {
+                if (option.value) {
+                    const text = option.text; // Format: "StatusName (EntityTypeName)"
+                    const entityTypeMatch = text.match(/\(([^)]+)\)$/);
+                    if (entityTypeMatch) {
+                        const entityTypeName = entityTypeMatch[1];
+                        if (!entityTypeStatusMap[entityTypeName]) {
+                            entityTypeStatusMap[entityTypeName] = [];
+                        }
+                        entityTypeStatusMap[entityTypeName].push({
+                            value: option.value,
+                            text: option.text
+                        });
+                    }
+                }
+            });
+
+            // Store original options
+            const originalFromOptions = Array.from($fromStatusSelect.options).map(option => ({
+                value: option.value,
+                text: option.text
+            }));
+            const originalToOptions = Array.from($toStatusSelect.options).map(option => ({
+                value: option.value,
+                text: option.text
+            }));
+
+            // Get entity type name from ID
+            function getEntityTypeName(entityTypeId) {
+                const selectedOption = $entityTypeSelect.options[$entityTypeSelect.selectedIndex];
+                return selectedOption.text;
+            }
+
+            // Filter status options based on selected entity type
+            function filterStatusOptions() {
+                const selectedEntityTypeId = $entityTypeSelect.value;
+                const selectedEntityTypeName = getEntityTypeName(selectedEntityTypeId);
+
+                if (!selectedEntityTypeId) {
+                    // Reset to all options if no entity type selected
+                    $fromStatusSelect.innerHTML = '';
+                    $toStatusSelect.innerHTML = '';
+
+                    originalFromOptions.forEach(option => {
+                        const optFromStatus = document.createElement('option');
+                        optFromStatus.value = option.value;
+                        optFromStatus.text = option.text;
+                        $fromStatusSelect.appendChild(optFromStatus);
+                    });
+
+                    originalToOptions.forEach(option => {
+                        const optToStatus = document.createElement('option');
+                        optToStatus.value = option.value;
+                        optToStatus.text = option.text;
+                        $toStatusSelect.appendChild(optToStatus);
+                    });
+                } else {
+                    // Filter to only show statuses for the selected entity type
+                    const filteredStatuses = entityTypeStatusMap[selectedEntityTypeName] || [];
+
+                    $fromStatusSelect.innerHTML = '';
+                    $toStatusSelect.innerHTML = '';
+
+                    // Add placeholder option
+                    const placeholderFrom = document.createElement('option');
+                    placeholderFrom.value = '';
+                    placeholderFrom.text = '-- Select Status --';
+                    $fromStatusSelect.appendChild(placeholderFrom);
+
+                    const placeholderTo = document.createElement('option');
+                    placeholderTo.value = '';
+                    placeholderTo.text = '-- Select Status --';
+                    $toStatusSelect.appendChild(placeholderTo);
+
+                    // Add filtered options
+                    filteredStatuses.forEach(status => {
+                        const optFrom = document.createElement('option');
+                        optFrom.value = status.value;
+                        optFrom.text = status.text;
+                        $fromStatusSelect.appendChild(optFrom);
+
+                        const optTo = document.createElement('option');
+                        optTo.value = status.value;
+                        optTo.text = status.text;
+                        $toStatusSelect.appendChild(optTo);
+                    });
+                }
+
+                // Clear selections
+                $fromStatusSelect.value = '';
+                $toStatusSelect.value = '';
+            }
+
+            // Handle Entity Type change
+            $entityTypeSelect.addEventListener('change', filterStatusOptions);
+
+            // Initialize on page load
+            filterStatusOptions();
+        });
+    </script>
+}

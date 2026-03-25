@@ -51,17 +51,17 @@
                                     <td>@item.Date.ToString("dd/MMM/yyyy")</td>
                                     <td>@item.ReferenceNumber</td>
                                     <td>
-                                        @if (item.CurrentStatus != null)
+                                        @if (item.CurrentStatusName != null)
                                         {
-                                            <span class="badge bg-secondary">@item.CurrentStatus.Name</span>
+                                            <span class="badge bg-secondary">@item.CurrentStatusName</span>
                                         }
                                     </td>
                                     <td>
                                         @{
                                             var discrepancy = item.StockMovementDiscrepancies?.FirstOrDefault();
-                                            if (discrepancy != null && discrepancy.CurrentStatus != null)
+                                            if (discrepancy != null && discrepancy.CurrentStatusName != null)
                                             {
-                                                <span class="badge bg-warning">@discrepancy.CurrentStatus.Name</span>
+                                                <span class="badge bg-warning">@discrepancy.CurrentStatusName</span>
                                             }
                                             else
                                             {

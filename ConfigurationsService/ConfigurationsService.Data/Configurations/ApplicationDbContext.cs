@@ -1,5 +1,5 @@
-﻿using ConfigurationsService.Entities.AuditColumns;
-using ConfigurationsService.Entities;
+﻿using ConfigurationsService.Data.Entities;
+using ConfigurationsService.Data.Entities.AuditColumns;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 

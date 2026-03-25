@@ -1,11 +1,12 @@
 @model dynamic
 
+@using ConfigurationsService.Dto
 @using VMSService.Core.Services.Stocks.StockEntities
 @using VMSService.Web.Controllers;
 
 @{
     ViewData["Title"] = "Create Stock Movement";
-    var branches = ViewBag.Branches as List<Branch>;
+    var branches = ViewBag.Branches as List<BranchDto>;
     var denominations = ViewBag.Denominations as List<Denomination>;
     var categories = ViewBag.Categories as List<Category>;
 }

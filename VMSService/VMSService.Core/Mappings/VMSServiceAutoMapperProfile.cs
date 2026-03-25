@@ -15,14 +15,13 @@ using VMSService.Core.Models.ExPrintMints;
 using VMSService.Core.Models.ExPrintMintStatusHistories;
 using VMSService.Core.Models.ReceivedStocks;
 using VMSService.Core.Models.ReceivedStockStatusHistories;
-using VMSService.Core.Models.StatusTypes;
 using VMSService.Core.Models.StockLedgers;
 using VMSService.Core.Models.VendorTypes;
-using VMSService.Core.Models.WorkflowTransitions;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Data.Entities;
 using VMSService.Core.Services.Identity.IdentityEntities;
 using VMSService.Core.Models.AgentDetails;
+using ConfigurationsService.Dto;
 
 namespace VMSService.Core.Mappings
 {
@@ -39,9 +38,7 @@ namespace VMSService.Core.Mappings
             CreateMap<ExPrintMint, ExPrintMintViewModel>().ReverseMap();
             CreateMap<ExPrintMintStatusHistory, ExPrintMintStatusHistoryViewModel>().ReverseMap();
             CreateMap<ApprovedCurrencyStatusHistory, ApprovedCurrencyStatusHistoryViewModel>().ReverseMap();
-            CreateMap<StatusType, StatusTypeViewModel>().ReverseMap();
             CreateMap<ReceivedStock, ReceivedStockViewModel>().ReverseMap();
-            CreateMap<WorkflowTransition, WorkflowTransitionViewModel>().ReverseMap();
             CreateMap<ReceivedStockStatusHistory, ReceivedStockStatusHistoryViewModel>().ReverseMap();
 
             // StockLedgerDetail mappings
@@ -61,10 +58,10 @@ namespace VMSService.Core.Mappings
             CreateMap<BranchCategory, BranchCategoryViewModel>()
                 .ReverseMap();
 
-            CreateMap<Branch, BranchViewModel>()
+            CreateMap<BranchDto, BranchViewModel>()
                 .ReverseMap();
 
-            CreateMap<CommercialBank, CommercialBankViewModel>().ReverseMap();
+            CreateMap<CommercialBankDto, CommercialBankViewModel>().ReverseMap();
             CreateMap<CommercialBankUser, CommercialBankUserViewModel>().ReverseMap();
             CreateMap<NonStaffUser, NonStaffUserViewModel>().ReverseMap();
             CreateMap<AgentDetail, AgentDetailViewModel>().ReverseMap();

@@ -2,10 +2,12 @@
 using VMSService.Core.Static;
 using VMSService.Data.Configurations;
 using VMSService.Data.Entities;
+using WorkflowService.Client;
+using WorkflowService.Client.Dto;
 
 namespace VMSService.Core.Repositories.ApprovedCurrencyProcurements
 {
-    public class ApprovedCurrencyProcurementRepository(VMSServiceDbContext _db) : IApprovedCurrencyProcurementRepository
+    public class ApprovedCurrencyProcurementRepository(VMSServiceDbContext _db, IWorkflowServiceClient _workflowServiceClient) : IApprovedCurrencyProcurementRepository
     {
         public async Task<bool> Create(ApprovedCurrencyProcurement model)
         {
@@ -16,14 +18,12 @@ namespace VMSService.Core.Repositories.ApprovedCurrencyProcurements
         public async Task<ICollection<ApprovedCurrencyProcurement>> FindAll()
         {
             return await _db.ApprovedCurrencyProcurements.Where(x => x.IsDeleted == false)
-                .Include(x => x.CurrentStatus)
                 .ToListAsync();
         }
 
         public async Task<ApprovedCurrencyProcurement> FindById(int id)
         {
             return await _db.ApprovedCurrencyProcurements
-                .Include(x => x.CurrentStatus)
                 .FirstOrDefaultAsync(x => x.Id == id);
         }
 
@@ -46,9 +46,13 @@ namespace VMSService.Core.Repositories.ApprovedCurrencyProcurements
 
         public async Task<ICollection<ApprovedCurrencyProcurement>> FindVerified()
         {
-            var verifiedStatus = await _db.StatusTypes
-                .Where(s => s.Name == StatusConstants.ApprovedCurrencyProcurement.Verified)
-                .FirstOrDefaultAsync();
+            var requestData = new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                StatusName = StatusConstants.ApprovedCurrencyProcurement.Verified,
+                EntityTypeName = StatusConstants.Entity.ApprovedCurrencyProcurement
+            };
+            var verifiedStatus = await _workflowServiceClient.FindStatusByName(requestData);
 
             if (verifiedStatus == null)
             {
@@ -58,8 +62,14 @@ namespace VMSService.Core.Repositories.ApprovedCurrencyProcurements
             int verifiedStatusId = verifiedStatus.Id;
             return await _db.ApprovedCurrencyProcurements
                 .Where(x => x.IsDeleted == false && x.CurrentStatusId == verifiedStatusId)
-                .Include(x => x.CurrentStatus)
                 .ToListAsync();
+        }
+
+        public async Task<int> CreateNew(ApprovedCurrencyProcurement model)
+        {
+            _db.ApprovedCurrencyProcurements.Add(model);
+            await Save();
+            return model.Id;
         }
     }
 }

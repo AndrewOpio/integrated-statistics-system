@@ -7,5 +7,6 @@ namespace IdentityService.Core.Repository.ApplicationRoles
     {
         Task<bool> Delete(int id);
         Task<bool> IsExists(int applicationId, string roleId);
+        Task<List<ApplicationRole>> FindByApplicationId(int applicationId);
     }
 }

@@ -141,6 +141,14 @@
                             <span class="sidebar-text">Approved Procurements</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a asp-controller="CbWithdrawalRequests" asp-action="Index" class="nav-link d-flex align-items-center">
+                            <span class="sidebar-icon fs-5 me-4">
+                                <i class="ti ti-currency"></i>
+                            </span>
+                            <span class="sidebar-text">CB Withdraws</span>
+                        </a>
+                    </li>
                 }
 
                 @if (isCommercialBank)
@@ -205,18 +213,8 @@
                                     </a>
                                 </li>
                                 <li class="nav-item">
-                                    <a asp-controller="CommercialBanks" asp-action="Index" class="nav-link">
-                                        <span class="sidebar-text">Commercial Banks</span>
-                                    </a>
-                                </li>
-                                <li class="nav-item">
                                     <a asp-controller="Categories" asp-action="Index" class="nav-link">
                                         <span class="sidebar-text">Currency Categories</span>
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a asp-controller="Branches" asp-action="Index" class="nav-link">
-                                        <span class="sidebar-text">BOU Branches</span>
                                     </a>
                                 </li>
                                 <li class="nav-item">
@@ -257,18 +255,8 @@
                                     </a>
                                 </li>
                                 <li class="nav-item">
-                                    <a asp-controller="StatusTypes" asp-action="Index" class="nav-link">
-                                        <span class="sidebar-text">Status Types</span>
-                                    </a>
-                                </li>
-                                <li class="nav-item">
                                     <a asp-controller="CommercialBankUsers" asp-action="Index" class="nav-link">
                                         <span class="sidebar-text">Commercial Bank Users</span>
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a asp-controller="WorkflowTransitions" asp-action="Index" class="nav-link">
-                                        <span class="sidebar-text">Workflows</span>
                                     </a>
                                 </li>
                             </ul>

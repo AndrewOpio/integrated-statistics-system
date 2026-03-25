@@ -314,105 +314,6 @@ namespace VMSService.Core.Services.Stocks
 
         #endregion
 
-        #region CommercialBank Methods
-
-        public async Task<ICollection<CommercialBank>> GetAllCommercialBanks()
-        {
-            try
-            {
-                await EnsureAuthorizationHeaderAsync();
-                var baseUrl = _stockAPISettings.BaseUrl;
-                var response = await _httpClient.GetAsync($"{baseUrl}/api/commercialbanks/get-all");
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var commercialBanks = await response.Content.ReadFromJsonAsync<ICollection<CommercialBank>>();
-                    return commercialBanks ?? new List<CommercialBank>();
-                }
-
-                _logger.LogError("Failed to retrieve commercial banks. Status: {StatusCode}", response.StatusCode);
-                return new List<CommercialBank>();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving commercial banks from API");
-                return new List<CommercialBank>();
-            }
-        }
-
-        public async Task<CommercialBank> GetCommercialBankById(int id)
-        {
-            try
-            {
-                await EnsureAuthorizationHeaderAsync();
-                var baseUrl = _stockAPISettings.BaseUrl;
-                var response = await _httpClient.GetAsync($"{baseUrl}/api/commercialbanks/get/{id}");
-
-                if (response.IsSuccessStatusCode)
-                {
-                    return await response.Content.ReadFromJsonAsync<CommercialBank>();
-                }
-
-                _logger.LogWarning("Commercial bank with id {CommercialBankId} not found", id);
-                return null;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving commercial bank {CommercialBankId} from API", id);
-                return null;
-            }
-        }
-
-        public async Task<bool> CreateCommercialBank(CommercialBank commercialBank)
-        {
-            try
-            {
-                await EnsureAuthorizationHeaderAsync();
-                var baseUrl = _stockAPISettings.BaseUrl;
-                var response = await _httpClient.PostAsJsonAsync($"{baseUrl}/api/commercialbanks/create", commercialBank);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    _logger.LogInformation("Commercial bank created successfully");
-                    return true;
-                }
-
-                _logger.LogError("Failed to create commercial bank. Status: {StatusCode}", response.StatusCode);
-                return false;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating commercial bank via API");
-                return false;
-            }
-        }
-
-        public async Task<bool> UpdateCommercialBank(CommercialBank commercialBank)
-        {
-            try
-            {
-                await EnsureAuthorizationHeaderAsync();
-                var baseUrl = _stockAPISettings.BaseUrl;
-                var response = await _httpClient.PutAsJsonAsync($"{baseUrl}/api/commercialbanks/update/{commercialBank.Id}", commercialBank);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    _logger.LogInformation("Commercial bank updated successfully");
-                    return true;
-                }
-
-                _logger.LogError("Failed to update commercial bank. Status: {StatusCode}", response.StatusCode);
-                return false;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating commercial bank via API");
-                return false;
-            }
-        }
-
-        #endregion
-
         #region StockLedger Methods
 
         public async Task<ICollection<StockLedger>> GetAllStockLedgers()
@@ -749,7 +650,6 @@ namespace VMSService.Core.Services.Stocks
 
         public async Task<bool> CreateBranchCategory(BranchCategory branchCategory)
         {
-            branchCategory.Branch = null;
             branchCategory.Category = null;
             try
             {
@@ -775,7 +675,6 @@ namespace VMSService.Core.Services.Stocks
 
         public async Task<bool> UpdateBranchCategory(BranchCategory branchCategory)
         {
-            branchCategory.Branch = null;
             branchCategory.Category = null;
             try
             {
@@ -795,107 +694,6 @@ namespace VMSService.Core.Services.Stocks
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating branch category via API");
-                return false;
-            }
-        }
-
-        #endregion
-
-        #region Branch Methods
-
-        public async Task<ICollection<Branch>> GetAllBranches()
-        {
-            try
-            {
-                await EnsureAuthorizationHeaderAsync();
-                var baseUrl = _stockAPISettings.BaseUrl;
-                var response = await _httpClient.GetAsync($"{baseUrl}/api/branches/get-all");
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var branches = await response.Content.ReadFromJsonAsync<ICollection<Branch>>();
-                    return branches ?? new List<Branch>();
-                }
-
-                _logger.LogError("Failed to retrieve branches. Status: {StatusCode}", response.StatusCode);
-                return new List<Branch>();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving branches from API");
-                return new List<Branch>();
-            }
-        }
-
-        public async Task<Branch> GetBranchById(int id)
-        {
-            try
-            {
-                await EnsureAuthorizationHeaderAsync();
-                var baseUrl = _stockAPISettings.BaseUrl;
-                var response = await _httpClient.GetAsync($"{baseUrl}/api/branches/get/{id}");
-
-                if (response.IsSuccessStatusCode)
-                {
-                    return await response.Content.ReadFromJsonAsync<Branch>();
-                }
-
-                _logger.LogWarning("Branch with id {BranchId} not found", id);
-                return null;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving branch {BranchId} from API", id);
-                return null;
-            }
-        }
-
-        public async Task<bool> CreateBranch(Branch branch)
-        {
-            branch.BranchCategories = [];
-            try
-            {
-                await EnsureAuthorizationHeaderAsync();
-                var baseUrl = _stockAPISettings.BaseUrl;
-                var response = await _httpClient.PostAsJsonAsync($"{baseUrl}/api/branches/create", branch);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    _logger.LogInformation("Branch created successfully");
-                    return true;
-                }
-
-                _logger.LogError("Failed to create branch. Status: {StatusCode}", response.StatusCode);
-                return false;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating branch via API");
-                return false;
-            }
-        }
-
-        public async Task<bool> UpdateBranch(Branch branch)
-        {
-            branch.BranchCategories = [];
-            try
-            {
-                await EnsureAuthorizationHeaderAsync();
-                var baseUrl = _stockAPISettings.BaseUrl;
-                var response = await _httpClient.PutAsJsonAsync($"{baseUrl}/api/branches/update/{branch.Id}", branch);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    _logger.LogInformation("Branch updated successfully");
-                    return true;
-                }
-
-                _logger.LogError("Failed to update branch. Status: {StatusCode}", response.StatusCode);
-                return false;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating branch via API");
                 return false;
             }
         }

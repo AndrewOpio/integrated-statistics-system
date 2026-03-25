@@ -17,14 +17,14 @@
                         <h2 class="fs-4 fw-bold mb-3">UGX @Model.Amount.ToString("N0")</h2>
                         <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
                             <span class="badge bg-info">
-                                <i class="ti ti-badge me-1"></i>@Model.CurrentStatus?.Name
+                                <i class="ti ti-badge me-1"></i>@Model.CurrentStatusName
                             </span>
                         </div>
                     </div>
                     <!-- Action Buttons -->
                     <div class="d-flex gap-2 flex-row align-items-end">
                         @{
-                            bool isEditable = Model.CurrentStatus?.Name == StatusConstants.ApprovedCurrencyProcurement.Draft || Model.CurrentStatus?.Name == StatusConstants.ApprovedCurrencyProcurement.Returned;
+                            bool isEditable = Model.CurrentStatusName == StatusConstants.ApprovedCurrencyProcurement.Draft || Model.CurrentStatusName == StatusConstants.ApprovedCurrencyProcurement.Returned;
                         }
                         @if (isEditable && userRoles.Contains(SystemPolicy.Roles.ContractManager))
                         {
@@ -54,6 +54,7 @@
                                 <thead class="thead-light">
                                     <tr>
                                         <th class="fw-bold">Denomination</th>
+                                        <th class="fw-bold">Currency Vendor</th>
                                         <th class="fw-bold">Number of Pieces</th>
                                         <th class="fw-bold">Amount (UGX)</th>
                                     </tr>
@@ -64,6 +65,9 @@
                                         <tr>
                                             <td>
                                                 <span>@denomination.Denomination?.Name</span>
+                                            </td>
+                                            <td>
+                                                <span>@denomination.CurrencyVendor?.Name</span>
                                             </td>
                                             <td>
                                                 <span>@denomination.NumberOfPieces.ToString("N0")</span>
@@ -84,9 +88,9 @@
 
                 <div class="field mb-4">
                     <span class="d-block text-muted small mb-2 text-uppercase">Status</span>
-                    @if (Model.CurrentStatus != null && !string.IsNullOrEmpty(Model.CurrentStatus.Name))
+                    @if (Model.CurrentStatusName != null && !string.IsNullOrEmpty(Model.CurrentStatusName))
                     {
-                        <span class="d-block fw-normal">@Model.CurrentStatus.Name</span>
+                        <span class="d-block fw-normal">@Model.CurrentStatusName</span>
                     }
                     else
                     {
@@ -132,9 +136,9 @@
                                         <div class="d-flex justify-content-between align-items-start">
                                             <div>
                                                 <h6 class="mb-1 small">
-                                                    <strong>@history.OldStatus?.Name</strong>
+                                                    <strong>@history.OldStatusName</strong>
                                                     <i class="ti ti-arrow-right text-muted"></i>
-                                                    <strong>@history.NewStatus?.Name</strong>
+                                                    <strong>@history.NewStatusName</strong>
                                                 </h6>
                                                 <small class="text-muted">
                                                     By: <strong>@history.ChangedBy</strong>

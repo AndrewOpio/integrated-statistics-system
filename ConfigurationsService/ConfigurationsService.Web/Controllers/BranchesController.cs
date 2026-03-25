@@ -1,6 +1,6 @@
 using AutoMapper;
 using ConfigurationsService.Core.Models.Branches;
-using ConfigurationsService.Entities;
+using ConfigurationsService.Data.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VMSService.Core.Repositories.Branches;
@@ -27,14 +27,14 @@ namespace ConfigurationsService.Web.Controllers
             try
             {
                 var branches = await _branchRepository.FindAll();
-                var branchDtos = _mapper.Map<List<BranchDto>>(branches);
-                return View(branchDtos);
+                var model = _mapper.Map<List<BranchViewModel>>(branches);
+                return View(model);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving branches");
                 TempData["Error"] = "An error occurred while retrieving branches.";
-                return View(new List<BranchDto>());
+                return View(new List<BranchViewModel>());
             }
         }
 
@@ -50,8 +50,8 @@ namespace ConfigurationsService.Web.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
-                var branchDto = _mapper.Map<BranchDto>(branch);
-                return View(branchDto);
+                var model = _mapper.Map<BranchViewModel>(branch);
+                return View(model);
             }
             catch (Exception ex)
             {
@@ -64,22 +64,22 @@ namespace ConfigurationsService.Web.Controllers
         // GET: Branches/Create
         public IActionResult Create()
         {
-            return View(new BranchDto());
+            return View(new BranchViewModel());
         }
 
         // POST: Branches/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(BranchDto branchDto)
+        public async Task<IActionResult> Create(BranchViewModel model)
         {
             if (!ModelState.IsValid)
-                return View(branchDto);
+                return View(model);
 
             try
             {
-                var branch = _mapper.Map<Branch>(branchDto);
-                branch.CreatedDate = DateTime.UtcNow;
-                branch.CreatedBy = User.Identity?.Name ?? "System";
+                var branch = _mapper.Map<Branch>(model);
+                //branch.CreatedDate = DateTime.UtcNow;
+                //branch.CreatedBy = User.Identity?.Name ?? "System";
 
                 await _branchRepository.Create(branch);
                 TempData["Success"] = "Branch created successfully.";
@@ -89,13 +89,13 @@ namespace ConfigurationsService.Web.Controllers
             {
                 ModelState.AddModelError("Name", ex.Message);
                 _logger.LogWarning(ex, "Duplicate branch name attempted");
-                return View(branchDto);
+                return View(model);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating branch");
                 TempData["Error"] = "An error occurred while creating the branch.";
-                return View(branchDto);
+                return View(model);
             }
         }
 
@@ -111,8 +111,8 @@ namespace ConfigurationsService.Web.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
-                var branchDto = _mapper.Map<BranchDto>(branch);
-                return View(branchDto);
+                var BranchViewModel = _mapper.Map<BranchViewModel>(branch);
+                return View(BranchViewModel);
             }
             catch (Exception ex)
             {
@@ -125,25 +125,25 @@ namespace ConfigurationsService.Web.Controllers
         // POST: Branches/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, BranchDto branchDto)
+        public async Task<IActionResult> Edit(int id, BranchViewModel model)
         {
-            if (id != branchDto.Id)
+            if (id != model.Id)
                 return NotFound();
 
             if (!ModelState.IsValid)
-                return View(branchDto);
+                return View(model);
 
             try
             {
-                var branch = _mapper.Map<Branch>(branchDto);
-                branch.ModifiedDate = DateTime.UtcNow;
-                branch.ModifiedBy = User.Identity?.Name ?? "System";
+                var branch = _mapper.Map<Branch>(model);
+                //branch.ModifiedDate = DateTime.UtcNow;
+                //branch.ModifiedBy = User.Identity?.Name ?? "System";
 
                 var result = await _branchRepository.Update(branch);
                 if (!result)
                 {
                     TempData["Error"] = "Failed to update branch.";
-                    return View(branchDto);
+                    return View(model);
                 }
 
                 TempData["Success"] = "Branch updated successfully.";
@@ -153,13 +153,13 @@ namespace ConfigurationsService.Web.Controllers
             {
                 ModelState.AddModelError("Name", ex.Message);
                 _logger.LogWarning(ex, "Duplicate branch name attempted during update");
-                return View(branchDto);
+                return View(model);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating branch");
                 TempData["Error"] = "An error occurred while updating the branch.";
-                return View(branchDto);
+                return View(model);
             }
         }
 
@@ -175,8 +175,8 @@ namespace ConfigurationsService.Web.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
-                var branchDto = _mapper.Map<BranchDto>(branch);
-                return View(branchDto);
+                var BranchViewModel = _mapper.Map<BranchViewModel>(branch);
+                return View(BranchViewModel);
             }
             catch (Exception ex)
             {
@@ -202,8 +202,8 @@ namespace ConfigurationsService.Web.Controllers
                 }
 
                 branch.IsDeleted = true;
-                branch.ModifiedDate = DateTime.UtcNow;
-                branch.ModifiedBy = User.Identity?.Name ?? "System";
+                //branch.ModifiedDate = DateTime.UtcNow;
+                //branch.ModifiedBy = User.Identity?.Name ?? "System";
 
                 await _branchRepository.Update(branch);
                 TempData["Success"] = "Branch deleted successfully.";

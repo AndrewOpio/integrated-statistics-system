@@ -52,5 +52,11 @@ namespace VMSService.Core.Repositories.CommercialBankUsers
         {
             return await _identityService.GetNonStaffUsers();
         }
+
+        public async Task<CommercialBankUser> FindByUserId(string userId)
+        {
+            return await _db.CommercialBankUsers
+                .FirstOrDefaultAsync(x => x.UserId == userId);
+        }
     }
 }

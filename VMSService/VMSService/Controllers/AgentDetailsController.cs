@@ -1,11 +1,14 @@
 using AutoMapper;
+using ConfigurationsService.Dto;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using SmartBreadcrumbs.Attributes;
+using System.Security.Claims;
 using VMSService.Core.Models.AgentDetails;
 using VMSService.Core.Repositories.AgentDetails;
-using VMSService.Core.Services.Stocks;
+using VMSService.Core.Repositories.CommercialBankUsers;
+using VMSService.Core.Services.Configurations;
 using VMSService.Data.Entities;
 
 namespace VMSService.Controllers
@@ -13,10 +16,12 @@ namespace VMSService.Controllers
     [Authorize]
     public class AgentDetailsController(
         IAgentDetailRepository _agentDetailRepository,
-        IStockService _stockService,
+        IConfigurationService _configService,
         IMapper _mapper,
         IWebHostEnvironment _webHostEnvironment,
-        ILogger<AgentDetailsController> _logger) : Controller
+        ILogger<AgentDetailsController> _logger,
+        IHttpContextAccessor _httpContextAccessor,
+        ICommercialBankUserRepository _commercialBankUserRepo) : Controller
     {
         [Breadcrumb("Agent Details", FromController = typeof(HomeController), FromAction = nameof(Index))]
         // GET: AgentDetails
@@ -28,7 +33,7 @@ namespace VMSService.Controllers
                 var model = _mapper.Map<List<AgentDetailViewModel>>(agentDetails);
 
                 // Populate branch names
-                var branches = await _stockService.GetAllBranches();
+                var branches = await _configService.GetAllBranches();
                 foreach (var agent in model)
                 {
                     var branch = branches.FirstOrDefault(b => b.Id == agent.BranchId);
@@ -71,7 +76,7 @@ namespace VMSService.Controllers
                 var model = _mapper.Map<AgentDetailViewModel>(agentDetail);
 
                 // Populate branch name
-                var branches = await _stockService.GetAllBranches();
+                var branches = await _configService.GetAllBranches();
                 var branch = branches.FirstOrDefault(b => b.Id == model.BranchId);
                 model.BranchName = branch?.Name ?? "Unknown";
 
@@ -91,14 +96,27 @@ namespace VMSService.Controllers
         {
             try
             {
-                var branches = await _stockService.GetAllBranches();
+                // Get user ID from claims
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userId)) { return NotFound(); }
+
+                CommercialBankUser commercialBankUser = await _commercialBankUserRepo.FindByUserId(userId);
+                if (commercialBankUser == null) { return NotFound(); }
+                var commercialBankBranches = await _configService.GetCommercialBankBranchesByBankId(commercialBankUser.CommercialBankId);
+
+                var branches = await _configService.GetAllBranches();
                 var model = new AgentDetailViewModel
                 {
-                    BranchList = branches.Select(b => new SelectListItem
+                    BranchList = [.. branches.Select(b => new SelectListItem
                     {
                         Value = b.Id.ToString(),
                         Text = b.Name
-                    }).ToList()
+                    })],
+                    CommercialBankBranchList = [.. commercialBankBranches.Select(cb => new SelectListItem
+                    {
+                        Value = cb.Id.ToString(),
+                        Text = cb.Name
+                    })]
                 };
                 return View(model);
             }
@@ -116,6 +134,26 @@ namespace VMSService.Controllers
         [Breadcrumb("Create", FromController = typeof(AgentDetailsController), FromAction = nameof(Index))]
         public async Task<IActionResult> Create(AgentDetailViewModel model)
         {
+            // Get user ID from claims
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) { return NotFound(); }
+
+            CommercialBankUser commercialBankUser = await _commercialBankUserRepo.FindByUserId(userId);
+            if (commercialBankUser == null) { return NotFound(); }
+            var commercialBankBranches = await _configService.GetCommercialBankBranchesByBankId(commercialBankUser.CommercialBankId);
+
+            var branches = await _configService.GetAllBranches();
+            model.BranchList = [.. branches.Select(b => new SelectListItem
+                    {
+                        Value = b.Id.ToString(),
+                        Text = b.Name
+                    })];
+            model.CommercialBankBranchList = [.. commercialBankBranches.Select(cb => new SelectListItem
+                    {
+                        Value = cb.Id.ToString(),
+                        Text = cb.Name
+                    })];
+
             if (!ModelState.IsValid)
             {
                 var errors = ModelState.Values.SelectMany(v => v.Errors);
@@ -126,12 +164,6 @@ namespace VMSService.Controllers
                 }
                 ModelState.AddModelError("", "Please correct the errors and try again.");
 
-                var branches = await _stockService.GetAllBranches();
-                model.BranchList = branches.Select(b => new SelectListItem
-                {
-                    Value = b.Id.ToString(),
-                    Text = b.Name
-                }).ToList();
                 return View(model);
             }
 
@@ -141,14 +173,16 @@ namespace VMSService.Controllers
                 model.PassportPhoto = await SaveFileAsync(model.PassportPhotoFile, "passportphotos");
                 model.WorkIdScan = await SaveFileAsync(model.WorkIdScanFile, "workidscans");
                 model.SignatureScan = await SaveFileAsync(model.SignatureScanFile, "signaturescans");
+                model.ApprovalAttachment = await SaveFileAsync(model.ApprovalAttachmentFile, "approvalattachments");
 
                 var agentDetail = _mapper.Map<AgentDetail>(model);
-                bool isCreated = await _agentDetailRepository.Create(agentDetail);
+                //bool isCreated = await _agentDetailRepository.Create(agentDetail);
+                int agentDetailId = await _agentDetailRepository.CreateNew(agentDetail);
 
-                if (isCreated)
+                if (agentDetailId > 0)
                 {
                     TempData["Success"] = "Agent detail created successfully!";
-                    return RedirectToAction(nameof(Index));
+                    return RedirectToAction(nameof(Details), new { id = agentDetailId });
                 }
                 else
                 {
@@ -164,12 +198,6 @@ namespace VMSService.Controllers
                 TempData["Error"] = ex.Message;
             }
 
-            var branchList = await _stockService.GetAllBranches();
-            model.BranchList = branchList.Select(b => new SelectListItem
-            {
-                Value = b.Id.ToString(),
-                Text = b.Name
-            }).ToList();
             return View(model);
         }
 
@@ -196,13 +224,30 @@ namespace VMSService.Controllers
                     return NotFound();
                 }
 
-                var branches = await _stockService.GetAllBranches();
+                var branches = await _configService.GetAllBranches();
                 var model = _mapper.Map<AgentDetailViewModel>(agentDetail);
                 model.BranchList = branches.Select(b => new SelectListItem
                 {
                     Value = b.Id.ToString(),
                     Text = b.Name
                 }).ToList();
+
+                // Get commercial bank branches for the user's bank
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    var commercialBankUser = await _commercialBankUserRepo.FindByUserId(userId);
+                    if (commercialBankUser != null)
+                    {
+                        var commercialBankBranches = await _configService.GetCommercialBankBranchesByBankId(commercialBankUser.CommercialBankId);
+                        model.CommercialBankBranchList = commercialBankBranches.Select(cb => new SelectListItem
+                        {
+                            Value = cb.Id.ToString(),
+                            Text = cb.Name
+                        }).ToList();
+                    }
+                }
+
                 return View(model);
             }
             catch (Exception ex)
@@ -234,7 +279,7 @@ namespace VMSService.Controllers
                 }
                 ModelState.AddModelError("", "Please correct the errors and try again.");
 
-                var branches = await _stockService.GetAllBranches();
+                var branches = await _configService.GetAllBranches();
                 model.BranchList = branches.Select(b => new SelectListItem
                 {
                     Value = b.Id.ToString(),
@@ -252,6 +297,7 @@ namespace VMSService.Controllers
                 }
 
                 agentDetail.BranchId = model.BranchId;
+                agentDetail.CommercialBankBranchId = model.CommercialBankBranchId;
                 agentDetail.AgentNames = model.AgentNames;
                 agentDetail.NIN = model.NIN;
                 agentDetail.PhoneNumber = model.PhoneNumber;
@@ -269,12 +315,16 @@ namespace VMSService.Controllers
                 {
                     agentDetail.SignatureScan = await SaveFileAsync(model.SignatureScanFile, "signaturescans");
                 }
+                if (model.ApprovalAttachmentFile != null)
+                {
+                    agentDetail.ApprovalAttachment = await SaveFileAsync(model.ApprovalAttachmentFile, "approvalattachments");
+                }
 
                 bool isUpdated = await _agentDetailRepository.Update(agentDetail);
                 if (isUpdated)
                 {
                     TempData["Success"] = "Agent detail updated successfully!";
-                    return RedirectToAction(nameof(Index));
+                    return RedirectToAction(nameof(Details), new { id });
                 }
                 else
                 {
@@ -289,7 +339,7 @@ namespace VMSService.Controllers
                 TempData["Error"] = ex.Message;
             }
 
-            var branchList = await _stockService.GetAllBranches();
+            var branchList = await _configService.GetAllBranches();
             model.BranchList = branchList.Select(b => new SelectListItem
             {
                 Value = b.Id.ToString(),
@@ -324,7 +374,7 @@ namespace VMSService.Controllers
                 var model = _mapper.Map<AgentDetailViewModel>(agentDetail);
 
                 // Populate branch name
-                var branches = await _stockService.GetAllBranches();
+                var branches = await _configService.GetAllBranches();
                 var branch = branches.FirstOrDefault(b => b.Id == model.BranchId);
                 model.BranchName = branch?.Name ?? "Unknown";
 

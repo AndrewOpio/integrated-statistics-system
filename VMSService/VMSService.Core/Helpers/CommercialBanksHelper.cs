@@ -1,3 +1,4 @@
+using ConfigurationsService.Dto;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using VMSService.Core.Services.Stocks.StockEntities;
 
@@ -5,7 +6,7 @@ namespace VMSService.Core.Helpers
 {
     public static class CommercialBanksHelper
     {
-        public static IEnumerable<SelectListItem> GetCommercialBanksAsSelectList(List<CommercialBank> commercialBanks)
+        public static IEnumerable<SelectListItem> GetCommercialBanksAsSelectList(List<CommercialBankDto> commercialBanks)
         {
             var selectList = new List<SelectListItem>
             {

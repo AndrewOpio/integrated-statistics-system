@@ -1,0 +1,63 @@
+﻿@model VMSService.Core.Models.CbRequests.BranchSelectionViewModel
+
+<p class="text-uppercase text-muted small fw-semibold mb-3">Sender & Receiver Branch Details</p>
+
+<div class="card mb-3">
+    @* <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-3">
+            <i class="ti ti-building text-primary me-2"></i><h5 class="card-title mb-0">Sender & Receiver</h5>
+        </div>
+    </div> *@
+    <div class="card-body">
+        @* <h6 class="fw-semibold mb-3">
+            <i class="ti ti-building text-primary me-2"></i>Sender and Receiver
+        </h6> *@
+        <div class="row g-4">
+
+            @* ── CB Branch ── *@
+            <div class="col-md-6">
+                <div class="text-muted mb-2 d-flex align-items-center gap-2">
+                    <i class="ti ti-user"></i>
+                    <span>From — Sender</span>
+                </div>
+                <select id="companyBranchSelect"
+                        name="CompanyBranchId"
+                        class="form-select mb-3"
+                        onchange="loadBranchDetails('cb', this.value)">
+                    <option value="">— Select Commercial Bank Branch —</option>
+                    @foreach (var branch in Model.CbBranches)
+                    {
+                        <option value="@branch.Id">@branch.Name</option>
+                    }
+                </select>
+                <div id="companyBranchDetails" class="branch-details text-muted" style="display:none;">
+                    <div class="fw-bold" id="companyBranchName"></div>
+                    <div id="companyBranchCode" class="small"></div>
+                </div>
+            </div>
+
+            @* ── Bank Branch ── *@
+            <div class="col-md-6">
+                <div class="text-muted mb-2 d-flex align-items-center gap-2">
+                    <i class="ti ti-building-bank"></i>
+                    <span>To — Receiver</span>
+                </div>
+                <select id="bankBranchSelect"
+                        name="BankBranchId"
+                        class="form-select mb-3"
+                        onchange="loadBranchDetails('bou', this.value)">
+                    <option value="">— Select BOU Branch —</option>
+                    @foreach (var branch in Model.BouBranches)
+                    {
+                        <option value="@branch.Id">@branch.Name</option>
+                    }
+                </select>
+                <div id="bankBranchDetails" class="branch-details text-muted" style="display:none;">
+                    <div class="fw-bold" id="bankBranchName"></div>
+                    <div id="bankBranchCode" class="small"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>

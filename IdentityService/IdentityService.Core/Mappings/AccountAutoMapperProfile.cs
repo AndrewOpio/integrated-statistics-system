@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using IdentityService.Core.Models;
 using IdentityService.Data.Entities;
+using IdentityService.Dto;
 
 namespace IdentityService.Mappings
 {
@@ -13,6 +14,9 @@ namespace IdentityService.Mappings
             CreateMap<Role, RoleViewModel>().ReverseMap();
             CreateMap<ApplicationRole, ApplicationRoleViewModel>().ReverseMap();
             CreateMap<UserApplicationRole, UserApplicationRoleViewModel>().ReverseMap();
+            CreateMap<Application, ApplicationDto>().ReverseMap();
+            CreateMap<Role, RoleDto>().ReverseMap();
+            CreateMap<ApplicationRole, ApplicationRoleDto>().ReverseMap();
         }
     }
 }
