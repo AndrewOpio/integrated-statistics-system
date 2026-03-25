@@ -138,10 +138,19 @@ namespace WorkflowService.Data.Migrations
                     b.Property<DateTime>("ModifiedDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("NotificationEmails")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("NotificationRoleIds")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("RequiredRole")
                         .HasColumnType("int");
 
                     b.Property<bool>("RequiresComments")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("SendNotification")
                         .HasColumnType("bit");
 
                     b.Property<int>("ToStatusId")

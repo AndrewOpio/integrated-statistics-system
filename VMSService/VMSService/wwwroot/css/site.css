@@ -404,7 +404,7 @@ body {
 
     /* ?? ACTIVE state — blue ?? */
     .step-pill.active {
-        background: #1a6bbf;
+        background: #3c0b0b;
         color: #fff;
     }
 
@@ -418,7 +418,7 @@ body {
         }
 
         .step-pill.active:hover {
-            background: #155da0;
+            background: #541010;
         }
 
     /* ?? WAIT state — muted ?? */

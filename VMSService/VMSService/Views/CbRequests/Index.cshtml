@@ -48,7 +48,7 @@
 <div class="dash-hero mb-4">
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
         <div>
-            <h4>Welcome @User.FindFirst(ClaimTypes.NameIdentifier)?.Value👋</h4>
+            <h4>Welcome @User.FindFirst(ClaimTypes.Name)?.Value👋</h4>
             <p>@User.FindFirst("cbName")?.Value</p>
         </div>
         <div class="d-flex gap-2">
