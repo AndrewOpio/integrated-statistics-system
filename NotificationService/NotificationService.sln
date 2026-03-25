@@ -11,8 +11,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NotificationService.Applica
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NotificationService.Infrastructure", "NotificationService.Infrastructure\NotificationService.Infrastructure.csproj", "{7BBE4ECC-CA79-4605-9BF2-F29FBBCC0F04}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NotificationService.Contracts", "NotificationService.Contracts\NotificationService.Contracts.csproj", "{5B08EDFA-ABA9-4FC2-A401-D131D28ECB24}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -35,10 +33,6 @@ Global
 		{7BBE4ECC-CA79-4605-9BF2-F29FBBCC0F04}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7BBE4ECC-CA79-4605-9BF2-F29FBBCC0F04}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7BBE4ECC-CA79-4605-9BF2-F29FBBCC0F04}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5B08EDFA-ABA9-4FC2-A401-D131D28ECB24}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5B08EDFA-ABA9-4FC2-A401-D131D28ECB24}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5B08EDFA-ABA9-4FC2-A401-D131D28ECB24}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5B08EDFA-ABA9-4FC2-A401-D131D28ECB24}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

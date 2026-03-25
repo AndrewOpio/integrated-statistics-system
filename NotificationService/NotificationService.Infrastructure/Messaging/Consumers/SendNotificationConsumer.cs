@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Logging;
 using NotificationService.Application.DTOs;
 using NotificationService.Application.Interfaces;
-using NotificationService.Contracts.Messaging;
+using NotificationService.Client.Messaging;
 using System;
 using System.Collections.Generic;
 using System.Linq;

@@ -116,6 +116,11 @@ namespace IdentityService.Controllers
                 claims.Add(new Claim("isStaff", dbUser.IsStaff.ToString().ToLower()));
                 claims.Add(new Claim(ClaimTypes.Name, request.Username));
                 claims.Add(new Claim(ClaimTypes.NameIdentifier, dbUser.Id));
+                if (!dbUser.IsStaff)
+                {
+                    claims.Add(new Claim("cbId", "2", ClaimValueTypes.Integer));
+                    claims.Add(new Claim("cbName", "ABSA Bank Uganda Limited"));
+                }
 
                 LdapUser user = new()
                 {

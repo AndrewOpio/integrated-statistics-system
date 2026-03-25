@@ -1,4 +1,5 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
@@ -39,6 +40,19 @@ using VMSService.Core.Services.Stocks;
 using VMSService.Core.Services.Workflows;
 using VMSService.Data;
 using WorkflowService.Client;
+
+using NotificationService.Client;
+using ConfigurationsService.Client;
+using VMSService.Core.Authorization;
+using VMSService.Core.Repositories.CommercialBankBranches;
+using StockService.Client;
+
+//using VMSService.Core.Authorization;
+//using VMSService.Core.Repositories.CommercialBankBranches;
+//using ConfigurationsService.Client;
+//using StockService.Client;
+//using NotificationService.Client;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -106,6 +120,17 @@ builder.Services.AddAutoMapper(cfg => { }, typeof(VMSServiceAutoMapperProfile));
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["SecretKey"];
 var authenticationSettings = builder.Configuration.GetSection("Authentication").Get<AuthenticationSettings>();
+
+
+
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(RolePolicy.CbOnly, policy =>
+        policy.RequireAuthenticatedUser()
+              .RequireRole(RolePolicy.CbMaker, RolePolicy.CbApprover))
+    .AddPolicy(RolePolicy.BouOnly, policy =>
+        policy.RequireAuthenticatedUser()
+              .RequireRole(RolePolicy.BouChecker, RolePolicy.PanelA, RolePolicy.PanelB));
+
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -182,16 +207,21 @@ builder.Services.AddScoped<ICommercialBankRepository, CommercialBankRepository>(
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IBranchCategoryRepository, BranchCategoryRepository>();
 builder.Services.AddScoped<IBranchRepository, BranchRepository>();
+builder.Services.AddScoped<ICommercialBankBranchRepository, CommercialBankBranchRepository>();
 builder.Services.AddScoped<ICounterPartyTypeRepository, CounterPartyTypeRepository>();
 builder.Services.AddScoped<ICommercialBankUserRepository, CommercialBankUserRepository>();
 builder.Services.AddScoped<IAgentDetailRepository, AgentDetailRepository>();
 builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
 builder.Services.AddScoped<IStockMovementDiscrepancyRepository, StockMovementDiscrepancyRepository>();
 
+
+// ── Resource-based ownership check ────────────────────────────
+builder.Services.AddSingleton<IAuthorizationHandler, CbOwnershipAuthorizationHandler>();
+
 // Add this in your service registration section
-builder.Services.AddScoped<IStockService, StockService>();
+builder.Services.AddScoped<IStockService, VMSService.Core.Services.Stocks.StockService>();
 builder.Services.AddScoped<IStockPositionService, StockPositionService>();
-builder.Services.AddHttpClient<StockService>()
+builder.Services.AddHttpClient<VMSService.Core.Services.Stocks.StockService>()
     .ConfigureHttpClient((sp, client) =>
     {
         var configuration = sp.GetRequiredService<IConfiguration>();
@@ -213,6 +243,7 @@ builder.Services.AddHttpClient<IdentityService>()
 
 // Register Configurations Service
 builder.Services.AddScoped<IConfigurationService, ConfigurationService>();
+
 builder.Services.AddHttpClient<ConfigurationService>()
     .ConfigureHttpClient((sp, client) =>
     {
@@ -225,6 +256,16 @@ builder.Services.AddHttpClient<ConfigurationService>()
 // Register Workflow Service
 var workflowServiceBaseUrl = builder.Configuration["MicroServices:workflowservice"] ?? "https://localhost:7026";
 builder.Services.AddWorkflowServiceClient(workflowServiceBaseUrl);
+
+// Register ConfigurationsServiceClient Service
+builder.Services.AddConfigurationsServiceClient(builder.Configuration["MicroServices:configurationsservice"] ?? "https://localhost:7026");
+
+// Register Notification Service
+builder.Services.AddNotificationServiceClient(builder.Configuration["MicroServices:notificationservice"] ?? "https://localhost:7026");
+var rabbitMqHost = builder.Configuration["RabbitMQ:Host"] ?? "localhost";
+var rabbitMqUsername = builder.Configuration["RabbitMQ:Username"] ?? "guest";
+var rabbitMqPassword = builder.Configuration["RabbitMQ:Password"] ?? "guest";
+builder.Services.AddNotificationEventPublisher(rabbitMqHost, rabbitMqUsername, rabbitMqPassword);
 
 // Configure LDAP settings
 builder.Services.Configure<StockAPISettings>(

@@ -46,6 +46,29 @@ namespace ConfigurationsService.Web.Controllers.Api
         }
 
         /// <summary>
+        /// Get all commercial bank branches
+        /// </summary>
+        /// <returns>List of all commercial bank branches</returns>
+        [HttpGet("cb/{id}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<IEnumerable<CommercialBankBranchDto>>> GetAllByCommercialBankById(int id)
+        {
+            try
+            {
+                var cbBranches = await _branchRepository.FindByCommercialBankId(id);
+                var cbBranchDtos = _mapper.Map<List<CommercialBankBranchDto>>(cbBranches);
+                return Ok(cbBranchDtos);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving all commercial bank branches");
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { message = "An error occurred while retrieving commercial bank branches", error = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// Get a specific commercial bank branch by ID
         /// </summary>
         /// <param name="id">Commercial Bank Branch ID</param>

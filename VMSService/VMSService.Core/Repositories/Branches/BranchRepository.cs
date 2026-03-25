@@ -12,7 +12,8 @@ namespace VMSService.Core.Repositories.Branches
         {
             try
             {
-                return await _configService.GetAllBranches();
+                var item =  await _configService.GetAllBranches();
+                return item;
             }
             catch (Exception ex)
             {
