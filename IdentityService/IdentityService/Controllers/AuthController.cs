@@ -109,6 +109,7 @@ namespace IdentityService.Controllers
                 foreach (UserApplicationRole userAppRole in userAppRoles)
                 {
                     claims.Add(new Claim("appRole", $"{userAppRole.ApplicationRole.Application.Acronym}:{userAppRole.ApplicationRole.Role.Name}"));
+                    claims.Add(new Claim("appRoleId", $"{userAppRole.ApplicationRole.Application.Acronym}:{userAppRole.ApplicationRole.Id}"));
                 }
 
                 // Add IsStaff claim

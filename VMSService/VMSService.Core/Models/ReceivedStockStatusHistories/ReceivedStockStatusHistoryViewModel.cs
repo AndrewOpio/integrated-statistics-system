@@ -1,6 +1,4 @@
 ﻿using VMSService.Core.Models.ReceivedStocks;
-using VMSService.Core.Models.StatusTypes;
-using VMSService.Data.AuditColumns;
 
 namespace VMSService.Core.Models.ReceivedStockStatusHistories
 {
@@ -10,9 +8,9 @@ namespace VMSService.Core.Models.ReceivedStockStatusHistories
         public int ReceivedStockId { get; set; }
         public ReceivedStockViewModel? ReceivedStock { get; set; }
         public int OldStatusId { get; set; }
-        public StatusTypeViewModel OldStatus { get; set; }
+        public string OldStatusName { get; set; }
         public int NewStatusId { get; set; }
-        public StatusTypeViewModel NewStatus { get; set; }
+        public string NewStatusName { get; set; }
         public string ChangedBy { get; set; }
         public DateTime ChangedAt { get; set; }
         public string? Remarks { get; set; }

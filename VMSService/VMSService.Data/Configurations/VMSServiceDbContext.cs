@@ -20,11 +20,9 @@ namespace VMSService.Data.Configurations
         public DbSet<ExPrintMint> ExPrintMints { get; set; }
         public DbSet<ApprovedCurrencyDenomination> ApprovedCurrencyDenominations { get; set; }
         //public DbSet<DenominationType> DenominationTypes { get; set; }
-        public DbSet<StatusType> StatusTypes { get; set; }
         public DbSet<ApprovedCurrencyStatusHistory> ApprovedCurrencyStatusHistory { get; set; }
         public DbSet<ExPrintMintStatusHistory> ExPrintMintStatusHistory { get; set; }
         public DbSet<ReceivedStock> ReceivedStock { get; set; }
-        public DbSet<WorkflowTransition> WorkflowTransitions { get; set; }
         public DbSet<ReceivedStockStatusHistory> ReceivedStockStatusHistory { get; set; }
         public DbSet<StockMovement> StockMovements { get; set; }
         public DbSet<StockMovementDenomination> StockMovementDenominations { get; set; }
@@ -40,17 +38,6 @@ namespace VMSService.Data.Configurations
             base.OnModelCreating(modelBuilder);
 
             // Configure StockMovementStatusHistory foreign keys to prevent cascade delete conflicts
-            modelBuilder.Entity<StockMovementStatusHistory>()
-                .HasOne(x => x.OldStatus)
-                .WithMany()
-                .HasForeignKey(x => x.OldStatusId)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            modelBuilder.Entity<StockMovementStatusHistory>()
-                .HasOne(x => x.NewStatus)
-                .WithMany()
-                .HasForeignKey(x => x.NewStatusId)
-                .OnDelete(DeleteBehavior.NoAction);
         
             modelBuilder.Entity<StockMovementStatusHistory>()
                 .HasOne(x => x.StockMovement)

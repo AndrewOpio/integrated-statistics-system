@@ -1,28 +1,26 @@
 using AutoMapper;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using VMSService.Core.Models.WorkflowTransitions;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
 using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.ReceivedStocks;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
-using VMSService.Core.Repositories.WorkflowTransitions;
+using VMSService.Core.Repositories.StockMovementDiscrepancies;
 using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.StockMovementStatusHistories;
-using VMSService.Core.Repositories.StockMovementDiscrepancies;
-using VMSService.Core.Repositories.StatusTypes;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
+using WorkflowService.Client;
+using WorkflowService.Client.Dto;
 
 namespace VMSService.Core.Services.Workflows
 {
-    public class WorkflowService(
-        IWorkflowTransitionRepository _transitionRepository,
+    public class WorkflowServices(
         IApprovedCurrencyProcurementRepository _procurementRepository,
         IApprovedCurrencyStatusHistoryRepository _statusHistoryRepository,
-        IMapper _mapper,
-        ILogger<WorkflowService> _logger,
+        ILogger<WorkflowServices> _logger,
         IExPrintMintRepository _exPrintMintRepository,
         IReceivedStockRepository _receivedStockRepository,
         IExPrintMintStatusHistoryRepository _exPrintMintStatusHistoryRepository,
@@ -30,39 +28,46 @@ namespace VMSService.Core.Services.Workflows
         IStockMovementRepository _stockMovementRepository,
         IStockMovementStatusHistoryRepository _stockMovementStatusHistoryRepository,
         IStockMovementDiscrepancyRepository _stockMovementDiscrepancyRepository,
-        IStatusTypeRepository _statusTypeRepository) : IWorkflowService
+        IWorkflowServiceClient _workflowServiceClient) : IWorkflowService
     {
-        public async Task<ICollection<WorkflowTransitionViewModel>> GetAvailableTransitions(
-            string entityType, int currentStatusId, string userRole)
-        {
-            try
-            {
-                // Get all possible transitions from current status
-                var transitions = await _transitionRepository.FindByEntityTypeAndStatus(entityType, currentStatusId);
+        //public async Task<ICollection<WorkflowTransitionDto>> GetAvailableTransitions(
+        //    string entityType, int currentStatusId, string userRole)
+        //{
+        //    try
+        //    {
+        //        // Get all possible transitions from current status
+        //        var transitions = await _transitionRepository.FindByEntityTypeAndStatus(entityType, currentStatusId);
 
-                // Filter by user role
-                var availableTransitions = transitions
-                    .Where(t => t.RequiredRole == userRole)
-                    .ToList();
+        //        // Filter by user role
+        //        var availableTransitions = transitions
+        //            .Where(t => t.RequiredRole == userRole)
+        //            .ToList();
 
-                return _mapper.Map<ICollection<WorkflowTransitionViewModel>>(availableTransitions);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting available transitions for {EntityType} status {StatusId} and role {Role}", 
-                    entityType, currentStatusId, userRole);
-                return new List<WorkflowTransitionViewModel>();
-            }
-        }
+        //        return _mapper.Map<ICollection<WorkflowTransitionViewModel>>(availableTransitions);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Error getting available transitions for {EntityType} status {StatusId} and role {Role}", 
+        //            entityType, currentStatusId, userRole);
+        //        return new List<WorkflowTransitionViewModel>();
+        //    }
+        //}
 
         public async Task<bool> ExecuteTransition(
             string entityType, int entityId, int currentStatusId, 
-            string actionName, string username, List<string> userRoles, string remarks)
+            string actionName, string username, List<int> userRoles, string remarks)
         {
+            var requestData = new GetTransitionByKeyRequestDto
+            {
+               EntityTypeName = entityType,
+               FromStatusId = currentStatusId,
+               ActionName = actionName,
+            };
             try
             {
                 // Find the valid transition
-                var transition = await _transitionRepository.FindByTransitionKey(entityType, currentStatusId, actionName);
+                //var transition = await _transitionRepository.FindByTransitionKey(entityType, currentStatusId, actionName);
+                WorkflowTransitionDto transition = await _workflowServiceClient.FindByTransitionKey(requestData);
 
                 if (transition == null)
                 {
@@ -102,7 +107,9 @@ namespace VMSService.Core.Services.Workflows
                     {
                         ApprovedCurrencyProcurementId = entityId,
                         OldStatusId = procurement.CurrentStatusId,
+                        OldStatusName = procurement.CurrentStatusName,
                         NewStatusId = transition.ToStatusId,
+                        NewStatusName = transition.ToStatus.Name,
                         ChangedBy = username,
                         ChangedAt = DateTime.Now,
                         Remarks = remarks,
@@ -150,7 +157,7 @@ namespace VMSService.Core.Services.Workflows
         }
 
         private async Task<bool> HandleExPrintMintTransitions(int entityId, int currentStatusId, string actionName,
-            string userId, string remarks, WorkflowTransition transition)
+            string userId, string remarks, WorkflowTransitionDto transition)
         {
             
             var exPrintMint = await _exPrintMintRepository.FindById(entityId);
@@ -173,7 +180,9 @@ namespace VMSService.Core.Services.Workflows
             {
                 ExPrintMintId = entityId,
                 OldStatusId = exPrintMint.CurrentStatusId,
+                OldStatusName = exPrintMint.CurrentStatusName,
                 NewStatusId = transition.ToStatusId,
+                NewStatusName = transition.ToStatus.Name,
                 ChangedBy = userId,
                 ChangedAt = DateTime.Now,
                 Remarks = remarks,
@@ -193,7 +202,7 @@ namespace VMSService.Core.Services.Workflows
         }
 
         private async Task<bool> HandleReceivedStockTransitions(int entityId, int currentStatusId, string actionName,
-            string userId, string remarks, WorkflowTransition transition)
+            string userId, string remarks, WorkflowTransitionDto transition)
         {
 
             var receivedStock = await _receivedStockRepository.FindById(entityId);
@@ -216,7 +225,9 @@ namespace VMSService.Core.Services.Workflows
             {
                 ReceivedStockId = entityId,
                 OldStatusId = receivedStock.CurrentStatusId,
+                OldStatusName = receivedStock.CurrentStatusName,
                 NewStatusId = transition.ToStatusId,
+                NewStatusName = transition.ToStatus.Name,
                 ChangedBy = userId,
                 ChangedAt = DateTime.Now,
                 Remarks = remarks,
@@ -236,7 +247,7 @@ namespace VMSService.Core.Services.Workflows
         }
 
         private async Task<bool> HandleStockMovementTransitions(int entityId, int currentStatusId, string actionName,
-            string username, string remarks, WorkflowTransition transition)
+            string username, string remarks, WorkflowTransitionDto transition)
         {
 
             var stockMovement = await _stockMovementRepository.FindByIdAsync(entityId);
@@ -259,7 +270,9 @@ namespace VMSService.Core.Services.Workflows
             {
                 StockMovementId = entityId,
                 OldStatusId = stockMovement.CurrentStatusId ?? 0,
+                OldStatusName = stockMovement.CurrentStatusName,
                 NewStatusId = transition.ToStatusId,
+                NewStatusName = transition.ToStatus.Name,
                 ChangedBy = username,
                 ChangedAt = DateTime.Now,
                 Remarks = remarks,
@@ -282,8 +295,8 @@ namespace VMSService.Core.Services.Workflows
         /// Handles discrepancy resolution status transitions
         /// </summary>
         public async Task<bool> ExecuteDiscrepancyTransition(
-            int discrepancyId, int currentStatusId, int newStatusId,
-            string username, string remarks)
+            int discrepancyId, int currentStatusId, string currentStatusName, int newStatusId,
+            string newStatusName, string username, string remarks)
         {
             try
             {
@@ -306,7 +319,9 @@ namespace VMSService.Core.Services.Workflows
                 {
                     StockMovementId = discrepancy.StockMovementId,
                     OldStatusId = currentStatusId,
+                    OldStatusName = currentStatusName,
                     NewStatusId = newStatusId,
+                    NewStatusName = newStatusName,
                     ChangedBy = username,
                     ChangedAt = DateTime.Now,
                     Remarks = remarks,

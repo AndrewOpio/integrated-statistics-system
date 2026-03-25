@@ -15,6 +15,6 @@ namespace VMSService.Data.Entities
         
         // Navigation
         public StockMovement StockMovement { get; set; }
-        public StatusType CurrentStatus { get; set; }
+        public string CurrentStatusName { get; set; }
     }
 }

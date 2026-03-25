@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Text;
 using VMSService.Core.Mappings;
 using VMSService.Core.Models.Authentication;
+using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.ApprovedCurrencyDenominations;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
@@ -26,20 +27,18 @@ using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.ReceivedStocks;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
-using VMSService.Core.Repositories.StatusTypes;
+using VMSService.Core.Repositories.StockMovementDiscrepancies;
 using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.StockMovementStatusHistories;
-using VMSService.Core.Repositories.StockMovementDiscrepancies;
 using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Repositories.VendorTypes;
-using VMSService.Core.Repositories.WorkflowTransitions;
-using VMSService.Core.Services.Stocks;
-using VMSService.Core.Services.Workflows;
+using VMSService.Core.Services.Configurations;
 using VMSService.Core.Services.Identity;
 using VMSService.Core.Services.StockPositions;
+using VMSService.Core.Services.Stocks;
+using VMSService.Core.Services.Workflows;
 using VMSService.Data;
-using VMSService.Core.Repositories.AgentDetails;
-using VMSService.Core.Services.Configurations;
+using WorkflowService.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -165,7 +164,6 @@ var configuration = new ConfigurationBuilder()
 
 // Register Repositories
 builder.Services.AddScoped<IVendorTypeRepository, VendorTypeRepository>();
-builder.Services.AddScoped<IStatusTypeRepository, StatusTypeRepository>();
 builder.Services.AddScoped<IExPrintMintStatusHistoryRepository, ExPrintMintStatusHistoryRepository>();
 builder.Services.AddScoped<IApprovedCurrencyStatusHistoryRepository, ApprovedCurrencyStatusHistoryRepository>();
 builder.Services.AddScoped<IDenominationRepository, DenominationRepository>();
@@ -175,8 +173,7 @@ builder.Services.AddScoped<IApprovedCurrencyProcurementRepository, ApprovedCurre
 builder.Services.AddScoped<IApprovedCurrencyDenominationRepository, ApprovedCurrencyDenominationRepository>();
 builder.Services.AddScoped<ICurrencyVendorRepository, CurrencyVendorRepository>();
 builder.Services.AddScoped<IReceivedStockRepository, ReceivedStockRepository>();
-builder.Services.AddScoped<IWorkflowTransitionRepository, WorkflowTransitionRepository>();
-builder.Services.AddScoped<IWorkflowService, WorkflowService>();
+builder.Services.AddScoped<IWorkflowService, WorkflowServices>();
 builder.Services.AddScoped<IReceivedStockStatusHistoryRepository, ReceivedStockStatusHistoryRepository>();
 builder.Services.AddScoped<IStockMovementStatusHistoryRepository, StockMovementStatusHistoryRepository>();
 builder.Services.AddScoped<IStockLedgerRepository, StockLedgerRepository>();
@@ -224,6 +221,10 @@ builder.Services.AddHttpClient<ConfigurationService>()
         client.BaseAddress = new Uri(baseUrl);
         client.DefaultRequestHeaders.Add("Accept", "application/json");
     });
+
+// Register Workflow Service
+var workflowServiceBaseUrl = builder.Configuration["MicroServices:workflowservice"] ?? "https://localhost:7026";
+builder.Services.AddWorkflowServiceClient(workflowServiceBaseUrl);
 
 // Configure LDAP settings
 builder.Services.Configure<StockAPISettings>(

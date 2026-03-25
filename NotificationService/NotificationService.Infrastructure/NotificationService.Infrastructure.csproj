@@ -19,12 +19,13 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Graph" Version="5.103.0" />
-    <PackageReference Include="NotificationService.Contracts" Version="1.0.1" />
+    <!--<PackageReference Include="NotificationService.Contracts" Version="1.0.1" />-->
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\NotificationService.Application\NotificationService.Application.csproj" />
     <ProjectReference Include="..\NotificationService.Domain\NotificationService.Domain.csproj" />
+	  <ProjectReference Include="..\NotificationService.Contracts\NotificationService.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

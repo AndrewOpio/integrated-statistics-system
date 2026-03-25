@@ -1,22 +1,23 @@
-using System.Text;
-using System.Text.Json;
 using ConfigurationsService.Dto;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using SmartBreadcrumbs.Attributes;
+using System.Text;
+using System.Text.Json;
 using VMSService.Controllers;
 using VMSService.Core.Models.StockMovement;
-using VMSService.Core.Repositories.StatusTypes;
 using VMSService.Core.Repositories.StockMovementDiscrepancies;
 using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.StockMovementStatusHistories;
-using VMSService.Core.Repositories.WorkflowTransitions;
 using VMSService.Core.Services.StockPositions;
 using VMSService.Core.Services.Stocks;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
+using WorkflowService.Client;
+using WorkflowService.Client.Dto;
 
 namespace VMSService.Web.Controllers
 {
@@ -27,11 +28,10 @@ namespace VMSService.Web.Controllers
         IStockMovementRepository _stockMovementRepository,
         IStockMovementStatusHistoryRepository _statusHistoryRepository,
         IStockMovementDiscrepancyRepository _discrepancyRepository,
-        IStatusTypeRepository _statusTypeRepository,
-        IWorkflowTransitionRepository _workflowTransitionRepository,
         IWorkflowService _workflowService,
         IStockService _stockService,
-        IStockPositionService _stockPositionService) : Controller
+        IStockPositionService _stockPositionService,
+        IWorkflowServiceClient _workflowServiceClient) : Controller
     {
         private const string StockServiceBaseUrl = "https://localhost:7158";
         private const string StockServiceTokenEndpoint = "/api/token";
@@ -120,7 +120,13 @@ namespace VMSService.Web.Controllers
                 return BadRequest(new { message = "Invalid request body." });
 
             // Get the "Draft" status
-            var draftStatus = await _statusTypeRepository.FindByName(StatusConstants.StockMovement.Draft, StatusConstants.Category.StockMovement);
+            var requestData = new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                StatusName = StatusConstants.ApprovedCurrencyProcurement.Draft,
+                EntityTypeName = StatusConstants.Entity.StockMovement
+            };
+            var draftStatus = await _workflowServiceClient.FindStatusByName(requestData);
             if (draftStatus == null)
             {
                 return BadRequest(new { message = "Draft status not found." });
@@ -292,30 +298,36 @@ namespace VMSService.Web.Controllers
             var statusHistory = await _statusHistoryRepository.FindByStockMovementId(id);
 
             // Get available transitions for current user
-            var userRoles = User.FindAll("appRole")
-                .Where(c => c.Value.StartsWith("VMS:"))
-                .Select(c => c.Value.Split(":")[1])
-                .ToList();
+            var userRoles = User.FindAll("appRoleId")
+                    .Where(c => c.Value.StartsWith("VMS:"))
+                    .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
+                    .Where(id => id.HasValue)
+                    .Select(id => id.Value)
+                    .ToList();
 
-            var availableTransitions = new List<WorkflowTransitionDto>();
+            var availableTransitions = new List<Core.Models.StockMovement.WorkflowTransitionDto>();
 
             // If internal movement and it's already approved, show no transitions
             if (movement.MovementType?.ToLower() == "internal" &&
-                movement.CurrentStatus?.Name == StatusConstants.StockMovement.Approved)
+                movement.CurrentStatusName == StatusConstants.StockMovement.Approved)
             {
-                availableTransitions = new List<WorkflowTransitionDto>();
+                availableTransitions = new List<Core.Models.StockMovement.WorkflowTransitionDto>();
             }
             else
             {
                 foreach (var userRole in userRoles)
                 {
-                    var transitions = await _workflowService.GetAvailableTransitions(
-                        StatusConstants.Entity.StockMovement,
-                        movement.CurrentStatusId ?? 0,
-                        userRole);
+                    var requestData = new GetAvailableTransitionsRequestDto
+                    {
+                        ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                        EntityTypeName = StatusConstants.Entity.StockMovement,
+                        CurrentStatusId = movement.CurrentStatusId ?? 0,
+                        AppRole = userRole,
+                    };
+                    var transitions = await _workflowServiceClient.GetAvailableTransitions(requestData);
                     if (transitions != null)
                     {
-                        availableTransitions.AddRange(transitions.Select(t => new WorkflowTransitionDto
+                        availableTransitions.AddRange(transitions.Select(t => new Core.Models.StockMovement.WorkflowTransitionDto
                         {
                             ActionName = t.ActionName,
                             DisplayLabel = t.DisplayLabel,
@@ -334,21 +346,25 @@ namespace VMSService.Web.Controllers
             var currentDiscrepancy = discrepancies.FirstOrDefault();
             ViewBag.Discrepancies = discrepancies;
             ViewBag.CurrentDiscrepancy = currentDiscrepancy;
-            ViewBag.HasMismatches = discrepancies.Any(d => d.CurrentStatus?.Name == StatusConstants.StockMovementDiscrepancy.PendingDiscrepancy);
+            ViewBag.HasMismatches = discrepancies.Any(d => d.CurrentStatusName == StatusConstants.StockMovementDiscrepancy.PendingDiscrepancy);
 
             // Get available discrepancy transitions from workflow system
-            var discrepancyTransitions = new List<WorkflowTransitionDto>();
+            var discrepancyTransitions = new List<Core.Models.StockMovement.WorkflowTransitionDto>();
             if (currentDiscrepancy != null)
             {
                 foreach (var userRole in userRoles)
                 {
-                    var transitions = await _workflowService.GetAvailableTransitions(
-                        StatusConstants.Entity.StockMovementDiscrepancy,
-                        currentDiscrepancy.CurrentStatusId,
-                        userRole);
+                    var requestData = new GetAvailableTransitionsRequestDto
+                    {
+                        ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                        EntityTypeName = StatusConstants.Entity.StockMovementDiscrepancy,
+                        CurrentStatusId = currentDiscrepancy.CurrentStatusId,
+                        AppRole = userRole,
+                    };
+                    var transitions = await _workflowServiceClient.GetAvailableTransitions(requestData);
                     if (transitions != null)
                     {
-                        discrepancyTransitions.AddRange(transitions.Select(t => new WorkflowTransitionDto
+                        discrepancyTransitions.AddRange(transitions.Select(t => new Core.Models.StockMovement.WorkflowTransitionDto
                         {
                             ActionName = t.ActionName,
                             DisplayLabel = t.DisplayLabel,
@@ -374,8 +390,21 @@ namespace VMSService.Web.Controllers
             }
 
             // Only allow editing if the movement is in Draft or Returned status
-            var draftStatus = await _statusTypeRepository.FindByName(StatusConstants.StockMovement.Draft, StatusConstants.Category.StockMovement);
-            var returnedStatus = await _statusTypeRepository.FindByName(StatusConstants.StockMovement.Returned, StatusConstants.Category.StockMovement);
+            var requestData = new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                StatusName = StatusConstants.StockMovement.Draft,
+                EntityTypeName = StatusConstants.Entity.StockMovement
+            };
+            var draftStatus = await _workflowServiceClient.FindStatusByName(requestData);
+
+            var requestReturnedStatusData = new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                StatusName = StatusConstants.StockMovement.Returned,
+                EntityTypeName = StatusConstants.Entity.StockMovement
+            };
+            var returnedStatus = await _workflowServiceClient.FindStatusByName(requestData);
             if (movement.CurrentStatusId != draftStatus?.Id && movement.CurrentStatusId != returnedStatus?.Id)
             {
                 TempData["Error"] = "Only draft or returned stock movements can be edited.";
@@ -455,8 +484,21 @@ namespace VMSService.Web.Controllers
             }
 
             // Only allow editing if the movement is in Draft or Returned status
-            var draftStatus = await _statusTypeRepository.FindByName(StatusConstants.StockMovement.Draft, StatusConstants.Category.StockMovement);
-            var returnedStatus = await _statusTypeRepository.FindByName(StatusConstants.StockMovement.Returned, StatusConstants.Category.StockMovement);
+            var requestData = new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                StatusName = StatusConstants.StockMovement.Draft,
+                EntityTypeName = StatusConstants.Entity.StockMovement
+            };
+            var draftStatus = await _workflowServiceClient.FindStatusByName(requestData);
+
+            var requestReturnedStatusData = new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                StatusName = StatusConstants.StockMovement.Returned,
+                EntityTypeName = StatusConstants.Entity.StockMovement
+            };
+            var returnedStatus = await _workflowServiceClient.FindStatusByName(requestReturnedStatusData);
             if (movement.CurrentStatusId != draftStatus?.Id && movement.CurrentStatusId != returnedStatus?.Id)
             {
                 return BadRequest(new { message = "Only draft or returned stock movements can be edited." });
@@ -543,13 +585,15 @@ namespace VMSService.Web.Controllers
             if (movement == null)
                 return NotFound();
 
-            var userRoles = User.FindAll("appRole")
-                .Where(c => c.Value.StartsWith("VMS:"))
-                .Select(c => c.Value.Split(":")[1])
-                .ToList();
+            var userRoles = User.FindAll("appRoleId")
+                    .Where(c => c.Value.StartsWith("VMS:"))
+                    .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
+                    .Where(id => id.HasValue)
+                    .Select(id => id.Value)
+                    .ToList();
 
             // Check for discrepancies if received denominations exist
-            if (movement?.Denominations != null && movement?.CurrentStatus?.Name == StatusConstants.StockMovement.PendingReceipt)
+            if (movement?.Denominations != null && movement?.CurrentStatusName == StatusConstants.StockMovement.PendingReceipt)
             {
                 var sent = movement.Denominations
                     .Where(d => d.DenominationType == "Sent" || d.DenominationType == null)
@@ -568,9 +612,13 @@ namespace VMSService.Web.Controllers
                     var missingDenoms = sentDenomIds.Except(receivedDenomIds).ToList();      // Sent but not received
                     var extraDenoms = receivedDenomIds.Except(sentDenomIds).ToList();        // Received but not sent
 
-                    var pendingDiscrepancyStatus = await _statusTypeRepository.FindByName(
-                                StatusConstants.StockMovementDiscrepancy.PendingDiscrepancy,
-                                StatusConstants.Category.StockMovementDiscrepancy);
+                    var requestData = new GetStatusByNameRequestDto
+                    {
+                        ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                        StatusName = StatusConstants.StockMovementDiscrepancy.PendingDiscrepancy,
+                        EntityTypeName = StatusConstants.Entity.StockMovementDiscrepancy
+                    };
+                    var pendingDiscrepancyStatus = await _workflowServiceClient.FindStatusByName(requestData);
 
                     // Handle denomination mismatches
                     if (missingDenoms.Any() || extraDenoms.Any())
@@ -629,11 +677,11 @@ namespace VMSService.Web.Controllers
 
             // Get the updated movement with new status
             var updatedMovement = await _stockMovementRepository.FindByIdAsync(id);
-            
+
             // Update stock position if transitioning to Dispatched or Received
             if (updatedMovement != null && updatedMovement.CurrentStatusId.HasValue)
             {
-                var statusName = (await _statusTypeRepository.FindById(updatedMovement.CurrentStatusId.Value))?.Name;
+                var statusName = (await _workflowServiceClient.FindStatusById(updatedMovement.CurrentStatusId.Value))?.Name;
                 if (statusName == StatusConstants.StockMovement.Dispatched ||
                     statusName == StatusConstants.StockMovement.Received)
                 {
@@ -662,16 +710,21 @@ namespace VMSService.Web.Controllers
                     return BadRequest(new { message = "No discrepancy found for this movement." });
 
                 // Get user roles
-                var userRoles = User.FindAll("appRole")
+                var userRoles = User.FindAll("appRoleId")
                     .Where(c => c.Value.StartsWith("VMS:"))
-                    .Select(c => c.Value.Split(":")[1])
+                    .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
+                    .Where(id => id.HasValue)
+                    .Select(id => id.Value)
                     .ToList();
 
-                // Look up the valid transition using workflow transition repository
-                var transition = await _workflowTransitionRepository.FindByTransitionKey(
-                    StatusConstants.Entity.StockMovementDiscrepancy,
-                    discrepancy.CurrentStatusId,
-                    actionName);
+                // Look up the valid transition using workflow transition service
+                var requestData = new GetTransitionByKeyRequestDto
+                {
+                    EntityTypeName = StatusConstants.Entity.StockMovementDiscrepancy,
+                    FromStatusId = discrepancy.CurrentStatusId,
+                    ActionName = actionName,
+                };
+                var transition = await _workflowServiceClient.FindByTransitionKey(requestData);
 
                 if (transition == null)
                 {
@@ -687,7 +740,7 @@ namespace VMSService.Web.Controllers
                 }
 
                 // Get the new status
-                var newStatusType = await _statusTypeRepository.FindById(transition.ToStatusId);
+                StatusTypeDto newStatusType = await _workflowServiceClient.FindStatusById(transition.ToStatusId);
                 if (newStatusType == null)
                 {
                     _logger.LogWarning("New status not found for transition");
@@ -699,7 +752,9 @@ namespace VMSService.Web.Controllers
                 var success = await _workflowService.ExecuteDiscrepancyTransition(
                     discrepancy.Id,
                     discrepancy.CurrentStatusId,
+                    discrepancy.CurrentStatusName,
                     newStatusType.Id,
+                    newStatusType.Name,
                     userId,
                     remarks);
 

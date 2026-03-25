@@ -62,6 +62,28 @@ namespace WorkflowService.Core.Services.Identity
             }
         }
 
+        public async Task<ApplicationRoleDto> GetApplicationByAcronymAsync(string acronym)
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync($"{_baseUrl}/api/App/get-application-by-acronym?acronym={acronym}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var users = await response.Content.ReadFromJsonAsync<ApplicationRoleDto>();
+                    return users ?? new ApplicationRoleDto();
+                }
+
+                _logger.LogError("Failed to retrieve application. Status: {StatusCode}", response.StatusCode);
+                return new ApplicationRoleDto();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving application from Identity API");
+                return new ApplicationRoleDto();
+            }
+        }
+
         public async Task<List<ApplicationRoleDto>> GetRolesForApplicationAsync(int applicationId)
         {
             try

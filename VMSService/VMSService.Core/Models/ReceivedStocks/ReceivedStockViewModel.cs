@@ -1,8 +1,7 @@
 ﻿using VMSService.Core.Models.ApprovedCurrencyStatusHistories;
 using VMSService.Core.Models.ExPrintMints;
 using VMSService.Core.Models.ReceivedStockStatusHistories;
-using VMSService.Core.Models.StatusTypes;
-using VMSService.Core.Models.WorkflowTransitions;
+using WorkflowService.Client.Dto;
 
 namespace VMSService.Core.Models.ReceivedStocks
 {
@@ -21,11 +20,11 @@ namespace VMSService.Core.Models.ReceivedStocks
         public int? SerialNumberRangeStart { get; set; }
         public int? SerialNumberRangeEnd { get; set; }
         public int CurrentStatusId { get; set; }
-        public StatusTypeViewModel? CurrentStatus { get; set; }
+        public string? CurrentStatusName { get; set; }
         public bool IsDeleted { get; set; }
         public bool IsPartial { get; set; }
         public int NumberOfBoxes { get; set; }
         public ICollection<ReceivedStockStatusHistoryViewModel>? StatusHistory { get; set; } = new List<ReceivedStockStatusHistoryViewModel>();
-        public ICollection<WorkflowTransitionViewModel>? AvailableTransitions { get; set; } = new List<WorkflowTransitionViewModel>();
+        public ICollection<WorkflowTransitionDto>? AvailableTransitions { get; set; } = new List<WorkflowTransitionDto>();
     }
 }

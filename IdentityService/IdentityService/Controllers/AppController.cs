@@ -20,5 +20,12 @@ namespace IdentityService.Controllers
             var data = await _appRepo.FindById(applicationId);
             return Ok(data);
         }
+
+        [HttpGet("get-application-by-acronym")]
+        public async Task<IActionResult> GetApplicationByAcronym(string acronym)
+        {
+            var data = await _appRepo.FindByAcronym(acronym);
+            return Ok(data);
+        }
     }
 }

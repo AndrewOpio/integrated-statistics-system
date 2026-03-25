@@ -27,13 +27,13 @@
                 </h4>
                 <div class="col-auto">
                     <div class="btn-list">
-                        <a href="@Url.Action("Edit", "WorkflowTransitions", new { id = Model.Id })" class="btn btn-primary btn-sm">
+                        <a href="@Url.Action("Edit", "WorkflowTransitions", new { id = Model.Id, applicationId = @ViewBag.ApplicationId })" class="btn btn-primary btn-sm">
                             <i class="ti ti-edit"></i> Edit
                         </a>
-                        <a href="@Url.Action("Delete", "WorkflowTransitions", new { id = Model.Id })" class="btn btn-danger btn-sm">
+                        <a href="@Url.Action("Delete", "WorkflowTransitions", new { id = Model.Id, applicationId = @ViewBag.ApplicationId })" class="btn btn-danger btn-sm">
                             <i class="ti ti-trash"></i> Delete Transition
                         </a>
-                        <a href="@Url.Action("Index", "WorkflowTransitions")" class="btn btn-secondary btn-sm">
+                        <a href="@Url.Action("Index", "WorkflowTransitions", new { applicationId = @ViewBag.ApplicationId })" class="btn btn-secondary btn-sm">
                             <i class="ti ti-arrow-left"></i> Back to List
                         </a>
                     </div>

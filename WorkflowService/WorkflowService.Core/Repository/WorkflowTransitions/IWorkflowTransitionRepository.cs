@@ -19,5 +19,10 @@ namespace WorkflowService.Core.Repositories.WorkflowTransitions
         /// Get all transitions by applicationId
         /// </summary>
         Task<List<WorkflowTransition>> FindByApplicationId(int applicationId);
+
+        /// <summary>
+        /// Get all available transitions for a specific entity type, current status and roleRequired
+        /// </summary>
+        Task<ICollection<WorkflowTransition>> FindByEntityTypeStatusAndRole(int entityTypeId, int currentStatusId, int requiredRole);
     }
 }

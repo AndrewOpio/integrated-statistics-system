@@ -2,10 +2,7 @@ using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Novell.Directory.Ldap.Utilclass;
 using SmartBreadcrumbs.Attributes;
-using WorkflowService.Core.Models.EntityTypes;
-using WorkflowService.Core.Models.StatusTypes;
 using WorkflowService.Core.Models.WorkflowTransitions;
 using WorkflowService.Core.Repositories.EntityTypes;
 using WorkflowService.Core.Repositories.StatusTypes;
@@ -88,7 +85,15 @@ namespace WorkflowService.Web.Controllers
             };
             try
             {
-                ViewBag.ApplicationId = applicationId;
+                ViewBag.ApplicationName = "";
+                ViewBag.ApplicationId = 0;
+                var application = await _identityService.GetApplicationByIdAsync(applicationId);
+                if(application != null)
+                {
+                    ViewBag.ApplicationName = application.Name;
+                    ViewBag.ApplicationId = applicationId;
+                }
+
                 var transitions = await _workflowTransitionRepository.FindByApplicationId(applicationId);
                 var model = _mapper.Map<List<WorkflowTransitionViewModel>>(transitions);
                 foreach (var transition in model)

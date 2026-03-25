@@ -17,6 +17,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\WorkflowService.Data\WorkflowService.Data.csproj" />
+		<ProjectReference Include="..\WorkflowService.Client\WorkflowService.Client.csproj" />
 	</ItemGroup>
 
 </Project>
