@@ -1,5 +1,8 @@
+using AutoMapper;
 using IdentityService.Core.Models;
+using IdentityService.Core.Repository.UserApplicationRoles;
 using IdentityService.Core.Repository.Users;
+using IdentityService.Dto;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -7,7 +10,8 @@ namespace IdentityService.Web.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class UserController(IUserRepository _userRepo, ILogger<UserController> _logger) : ControllerBase
+    public class UserController(IUserRepository _userRepo, ILogger<UserController> _logger, IMapper _mapper,
+        IUserApplicationRoleRepository _userApplicationRoleRepository) : ControllerBase
     {
         [HttpGet("non-staff")]
         public async Task<ActionResult<List<NonStaffUserViewModel>>> GetNonStaffUsers()
@@ -23,5 +27,66 @@ namespace IdentityService.Web.Controllers
                 return StatusCode(500, "An error occurred while retrieving non-staff users.");
             }
         }
+
+        [HttpPost("get-recipients")]
+        public async Task<ActionResult<List<RecipientViewModel>>> GetRecipients([FromBody] RecipientRequest request)
+        {
+            try
+            {
+                var recipients = new List<RecipientDto>();
+
+                if (!string.IsNullOrWhiteSpace(request.NotificationEmails))
+                {
+                    var emailAddresses = request.NotificationEmails
+                        .Split(',')
+                        .Select(e => e.Trim())
+                        .Where(e => !string.IsNullOrWhiteSpace(e));
+
+                    foreach (var email in emailAddresses)
+                    {
+                        var recipient = await _userRepo.GetRecipientByEmail(email);
+                        if (recipient != null)
+                        {
+                            recipients.Add(_mapper.Map<RecipientDto>(recipient));
+                        }
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(request.NotificationRoleIds))
+                {
+                    var roleIds = request.NotificationRoleIds
+                        .Split(',')
+                        .Select(r => int.TryParse(r.Trim(), out var id) ? id : 0)
+                        .Where(r => r > 0)
+                        .ToList();
+
+                    // Fetch users by role IDs from Identity Service
+                    var usersWithRoles = await _userApplicationRoleRepository.GetUsersByRoleIds(roleIds);
+
+                    foreach (var user in usersWithRoles)
+                    {
+                        recipients.Add(new RecipientDto
+                        {
+                            UserId = user.User.Id,
+                            Email = user.User.Email,
+                            DisplayName = $"{user.User.FirstName} {user.User.LastName}"
+                        });
+                    }
+                }
+
+                return Ok(recipients);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving recipients");
+                return StatusCode(500, "An error occurred while retrieving recipients.");
+            }
+        }
+    }
+
+    public class RecipientRequest
+    {
+        public string? NotificationEmails { get; set; }
+        public string? NotificationRoleIds { get; set; }
     }
 }

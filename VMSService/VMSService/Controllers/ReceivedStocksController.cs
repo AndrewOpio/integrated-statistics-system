@@ -580,7 +580,7 @@ namespace VMSService.Web.Controllers
                                 //    await _stockLedgerDetailRepository.Create(ledgerDetail);
                                 //}
 
-                                _logger.LogInformation("Stock position updated successfully for Received Stock {ReceivedStockId} and Notification Sent", id);
+                                _logger.LogInformation("Stock position updated successfully for Received Stock {ReceivedStockId}", id);
                             }
                             else
                             {
@@ -592,10 +592,10 @@ namespace VMSService.Web.Controllers
                             _logger.LogError(ex, "Error updating stock position for Received Stock {ReceivedStockId}", id);
                             TempData["Warning"] = "Action confirmed but stock position update encountered an error. Please verify stock levels.";
                         }
-                        TempData["Success"] = "Stock Position Updated Successfully and Notification Sent!";
+                        TempData["Success"] = "Stock Position Updated Successfully!";
                     } else
                     {
-                        TempData["Success"] = "Review completed successfully and Notification Sent!";
+                        TempData["Success"] = "Review completed successfully!";
                     }
                 }
                 else

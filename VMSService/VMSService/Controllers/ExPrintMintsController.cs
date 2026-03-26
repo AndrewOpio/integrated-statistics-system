@@ -545,7 +545,7 @@ namespace VMSService.Web.Controllers
 
                 if (isExecuted)
                 {
-                    TempData["Success"] = $"Review completed successfully and Notification Sent!";
+                    TempData["Success"] = $"Review completed successfully!";
                 }
                 else
                 {
