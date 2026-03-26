@@ -32,10 +32,15 @@
                         <label asp-for="Name">Bank Name</label>
                         <span asp-validation-for="Name" class="text-danger small d-block mt-1"></span>
                     </div>
+                    <div class="form-floating mb-3">
+                        <input type="text" asp-for="CBCode" class="form-control" placeholder="Bank Code" required>
+                        <label asp-for="CBCode">Commercial Bank Code</label>
+                        <span asp-validation-for="CBCode" class="text-danger small d-block mt-1"></span>
+                    </div>
 
                     <div class="form-floating mb-3">
-                        <input type="text" asp-for="Code" class="form-control" placeholder="Bank Code" required>
-                        <label asp-for="Code">Bank Code</label>
+                        <input type="text" asp-for="Code" class="form-control" placeholder="RTGS Bank Code" required>
+                        <label asp-for="Code">RTGS Bank Code</label>
                         <span asp-validation-for="Code" class="text-danger small d-block mt-1"></span>
                     </div>
                 </div>

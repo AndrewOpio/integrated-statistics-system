@@ -241,6 +241,9 @@ namespace StockService.Data.Migrations
                     b.Property<int>("NumberOfPiecesInABox")
                         .HasColumnType("int");
 
+                    b.Property<int>("NumberOfPiecesInABundle")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("Value")
                         .HasColumnType("decimal(18,2)");
 

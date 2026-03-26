@@ -1,6 +1,6 @@
 ﻿(function () {
     const BUNDLE_SIZE = 1000;
-    const MAX_BUNDLES = 10000;
+    const MAX_BUNDLES = 100000;
     const bundles = {};  // keyed by d.id to avoid value clashes (e.g. 1000 note vs 1000 coin)
 
     const $ = id => document.getElementById(id);

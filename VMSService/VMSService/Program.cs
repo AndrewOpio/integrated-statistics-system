@@ -1,16 +1,22 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using ConfigurationsService.Client;
+using ConfigurationsService.Client;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
+using NotificationService.Client;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using SmartBreadcrumbs.Extensions;
+using StockService.Client;
 using System.Reflection;
 using System.Text;
+using VMSService.Core.Authorization;
 using VMSService.Core.Mappings;
 using VMSService.Core.Models.Authentication;
+using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.ApprovedCurrencyDenominations;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
@@ -18,6 +24,7 @@ using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
 using VMSService.Core.Repositories.BranchCategories;
 using VMSService.Core.Repositories.Branches;
 using VMSService.Core.Repositories.Categories;
+using VMSService.Core.Repositories.CommercialBankBranches;
 using VMSService.Core.Repositories.CommercialBanks;
 using VMSService.Core.Repositories.CommercialBankUsers;
 using VMSService.Core.Repositories.CounterPartyTypes;
@@ -34,22 +41,20 @@ using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.StockMovementStatusHistories;
 using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Repositories.VendorTypes;
+using VMSService.Core.Repositories.WithdrawalRequestAgents;
+using VMSService.Core.Repositories.WithdrawalRequestDenominations;
+using VMSService.Core.Repositories.WithdrawalRequests;
+using VMSService.Core.Repositories.WithdrawalRequestStatusHistories;
+using VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators;
+using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 using VMSService.Core.Repositories.WorkflowTransitions;
+using VMSService.Core.Services.Configurations;
 using VMSService.Core.Services.Configurations;
 using VMSService.Core.Services.Identity;
 using VMSService.Core.Services.StockPositions;
 using VMSService.Core.Services.Stocks;
 using VMSService.Core.Services.Workflows;
 using VMSService.Data;
-
-using VMSService.Core.Repositories.AgentDetails;
-using VMSService.Core.Services.Configurations;
-using NotificationService.Client;
-using ConfigurationsService.Client;
-using VMSService.Core.Authorization;
-using VMSService.Core.Repositories.CommercialBankBranches;
-using ConfigurationsService.Client;
-using StockService.Client;
 
 //using VMSService.Core.Authorization;
 //using VMSService.Core.Repositories.CommercialBankBranches;
@@ -219,6 +224,12 @@ builder.Services.AddScoped<ICommercialBankUserRepository, CommercialBankUserRepo
 builder.Services.AddScoped<IAgentDetailRepository, AgentDetailRepository>();
 builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
 builder.Services.AddScoped<IStockMovementDiscrepancyRepository, StockMovementDiscrepancyRepository>();
+builder.Services.AddScoped<IWithdrawalRequestRepository, WithdrawalRequestRepository>();
+builder.Services.AddScoped<IWithdrawalRequestAgentRepository, WithdrawalRequestAgentRepository>();
+builder.Services.AddScoped<IWithdrawalRequestDenominationRepository, WithdrawalRequestDenominationRepository>();
+builder.Services.AddScoped<IWithdrawalRequestStatusHistoryRepository, WithdrawalRequestStatusHistoryRepository>();
+builder.Services.AddScoped<IWithdrawalTransactionRefNumberGenerator, WithdrawalTransactionRefNumberGenerator>();
+builder.Services.AddScoped<IWithdrawalUnitOfWork, WithdrawalUnitOfWork>();
 
 
 // ── Resource-based ownership check ────────────────────────────

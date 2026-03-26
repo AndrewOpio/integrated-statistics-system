@@ -33,6 +33,11 @@ namespace VMSService.Data.Configurations
         public DbSet<StockMovementDiscrepancy> StockMovementDiscrepancies { get; set; }
         public DbSet<CommercialBankUser> CommercialBankUsers { get; set; }
         public DbSet<AgentDetail> AgentDetails { get; set; }
+        public DbSet<WithdrawalRequest> WithdrawalRequests { get; set; }
+        public DbSet<WithdrawalRequestAgent> WithdrawalRequestAgents { get; set; }
+        public DbSet<WithdrawalRequestDenomination> WithdrawalRequestDenominations { get; set; }
+        public DbSet<WithdrawalRequestStatusHistory> WithdrawalRequestStatusHistory { get; set; }
+
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -57,6 +62,38 @@ namespace VMSService.Data.Configurations
                 .WithMany(x => x.StatusHistory)
                 .HasForeignKey(x => x.StockMovementId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+
+            // ── WithdrawalRequest ─────────────────────
+            modelBuilder.Entity<WithdrawalRequest>()
+                .HasOne(r => r.StatusType)
+                .WithMany()
+                .HasForeignKey(r => r.StatusTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<WithdrawalRequest>()
+                .HasMany(r => r.WithdrawalRequestAgents)
+                .WithOne(c => c.WithdrawalRequest)
+                .HasForeignKey(c => c.WithdrawalRequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<WithdrawalRequest>()
+                .HasMany(r => r.WithdrawalRequestStatusHistory)
+                .WithOne(s => s.WithdrawalRequest)
+                .HasForeignKey(s => s.WithdrawalRequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // ── Indexes ───────────────────────────
+            modelBuilder.Entity<WithdrawalRequest>().HasIndex(r => r.TraansactionRefNumber).IsUnique();
+            modelBuilder.Entity<WithdrawalRequest>().HasIndex(r => r.CbId);
+            modelBuilder.Entity<WithdrawalRequest>().HasIndex(r => r.StatusTypeId);
+            modelBuilder.Entity<WithdrawalRequest>().HasIndex(r => r.CollectionDate);
+            modelBuilder.Entity<WithdrawalRequest>().HasIndex(r => new { r.CbId, r.BouBranchId, r.CollectionDate });
+
+            modelBuilder.Entity<WithdrawalRequestDenomination>().HasIndex(d => new { d.WithdrawalRequestId, d.Origin });
+
+            modelBuilder.Entity<WithdrawalRequestAgent>().HasIndex(c => new { c.WithdrawalRequestId, c.EnteredBy });
+            modelBuilder.Entity<WithdrawalRequestStatusHistory>().HasIndex(s => s.WithdrawalRequestId);
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
