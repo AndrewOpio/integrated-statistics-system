@@ -2,10 +2,7 @@ using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Novell.Directory.Ldap.Utilclass;
 using SmartBreadcrumbs.Attributes;
-using WorkflowService.Core.Models.EntityTypes;
-using WorkflowService.Core.Models.StatusTypes;
 using WorkflowService.Core.Models.WorkflowTransitions;
 using WorkflowService.Core.Repositories.EntityTypes;
 using WorkflowService.Core.Repositories.StatusTypes;
@@ -77,6 +74,46 @@ namespace WorkflowService.Web.Controllers
             }
         }
 
+        /// <summary>
+        /// Populates the notification display fields (role names and email list) from the stored comma-separated values.
+        /// </summary>
+        private async Task PopulateNotificationDetails(WorkflowTransitionViewModel model)
+        {
+            // Parse notification role IDs and resolve names
+            if (!string.IsNullOrWhiteSpace(model.NotificationRoleIds))
+            {
+                var roleIds = model.NotificationRoleIds
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(id => int.TryParse(id, out var parsed) ? parsed : 0)
+                    .Where(id => id > 0)
+                    .ToList();
+
+                model.SelectedNotificationRoleIds = roleIds;
+
+                foreach (var roleId in roleIds)
+                {
+                    try
+                    {
+                        var appRole = await _identityService.GetRoleByIdAsync(roleId);
+                        if (appRole?.Role?.Name != null)
+                            model.NotificationRoleNames.Add(appRole.Role.Name);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Could not resolve role name for role ID {RoleId}", roleId);
+                    }
+                }
+            }
+
+            // Parse notification emails
+            if (!string.IsNullOrWhiteSpace(model.NotificationEmails))
+            {
+                model.NotificationEmailList = model.NotificationEmails
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .ToList();
+            }
+        }
+
         [Breadcrumb("Workflow Transitions")]
         public async Task<IActionResult> Index(int applicationId)
         {
@@ -88,13 +125,22 @@ namespace WorkflowService.Web.Controllers
             };
             try
             {
-                ViewBag.ApplicationId = applicationId;
+                ViewBag.ApplicationName = "";
+                ViewBag.ApplicationId = 0;
+                var application = await _identityService.GetApplicationByIdAsync(applicationId);
+                if(application != null)
+                {
+                    ViewBag.ApplicationName = application.Name;
+                    ViewBag.ApplicationId = applicationId;
+                }
+
                 var transitions = await _workflowTransitionRepository.FindByApplicationId(applicationId);
                 var model = _mapper.Map<List<WorkflowTransitionViewModel>>(transitions);
                 foreach (var transition in model)
                 {
                     var appRole = await _identityService.GetRoleByIdAsync(transition.RequiredRole);
                     transition.RequiredRoleName = appRole.Role.Name;
+                    await PopulateNotificationDetails(transition);
                 }
 
                 return View(model);
@@ -167,6 +213,11 @@ namespace WorkflowService.Web.Controllers
                     return View(model);
                 }
 
+                // Build comma-separated notification role IDs from the multi-select
+                string? notificationRoleIds = model.SelectedNotificationRoleIds?.Count > 0
+                    ? string.Join(",", model.SelectedNotificationRoleIds)
+                    : null;
+
                 WorkflowTransition workflowTransition = new()
                 {
                     EntityTypeId = model.EntityTypeId,
@@ -177,6 +228,9 @@ namespace WorkflowService.Web.Controllers
                     RequiresComments = model.RequiresComments,
                     DisplayLabel = model.DisplayLabel,
                     ButtonClass = model.ButtonClass,
+                    SendNotification = model.SendNotification,
+                    NotificationRoleIds = notificationRoleIds,
+                    NotificationEmails = model.NotificationEmails,
                     IsActive = true,
                     IsDeleted = false
                 };
@@ -238,6 +292,9 @@ namespace WorkflowService.Web.Controllers
                 var appRole = await _identityService.GetRoleByIdAsync(model.RequiredRole);
                 model.RequiredRoleName = appRole.Role.Name;
 
+                // Populate notification display fields
+                await PopulateNotificationDetails(model);
+
                 await PopulateDropdowns(model, applicationId);
                 return View(model);
             }
@@ -298,6 +355,11 @@ namespace WorkflowService.Web.Controllers
                     return View(model);
                 }
 
+                // Build comma-separated notification role IDs from the multi-select
+                string? notificationRoleIds = model.SelectedNotificationRoleIds?.Count > 0
+                    ? string.Join(",", model.SelectedNotificationRoleIds)
+                    : null;
+
                 // Update properties
                 transition.ActionName = model.ActionName;
                 transition.DisplayLabel = model.DisplayLabel;
@@ -305,6 +367,9 @@ namespace WorkflowService.Web.Controllers
                 transition.RequiresComments = model.RequiresComments;
                 transition.ButtonClass = model.ButtonClass;
                 transition.IsActive = model.IsActive;
+                transition.SendNotification = model.SendNotification;
+                transition.NotificationRoleIds = notificationRoleIds;
+                transition.NotificationEmails = model.NotificationEmails;
 
                 bool isUpdated = await _workflowTransitionRepository.Update(transition);
 
@@ -362,6 +427,9 @@ namespace WorkflowService.Web.Controllers
 
                 var appRole = await _identityService.GetRoleByIdAsync(model.RequiredRole);
                 model.RequiredRoleName = appRole.Role.Name;
+
+                // Populate notification display fields
+                await PopulateNotificationDetails(model);
 
                 return View(model);
             }
@@ -446,6 +514,9 @@ namespace WorkflowService.Web.Controllers
 
                 var appRole = await _identityService.GetRoleByIdAsync(model.RequiredRole);
                 model.RequiredRoleName = appRole.Role.Name;
+
+                // Populate notification display fields
+                await PopulateNotificationDetails(model);
 
                 return View(model);
             }

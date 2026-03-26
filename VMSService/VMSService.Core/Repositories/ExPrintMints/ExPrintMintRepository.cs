@@ -17,7 +17,6 @@ namespace VMSService.Core.Repositories.ExpectedCurrencies
         {
             return await _db.ExPrintMints
                 .Where(x => x.IsDeleted == false)
-                .Include(x => x.CurrentStatus)
                 .Include(x => x.CurrencyVendor)
                 .Include(x => x.CurrencyVendor.VendorType)
                 .Include(x => x.ApprovedCurrencyProcurement)
@@ -28,7 +27,6 @@ namespace VMSService.Core.Repositories.ExpectedCurrencies
         public async Task<ExPrintMint> FindById(int id)
         {
             return await _db.ExPrintMints
-                .Include(x => x.CurrentStatus)
                 .Include(x => x.CurrencyVendor)
                 .Include(x => x.CurrencyVendor.VendorType)
                 .Include(x => x.ApprovedCurrencyProcurement)
@@ -54,9 +52,8 @@ namespace VMSService.Core.Repositories.ExpectedCurrencies
 
         public async Task<ICollection<ExPrintMint>> FindPendingDeliveries()
         {
-            return await _db.ExPrintMints.Where(x => x.CurrentStatus.Name == StatusConstants.ExPrintMint.Verified)
+            return await _db.ExPrintMints.Where(x => x.CurrentStatusName == StatusConstants.ExPrintMint.Verified)
                 .Where(x => !x.IsDeleted)
-                .Include(x => x.CurrentStatus)
                 .Include(x => x.CurrencyVendor)
                 .Include(x => x.CurrencyVendor.VendorType)
                 .Include(x => x.ApprovedCurrencyProcurement)

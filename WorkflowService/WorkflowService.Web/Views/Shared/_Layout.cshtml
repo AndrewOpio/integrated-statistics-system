@@ -7,7 +7,7 @@
 }
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="light">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -19,10 +19,17 @@
     <link type="text/css" href="../../css/volt.css" rel="stylesheet">
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/WorkflowService.Web.styles.css" asp-append-version="true" />
+    <!-- Apply saved theme immediately to prevent flash -->
+    <script>
+        (function () {
+            const saved = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-bs-theme', saved);
+        })();
+    </script>
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-lg navbar-light bg-light border-bottom box-shadow ps-4 pe-4">
+        <nav class="navbar navbar-expand-lg border-bottom box-shadow ps-4 pe-4">
             <img class="img-fluid me-2" src="/img/bou.png" alt="" width="30" height="30">
             <a class="navbar-brand fs-5" href="/">Aswam Workflows</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -41,6 +48,12 @@
                     </li>
                 </ul>
                 <ul class="navbar-nav">
+                    <!-- Theme Toggle Button -->
+                    <li class="nav-item d-flex align-items-center me-3">
+                        <button id="themeToggleBtn" class="btn btn-sm btn-outline-secondary border-0" type="button" title="Toggle light/dark mode" aria-label="Toggle theme">
+                            <i id="themeIcon" class="ti ti-sun fs-5"></i>
+                        </button>
+                    </li>
                     <li class="nav-item d-flex align-items-center">
                         <a class="btn btn-sm btn-outline-secondary me-4" href="@Configuration["MicroServices:gatewayservice"]">Go To Aswam Home</a>
                     </li>
@@ -84,6 +97,24 @@
                     </nav> *@
                 }
             </div>
+            @if (TempData["Success"] != null)
+            {
+                <div class="container-fluid mt-3">
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        @TempData["Success"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                </div>
+            }
+            @if (TempData["Error"] != null)
+            {
+                <div class="container-fluid mt-3">
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        @TempData["Error"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                </div>
+            }
             @RenderBody()
         </main>
     </div>
@@ -104,6 +135,8 @@
     <!-- Volt JS -->
     <script src="../../js/volt.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <!-- Theme Toggle Script -->
+    <script src="~/js/theme-toggle.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

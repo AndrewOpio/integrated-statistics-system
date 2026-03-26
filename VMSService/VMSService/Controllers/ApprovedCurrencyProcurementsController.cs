@@ -9,30 +9,31 @@ using VMSService.Core.Models.ApprovedCurrencyProcurements;
 using VMSService.Core.Models.ApprovedCurrencyStatusHistories;
 using VMSService.Core.Models.CurrencyVendors;
 using VMSService.Core.Models.Denominations;
-using VMSService.Core.Models.WorkflowTransitions;
 using VMSService.Core.Repositories.ApprovedCurrencyDenominations;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
 using VMSService.Core.Repositories.CurrencyVendors;
 using VMSService.Core.Repositories.Denominations;
-using VMSService.Core.Repositories.StatusTypes;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
+using WorkflowService.Client;
+using WorkflowService.Client.Dto;
 
 namespace VMSService.Web.Controllers
 {
     [Authorize]
     public class ApprovedCurrencyProcurementsController(
         IApprovedCurrencyProcurementRepository _approvedCurrencyProcurementRepository,
-        IStatusTypeRepository _statusTypeRepository,
         IMapper _mapper,
         ILogger<ApprovedCurrencyProcurementsController> _logger,
         IApprovedCurrencyDenominationRepository _approvedCurrencyDenominationRepo,
         IDenominationRepository _denominationRepository,
         IWorkflowService _workflowService,
         IApprovedCurrencyStatusHistoryRepository _statusHistoryRepository,
-        ICurrencyVendorRepository _currencyVendorRepository) : Controller
+        ICurrencyVendorRepository _currencyVendorRepository,
+        IWorkflowServiceClient _workflowServiceClient,
+        HttpClient _httpClient) : Controller
     {
 
         [Breadcrumb("Approved Currency Procurements", FromController = typeof(HomeController), FromAction = nameof(Index))]
@@ -86,18 +87,25 @@ namespace VMSService.Web.Controllers
 
                 // Get available transitions for current user
                 //var userRole = User.FindFirst(SystemPolicy.ClaimType.AppRole)?.Value ?? "";
-                var userRoles = User.FindAll("appRole")
+                var userRoles = User.FindAll("appRoleId")
                     .Where(c => c.Value.StartsWith("VMS:"))
-                    .Select(c => c.Value.Split(":")[1])
+                    .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
+                    .Where(id => id.HasValue)
+                    .Select(id => id.Value)
                     .ToList();
 
-                var availableTransitions = new List<WorkflowTransitionViewModel>();
+                var availableTransitions = new List<WorkflowTransitionDto>();
                 foreach (var userRole in userRoles)
                 {
-                    var transitions = await _workflowService.GetAvailableTransitions(
-                        StatusConstants.Entity.ApprovedCurrencyProcurement,
-                        approvedCurrencyProcurement.CurrentStatusId,
-                        userRole);
+                    var requestData = new GetAvailableTransitionsRequestDto
+                    {
+                        ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                        EntityTypeName = StatusConstants.Entity.ApprovedCurrencyProcurement,
+                        CurrentStatusId = approvedCurrencyProcurement.CurrentStatusId,
+                        AppRole = userRole,
+                    };
+
+                    var transitions = await _workflowServiceClient.GetAvailableTransitions(requestData);
                     if (transitions != null)
                     {
                         availableTransitions.AddRange(transitions);
@@ -190,8 +198,16 @@ namespace VMSService.Web.Controllers
 
                 model.BoardApprovalAttachment = filePath;
 
-                StatusType status = await _statusTypeRepository.FindByName(StatusConstants.ApprovedCurrencyProcurement.Draft, StatusConstants.Category.ApprovedCurrencyProcurement);
+                var requestData = new GetStatusByNameRequestDto
+                {
+                    ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                    StatusName = StatusConstants.ApprovedCurrencyProcurement.Draft,
+                    EntityTypeName = StatusConstants.Entity.ApprovedCurrencyProcurement
+                };
+
+                StatusTypeDto status = await _workflowServiceClient.FindStatusByName(requestData);
                 model.CurrentStatusId = status.Id;
+                model.CurrentStatusName = status.Name;
 
                 ApprovedCurrencyProcurement newApprovedCurrencyProcurement = _mapper.Map<ApprovedCurrencyProcurement>(model);
                 //bool isCreated = await _approvedCurrencyProcurementRepository.Create(newApprovedCurrencyProcurement);
@@ -230,8 +246,10 @@ namespace VMSService.Web.Controllers
                 TempData["Error"] = ex.Message;
             }
 
-            var types = await _statusTypeRepository.FindAll();
-            ViewBag.StatusTypes = types.Where(st => st.Category == "ApprovedCurrency").ToList();
+            var types = await _workflowServiceClient.FindAllStatuses();
+            //ViewBag.StatusTypes = types.Where(st => st.Category == "ApprovedCurrency").ToList();
+            TempData["FileInputRequired"] = true;
+            model.BoardApprovalAttachment = null; // Clear the file path to avoid showing it in the view after a failed creation attempt
             return View(model);
         }
 
@@ -536,9 +554,11 @@ namespace VMSService.Web.Controllers
 
                 var username = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? "System";
                 //var userRole = User.FindFirst(SystemPolicy.ClaimType.AppRole)?.Value ?? "";
-                var userRoles = User.FindAll("appRole")
+                var userRoles = User.FindAll("appRoleId")
                     .Where(c => c.Value.StartsWith("VMS:"))
-                    .Select(c => c.Value.Split(":")[1])
+                    .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
+                    .Where(id => id.HasValue)
+                    .Select(id => id.Value)
                     .ToList();
 
                 bool isExecuted = await _workflowService.ExecuteTransition(
@@ -553,7 +573,7 @@ namespace VMSService.Web.Controllers
                 if (isExecuted)
                 {
                     //TempData["Success"] = $"Procurement {actionName} successfully!";
-                    TempData["Success"] = $"Review completed successfully and Notification Sent!";
+                    TempData["Success"] = $"Review completed successfully!";
                 }
                 else
                 {

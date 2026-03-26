@@ -36,7 +36,6 @@ namespace VMSService.Core.Repositories.WithdrawalRequests
             .Include(r => r.WithdrawalRequestDenominations)
             .Include(r => r.WithdrawalRequestAgents)
             .Include(r => r.WithdrawalRequestStatusHistory)
-            .Include(r => r.StatusType)
             .FirstOrDefaultAsync(r => r.Id == id, ct);
 
         

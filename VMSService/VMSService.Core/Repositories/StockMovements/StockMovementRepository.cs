@@ -31,7 +31,6 @@ namespace VMSService.Core.Repositories.StockMovements
             return await _context.StockMovements
                  .AsNoTracking() // EF won't track changes, less memory overhead
                  .AsSplitQuery()  // Runs separate queries instead of one big JOIN
-                .Include(m => m.CurrentStatus)
                 .Include(m => m.Denominations)
                     .ThenInclude(d => d.SerialNumberRanges)
                 .FirstOrDefaultAsync(m => m.Id == id);
@@ -42,11 +41,9 @@ namespace VMSService.Core.Repositories.StockMovements
             return await _context.StockMovements
                  .AsNoTracking() // EF won't track changes, less memory overhead
                  .AsSplitQuery()  // Runs separate queries instead of one big JOIN
-                .Include(m => m.CurrentStatus)
                 .Include(m => m.Denominations)
                     .ThenInclude(d => d.SerialNumberRanges)
                 .Include(m => m.StockMovementDiscrepancies)
-                    .ThenInclude(d => d.CurrentStatus)
                 .ToListAsync();
         }
 

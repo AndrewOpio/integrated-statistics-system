@@ -22,7 +22,7 @@ namespace VMSService.Data.Entities
         public int ApprovedCurrencyProcurementId { get; set; }
         public ApprovedCurrencyProcurement ApprovedCurrencyProcurement { get; set; }
         public int CurrentStatusId { get; set; }
-        public StatusType CurrentStatus { get; set; }
+        public string CurrentStatusName { get; set; }
         public bool IsDeleted { get; set; }
         public int NumberOfBoxes { get; set; }
         public int BranchId { get; set; }

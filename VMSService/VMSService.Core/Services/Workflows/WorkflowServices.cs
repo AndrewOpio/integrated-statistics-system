@@ -1,28 +1,27 @@
-using AutoMapper;
 using Microsoft.Extensions.Logging;
-using VMSService.Core.Models.WorkflowTransitions;
+using NotificationService.Client;
+using NotificationService.Client.Dtos;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
 using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.ReceivedStocks;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
-using VMSService.Core.Repositories.WorkflowTransitions;
+using VMSService.Core.Repositories.StockMovementDiscrepancies;
 using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.StockMovementStatusHistories;
-using VMSService.Core.Repositories.StockMovementDiscrepancies;
-using VMSService.Core.Repositories.StatusTypes;
+using VMSService.Core.Services.Identity;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
+using WorkflowService.Client;
+using WorkflowService.Client.Dto;
 
 namespace VMSService.Core.Services.Workflows
 {
-    public class WorkflowService(
-        IWorkflowTransitionRepository _transitionRepository,
+    public class WorkflowServices(
         IApprovedCurrencyProcurementRepository _procurementRepository,
         IApprovedCurrencyStatusHistoryRepository _statusHistoryRepository,
-        IMapper _mapper,
-        ILogger<WorkflowService> _logger,
+        ILogger<WorkflowServices> _logger,
         IExPrintMintRepository _exPrintMintRepository,
         IReceivedStockRepository _receivedStockRepository,
         IExPrintMintStatusHistoryRepository _exPrintMintStatusHistoryRepository,
@@ -30,39 +29,24 @@ namespace VMSService.Core.Services.Workflows
         IStockMovementRepository _stockMovementRepository,
         IStockMovementStatusHistoryRepository _stockMovementStatusHistoryRepository,
         IStockMovementDiscrepancyRepository _stockMovementDiscrepancyRepository,
-        IStatusTypeRepository _statusTypeRepository) : IWorkflowService
+        IWorkflowServiceClient _workflowServiceClient,
+        INotificationServiceClient _notificationServiceClient,
+        IIdentityService _identityService) : IWorkflowService
     {
-        public async Task<ICollection<WorkflowTransitionViewModel>> GetAvailableTransitions(
-            string entityType, int currentStatusId, string userRole)
-        {
-            try
-            {
-                // Get all possible transitions from current status
-                var transitions = await _transitionRepository.FindByEntityTypeAndStatus(entityType, currentStatusId);
-
-                // Filter by user role
-                var availableTransitions = transitions
-                    .Where(t => t.RequiredRole == userRole)
-                    .ToList();
-
-                return _mapper.Map<ICollection<WorkflowTransitionViewModel>>(availableTransitions);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting available transitions for {EntityType} status {StatusId} and role {Role}", 
-                    entityType, currentStatusId, userRole);
-                return new List<WorkflowTransitionViewModel>();
-            }
-        }
-
         public async Task<bool> ExecuteTransition(
             string entityType, int entityId, int currentStatusId, 
-            string actionName, string username, List<string> userRoles, string remarks)
+            string actionName, string username, List<int> userRoles, string remarks)
         {
+            var requestData = new GetTransitionByKeyRequestDto
+            {
+               EntityTypeName = entityType,
+               FromStatusId = currentStatusId,
+               ActionName = actionName,
+            };
             try
             {
                 // Find the valid transition
-                var transition = await _transitionRepository.FindByTransitionKey(entityType, currentStatusId, actionName);
+                WorkflowTransitionDto transition = await _workflowServiceClient.FindByTransitionKey(requestData);
 
                 if (transition == null)
                 {
@@ -79,67 +63,24 @@ namespace VMSService.Core.Services.Workflows
                     return false;
                 }
 
-                // Handle ApprovedCurrencyProcurement transitions
-                if (entityType == StatusConstants.Entity.ApprovedCurrencyProcurement)
+                switch (entityType)
                 {
-                    var procurement = await _procurementRepository.FindById(entityId);
-                    if (procurement == null)
-                    {
-                        _logger.LogWarning("Procurement {Id} not found", entityId);
+                    case StatusConstants.Entity.ApprovedCurrencyProcurement:
+                        return await HandleApprovedCurrencyProcurementTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
+                    
+                    case StatusConstants.Entity.ExPrintMint:
+                        return await HandleExPrintMintTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
+                    
+                    case StatusConstants.Entity.ReceivedStock:
+                        return await HandleReceivedStockTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
+                    
+                    case StatusConstants.Entity.StockMovement:
+                        return await HandleStockMovementTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
+                    
+                    default:
+                        _logger.LogWarning("Unknown entity type: {EntityType}", entityType);
                         return false;
-                    }
-
-                    // Verify current status matches
-                    if (procurement.CurrentStatusId != currentStatusId)
-                    {
-                        _logger.LogWarning("Procurement {Id} status mismatch. Current: {Current}, Expected: {Expected}", 
-                            entityId, procurement.CurrentStatusId, currentStatusId);
-                        return false;
-                    }
-
-                    // Create status history record
-                    var statusHistory = new ApprovedCurrencyStatusHistory
-                    {
-                        ApprovedCurrencyProcurementId = entityId,
-                        OldStatusId = procurement.CurrentStatusId,
-                        NewStatusId = transition.ToStatusId,
-                        ChangedBy = username,
-                        ChangedAt = DateTime.Now,
-                        Remarks = remarks,
-                        IsDeleted = false
-                    };
-
-                    await _statusHistoryRepository.Create(statusHistory);
-
-                    // Update procurement status
-                    procurement.CurrentStatusId = transition.ToStatusId;
-                    await _procurementRepository.Update(procurement);
-
-                    _logger.LogInformation("Procurement {Id} transitioned from status {From} to {To} by user {Usrename} with action {Action}",
-                        entityId, currentStatusId, transition.ToStatusId, username, actionName);
-
-                    return true;
                 }
-
-                // Handle ExPrintMint transitions
-                if (entityType == StatusConstants.Entity.ExPrintMint)
-                {
-                    return await HandleExPrintMintTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
-                }
-
-                // Handle ReceivedStock transitions
-                if (entityType == StatusConstants.Entity.ReceivedStock)
-                {
-                    return await HandleReceivedStockTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
-                }
-
-                // Handle StockMovement transitions
-                if (entityType == StatusConstants.Entity.StockMovement)
-                {
-                    return await HandleStockMovementTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
-                }
-
-                return false;
             }
             catch (Exception ex)
             {
@@ -149,10 +90,64 @@ namespace VMSService.Core.Services.Workflows
             }
         }
 
-        private async Task<bool> HandleExPrintMintTransitions(int entityId, int currentStatusId, string actionName,
-            string userId, string remarks, WorkflowTransition transition)
+        private async Task<bool> HandleApprovedCurrencyProcurementTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition)
         {
-            
+            var procurement = await _procurementRepository.FindById(entityId);
+            if (procurement == null)
+            {
+                _logger.LogWarning("Procurement {Id} not found", entityId);
+                return false;
+            }
+
+            // Verify current status matches
+            if (procurement.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Procurement {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, procurement.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            // Create status history record
+            var statusHistory = new ApprovedCurrencyStatusHistory
+            {
+                ApprovedCurrencyProcurementId = entityId,
+                OldStatusId = procurement.CurrentStatusId,
+                OldStatusName = procurement.CurrentStatusName,
+                NewStatusId = transition.ToStatusId,
+                NewStatusName = transition.ToStatus.Name,
+                ChangedBy = username,
+                ChangedAt = DateTime.Now,
+                Remarks = remarks,
+                IsDeleted = false
+            };
+
+            await _statusHistoryRepository.Create(statusHistory);
+
+            // Update procurement status
+            procurement.CurrentStatusId = transition.ToStatusId;
+            procurement.CurrentStatusName = transition.ToStatus.Name;
+            await _procurementRepository.Update(procurement);
+
+            // Send notifications
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                $"Approved Currency Procurement #{entityId} (UGX {procurement.Amount.ToString("N0")})",
+                transition,
+                statusHistory.NewStatusName,
+                username, remarks);
+            }
+
+            _logger.LogInformation("Approved Currency Procurement {Id} transitioned from status {From} to {To} by user {Username} with action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
+        private async Task<bool> HandleExPrintMintTransitions(int entityId, int currentStatusId, string actionName,
+            string userId, string remarks, WorkflowTransitionDto transition)
+        {
             var exPrintMint = await _exPrintMintRepository.FindById(entityId);
             if (exPrintMint == null)
             {
@@ -173,7 +168,9 @@ namespace VMSService.Core.Services.Workflows
             {
                 ExPrintMintId = entityId,
                 OldStatusId = exPrintMint.CurrentStatusId,
+                OldStatusName = exPrintMint.CurrentStatusName,
                 NewStatusId = transition.ToStatusId,
+                NewStatusName = transition.ToStatus.Name,
                 ChangedBy = userId,
                 ChangedAt = DateTime.Now,
                 Remarks = remarks,
@@ -184,7 +181,18 @@ namespace VMSService.Core.Services.Workflows
 
             // Update procurement status
             exPrintMint.CurrentStatusId = transition.ToStatusId;
+            exPrintMint.CurrentStatusName = transition.ToStatus.Name;
             await _exPrintMintRepository.Update(exPrintMint);
+
+            // Send notifications
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                $"Expected Stock Reference {exPrintMint.ExPrintMintReference}",
+                transition,
+                statusHistory.NewStatusName,
+                userId, remarks);
+            }
 
             _logger.LogInformation("Expected Stock {Id} transitioned from status {From} to {To} by user {UserId} with action {Action}",
                 entityId, currentStatusId, transition.ToStatusId, userId, actionName);
@@ -193,9 +201,8 @@ namespace VMSService.Core.Services.Workflows
         }
 
         private async Task<bool> HandleReceivedStockTransitions(int entityId, int currentStatusId, string actionName,
-            string userId, string remarks, WorkflowTransition transition)
+            string userId, string remarks, WorkflowTransitionDto transition)
         {
-
             var receivedStock = await _receivedStockRepository.FindById(entityId);
             if (receivedStock == null)
             {
@@ -216,7 +223,9 @@ namespace VMSService.Core.Services.Workflows
             {
                 ReceivedStockId = entityId,
                 OldStatusId = receivedStock.CurrentStatusId,
+                OldStatusName = receivedStock.CurrentStatusName,
                 NewStatusId = transition.ToStatusId,
+                NewStatusName = transition.ToStatus.Name,
                 ChangedBy = userId,
                 ChangedAt = DateTime.Now,
                 Remarks = remarks,
@@ -227,7 +236,19 @@ namespace VMSService.Core.Services.Workflows
 
             // Update procurement status
             receivedStock.CurrentStatusId = transition.ToStatusId;
+            receivedStock.CurrentStatusName = transition.ToStatus.Name;
             await _receivedStockRepository.Update(receivedStock);
+
+            // Send notifications
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                $"Received Stock Reference {receivedStock.ExPrintMint.ExPrintMintReference}",
+                transition,
+                statusHistory.NewStatusName,
+                userId,
+                remarks);
+            }
 
             _logger.LogInformation("Received Stock {Id} transitioned from status {From} to {To} by user {UserId} with action {Action}",
                 entityId, currentStatusId, transition.ToStatusId, userId, actionName);
@@ -236,9 +257,8 @@ namespace VMSService.Core.Services.Workflows
         }
 
         private async Task<bool> HandleStockMovementTransitions(int entityId, int currentStatusId, string actionName,
-            string username, string remarks, WorkflowTransition transition)
+            string username, string remarks, WorkflowTransitionDto transition)
         {
-
             var stockMovement = await _stockMovementRepository.FindByIdAsync(entityId);
             if (stockMovement == null)
             {
@@ -259,7 +279,9 @@ namespace VMSService.Core.Services.Workflows
             {
                 StockMovementId = entityId,
                 OldStatusId = stockMovement.CurrentStatusId ?? 0,
+                OldStatusName = stockMovement.CurrentStatusName,
                 NewStatusId = transition.ToStatusId,
+                NewStatusName = transition.ToStatus.Name,
                 ChangedBy = username,
                 ChangedAt = DateTime.Now,
                 Remarks = remarks,
@@ -270,20 +292,83 @@ namespace VMSService.Core.Services.Workflows
 
             // Update stock movement status
             stockMovement.CurrentStatusId = transition.ToStatusId;
+            stockMovement.CurrentStatusName = transition.ToStatus.Name;
             await _stockMovementRepository.UpdateAsync(stockMovement);
 
-            _logger.LogInformation("Stock Movement {Id} transitioned from status {From} to {To} by user {UserId} with action {Action}",
+            // Send notifications
+            if (transition.SendNotification)
+            {
+               await SendTransitionNotification(
+               $"Stock Movement {entityId}",
+               transition,
+               statusHistory.NewStatusName,
+               username,
+               remarks);
+            }
+
+            _logger.LogInformation("Stock Movement {Id} transitioned from status {From} to {To} by user {Username} with action {Action}",
                 entityId, currentStatusId, transition.ToStatusId, username, actionName);
 
             return true;
         }
 
         /// <summary>
+        /// Sends email notifications to specified recipients and users with specified roles.
+        /// Parses comma-separated NotificationEmails and NotificationRoleIds from the transition.
+        /// </summary>
+        private async Task SendTransitionNotification(string entityDescription, WorkflowTransitionDto transition, 
+            string newStatusName, string changedByUser, string remarks)
+        {
+            try
+            {
+                ICollection<RecipientDto> recipients = await _identityService.GetRecipients(transition.NotificationEmails, transition.NotificationRoleIds);
+
+                // Only send if there are recipients
+                if (!recipients.Any())
+                {
+                    _logger.LogWarning("No recipients found for notification. Transition for {Entity}", entityDescription);
+                    return;
+                }
+
+                var notificationTitle = $"{entityDescription} {newStatusName}";
+                var notificationBody = $@"
+                    <p>Hello,</p>
+                    <p>The {entityDescription} is {newStatusName}:</p>
+                    <ul>
+                        <li><strong>Transitioned By:</strong> {changedByUser}</li>
+                        <li><strong>Comment:</strong> {remarks}</li>
+                        <li><strong>Transition Time:</strong> {DateTime.Now:yyyy-MM-dd HH:mm:ss}</li>
+                    </ul>
+                    <p>Please log in to the VMS system for more details.</p>
+                    <p>Thank you</p>
+                    <small>This is an automated message. Please do not reply.</small>";
+
+                var notificationRequest = new SendNotificationRequestDto
+                {
+                    Title = notificationTitle,
+                    Body = notificationBody,
+                    NotificationTypeId = 1, // 1 = Email
+                    Recipients = recipients.ToList(),
+                };
+
+                var notificationId = await _notificationServiceClient.SendAsync(notificationRequest);
+
+                _logger.LogInformation("Notification sent successfully. NotificationId: {NotificationId} for entity {Entity}",
+                    notificationId, entityDescription);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending transition notification for {Entity}", entityDescription);
+                // Don't throw - notifications are supplementary, not critical
+            }
+        }
+
+        /// <summary>
         /// Handles discrepancy resolution status transitions
         /// </summary>
         public async Task<bool> ExecuteDiscrepancyTransition(
-            int discrepancyId, int currentStatusId, int newStatusId,
-            string username, string remarks)
+            int discrepancyId, int currentStatusId, string currentStatusName, int newStatusId,
+            string newStatusName, string username, string remarks)
         {
             try
             {
@@ -306,7 +391,9 @@ namespace VMSService.Core.Services.Workflows
                 {
                     StockMovementId = discrepancy.StockMovementId,
                     OldStatusId = currentStatusId,
+                    OldStatusName = currentStatusName,
                     NewStatusId = newStatusId,
+                    NewStatusName = newStatusName,
                     ChangedBy = username,
                     ChangedAt = DateTime.Now,
                     Remarks = remarks,
@@ -317,6 +404,7 @@ namespace VMSService.Core.Services.Workflows
 
                 // Update discrepancy status
                 discrepancy.CurrentStatusId = newStatusId;
+                discrepancy.CurrentStatusName = newStatusName;
                 await _stockMovementDiscrepancyRepository.UpdateAsync(discrepancy);
 
                 _logger.LogInformation("Discrepancy {Id} transitioned to status {To} by user {UserId}",

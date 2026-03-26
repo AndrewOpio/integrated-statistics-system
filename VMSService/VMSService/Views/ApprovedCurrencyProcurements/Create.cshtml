@@ -19,7 +19,7 @@
                     
                     <div class="mb-3">
                         <label class="form-label" asp-for="Amount">Total Approved Amount </label>
-                        <input type="text" class="form-control" id="AmountText" placeholder="0" readonly>
+                        <input type="text" class="form-control" id="AmountText" placeholder="0" readonly value="@Model.Amount.ToString("N0")">
                         <span asp-validation-for="Amount" class="text-danger small d-block mt-1"></span>
                     </div>
 
@@ -101,6 +101,17 @@
             <text>
             const currencyVendorsData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.CurrencyVendors));
             currencyVendors = currencyVendorsData;
+            </text>
+        }
+
+        // Load existing denominations
+        @if (Model.ApprovedCurrencyDenominations != null && Model.ApprovedCurrencyDenominations.Count > 0)
+        {
+            <text>
+            const existingDenominations = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ApprovedCurrencyDenominations));
+            existingDenominations.forEach(function (denom) {
+                addDenominationRow(denom.DenominationId, denom.CurrencyVendorId, denom.Amount, denom.NumberOfPieces, denom.ApprovedCurrencyId, denom.Id);
+            });
             </text>
         }
 

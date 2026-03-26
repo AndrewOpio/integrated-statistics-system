@@ -47,5 +47,12 @@ namespace WorkflowService.Core.Repositories.EntityTypes
                 .Where(x => x.ApplicationId == applicationId)
                 .ToListAsync();
         }
+
+        public async Task<EntityType> FindByNameAndApplicationId(string entityTypeName, int applicationId)
+        {
+            return await _db.EntityTypes
+                .Where(x => x.ApplicationId == applicationId && x.Name == entityTypeName)
+                .FirstOrDefaultAsync();
+        }
     }
 }

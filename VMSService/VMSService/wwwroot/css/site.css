@@ -85,7 +85,7 @@ body {
 
 /* CB Layout */
 .dash-hero {
-    background: linear-gradient(135deg, #f3c78e 0%, #E11D48 100%);
+    background: linear-gradient(135deg, #b03a2e 15%, #c9973a 100%);
     border-radius: 14px;
     padding: 28px 32px;
     color: #fff;
@@ -404,7 +404,7 @@ body {
 
     /* ?? ACTIVE state — blue ?? */
     .step-pill.active {
-        background: #1a6bbf;
+        background: #3c0b0b;
         color: #fff;
     }
 
@@ -418,7 +418,7 @@ body {
         }
 
         .step-pill.active:hover {
-            background: #155da0;
+            background: #541010;
         }
 
     /* ?? WAIT state — muted ?? */

@@ -31,7 +31,6 @@ namespace VMSService.Data.Entities
         public DateTime? SpecialApprovalAt { get; set; }
 
         public int StatusTypeId { get; set; }
-        public StatusType StatusType { get; set; } = null!;
         public decimal TotalNotesAmount { get; set; }
         public decimal TotalCoinsAmount { get; set; }
         public decimal TotalAmount { get; set; }

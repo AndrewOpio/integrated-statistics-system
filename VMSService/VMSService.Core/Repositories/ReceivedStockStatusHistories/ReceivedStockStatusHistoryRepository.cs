@@ -16,8 +16,6 @@ namespace VMSService.Core.Repositories.ReceivedStockStatusHistories
         {
             return await _db.ReceivedStockStatusHistory.Where(x => x.IsDeleted == false)
                 .Include(x => x.ReceivedStock)
-                .Include(x => x.OldStatus)
-                .Include(x => x.NewStatus)
                 .ToListAsync();
         }
 
@@ -25,8 +23,6 @@ namespace VMSService.Core.Repositories.ReceivedStockStatusHistories
         {
             return await _db.ReceivedStockStatusHistory
                 .Include(x => x.ReceivedStock)
-                .Include(x => x.OldStatus)
-                .Include(x => x.NewStatus)
                 .FirstOrDefaultAsync(x => x.Id == id);
         }
 
@@ -52,8 +48,6 @@ namespace VMSService.Core.Repositories.ReceivedStockStatusHistories
             return await _db.ReceivedStockStatusHistory
                 .Where(x => x.ReceivedStockId == receivedStockId)
                 .Where(x => !x.IsDeleted)
-                .Include(x => x.OldStatus)
-                .Include(x => x.NewStatus)
                 .ToListAsync();
         }
     }

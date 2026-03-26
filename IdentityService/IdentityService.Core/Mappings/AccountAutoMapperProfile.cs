@@ -17,6 +17,7 @@ namespace IdentityService.Mappings
             CreateMap<Application, ApplicationDto>().ReverseMap();
             CreateMap<Role, RoleDto>().ReverseMap();
             CreateMap<ApplicationRole, ApplicationRoleDto>().ReverseMap();
+            CreateMap<RecipientDto, RecipientViewModel>().ReverseMap();
         }
     }
 }

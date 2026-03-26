@@ -22,40 +22,6 @@ namespace StockService.Data.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder, 1L, 1);
 
-            modelBuilder.Entity("StockService.Data.Entities.Branch", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("ModifiedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("ModifiedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Branches");
-                });
-
             modelBuilder.Entity("StockService.Data.Entities.BranchCategory", b =>
                 {
                     b.Property<int>("Id")
@@ -88,8 +54,6 @@ namespace StockService.Data.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("BranchId");
 
                     b.HasIndex("CategoryId");
 
@@ -132,44 +96,6 @@ namespace StockService.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Categories");
-                });
-
-            modelBuilder.Entity("StockService.Data.Entities.CommercialBank", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("ModifiedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("ModifiedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("CommercialBanks");
                 });
 
             modelBuilder.Entity("StockService.Data.Entities.CounterPartyType", b =>
@@ -339,8 +265,6 @@ namespace StockService.Data.Migrations
 
                     b.HasIndex("CounterPartyTypeId");
 
-                    b.HasIndex("StoreId");
-
                     b.ToTable("StockLedger");
                 });
 
@@ -400,19 +324,11 @@ namespace StockService.Data.Migrations
 
             modelBuilder.Entity("StockService.Data.Entities.BranchCategory", b =>
                 {
-                    b.HasOne("StockService.Data.Entities.Branch", "Branch")
-                        .WithMany("BranchCategories")
-                        .HasForeignKey("BranchId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("StockService.Data.Entities.Category", "Category")
                         .WithMany("BranchCategories")
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Branch");
 
                     b.Navigation("Category");
                 });
@@ -440,15 +356,7 @@ namespace StockService.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("StockService.Data.Entities.Branch", "Store")
-                        .WithMany()
-                        .HasForeignKey("StoreId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("CounterPartyType");
-
-                    b.Navigation("Store");
                 });
 
             modelBuilder.Entity("StockService.Data.Entities.StockLedgerDetail", b =>
@@ -476,11 +384,6 @@ namespace StockService.Data.Migrations
                     b.Navigation("Denomination");
 
                     b.Navigation("StockLedger");
-                });
-
-            modelBuilder.Entity("StockService.Data.Entities.Branch", b =>
-                {
-                    b.Navigation("BranchCategories");
                 });
 
             modelBuilder.Entity("StockService.Data.Entities.Category", b =>

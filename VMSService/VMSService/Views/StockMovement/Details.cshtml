@@ -10,7 +10,7 @@
 <div class="row">
     <div class="col-12 col-lg-12">
         <div class="d-flex justify-content-end align-items-center mb-3 gap-2">
-            @if (Model.CurrentStatus?.Name == "Draft")
+            @if (Model.CurrentStatusName == "Draft")
             {
                 <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">
                     <i class="ti ti-edit me-1"></i> Edit
@@ -28,7 +28,7 @@
                         <h2 class="fs-4 fw-bold mb-3">@Model.ReferenceNumber</h2>
                         <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
                             <span class="badge bg-info">
-                                <i class="ti ti-badge me-1"></i>@Model.CurrentStatus?.Name
+                                <i class="ti ti-badge me-1"></i>@Model.CurrentStatusName
                             </span>
                         </div>
                     </div>
@@ -51,9 +51,9 @@
                     <dd class="col-sm-8">@Model.Date.ToString("dd/MMM/yyyy")</dd>
 
                     <dt class="col-sm-4">Status</dt>
-                    @if (Model.CurrentStatus != null && !string.IsNullOrEmpty(Model.CurrentStatus.Name))
+                    @if (Model.CurrentStatusId > 0 && !string.IsNullOrEmpty(Model.CurrentStatusName))
                     {
-                        <dd class="col-sm-8">@Model.CurrentStatus.Name</dd>
+                        <dd class="col-sm-8">@Model.CurrentStatusName</dd>
                     }
                     else
                     {
@@ -155,7 +155,7 @@
 
                 <!-- Received Denominations Section -->
                 @{
-                    bool isDispatchedStatus = Model.CurrentStatus?.Name == "Dispatched";
+                    bool isDispatchedStatus = Model.CurrentStatusName == "Dispatched";
                     var userRoles = User.FindAll("appRole").Select(c => c.Value);
                     bool isAssistantBranchManager = userRoles.Contains("VMS:Assistant BranchDto Manager");
                     var receivedDenominations = (Model.Denominations ?? new List<VMSService.Data.Entities.StockMovementDenomination>()).Where(d => d.DenominationType == "Received").ToList();
@@ -448,7 +448,7 @@
                     <!-- Discrepancy Status -->
                     <div class="mb-3">
                         <label class="form-label">Current Status</label>
-                        <span class="badge bg-warning">@currentDiscrepancy.CurrentStatus?.Name</span>
+                        <span class="badge bg-warning">@currentDiscrepancy.CurrentStatusName</span>
                     </div>
 
                     @if (discrepancyTransitions != null && discrepancyTransitions.Any())
@@ -576,9 +576,9 @@
                                         <div class="d-flex justify-content-between align-items-start">
                                             <div>
                                                 <h6 class="mb-1 small">
-                                                    <strong>@history.OldStatus?.Name</strong>
+                                                    <strong>@history.OldStatusName</strong>
                                                     <i class="ti ti-arrow-right text-muted"></i>
-                                                    <strong>@history.NewStatus?.Name</strong>
+                                                    <strong>@history.NewStatusName</strong>
                                                 </h6>
                                                 <small class="text-muted">
                                                     By: <strong>@history.ChangedBy</strong>

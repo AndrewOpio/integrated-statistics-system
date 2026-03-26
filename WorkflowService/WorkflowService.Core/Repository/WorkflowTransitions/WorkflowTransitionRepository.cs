@@ -84,5 +84,19 @@ namespace WorkflowService.Core.Repositories.WorkflowTransitions
                 .Where(x => x.EntityType.ApplicationId == applicationId && x.IsDeleted == false)
                 .ToListAsync();
         }
+
+        public async Task<ICollection<WorkflowTransition>> FindByEntityTypeStatusAndRole(int entityTypeId, int currentStatusId, int requiredRole)
+        {
+            return await _db.WorkflowTransitions
+                .Where(x => x.EntityTypeId == entityTypeId &&
+                            x.FromStatusId == currentStatusId &&
+                            x.RequiredRole == requiredRole &&
+                            x.IsDeleted == false &&
+                            x.IsActive == true)
+                .Include(x => x.EntityType)
+                .Include(x => x.FromStatus)
+                .Include(x => x.ToStatus)
+                .ToListAsync();
+        }
     }
 }

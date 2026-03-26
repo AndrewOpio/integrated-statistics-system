@@ -1,5 +1,4 @@
 ﻿using ConfigurationsService.Client;
-using ConfigurationsService.Client;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -10,13 +9,11 @@ using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using SmartBreadcrumbs.Extensions;
-using StockService.Client;
 using System.Reflection;
 using System.Text;
 using VMSService.Core.Authorization;
 using VMSService.Core.Mappings;
 using VMSService.Core.Models.Authentication;
-using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.ApprovedCurrencyDenominations;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
@@ -35,7 +32,6 @@ using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.ReceivedStocks;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
-using VMSService.Core.Repositories.StatusTypes;
 using VMSService.Core.Repositories.StockMovementDiscrepancies;
 using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.StockMovementStatusHistories;
@@ -47,21 +43,13 @@ using VMSService.Core.Repositories.WithdrawalRequests;
 using VMSService.Core.Repositories.WithdrawalRequestStatusHistories;
 using VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
-using VMSService.Core.Repositories.WorkflowTransitions;
-using VMSService.Core.Services.Configurations;
 using VMSService.Core.Services.Configurations;
 using VMSService.Core.Services.Identity;
 using VMSService.Core.Services.StockPositions;
 using VMSService.Core.Services.Stocks;
 using VMSService.Core.Services.Workflows;
 using VMSService.Data;
-
-//using VMSService.Core.Authorization;
-//using VMSService.Core.Repositories.CommercialBankBranches;
-//using ConfigurationsService.Client;
-//using StockService.Client;
-//using NotificationService.Client;
-
+using WorkflowService.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -198,7 +186,6 @@ var configuration = new ConfigurationBuilder()
 
 // Register Repositories
 builder.Services.AddScoped<IVendorTypeRepository, VendorTypeRepository>();
-builder.Services.AddScoped<IStatusTypeRepository, StatusTypeRepository>();
 builder.Services.AddScoped<IExPrintMintStatusHistoryRepository, ExPrintMintStatusHistoryRepository>();
 builder.Services.AddScoped<IApprovedCurrencyStatusHistoryRepository, ApprovedCurrencyStatusHistoryRepository>();
 builder.Services.AddScoped<IDenominationRepository, DenominationRepository>();
@@ -208,8 +195,7 @@ builder.Services.AddScoped<IApprovedCurrencyProcurementRepository, ApprovedCurre
 builder.Services.AddScoped<IApprovedCurrencyDenominationRepository, ApprovedCurrencyDenominationRepository>();
 builder.Services.AddScoped<ICurrencyVendorRepository, CurrencyVendorRepository>();
 builder.Services.AddScoped<IReceivedStockRepository, ReceivedStockRepository>();
-builder.Services.AddScoped<IWorkflowTransitionRepository, WorkflowTransitionRepository>();
-builder.Services.AddScoped<IWorkflowService, WorkflowService>();
+builder.Services.AddScoped<IWorkflowService, WorkflowServices>();
 builder.Services.AddScoped<IReceivedStockStatusHistoryRepository, ReceivedStockStatusHistoryRepository>();
 builder.Services.AddScoped<IStockMovementStatusHistoryRepository, StockMovementStatusHistoryRepository>();
 builder.Services.AddScoped<IStockLedgerRepository, StockLedgerRepository>();
@@ -269,6 +255,20 @@ builder.Services.AddHttpClient<ConfigurationService>()
         client.BaseAddress = new Uri(baseUrl);
         client.DefaultRequestHeaders.Add("Accept", "application/json");
     });
+
+// Register Workflow Service
+var workflowServiceBaseUrl = builder.Configuration["MicroServices:workflowservice"] ?? "https://localhost:7026";
+builder.Services.AddWorkflowServiceClient(workflowServiceBaseUrl);
+
+// Register ConfigurationsServiceClient Service
+builder.Services.AddConfigurationsServiceClient(builder.Configuration["MicroServices:configurationsservice"] ?? "https://localhost:7026");
+
+// Register Notification Service
+builder.Services.AddNotificationServiceClient(builder.Configuration["MicroServices:notificationservice"] ?? "https://localhost:7026");
+var rabbitMqHost = builder.Configuration["RabbitMQ:Host"] ?? "localhost";
+var rabbitMqUsername = builder.Configuration["RabbitMQ:Username"] ?? "guest";
+var rabbitMqPassword = builder.Configuration["RabbitMQ:Password"] ?? "guest";
+builder.Services.AddNotificationEventPublisher(rabbitMqHost, rabbitMqUsername, rabbitMqPassword);
 
 // Configure LDAP settings
 builder.Services.Configure<StockAPISettings>(

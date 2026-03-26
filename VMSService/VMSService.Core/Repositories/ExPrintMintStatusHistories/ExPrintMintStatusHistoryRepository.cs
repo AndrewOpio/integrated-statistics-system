@@ -16,8 +16,6 @@ namespace VMSService.Core.Repositories.ExPrintMintStatusHistories
         {
             return await _db.ExPrintMintStatusHistory.Where(x => x.IsDeleted == false)
                 .Include(x => x.ExPrintMint)
-                .Include(x => x.OldStatus)
-                .Include(x => x.NewStatus)
                 .ToListAsync();
         }
 
@@ -25,8 +23,6 @@ namespace VMSService.Core.Repositories.ExPrintMintStatusHistories
         {
             return await _db.ExPrintMintStatusHistory
                 .Include(x => x.ExPrintMint)
-                .Include(x => x.OldStatus)
-                .Include(x => x.NewStatus)
                 .FirstOrDefaultAsync(x => x.Id == id);
         }
 
@@ -51,8 +47,6 @@ namespace VMSService.Core.Repositories.ExPrintMintStatusHistories
         {
             return await _db.ExPrintMintStatusHistory.Where(x => x.ExPrintMintId == exPrintMintId && x.IsDeleted == false)
                 .Include(x => x.ExPrintMint)
-                .Include(x => x.OldStatus)
-                .Include(x => x.NewStatus)
                 .ToListAsync();
         }
     }

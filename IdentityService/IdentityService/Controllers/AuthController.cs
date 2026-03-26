@@ -109,10 +109,13 @@ namespace IdentityService.Controllers
                 foreach (UserApplicationRole userAppRole in userAppRoles)
                 {
                     claims.Add(new Claim("appRole", $"{userAppRole.ApplicationRole.Application.Acronym}:{userAppRole.ApplicationRole.Role.Name}"));
+                    claims.Add(new Claim("appRoleId", $"{userAppRole.ApplicationRole.Application.Acronym}:{userAppRole.ApplicationRole.Id}"));
                 }
 
                 // Add IsStaff claim
                 claims.Add(new Claim("isStaff", dbUser.IsStaff.ToString().ToLower()));
+                claims.Add(new Claim(ClaimTypes.Name, request.Username));
+                claims.Add(new Claim(ClaimTypes.NameIdentifier, dbUser.Id));
                 if (!dbUser.IsStaff)
                 {
                     claims.Add(new Claim("cbId", "2", ClaimValueTypes.Integer));
