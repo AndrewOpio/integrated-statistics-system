@@ -11,8 +11,10 @@ namespace VMSService.Core.Models.CbWithdrawRequest
         public Guid? Id { get; set; }                          // null = new, set = edit draft/revision
         public int CbId { get; set; }
         // Branch
-        public int CbBranchId { get; set; }
+        //public int CbBranchId { get; set; }
+        public string CbCode { get; set; }
         public int BouBranchId { get; set; }
+        public string BouBranchCode{ get; set; }
 
         // Dates
         public DateOnly CollectionDate { get; set; }

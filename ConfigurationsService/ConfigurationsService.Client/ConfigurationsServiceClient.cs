@@ -25,5 +25,11 @@ namespace ConfigurationsService.Client
         public async Task<CommercialBankBranchDto> GetCbBranchByIdAsync(int id)
             => await _http.GetFromJsonAsync<CommercialBankBranchDto>($"api/CommercialBankBranch/{id}")
             ?? new CommercialBankBranchDto();
+        public async Task<IEnumerable<CommercialBankDto>> GetAllCommercialBankAsync()
+            => await _http.GetFromJsonAsync<IEnumerable<CommercialBankDto>>("api/CommercialBank")
+            ?? Enumerable.Empty<CommercialBankDto>();
+        public async Task<CommercialBankDto> GetCbIdAsync(int id)
+            => await _http.GetFromJsonAsync<CommercialBankDto>($"api/CommercialBank/{id}")
+            ?? new CommercialBankDto();
     }
 }

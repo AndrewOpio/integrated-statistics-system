@@ -1,4 +1,7 @@
 ﻿async function loadAgentDetails(person, id) {
+    onAgentSelected(person, id ? parseInt(id) : null);
+    crossDisable(person, id ? parseInt(id) : null);
+
     const card = document.getElementById(`agentCard${person}`);
 
     if (!id) {
@@ -15,24 +18,18 @@
         setText(`agentNames${person}`, d.agentNames);
         setText(`agentNin${person}`, d.nin);
         setText(`agentWorkId${person}`, d.workIdScan);
+        setText(`agentPhone${person}`, d.phoneNumber);
         setText(`agentCb${person}`, d.agentCb);
         setText(`agentCbBranch${person}`, d.commercialBankBranchId);
-        setText(`agentSignatureScan${person}`, d.agentSignatureScan);
-
-
-        //agentDetailVm.AgentNames,
-        //agentDetailVm.NIN,
-        //    agentDetailVm.WorkIdScan,
-        //    agentDetailVm.CommercialBankBranchId,
-        //    agentDetailVm.BranchId,
-        //    agentDetailVm.PassportPhoto,
-        //    agentDetailVm.SignatureScan,
 
         // Photo
-        setImage(`agentPhoto${person}`, `agentPhotoPlaceholder${person}`, d.photoUrl);
+        setImage(`agentPhoto${person}`, `agentPhotoPlaceholder${person}`, d.passportPhoto);
+
+        // Work ID scan
+        setImage(`agentWorkIdScanImg${person}`, `agentScanPlaceholder${person}`, d.workIdScan);
 
         // Signature
-        setImage(`agentSignature${person}`, null, d.signatureUrl);
+        setImage(`agentSignatureScan${person}`, `agentSigPlaceholder${person}`, d.signatureScan);
 
         card.style.display = 'block';
     } catch {
@@ -40,6 +37,21 @@
     }
 }
 
+// ── Cross-disable ─────────────────────────────────────────────────────────────
+// When person 1 picks an agent, disable that option in person 2's dropdown
+// and vice versa
+function crossDisable(person, selectedId) {
+    const other = person === 1 ? 2 : 1;
+    const otherSelect = document.getElementById(`agentSelect${other}`);
+    if (!otherSelect) return;
+
+    Array.from(otherSelect.options).forEach(o => {
+        if (!o.value) return; // keep placeholder
+        o.disabled = selectedId && parseInt(o.value) === selectedId;
+    });
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function setText(id, value) {
     const el = document.getElementById(id);
     if (el) el.textContent = value ?? '';
@@ -48,7 +60,6 @@ function setText(id, value) {
 function setImage(imgId, placeholderId, url) {
     const img = document.getElementById(imgId);
     const placeholder = placeholderId ? document.getElementById(placeholderId) : null;
-
     if (!img) return;
 
     if (url) {

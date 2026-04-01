@@ -439,3 +439,40 @@ body {
         .step-pill.wait:hover {
             background: transparent;
         }
+
+/* Only what Bootstrap can't do */
+.denom-icon {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.denom-icon-n {
+    background: #fff3e0;
+    color: #e65100;
+}
+
+.denom-icon-c {
+    background: #faeeda;
+    color: #BA7517;
+}
+
+.denom-grand {
+    background-color: #b31b34;
+}
+
+input[type=number].form-control::-webkit-inner-spin-button,
+input[type=number].form-control::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type=number].form-control {
+    -moz-appearance: textfield;
+}

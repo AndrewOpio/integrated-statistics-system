@@ -10,6 +10,8 @@ using VMSService.Core.Repositories.ReceivedStockStatusHistories;
 using VMSService.Core.Repositories.StockMovementDiscrepancies;
 using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.StockMovementStatusHistories;
+using VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators;
+using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 using VMSService.Core.Services.Identity;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
@@ -31,17 +33,21 @@ namespace VMSService.Core.Services.Workflows
         IStockMovementDiscrepancyRepository _stockMovementDiscrepancyRepository,
         IWorkflowServiceClient _workflowServiceClient,
         INotificationServiceClient _notificationServiceClient,
-        IIdentityService _identityService) : IWorkflowService
+        IIdentityService _identityService,
+        IWithdrawalTransactionRefNumberGenerator _txnrefNoGenerator,
+        IWithdrawalUnitOfWork _uow) : IWorkflowService
     {
+
+
         public async Task<bool> ExecuteTransition(
-            string entityType, int entityId, int currentStatusId, 
+            string entityType, int entityId, int currentStatusId,
             string actionName, string username, List<int> userRoles, string remarks)
         {
             var requestData = new GetTransitionByKeyRequestDto
             {
-               EntityTypeName = entityType,
-               FromStatusId = currentStatusId,
-               ActionName = actionName,
+                EntityTypeName = entityType,
+                FromStatusId = currentStatusId,
+                ActionName = actionName,
             };
             try
             {
@@ -50,7 +56,7 @@ namespace VMSService.Core.Services.Workflows
 
                 if (transition == null)
                 {
-                    _logger.LogWarning("No valid transition found for {EntityType} {EntityId} action {Action} from status {Status}", 
+                    _logger.LogWarning("No valid transition found for {EntityType} {EntityId} action {Action} from status {Status}",
                         entityType, entityId, actionName, currentStatusId);
                     return false;
                 }
@@ -67,16 +73,16 @@ namespace VMSService.Core.Services.Workflows
                 {
                     case StatusConstants.Entity.ApprovedCurrencyProcurement:
                         return await HandleApprovedCurrencyProcurementTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
-                    
+
                     case StatusConstants.Entity.ExPrintMint:
                         return await HandleExPrintMintTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
-                    
+
                     case StatusConstants.Entity.ReceivedStock:
                         return await HandleReceivedStockTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
-                    
+
                     case StatusConstants.Entity.StockMovement:
                         return await HandleStockMovementTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
-                    
+
                     default:
                         _logger.LogWarning("Unknown entity type: {EntityType}", entityType);
                         return false;
@@ -84,10 +90,64 @@ namespace VMSService.Core.Services.Workflows
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error executing transition for {EntityType} {EntityId} action {Action}", 
+                _logger.LogError(ex, "Error executing transition for {EntityType} {EntityId} action {Action}",
                     entityType, entityId, actionName);
                 return false;
             }
+        }
+        public async Task<bool> ExecuteTransition(string entityType, Guid entityId, int currentStatusId, string actionName, string username, List<int> userRoles, string remarks)
+        {
+            var requestData = new GetTransitionByKeyRequestDto
+            {
+                EntityTypeName = entityType,
+                FromStatusId = currentStatusId,
+                ActionName = actionName,
+            };
+
+            try
+            {
+                WorkflowTransitionDto transition = await _workflowServiceClient
+                    .FindByTransitionKey(requestData);
+
+                if (transition == null)
+                {
+                    _logger.LogWarning(
+                        "No valid transition found for {EntityType} {EntityId} action {Action} from status {Status}",
+                        entityType, entityId, actionName, currentStatusId);
+                    return false;
+                }
+
+                if (!userRoles.Contains(transition.RequiredRole))
+                {
+                    _logger.LogWarning(
+                        "User {Username} with roles {Roles} attempted transition requiring role {RequiredRole}",
+                        username, userRoles, transition.RequiredRole);
+                    return false;
+                }
+
+                return entityType switch
+                {
+                    StatusConstants.Entity.WithdrawalRequest =>
+                        await HandleWithdrawalTransitions(
+                            entityId, currentStatusId, actionName,
+                            username, remarks, transition),
+
+                    _ => LogUnknownEntity(entityType)
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Error executing transition for {EntityType} {EntityId} action {Action}",
+                    entityType, entityId, actionName);
+                return false;
+            }
+        }
+
+        private bool LogUnknownEntity(string entityType)
+        {
+            _logger.LogWarning("Unknown entity type: {EntityType}", entityType);
+            return false;
         }
 
         private async Task<bool> HandleApprovedCurrencyProcurementTransitions(int entityId, int currentStatusId, string actionName,
@@ -298,12 +358,12 @@ namespace VMSService.Core.Services.Workflows
             // Send notifications
             if (transition.SendNotification)
             {
-               await SendTransitionNotification(
-               $"Stock Movement {entityId}",
-               transition,
-               statusHistory.NewStatusName,
-               username,
-               remarks);
+                await SendTransitionNotification(
+                $"Stock Movement {entityId}",
+                transition,
+                statusHistory.NewStatusName,
+                username,
+                remarks);
             }
 
             _logger.LogInformation("Stock Movement {Id} transitioned from status {From} to {To} by user {Username} with action {Action}",
@@ -316,7 +376,7 @@ namespace VMSService.Core.Services.Workflows
         /// Sends email notifications to specified recipients and users with specified roles.
         /// Parses comma-separated NotificationEmails and NotificationRoleIds from the transition.
         /// </summary>
-        private async Task SendTransitionNotification(string entityDescription, WorkflowTransitionDto transition, 
+        private async Task SendTransitionNotification(string entityDescription, WorkflowTransitionDto transition,
             string newStatusName, string changedByUser, string remarks)
         {
             try
@@ -416,6 +476,107 @@ namespace VMSService.Core.Services.Workflows
             {
                 _logger.LogError(ex, "Error executing discrepancy transition for Discrepancy {Id}", discrepancyId);
                 return false;
+            }
+        }
+
+        private async Task<bool> HandleWithdrawalTransitions(Guid entityId, int currentStatusId, string actionName, string username, string remarks, WorkflowTransitionDto transition)
+        {
+            var request = await _uow.Requests.FindById(entityId);
+            if (request is null)
+            {
+                _logger.LogWarning("WithdrawalRequest {Id} not found", entityId);
+                return false;
+            }
+
+            // Verify current status matches — prevents race conditions
+            if (request.StatusTypeId != currentStatusId)
+            {
+                _logger.LogWarning(
+                    "WithdrawalRequest {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, request.StatusTypeId, currentStatusId);
+                return false;
+            }
+
+            // Create status history record
+            var statusHistory = new WithdrawalRequestStatusHistory
+            {
+                WithdrawalRequestId = entityId,
+                OldStatusId = request.StatusTypeId,
+                OldStatusName = request.StatusTypeName,
+                NewStatusId = transition.ToStatusId,
+                NewStatusName = transition.ToStatus.Name,
+                ChangedBy = username,
+                ChangedAt = DateTime.UtcNow,
+                Remarks = remarks,
+                CreatedBy = username,
+                CreatedDate = DateTime.Now,
+            };
+            await _uow.StatusHistory.Create(statusHistory);
+
+            // Update request status
+            request.StatusTypeId = transition.ToStatusId;
+            request.StatusTypeName = transition.ToStatus.Name;
+            request.ModifiedBy = username;
+            request.ModifiedDate = DateTime.Now;
+
+            // If supervisor is submitting to bank — generate ref number + copy denominations
+            if (transition.ToStatusId == WithdrawStatuses.WithdrawalStatusIds.SubmittedToBank)
+            {
+                //request.SupervisorUserId = username;
+
+                request.TransactionRefNumber = await _txnrefNoGenerator.GenerateAsync(
+                    bouBranchId: request.BouBranchId,
+                    cbId: request.CbId,
+                    collectionDate: request.CollectionDate,
+                    ct: CancellationToken.None);
+
+                await _uow.Denominations.CopyToBouAsync(request.Id, username, CancellationToken.None); ;
+            }
+
+            await _uow.Requests.Update(request);
+
+            // Send notification if configured in WorkflowService
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"Withdrawal Request #{request.TransactionRefNumber ?? entityId.ToString()} " +
+                    $"(UGX {request.TotalAmount:N0})",
+                    transition,
+                    statusHistory.NewStatusName,
+                    username,
+                    remarks);
+            }
+
+            await _uow.SaveAsync(CancellationToken.None);
+
+            _logger.LogInformation(
+                "WithdrawalRequest {Id} transitioned from {From} to {To} by {Username} via action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
+        public async Task<List<WorkflowTransitionDto>> GetAvailableTransitionsAsync(string entityType, int statusId, int userRole)
+        {
+            try
+            {
+                var requestData = new GetAvailableTransitionsRequestDto
+                {
+                    ApplicationAcronym = "Myapp",
+                    EntityTypeName = entityType,
+                    CurrentStatusId = statusId,
+                    AppRole = userRole,
+                };
+
+                return await _workflowServiceClient.GetAvailableTransitions(requestData)
+                       ?? new List<WorkflowTransitionDto>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Error fetching available transitions for {EntityType} status {StatusId}",
+                    entityType, statusId);
+                return new List<WorkflowTransitionDto>();
             }
         }
     }

@@ -277,10 +277,7 @@ builder.Services.Configure<StockAPISettings>(
 builder.Services.AddConfigurationsServiceClient(builder.Configuration["MicroServices:configurationService"]);
 builder.Services.AddNotificationServiceClient(builder.Configuration["MicroServices:notificationService"]);
 builder.Services.AddNotificationServiceClient(builder.Configuration["MicroServices:notificationService"]);
-builder.Services.AddNotificationEventPublisher(
-    host: "localhost",   
-    username: "guest",
-    password: "guest");
+
 
 // Add SmartBreadcrumbs
 builder.Services.AddBreadcrumbs(Assembly.GetExecutingAssembly(), options =>

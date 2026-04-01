@@ -55,10 +55,6 @@ namespace VMSService.Core.Models.AgentDetails
         // Navigation property
         public string? BranchName { get; set; }
 
-        public int CurrentStatusId { get; set; }
-
-        public bool IsDeleted { get; set; }
-
         // Select lists
         public List<SelectListItem> BranchList { get; set; } = new List<SelectListItem>();
         public List<SelectListItem> CommercialBankBranchList { get; set; } = new List<SelectListItem>();

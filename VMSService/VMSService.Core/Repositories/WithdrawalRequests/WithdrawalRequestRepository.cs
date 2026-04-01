@@ -9,6 +9,7 @@ using VMSService.Data.Entities;
 
 namespace VMSService.Core.Repositories.WithdrawalRequests
 {
+
     public class WithdrawalRequestRepository(VMSServiceDbContext _db) : IWithdrawalRequestRepository
     {
         public async Task<ICollection<WithdrawalRequest>> FindAll()

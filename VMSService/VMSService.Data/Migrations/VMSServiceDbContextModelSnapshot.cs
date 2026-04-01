@@ -162,6 +162,10 @@ namespace VMSService.Data.Migrations
                     b.Property<int>("CurrentStatusId")
                         .HasColumnType("int");
 
+                    b.Property<string>("CurrentStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
@@ -173,8 +177,6 @@ namespace VMSService.Data.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("CurrentStatusId");
 
                     b.ToTable("ApprovedCurrencyProcurements");
                 });
@@ -217,8 +219,16 @@ namespace VMSService.Data.Migrations
                     b.Property<int>("NewStatusId")
                         .HasColumnType("int");
 
+                    b.Property<string>("NewStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("OldStatusId")
                         .HasColumnType("int");
+
+                    b.Property<string>("OldStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Remarks")
                         .HasColumnType("nvarchar(max)");
@@ -226,10 +236,6 @@ namespace VMSService.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ApprovedCurrencyProcurementId");
-
-                    b.HasIndex("NewStatusId");
-
-                    b.HasIndex("OldStatusId");
 
                     b.ToTable("ApprovedCurrencyStatusHistory");
                 });
@@ -361,6 +367,10 @@ namespace VMSService.Data.Migrations
                     b.Property<int>("CurrentStatusId")
                         .HasColumnType("int");
 
+                    b.Property<string>("CurrentStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("DeliveryDate")
                         .HasColumnType("datetime2");
 
@@ -405,8 +415,6 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("CurrencyVendorId");
 
-                    b.HasIndex("CurrentStatusId");
-
                     b.ToTable("ExPrintMints");
                 });
 
@@ -448,8 +456,16 @@ namespace VMSService.Data.Migrations
                     b.Property<int>("NewStatusId")
                         .HasColumnType("int");
 
+                    b.Property<string>("NewStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("OldStatusId")
                         .HasColumnType("int");
+
+                    b.Property<string>("OldStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Remarks")
                         .HasColumnType("nvarchar(max)");
@@ -457,10 +473,6 @@ namespace VMSService.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ExPrintMintId");
-
-                    b.HasIndex("NewStatusId");
-
-                    b.HasIndex("OldStatusId");
 
                     b.ToTable("ExPrintMintStatusHistory");
                 });
@@ -492,6 +504,10 @@ namespace VMSService.Data.Migrations
 
                     b.Property<int>("CurrentStatusId")
                         .HasColumnType("int");
+
+                    b.Property<string>("CurrentStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("DateDelivered")
                         .HasColumnType("datetime2");
@@ -531,8 +547,6 @@ namespace VMSService.Data.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("CurrentStatusId");
 
                     b.HasIndex("ExPrintMintId");
 
@@ -574,8 +588,16 @@ namespace VMSService.Data.Migrations
                     b.Property<int>("NewStatusId")
                         .HasColumnType("int");
 
+                    b.Property<string>("NewStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("OldStatusId")
                         .HasColumnType("int");
+
+                    b.Property<string>("OldStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("ReceivedStockId")
                         .HasColumnType("int");
@@ -585,48 +607,9 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("NewStatusId");
-
-                    b.HasIndex("OldStatusId");
-
                     b.HasIndex("ReceivedStockId");
 
                     b.ToTable("ReceivedStockStatusHistory");
-                });
-
-            modelBuilder.Entity("VMSService.Data.Entities.StatusType", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ModifiedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("ModifiedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("StatusTypes");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.StockMovement", b =>
@@ -649,6 +632,10 @@ namespace VMSService.Data.Migrations
 
                     b.Property<int?>("CurrentStatusId")
                         .HasColumnType("int");
+
+                    b.Property<string>("CurrentStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("Date")
                         .HasColumnType("datetime2");
@@ -681,8 +668,6 @@ namespace VMSService.Data.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("CurrentStatusId");
 
                     b.ToTable("StockMovements");
                 });
@@ -772,6 +757,10 @@ namespace VMSService.Data.Migrations
                     b.Property<int>("CurrentStatusId")
                         .HasColumnType("int");
 
+                    b.Property<string>("CurrentStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("ModifiedBy")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -783,8 +772,6 @@ namespace VMSService.Data.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("CurrentStatusId");
 
                     b.HasIndex("StockMovementId");
 
@@ -826,8 +813,16 @@ namespace VMSService.Data.Migrations
                     b.Property<int>("NewStatusId")
                         .HasColumnType("int");
 
+                    b.Property<string>("NewStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("OldStatusId")
                         .HasColumnType("int");
+
+                    b.Property<string>("OldStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Remarks")
                         .HasColumnType("nvarchar(max)");
@@ -836,10 +831,6 @@ namespace VMSService.Data.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("NewStatusId");
-
-                    b.HasIndex("OldStatusId");
 
                     b.HasIndex("StockMovementId");
 
@@ -883,20 +874,116 @@ namespace VMSService.Data.Migrations
                     b.ToTable("VendorTypes");
                 });
 
-            modelBuilder.Entity("VMSService.Data.Entities.WorkflowTransition", b =>
+            modelBuilder.Entity("VMSService.Data.Entities.WithdrawalRequest", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("uniqueidentifier");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ActionName")
+                    b.Property<string>("BouBranchCode")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("ButtonClass")
+                    b.Property<int>("BouBranchId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CbCode")
                         .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("CbId")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly>("CollectionDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("RequiresSpecialApproval")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("RtgsCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateOnly?>("RtgsDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("SpecialApprovalAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SpecialApprovalBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SpecialApprovalReason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("StatusTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("StatusTypeName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalCoinsAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalNotesAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("TransactionRefNumber")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CbId");
+
+                    b.HasIndex("CollectionDate");
+
+                    b.HasIndex("StatusTypeId");
+
+                    b.HasIndex("TransactionRefNumber")
+                        .IsUnique()
+                        .HasFilter("[TransactionRefNumber] IS NOT NULL");
+
+                    b.HasIndex("CbId", "BouBranchId", "CollectionDate");
+
+                    b.ToTable("WithdrawalRequests");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.WithdrawalRequestAgent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AgentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("AttachmentContentType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("AttachmentData")
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("AttachmentFileName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AttachmentRemarks")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("CreatedBy")
@@ -906,19 +993,98 @@ namespace VMSService.Data.Migrations
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("DisplayLabel")
+                    b.Property<string>("EnteredBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ModifiedBy")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("EntityType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
 
-                    b.Property<int>("FromStatusId")
+                    b.Property<Guid>("WithdrawalRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WithdrawalRequestId", "EnteredBy");
+
+                    b.ToTable("WithdrawalRequestAgents");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.WithdrawalRequestDenomination", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("Boxes")
                         .HasColumnType("int");
 
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
+                    b.Property<int?>("Bundles")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DenominationId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DenominationTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("DenominationValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<Guid>("WithdrawalRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WithdrawalRequestId", "Origin");
+
+                    b.ToTable("WithdrawalRequestDenominations");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.WithdrawalRequestStatusHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ChangedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
@@ -930,23 +1096,31 @@ namespace VMSService.Data.Migrations
                     b.Property<DateTime>("ModifiedDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("RequiredRole")
+                    b.Property<int>("NewStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("NewStatusName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<bool>("RequiresComments")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("ToStatusId")
+                    b.Property<int>("OldStatusId")
                         .HasColumnType("int");
+
+                    b.Property<string>("OldStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("WithdrawalRequestId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("FromStatusId");
+                    b.HasIndex("WithdrawalRequestId");
 
-                    b.HasIndex("ToStatusId");
-
-                    b.ToTable("WorkflowTransitions");
+                    b.ToTable("WithdrawalRequestStatusHistory");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ApprovedCurrencyDenomination", b =>
@@ -968,17 +1142,6 @@ namespace VMSService.Data.Migrations
                     b.Navigation("CurrencyVendor");
                 });
 
-            modelBuilder.Entity("VMSService.Data.Entities.ApprovedCurrencyProcurement", b =>
-                {
-                    b.HasOne("VMSService.Data.Entities.StatusType", "CurrentStatus")
-                        .WithMany()
-                        .HasForeignKey("CurrentStatusId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CurrentStatus");
-                });
-
             modelBuilder.Entity("VMSService.Data.Entities.ApprovedCurrencyStatusHistory", b =>
                 {
                     b.HasOne("VMSService.Data.Entities.ApprovedCurrencyProcurement", "ApprovedCurrencyProcurement")
@@ -987,23 +1150,7 @@ namespace VMSService.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("VMSService.Data.Entities.StatusType", "NewStatus")
-                        .WithMany()
-                        .HasForeignKey("NewStatusId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("VMSService.Data.Entities.StatusType", "OldStatus")
-                        .WithMany()
-                        .HasForeignKey("OldStatusId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("ApprovedCurrencyProcurement");
-
-                    b.Navigation("NewStatus");
-
-                    b.Navigation("OldStatus");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.CurrencyVendor", b =>
@@ -1031,17 +1178,9 @@ namespace VMSService.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("VMSService.Data.Entities.StatusType", "CurrentStatus")
-                        .WithMany()
-                        .HasForeignKey("CurrentStatusId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("ApprovedCurrencyProcurement");
 
                     b.Navigation("CurrencyVendor");
-
-                    b.Navigation("CurrentStatus");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ExPrintMintStatusHistory", b =>
@@ -1052,78 +1191,29 @@ namespace VMSService.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("VMSService.Data.Entities.StatusType", "NewStatus")
-                        .WithMany()
-                        .HasForeignKey("NewStatusId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("VMSService.Data.Entities.StatusType", "OldStatus")
-                        .WithMany()
-                        .HasForeignKey("OldStatusId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("ExPrintMint");
-
-                    b.Navigation("NewStatus");
-
-                    b.Navigation("OldStatus");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ReceivedStock", b =>
                 {
-                    b.HasOne("VMSService.Data.Entities.StatusType", "CurrentStatus")
-                        .WithMany()
-                        .HasForeignKey("CurrentStatusId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("VMSService.Data.Entities.ExPrintMint", "ExPrintMint")
                         .WithMany()
                         .HasForeignKey("ExPrintMintId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("CurrentStatus");
-
                     b.Navigation("ExPrintMint");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ReceivedStockStatusHistory", b =>
                 {
-                    b.HasOne("VMSService.Data.Entities.StatusType", "NewStatus")
-                        .WithMany()
-                        .HasForeignKey("NewStatusId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("VMSService.Data.Entities.StatusType", "OldStatus")
-                        .WithMany()
-                        .HasForeignKey("OldStatusId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("VMSService.Data.Entities.ReceivedStock", "ReceivedStock")
                         .WithMany()
                         .HasForeignKey("ReceivedStockId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("NewStatus");
-
-                    b.Navigation("OldStatus");
-
                     b.Navigation("ReceivedStock");
-                });
-
-            modelBuilder.Entity("VMSService.Data.Entities.StockMovement", b =>
-                {
-                    b.HasOne("VMSService.Data.Entities.StatusType", "CurrentStatus")
-                        .WithMany()
-                        .HasForeignKey("CurrentStatusId");
-
-                    b.Navigation("CurrentStatus");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.StockMovementDenomination", b =>
@@ -1150,67 +1240,57 @@ namespace VMSService.Data.Migrations
 
             modelBuilder.Entity("VMSService.Data.Entities.StockMovementDiscrepancy", b =>
                 {
-                    b.HasOne("VMSService.Data.Entities.StatusType", "CurrentStatus")
-                        .WithMany()
-                        .HasForeignKey("CurrentStatusId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("VMSService.Data.Entities.StockMovement", "StockMovement")
                         .WithMany("StockMovementDiscrepancies")
                         .HasForeignKey("StockMovementId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("CurrentStatus");
-
                     b.Navigation("StockMovement");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.StockMovementStatusHistory", b =>
                 {
-                    b.HasOne("VMSService.Data.Entities.StatusType", "NewStatus")
-                        .WithMany()
-                        .HasForeignKey("NewStatusId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("VMSService.Data.Entities.StatusType", "OldStatus")
-                        .WithMany()
-                        .HasForeignKey("OldStatusId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
                     b.HasOne("VMSService.Data.Entities.StockMovement", "StockMovement")
                         .WithMany("StatusHistory")
                         .HasForeignKey("StockMovementId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("NewStatus");
-
-                    b.Navigation("OldStatus");
-
                     b.Navigation("StockMovement");
                 });
 
-            modelBuilder.Entity("VMSService.Data.Entities.WorkflowTransition", b =>
+            modelBuilder.Entity("VMSService.Data.Entities.WithdrawalRequestAgent", b =>
                 {
-                    b.HasOne("VMSService.Data.Entities.StatusType", "FromStatus")
-                        .WithMany()
-                        .HasForeignKey("FromStatusId")
+                    b.HasOne("VMSService.Data.Entities.WithdrawalRequest", "WithdrawalRequest")
+                        .WithMany("WithdrawalRequestAgents")
+                        .HasForeignKey("WithdrawalRequestId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("VMSService.Data.Entities.StatusType", "ToStatus")
-                        .WithMany()
-                        .HasForeignKey("ToStatusId")
+                    b.Navigation("WithdrawalRequest");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.WithdrawalRequestDenomination", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.WithdrawalRequest", "WithdrawalRequest")
+                        .WithMany("WithdrawalRequestDenominations")
+                        .HasForeignKey("WithdrawalRequestId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("FromStatus");
+                    b.Navigation("WithdrawalRequest");
+                });
 
-                    b.Navigation("ToStatus");
+            modelBuilder.Entity("VMSService.Data.Entities.WithdrawalRequestStatusHistory", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.WithdrawalRequest", "WithdrawalRequest")
+                        .WithMany("WithdrawalRequestStatusHistory")
+                        .HasForeignKey("WithdrawalRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("WithdrawalRequest");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.StockMovement", b =>
@@ -1225,6 +1305,15 @@ namespace VMSService.Data.Migrations
             modelBuilder.Entity("VMSService.Data.Entities.StockMovementDenomination", b =>
                 {
                     b.Navigation("SerialNumberRanges");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.WithdrawalRequest", b =>
+                {
+                    b.Navigation("WithdrawalRequestAgents");
+
+                    b.Navigation("WithdrawalRequestDenominations");
+
+                    b.Navigation("WithdrawalRequestStatusHistory");
                 });
 #pragma warning restore 612, 618
         }

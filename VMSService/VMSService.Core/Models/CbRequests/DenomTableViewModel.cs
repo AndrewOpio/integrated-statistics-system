@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using VMSService.Core.Services.Stocks.StockEntities;
+using VMSService.Data.Entities;
 
 namespace VMSService.Core.Models.CbRequests
 {
@@ -11,5 +12,6 @@ namespace VMSService.Core.Models.CbRequests
     {
         public IEnumerable<Denomination> Notes { get; init; } = [];
         public IEnumerable<Denomination> Coins { get; init; } = [];
+        public List<WithdrawalRequestDenomination> ExistingLines { get; set; } = [];
     }
 }
