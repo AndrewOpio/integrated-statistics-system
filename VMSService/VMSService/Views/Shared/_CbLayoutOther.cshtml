@@ -1,0 +1,99 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Commercial Bank Request</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/tabler-icons.min.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+            <div class="container-fluid d-flex align-items-center">
+                <a class="navbar-brand" asp-area="" asp-controller="CbRequests" asp-action="Index">
+                    <div class="d-flex flex-row align-content-center">
+                        <img class="img-fluid" src="/img/bou.png" alt="" width="40" height="40">
+                        <h2 class="m-0 align-content-center ms-2">Commercial Bank Requests</h2>
+                    </div>
+                </a>
+                <div class="navbar-collapse justify-content-end px-0" id="navbarNav">
+                    <ul class="navbar-nav flex-row ms-auto align-items-center justify-content-end">
+                        <li class="nav-item dropdown">
+                            <div class="d-flex align-items-center">
+                                @{
+                                    string username = "";
+
+                                    if (Context.Request.Cookies.ContainsKey("Username"))
+                                    {
+                                        username = Context.Request.Cookies["Username"];
+                                    }
+                                }
+                                <small class="navbar-text me-2">Welcome, @username</small>
+                                <a class="nav-link nav-icon-hover me-4" href="javascript:void(0)" id="drop2" data-bs-toggle="dropdown"
+                                   aria-expanded="false">
+                                    <i class="ti ti-user-filled fs-6"></i>
+                                </a>
+                                <div class="dropdown-menu dropdown-menu-end dropdown-menu-animate-up p-3 min-w-300" aria-labelledby="drop2">
+                                    <table class="table table-borderless table-sm mb-0">
+                                        <tbody>
+                                            <tr>
+                                                <td><i class="ti ti-user fs-6"></i></td>
+                                                <td><small>Name:</small></td>
+                                                <td><small><b>@User.FindFirst("DisplayName")?.Value</b></small></td>
+                                            </tr>
+                                            <tr>
+                                                <td><i class="ti ti-shield fs-6"></i></td>
+                                                <td><small>Roles:</small></td>
+                                                <td><small>@string.Join(", ", User.FindAll("appRole").Where(c => c.Value.StartsWith("VMS:")).Select(c => c.Value.Split(":")[1]).ToList())</small></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                    <a asp-controller="Home" asp-action="Logout" class="btn btn-outline-danger btn-sm mt-2 w-100">Logout</a>
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+            </div>
+        </nav>
+    </header>
+    <div class="container">
+        <main role="main" class="pb-3">
+            @if (TempData["Success"] != null)
+            {
+                <div class="container mt-3">
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        @TempData["Success"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                </div>
+            }
+            @if (TempData["Error"] != null)
+            {
+                <div class="container mt-3">
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        @TempData["Error"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                </div>
+            }
+            @await Html.PartialAsync("~/Views/Shared/_CbMenuPartial.cshtml")
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="border-top footer text-muted">
+        <div class="container">
+            &copy; 2026 - Commercial Bank Requests - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+        </div>
+    </footer>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

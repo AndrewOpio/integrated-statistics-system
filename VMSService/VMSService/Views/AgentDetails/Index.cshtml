@@ -1,19 +1,20 @@
 @model List<VMSService.Core.Models.AgentDetails.AgentDetailViewModel>
 
 @{
+    Layout = "_CbLayoutOther";
     ViewData["Title"] = "Agent Details";
 }
 
 <div class="row">
     <div class="col-12">
-        <div class="card border-0 shadow mb-4">
-            <div class="card-header">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white p-3">
                 <div class="row align-items-center">
                     <div class="col">
                         <h2 class="fs-5 fw-bold mb-0">Agent Details</h2>
                     </div>
                     <div class="col text-end">
-                        <a asp-action="Create" class="btn btn-sm btn-primary">
+                        <a asp-action="Create" class="btn btn-sm btn-brown">
                             <i class="ti ti-plus me-1"></i>Add Agent
                         </a>
                     </div>
@@ -30,6 +31,7 @@
                                 <th class="border-0">NIN</th>
                                 <th class="border-0">Phone Number</th>
                                 <th class="border-0">BOU Branch</th>
+                                <th class="border-0">Status</th>
                                 <th class="border-0 rounded-end">Actions</th>
                             </tr>
                         </thead>
@@ -41,7 +43,7 @@
                             @foreach (var item in Model)
                             {
                                 <tr>
-                                    <td><span class="text-primary fw-bold">@rowNumber</span></td>
+                                    <td><span>@rowNumber</span></td>
                                     <td>
                                         @if (!string.IsNullOrEmpty(item.PassportPhoto))
                                         {
@@ -68,20 +70,27 @@
                                     </td>
                                     <td>
                                         <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
-                                            <span class="badge bg-primary">
+                                            <span class="badge bg-brown">
                                                 <i class="ti ti-building-bank me-1"></i>@item.BranchName
                                             </span>
                                         </div>
                                     </td>
                                     <td>
+                                        <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
+                                            <span class="badge bg-purple">
+                                                <i class="ti ti-badge me-1"></i>@item.CurrentStatusName
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td>
                                         <div class="btn-group" role="group">
-                                            <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
-                                                <i class="ti ti-edit"></i>
-                                            </a>
-                                            <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
+                                            <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-dark" title="View Details">
                                                 <i class="ti ti-eye"></i>
                                             </a>
-                                            <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger" title="Delete">
+                                            <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-dark" title="Edit">
+                                                <i class="ti ti-edit"></i>
+                                            </a>
+                                            <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-dark" title="Delete">
                                                 <i class="ti ti-trash"></i>
                                             </a>
                                         </div>

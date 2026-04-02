@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartBreadcrumbs.Attributes;
 using System.Diagnostics;
+using VMSService.Core.Authorization;
 using VMSService.Core.Models.Branches;
 using VMSService.Core.Models.Denominations;
 using VMSService.Core.Models.ExPrintMints;
@@ -54,6 +55,18 @@ namespace VMSService.Controllers
 
         public async Task<IActionResult> Index(int? branchId)
         {
+            bool isCommercialBank = false;
+            var roles = User.FindAll("appRole").Where(c => c.Value.StartsWith("VMS:")).Select(c => c.Value.Split(":")[1]).ToList();
+            foreach (string role in roles)
+            {
+                if (RolePolicy.CbRoles.Contains(role))
+                {
+                    isCommercialBank = true;
+                    break;
+                }
+            }
+            if (isCommercialBank) return RedirectToAction("Index", "CbRequests");
+
             try
             {
                 // Get pending deliveries

@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System.ComponentModel.DataAnnotations;
+using VMSService.Core.Model.AgentDetailStatusHistories;
+using WorkflowService.Client.Dto;
 
 namespace VMSService.Core.Models.AgentDetails
 {
@@ -58,9 +60,13 @@ namespace VMSService.Core.Models.AgentDetails
         public int CurrentStatusId { get; set; }
 
         public bool IsDeleted { get; set; }
+        public bool IsActive { get; set; }
+        public string? CurrentStatusName { get; set; }
 
         // Select lists
         public List<SelectListItem> BranchList { get; set; } = new List<SelectListItem>();
         public List<SelectListItem> CommercialBankBranchList { get; set; } = new List<SelectListItem>();
+        public ICollection<WorkflowTransitionDto> AvailableTransitions { get; set; } = new List<WorkflowTransitionDto>();
+        public ICollection<AgentDetailStatusHistoryViewModel> StatusHistory { get; set; } = new List<AgentDetailStatusHistoryViewModel>();
     }
 }

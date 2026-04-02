@@ -15,6 +15,7 @@ using VMSService.Core.Authorization;
 using VMSService.Core.Mappings;
 using VMSService.Core.Models.Authentication;
 using VMSService.Core.Repositories.AgentDetails;
+using VMSService.Core.Repositories.AgentDetailStatusHistories;
 using VMSService.Core.Repositories.ApprovedCurrencyDenominations;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
@@ -216,6 +217,7 @@ builder.Services.AddScoped<IWithdrawalRequestDenominationRepository, WithdrawalR
 builder.Services.AddScoped<IWithdrawalRequestStatusHistoryRepository, WithdrawalRequestStatusHistoryRepository>();
 builder.Services.AddScoped<IWithdrawalTransactionRefNumberGenerator, WithdrawalTransactionRefNumberGenerator>();
 builder.Services.AddScoped<IWithdrawalUnitOfWork, WithdrawalUnitOfWork>();
+builder.Services.AddScoped<IAgentDetailStatusHistoryRepository, AgentDetailStatusHistoryRepository>();
 
 
 // ── Resource-based ownership check ────────────────────────────
@@ -273,14 +275,6 @@ builder.Services.AddNotificationEventPublisher(rabbitMqHost, rabbitMqUsername, r
 // Configure LDAP settings
 builder.Services.Configure<StockAPISettings>(
     builder.Configuration.GetSection("StockApiSettings"));
-
-builder.Services.AddConfigurationsServiceClient(builder.Configuration["MicroServices:configurationService"]);
-builder.Services.AddNotificationServiceClient(builder.Configuration["MicroServices:notificationService"]);
-builder.Services.AddNotificationServiceClient(builder.Configuration["MicroServices:notificationService"]);
-builder.Services.AddNotificationEventPublisher(
-    host: "localhost",   
-    username: "guest",
-    password: "guest");
 
 // Add SmartBreadcrumbs
 builder.Services.AddBreadcrumbs(Assembly.GetExecutingAssembly(), options =>

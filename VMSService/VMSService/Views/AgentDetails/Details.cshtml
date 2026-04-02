@@ -1,37 +1,59 @@
 @model VMSService.Core.Models.AgentDetails.AgentDetailViewModel
 
 @{
-    Layout = "_CbLayout";
+    Layout = "_CbLayoutOther";
     ViewData["Title"] = "Agent Details";
 }
 
 <div class="row">
-    <div class="col-12 col-lg-12">
-        <div class="card border-0 shadow mb-4">
-            <div class="card-header pb-4">
-                <div class="d-flex flex-column">
-                    <span class="text-muted small mb-2">Agent Profile</span>
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                        @if (!string.IsNullOrEmpty(Model.PassportPhoto))
-                        {
-                            <img src="@Model.PassportPhoto" alt="Passport Photo" class="rounded-circle" style="width: 80px; height: 80px; object-fit: cover;">
-                        }
-                        else
-                        {
-                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                                <i class="ti ti-user text-white fs-3"></i>
+    <div class="col-12 col-lg-12 mb-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <span class="text-muted small mb-4">Agent Profile</span>
+                        <div class="d-flex align-items-center gap-3 mb-3 mt-2">
+                            @if (!string.IsNullOrEmpty(Model.PassportPhoto))
+                            {
+                                <img src="@Model.PassportPhoto" alt="Passport Photo" class="rounded-circle" style="width: 80px; height: 80px; object-fit: cover;">
+                            }
+                            else
+                            {
+                                <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                    <i class="ti ti-user text-white fs-3"></i>
+                                </div>
+                            }
+                            <div>
+                                <h2 class="fs-4 fw-bold mb-1">@Model.AgentNames</h2>
+                                @if (!string.IsNullOrEmpty(Model.BranchName))
+                                {
+                                    <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
+                                        <span class="badge bg-brown">
+                                            <i class="ti ti-building-bank me-1"></i>@Model.BranchName
+                                        </span>
+                                    </div>
+                                }
+                                <span class="badge bg-purple">
+                                    <i class="ti ti-badge me-1"></i>@Model.CurrentStatusName
+                                </span>
+                                <span class="badge @(Model.IsActive ? "bg-active" : "bg-inactive")">
+                                    <i class="ti ti-check me-1"></i>@(Model.IsActive ? "Active" : "Inactive")
+                                </span>                                
                             </div>
-                        }
-                        <h2 class="fs-4 fw-bold mb-0">@Model.AgentNames</h2>
-                    </div>
-                    @if (!string.IsNullOrEmpty(Model.BranchName))
-                    {
-                        <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
-                            <span class="badge bg-primary">
-                                <i class="ti ti-building-bank me-1"></i>@Model.BranchName
-                            </span>
                         </div>
-                    }
+                    </div>
+                    <div>
+                        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-sm btn-brown">
+                            <i class="ti ti-pencil me-1"></i>Edit
+                        </a>
+                        <a asp-action="Deactivate" asp-route-id="@Model.Id" class="btn btn-sm btn-danger">
+                            <i class="ti ti-trash me-1"></i>Deactivate
+                        </a>
+                        <a asp-action="Index" class="btn btn-sm btn-yellow">
+                            <i class="ti ti-arrow-left me-1"></i>Back
+                        </a>
+                    </div>
+                    
                 </div>
             </div>
 
@@ -42,36 +64,18 @@
                             <span class="d-block text-muted small mb-2 text-uppercase">National Identification Number (NIN)</span>
                             <span class="d-block fw-normal">@Model.NIN</span>
                         </div>
-
-                        @if (!string.IsNullOrEmpty(Model.PhoneNumber))
-                        {
-                            <div class="field mb-4">
-                                <span class="d-block text-muted small mb-2 text-uppercase">Phone Number</span>
-                                <span class="d-block fw-normal">@Model.PhoneNumber</span>
-                            </div>
-                        }
-                    </div>
-                    <div class="col-md-6">
                         @if (!string.IsNullOrEmpty(Model.WorkIdScan))
                         {
                             <div class="field mb-4">
                                 <span class="d-block text-muted small mb-2 text-uppercase">Work ID Scan</span>
-                                <a href="@Model.WorkIdScan" target="_blank" class="btn btn-sm btn-outline-primary">
+                                @* <a href="@Model.WorkIdScan" target="_blank" class="btn btn-sm btn-outline-primary">
                                     <i class="ti ti-file me-1"></i>View Work ID
-                                </a>
+                                </a> *@
+                                <img id=""
+                                     src="@Model.WorkIdScan" alt="Work ID Scan"
+                                     class="rounded-2 border img-scan"/>
                             </div>
                         }
-
-                        @if (!string.IsNullOrEmpty(Model.SignatureScan))
-                        {
-                            <div class="field mb-4">
-                                <span class="d-block text-muted small mb-2 text-uppercase">Signature Scan</span>
-                                <a href="@Model.SignatureScan" target="_blank" class="btn btn-sm btn-outline-primary">
-                                    <i class="ti ti-file me-1"></i>View Signature
-                                </a>
-                            </div>
-                        }
-
                         @if (!string.IsNullOrEmpty(Model.ApprovalAttachment))
                         {
                             <div class="field mb-4">
@@ -81,20 +85,239 @@
                                 </a>
                             </div>
                         }
+                        
                     </div>
-                </div>
-            </div>
+                    <div class="col-md-6">
+                        @if (!string.IsNullOrEmpty(Model.PhoneNumber))
+                        {
+                            <div class="field mb-4">
+                                <span class="d-block text-muted small mb-2 text-uppercase">Phone Number</span>
+                                <span class="d-block fw-normal">@Model.PhoneNumber</span>
+                            </div>
+                        }
+                        @if (!string.IsNullOrEmpty(Model.SignatureScan))
+                        {
+                            <div class="field mb-4">
+                                <span class="d-block text-muted small mb-2 text-uppercase">Signature Scan</span>
+                                @* <a href="@Model.SignatureScan" target="_blank" class="btn btn-sm btn-outline-primary">
+                                    <i class="ti ti-file me-1"></i>View Signature
+                                </a> *@
+                                <img id=""
+                                     src="@Model.SignatureScan" alt="Signature Scan"
+                                     class="rounded-2 border img-scan"/>
+                            </div>
+                        }
 
-            <div class="card-footer bg-transparent border-top pt-3">
-                <div class="d-flex gap-2">
-                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">
-                        <i class="ti ti-pencil me-1"></i>Edit
-                    </a>
-                    <a asp-action="Index" class="btn btn-secondary">
-                        <i class="ti ti-arrow-left me-1"></i>Back
-                    </a>
+                        
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<div class="row">
+    <div class="col-12">
+        <!-- Status History Section -->
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-white border-bottom no-after">
+                <h6 class="card-title mb-0">
+                    <i class="ti ti-message me-2 text-secondary"></i>Comments
+                </h6>
+            </div>
+            <div class="card-body">
+                @if (Model.StatusHistory != null && Model.StatusHistory.Any())
+                {
+                    <div class="timeline">
+                        @foreach (var history in Model.StatusHistory.OrderBy(x => x.ChangedAt))
+                        {
+                            <div class="timeline-item mb-4">
+                                <div class="d-flex gap-3">
+                                    <div class="timeline-marker">
+                                        <i class="ti ti-circle-check text-success"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h6 class="mb-1 small">
+                                                    <strong>@history.OldStatusName</strong>
+                                                    <i class="ti ti-arrow-right text-muted"></i>
+                                                    <strong>@history.NewStatusName</strong>
+                                                </h6>
+                                                <small class="text-muted">
+                                                    By: <strong>@history.ChangedBy</strong>
+                                                </small>
+                                            </div>
+                                            <small class="text-muted">
+                                                @history.ChangedAt.ToString("dd/MMM/yyyy HH:mm:ss")
+                                            </small>
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(history.Remarks))
+                                        {
+                                            <div class="mt-2 p-2 bg-white rounded border">
+                                                <span class="d-block">@history.Remarks</span>
+                                            </div>
+                                        }
+
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted text-center">
+                        <i class="ti ti-inbox me-2"></i>No comments yet.
+                    </p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <!-- Workflow Actions Section -->
+        @if (Model.AvailableTransitions.Any())
+        {
+            <div class="card border-0 bg-white mb-1 shadow-sm">
+                <div class="card-header bg-white border-bottom no-after">
+                    <h6 class="card-title mb-0">
+                        <i class="ti ti-checkbox me-2 text-primary"></i>Available Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="post" asp-action="ExecuteAction" asp-route-id="@Model.Id" id="workflowForm">
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Action <span class="text-danger">*</span>
+                            </label>
+                            <select id="actionSelect" name="actionName" class="form-select" required>
+                                <option value="">-- Select an action --</option>
+                                @foreach (var transition in Model.AvailableTransitions)
+                                {
+                                    <option value="@transition.ActionName" data-requires-comments="@transition.RequiresComments.ToString().ToLower()" data-button-class="@transition.ButtonClass" data-display-label="@transition.DisplayLabel">
+                                        @transition.DisplayLabel
+                                    </option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Comments
+                                <span id="commentRequired" class="text-danger" style="display: none;">*</span>
+                            </label>
+                            <textarea id="remarksTextarea"
+                                  class="form-control"
+                                  name="remarks"
+                                  rows="3"
+                                  placeholder="Enter your comments..."></textarea>
+                            <small id="commentHint" class="text-muted d-block mt-1"></small>
+                        </div>
+
+                        <button type="submit" id="submitBtn" class="text-white btn btn-brown" disabled>
+                            <i class="ti ti-check me-1"></i><span id="submitBtnLabel">Submit</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .timeline {
+        position: relative;
+        padding-left: 0;
+    }
+
+    .timeline-item {
+        position: relative;
+    }
+
+    .timeline-marker {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background-color: #f0f0f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+        .timeline-marker i {
+            font-size: 16px;
+        }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const actionSelect = document.getElementById('actionSelect');
+        const remarksTextarea = document.getElementById('remarksTextarea');
+        const commentRequired = document.getElementById('commentRequired');
+        const commentHint = document.getElementById('commentHint');
+        const submitBtn = document.getElementById('submitBtn');
+        const submitBtnLabel = document.getElementById('submitBtnLabel');
+
+        // Define hint messages for each action
+        const hintMessages = {
+            'Verify': 'Provide your verification comments.',
+            'Reject': 'Explain why you are rejecting this procurement.',
+            'Resubmit': 'Explain what changes were made.'
+        };
+
+        // Handle action selection change
+        actionSelect.addEventListener('change', function () {
+            const selectedOption = this.options[this.selectedIndex];
+            const requiresComments = selectedOption.dataset.requiresComments === 'true';
+            const actionName = selectedOption.value;
+            const displayLabel = selectedOption.dataset.displayLabel;
+            const buttonClass = selectedOption.dataset.buttonClass;
+
+            if (actionName) {
+                // Update comment requirement
+                if (requiresComments) {
+                    commentRequired.style.display = 'inline';
+                    remarksTextarea.required = true;
+                } else {
+                    commentRequired.style.display = 'none';
+                    remarksTextarea.required = false;
+                }
+
+                // Update hint message
+                commentHint.textContent = hintMessages[actionName] || '';
+
+                // Update button
+                submitBtn.disabled = false;
+                submitBtnLabel.textContent = displayLabel;
+                submitBtn.className = `text-white btn ${buttonClass}`;
+            } else {
+                // Reset to default state
+                commentRequired.style.display = 'none';
+                remarksTextarea.required = false;
+                remarksTextarea.value = '';
+                commentHint.textContent = '';
+                submitBtn.disabled = true;
+                submitBtnLabel.textContent = 'Submit';
+                submitBtn.className = 'text-white btn btn-primary';
+            }
+        });
+
+        // Form submission validation
+        document.getElementById('workflowForm').addEventListener('submit', function (e) {
+            const selectedOption = actionSelect.options[actionSelect.selectedIndex];
+            const requiresComments = selectedOption.dataset.requiresComments === 'true';
+            const remarksValue = remarksTextarea.value.trim();
+
+            if (requiresComments && !remarksValue) {
+                e.preventDefault();
+                alert('Comments are required for this action.');
+                remarksTextarea.focus();
+                return false;
+            }
+        });
+    });
+</script>

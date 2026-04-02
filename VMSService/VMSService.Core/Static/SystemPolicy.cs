@@ -13,6 +13,12 @@
 
             public const string BranchManager = "Branch Manager";
             public const string RemittancesOfficer = "Remittances and Control Officer";
+
+            public const string CbMaker = "CB Maker";
+            public const string CbApprover = "CB Approver";
+            public const string BouChecker = "Bou Checker";
+            public const string PanelA = "Panel A";
+            public const string PanelB = "Panel B";
         }
 
         public static class ClaimType
@@ -29,6 +35,7 @@
             public const string StockApprover = "VMS:Stock Approver";
             public const string CurrencyApprover = "VMS:Currency Approver";
             public const string Director = "VMS:Director";
+            public const string CbId = "cbId";
         }
 
         public static class SystemSettings

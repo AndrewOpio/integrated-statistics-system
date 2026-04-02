@@ -29,13 +29,12 @@ namespace VMSService.Data.Configurations
         public DbSet<StockMovementDenominationSerialNumberRange> StockMovementDenominationSerialNumberRanges { get; set; }
         public DbSet<StockMovementStatusHistory> StockMovementStatusHistory { get; set; }
         public DbSet<StockMovementDiscrepancy> StockMovementDiscrepancies { get; set; }
-        public DbSet<CommercialBankUser> CommercialBankUsers { get; set; }
         public DbSet<AgentDetail> AgentDetails { get; set; }
         public DbSet<WithdrawalRequest> WithdrawalRequests { get; set; }
         public DbSet<WithdrawalRequestAgent> WithdrawalRequestAgents { get; set; }
         public DbSet<WithdrawalRequestDenomination> WithdrawalRequestDenominations { get; set; }
         public DbSet<WithdrawalRequestStatusHistory> WithdrawalRequestStatusHistory { get; set; }
-
+        public DbSet<AgentDetailStatusHistory> AgentDetailStatusHistory { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

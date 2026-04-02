@@ -1,14 +1,14 @@
 @model VMSService.Core.Models.AgentDetails.AgentDetailViewModel
 
 @{
-    Layout = "_CbLayout";
+    Layout = "_CbLayoutOther";
     ViewData["Title"] = "Create Agent";
 }
 
 <div class="row">
     <div class="col-12 col-lg-12">
-        <div class="card border-0 shadow mb-4">
-            <div class="card-header">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white p-3">
                 <h2 class="fs-5 fw-bold mb-0">Register New Agent</h2>
             </div>
             <div class="card-body">
@@ -74,10 +74,10 @@
                         </div>
                     </div>
                     <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-brown">
                             <i class="ti ti-check me-1"></i>Save
                         </button>
-                        <a asp-action="Index" class="btn btn-secondary">
+                        <a asp-action="Index" class="btn btn-yellow">
                             <i class="ti ti-arrow-left me-1"></i>Cancel
                         </a>
                     </div>

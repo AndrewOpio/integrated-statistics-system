@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Logging;
 using NotificationService.Client;
 using NotificationService.Client.Dtos;
+using VMSService.Core.Repositories.AgentDetails;
+using VMSService.Core.Repositories.AgentDetailStatusHistories;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
 using VMSService.Core.Repositories.ExpectedCurrencies;
@@ -31,7 +33,9 @@ namespace VMSService.Core.Services.Workflows
         IStockMovementDiscrepancyRepository _stockMovementDiscrepancyRepository,
         IWorkflowServiceClient _workflowServiceClient,
         INotificationServiceClient _notificationServiceClient,
-        IIdentityService _identityService) : IWorkflowService
+        IIdentityService _identityService,
+        IAgentDetailRepository _agentDetailRepository,
+        IAgentDetailStatusHistoryRepository _agentDetailStatusHistoryRepository) : IWorkflowService
     {
         public async Task<bool> ExecuteTransition(
             string entityType, int entityId, int currentStatusId, 
@@ -76,7 +80,10 @@ namespace VMSService.Core.Services.Workflows
                     
                     case StatusConstants.Entity.StockMovement:
                         return await HandleStockMovementTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
-                    
+
+                    case StatusConstants.Entity.AgentDetail:
+                        return await HandleAgentDetailTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
+
                     default:
                         _logger.LogWarning("Unknown entity type: {EntityType}", entityType);
                         return false;
@@ -340,8 +347,8 @@ namespace VMSService.Core.Services.Workflows
                         <li><strong>Transition Time:</strong> {DateTime.Now:yyyy-MM-dd HH:mm:ss}</li>
                     </ul>
                     <p>Please log in to the VMS system for more details.</p>
-                    <p>Thank you</p>
-                    <small>This is an automated message. Please do not reply.</small>";
+                    <p>Thank you.</p>
+                    <small>THIS IS AN AUTOMATED MESSAGE. PLEASE DO NOT REPLY.</small>";
 
                 var notificationRequest = new SendNotificationRequestDto
                 {
@@ -417,6 +424,58 @@ namespace VMSService.Core.Services.Workflows
                 _logger.LogError(ex, "Error executing discrepancy transition for Discrepancy {Id}", discrepancyId);
                 return false;
             }
+        }
+
+        private async Task<bool> HandleAgentDetailTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition)
+        {
+            var agentDetail = await _agentDetailRepository.FindById(entityId);
+            if (agentDetail == null)
+            {
+                _logger.LogWarning("Agent Detail {Id} not found", entityId);
+                return false;
+            }
+
+            // Verify current status matches
+            if (agentDetail.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Agent Detail {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, agentDetail.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            // Create status history record
+            var statusHistory = new AgentDetailStatusHistory
+            {
+                AgentDetailId = entityId,
+                OldStatusId = agentDetail.CurrentStatusId,
+                NewStatusId = transition.ToStatusId,
+                ChangedBy = username,
+                ChangedAt = DateTime.Now,
+                Remarks = remarks,
+                IsDeleted = false
+            };
+
+            await _agentDetailStatusHistoryRepository.Create(statusHistory);
+
+            // Update agent detail status
+            agentDetail.CurrentStatusId = transition.ToStatusId;
+            await _agentDetailRepository.Update(agentDetail);
+
+            // Send notifications
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                $"Agent {agentDetail.AgentNames}",
+                transition,
+                transition.ToStatus.Name,
+                username, remarks);
+            }
+
+            _logger.LogInformation("Agent Detail {Id} transitioned from status {From} to {To} by user {Username} with action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
         }
     }
 }

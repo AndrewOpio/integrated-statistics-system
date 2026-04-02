@@ -7,11 +7,11 @@
     public static class RolePolicy
     {
         // ── Role names ────────────────────────────────────────────
-        public const string CbMaker = "maker";
+        public const string CbMaker = "CB Maker";
         public const string CbApprover = "CB Approver";
         public const string BouChecker = "Bou Checker";
-        public const string PanelA = "panel a";
-        public const string PanelB = "pabel b";
+        public const string PanelA = "Panel A";
+        public const string PanelB = "Panel B";
 
         // ── Groupings ─────────────────────────────────────────────
         public static readonly IReadOnlySet<string> CbRoles =

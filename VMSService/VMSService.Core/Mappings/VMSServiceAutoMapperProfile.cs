@@ -22,6 +22,7 @@ using VMSService.Data.Entities;
 using VMSService.Core.Services.Identity.IdentityEntities;
 using VMSService.Core.Models.AgentDetails;
 using ConfigurationsService.Dto;
+using VMSService.Core.Model.AgentDetailStatusHistories;
 
 namespace VMSService.Core.Mappings
 {
@@ -62,9 +63,9 @@ namespace VMSService.Core.Mappings
                 .ReverseMap();
 
             CreateMap<CommercialBankDto, CommercialBankViewModel>().ReverseMap();
-            CreateMap<CommercialBankUser, CommercialBankUserViewModel>().ReverseMap();
             CreateMap<NonStaffUser, NonStaffUserViewModel>().ReverseMap();
             CreateMap<AgentDetail, AgentDetailViewModel>().ReverseMap();
+            CreateMap<AgentDetailStatusHistory, AgentDetailStatusHistoryViewModel>().ReverseMap();
         }
     }
 }

@@ -54,6 +54,16 @@
             public const string DiscrepancyResolved = "Discrepancy Resolved";
         }
 
+        public static class AgentDetail
+        {
+            public const string Draft = "Draft";
+            public const string Returned = "Returned";
+            public const string PendingInternalApproval = "Pending Internal Approval";
+            public const string PendingBouApproval = "Pending BOU Approval";
+            public const string Rejected = "Rejected";
+            public const string Approved = "Approved";
+        }
+
         public static class Entity
         {
             public const string ApprovedCurrencyProcurement = "ApprovedCurrencyProcurement";
@@ -61,6 +71,7 @@
             public const string ReceivedStock = "ReceivedStock";
             public const string StockMovement = "StockMovement";
             public const string StockMovementDiscrepancy = "StockMovementDiscrepancy";
+            public const string AgentDetail = "AgentDetail";
         }
     }
 }

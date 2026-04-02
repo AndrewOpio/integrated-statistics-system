@@ -16,5 +16,6 @@ namespace VMSService.Data.Entities
         public string ApprovalAttachment { get; set; }
         public bool IsDeleted { get; set; }
         public int CurrentStatusId { get; set; }
+        public bool IsActive { get; set; } = true;
     }
 }
