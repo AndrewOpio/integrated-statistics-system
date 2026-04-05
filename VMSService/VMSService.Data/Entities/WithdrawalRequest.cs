@@ -11,14 +11,15 @@ namespace VMSService.Data.Entities
     {
         public Guid Id { get; set; } = Guid.NewGuid();
         //BOUBranch-CbCode-W-CollectionDate-SequenceNumber
-        public string TraansactionRefNumber { get; set; } = string.Empty;
+        public string? TransactionRefNumber { get; set; } = string.Empty;
         public int CbId { get; set; }
-        public Guid cbUserId { get; set; }
         public string CbCode { get; set; } = string.Empty;
-        public string InitiatorUserId { get; set; } = string.Empty;
-        public string? SupervisorUserId { get; set; }
-        public int CbBranchId { get; set; }
+        //public Guid cbUserId { get; set; }
+        //public string InitiatorUserId { get; set; } = string.Empty;
+        //public string? SupervisorUserId { get; set; }
+        //public int CbBranchId { get; set; }
         public int BouBranchId { get; set; }
+        public string BouBranchCode { get; set; } = string.Empty;
         public DateOnly CollectionDate { get; set; }
         public DateOnly? RtgsDate { get; set; }
         public string? RtgsCode { get; set; }
@@ -31,6 +32,7 @@ namespace VMSService.Data.Entities
         public DateTime? SpecialApprovalAt { get; set; }
 
         public int StatusTypeId { get; set; }
+        public string StatusTypeName { get; set; } = string.Empty;
         public decimal TotalNotesAmount { get; set; }
         public decimal TotalCoinsAmount { get; set; }
         public decimal TotalAmount { get; set; }

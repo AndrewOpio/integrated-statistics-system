@@ -12,5 +12,7 @@ namespace ConfigurationsService.Client
         Task<CommercialBankBranchDto> GetCbBranchByIdAsync(int id);
         Task<IEnumerable<BranchDto>> GetAllBouBranchesAsync();
         Task<BranchDto> GetBouBranchByIdAsync(int id);
+        Task<IEnumerable<CommercialBankDto>> GetAllCommercialBankAsync();
+        Task<CommercialBankDto> GetCbIdAsync(int id);
     }
 }

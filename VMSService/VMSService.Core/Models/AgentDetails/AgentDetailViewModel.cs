@@ -27,6 +27,7 @@ namespace VMSService.Core.Models.AgentDetails
         public string NIN { get; set; } //National Identification Number
 
         [Display(Name = "Phone Number")]
+        [RegularExpression(@"^\d{9}$", ErrorMessage = "Phone number must be exactly 9 digits (e.g. 712345678)")]
         public string? PhoneNumber { get; set; }
 
         [Display(Name = "Passport Photo")]
@@ -60,7 +61,7 @@ namespace VMSService.Core.Models.AgentDetails
         public int CurrentStatusId { get; set; }
 
         public bool IsDeleted { get; set; }
-        public bool IsActive { get; set; }
+        public bool IsActive { get; set; } = true;
         public string? CurrentStatusName { get; set; }
 
         // Select lists

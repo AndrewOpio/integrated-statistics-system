@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using VMSService.Data.Configurations;
 using VMSService.Data.Entities;
+using static VMSService.Core.Static.WithdrawStatuses;
 
 namespace VMSService.Core.Repositories.WithdrawalRequestDenominations
 {
@@ -50,6 +51,30 @@ namespace VMSService.Core.Repositories.WithdrawalRequestDenominations
         => _db.WithdrawalRequestDenominations.RemoveRange(
             _db.WithdrawalRequestDenominations
               .Where(d => d.WithdrawalRequestId == requestId && d.Origin == origin));
+
+        public async Task CopyToBouAsync(Guid requestId, string userId, CancellationToken ct)
+        {
+            var cbLines = await _db.WithdrawalRequestDenominations
+                .Where(d => d.WithdrawalRequestId == requestId
+                         && d.Origin == WithdrawalOrigin.Cb)
+                .ToListAsync(ct);
+
+            foreach (var line in cbLines)
+            {
+                await _db.WithdrawalRequestDenominations.AddAsync(new WithdrawalRequestDenomination
+                {
+                    WithdrawalRequestId = requestId,
+                    DenominationId = line.DenominationId,
+                    DenominationTypeId = line.DenominationTypeId,
+                    Bundles = line.Bundles,
+                    Boxes = line.Boxes,
+                    Amount = line.Amount,
+                    Origin = WithdrawalOrigin.Bou,
+                    CreatedBy = userId,
+                    CreatedDate = DateTime.Now,
+                }, ct);
+            }
+        }
 
     }
 }

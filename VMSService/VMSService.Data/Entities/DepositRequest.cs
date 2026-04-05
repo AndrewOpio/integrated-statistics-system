@@ -6,7 +6,7 @@ namespace VMSService.Data.Entities
     {
         public Guid Id { get; set; } = Guid.NewGuid();
         //BOUBranch-CbCode-D-DepositDate-SequenceNumber
-        public string TraansactionRefNumber { get; set; } = string.Empty;
+        public string TransactionRefNumber { get; set; } = string.Empty;
         public int CbId { get; set; }
         public Guid cbUserId { get; set; }
         public string CbCode { get; set; } = string.Empty;

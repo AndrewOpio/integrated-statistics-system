@@ -33,6 +33,27 @@
                     <input type="hidden" asp-for="ApprovalAttachment">
                     <div class="row">
                         <div class="col-md-6">
+                            <!-- Passport Photo -->
+                            <div class="mb-3">
+                                <label class="form-label" asp-for="PassportPhotoFile">Passport Photo</label>
+                                @if (!string.IsNullOrEmpty(Model.PassportPhoto))
+                                {
+                                    <div class="border rounded-2 p-3 bg-light d-flex align-items-center gap-3 mb-2">
+                                        <img src="@Model.PassportPhoto" alt="Current Photo" class="rounded" style="width: 48px; height: 48px; object-fit: cover; flex-shrink: 0;">
+                                        <div class="flex-grow-1">
+                                            <span class="d-block fw-semibold small">Current Passport Photo</span>
+                                            <span class="d-block text-muted" style="font-size: 11px;">Uploaded attachment</span>
+                                        </div>
+                                        <a href="@Model.PassportPhoto" target="_blank" class="btn btn-sm btn-outline-secondary" title="View full size">
+                                            <i class="ti ti-external-link"></i>
+                                        </a>
+                                    </div>
+                                }
+                                <input type="file" class="form-control" id="PassportPhotoFile" name="PassportPhotoFile" accept="image/*">
+                                <small class="text-muted">Leave empty to keep current photo</small>
+                                <span asp-validation-for="PassportPhotoFile" class="text-danger small d-block mt-1"></span>
+                            </div>
+
                             <div class="mb-3">
                                 <label class="form-label" asp-for="AgentNames">Agent Names <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" asp-for="AgentNames" required placeholder="Enter agent names as per work ID">
@@ -46,7 +67,13 @@
                             </div>
                             <div class="mb-3">
                                 <label class="form-label" asp-for="PhoneNumber">Phone Number</label>
-                                <input type="tel" class="form-control" asp-for="PhoneNumber" placeholder="Enter phone number">
+                                <div class="input-group">
+                                    <span class="input-group-text fw-semibold">+256</span>
+                                    <input type="tel" class="form-control" asp-for="PhoneNumber"
+                                           placeholder="712345678" maxlength="9"
+                                           pattern="\d{9}" title="Enter 9 digits after +256">
+                                </div>
+                                <small class="text-muted">Enter the 9 digits after the country code</small>
                                 <span asp-validation-for="PhoneNumber" class="text-danger small d-block mt-1"></span>
                             </div>
                             <div class="mb-3">
@@ -63,15 +90,88 @@
                                 </select>
                                 <span asp-validation-for="CommercialBankBranchId" class="text-danger small d-block mt-1"></span>
                             </div>
+                        </div>
+                        <div class="col-md-6">
+                            
+
+                            <!-- Work ID Scan -->
+                            <div class="mb-3">
+                                <label class="form-label" asp-for="WorkIdScanFile">Work ID Scan</label>
+                                @if (!string.IsNullOrEmpty(Model.WorkIdScan))
+                                {
+                                    <div class="border rounded-2 p-3 bg-light d-flex align-items-center gap-3 mb-2">
+                                        <div class="d-flex align-items-center justify-content-center rounded-2 bg-white" style="width: 48px; height: 48px; flex-shrink: 0;">
+                                            <i class="ti ti-id text-primary fs-4"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <span class="d-block fw-semibold small">Current Work ID Scan</span>
+                                            <span class="d-block text-muted" style="font-size: 11px;">Uploaded attachment</span>
+                                        </div>
+                                        <a href="@Model.WorkIdScan" target="_blank" class="btn btn-sm btn-outline-secondary" title="View document">
+                                            <i class="ti ti-external-link"></i>
+                                        </a>
+                                    </div>
+                                }
+                                <input type="file" class="form-control" id="WorkIdScanFile" name="WorkIdScanFile" accept="image/*,.pdf">
+                                <small class="text-muted">Leave empty to keep current file</small>
+                                <span asp-validation-for="WorkIdScanFile" class="text-danger small d-block mt-1"></span>
+                            </div>
+
+                            <!-- Signature Scan -->
+                            <div class="mb-3">
+                                <label class="form-label" asp-for="SignatureScanFile">Signature Scan</label>
+                                @if (!string.IsNullOrEmpty(Model.SignatureScan))
+                                {
+                                    <div class="border rounded-2 p-3 bg-light d-flex align-items-center gap-3 mb-2">
+                                        <div class="d-flex align-items-center justify-content-center rounded-2 bg-white" style="width: 48px; height: 48px; flex-shrink: 0;">
+                                            <i class="ti ti-signature text-success fs-4"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <span class="d-block fw-semibold small">Current Signature Scan</span>
+                                            <span class="d-block text-muted" style="font-size: 11px;">Uploaded attachment</span>
+                                        </div>
+                                        <a href="@Model.SignatureScan" target="_blank" class="btn btn-sm btn-outline-secondary" title="View document">
+                                            <i class="ti ti-external-link"></i>
+                                        </a>
+                                    </div>
+                                }
+                                <input type="file" class="form-control" id="SignatureScanFile" name="SignatureScanFile" accept="image/*,.pdf">
+                                <small class="text-muted">Leave empty to keep current file</small>
+                                <span asp-validation-for="SignatureScanFile" class="text-danger small d-block mt-1"></span>
+                            </div>
+
+                            <!-- MD Approval Attachment -->
+                            <div class="mb-3">
+                                <label class="form-label" asp-for="ApprovalAttachmentFile">MD Approval Attachment</label>
+                                @if (!string.IsNullOrEmpty(Model.ApprovalAttachment))
+                                {
+                                    <div class="border rounded-2 p-3 bg-light d-flex align-items-center gap-3 mb-2">
+                                        <div class="d-flex align-items-center justify-content-center rounded-2 bg-white" style="width: 48px; height: 48px; flex-shrink: 0;">
+                                            <i class="ti ti-file-certificate text-purple fs-4"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <span class="d-block fw-semibold small">Current MD Approval</span>
+                                            <span class="d-block text-muted" style="font-size: 11px;">Uploaded attachment</span>
+                                        </div>
+                                        <a href="@Model.ApprovalAttachment" target="_blank" class="btn btn-sm btn-outline-secondary" title="View document">
+                                            <i class="ti ti-external-link"></i>
+                                        </a>
+                                    </div>
+                                }
+                                <input type="file" class="form-control" id="ApprovalAttachmentFile" name="ApprovalAttachmentFile" accept="image/*,.pdf">
+                                <small class="text-muted">Leave empty to keep current file</small>
+                                <span asp-validation-for="ApprovalAttachmentFile" class="text-danger small d-block mt-1"></span>
+                            </div>
+
                             <!-- IsActive toggle switch -->
                             <div class="form-group mb-3">
                                 <div class="d-flex align-items-center">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" asp-for="IsActive" role="switch"
+                                    <div class="form-check form-switch d-flex align-items-center">
+                                        <input class="form-check-input cursor-pointer" type="checkbox" asp-for="IsActive" role="switch"
                                                id="flexSwitchIsActive" style="width: 3em; height: 1.5em;">
-                                        <label class="form-check-label ms-2 fw-medium" asp-for="IsActive">
+                                        <label class="form-check-label ms-1 fw-medium" asp-for="IsActive">
                                             <span id="statusText" class="ms-1">
-                                                <span class="text-success" id="activeText">Active</span>
+                                                <span id="activeText">Active</span>
                                                 <span class="text-danger d-none" id="inactiveText">Inactive</span>
                                             </span>
                                         </label>
@@ -80,65 +180,8 @@
                                 <span asp-validation-for="IsActive" class="text-danger d-block mt-1"></span>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label" asp-for="PassportPhotoFile">Passport Photo <span class="text-danger">*</span></label>
-                                @if (!string.IsNullOrEmpty(Model.PassportPhoto))
-                                {
-                                    <div class="mb-2">
-                                        <img src="@Model.PassportPhoto" alt="Current Photo" class="rounded" style="max-height: 100px;">
-                                        <small class="d-block text-muted">Current photo</small>
-                                    </div>
-                                }
-                                <input type="file" class="form-control" asp-for="PassportPhotoFile" accept="image/*">
-                                <small class="text-muted">Leave empty to keep current photo</small>
-                                <span asp-validation-for="PassportPhotoFile" class="text-danger small d-block mt-1"></span>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label" asp-for="WorkIdScanFile">Work ID Scan <span class="text-danger">*</span></label>
-                                @if (!string.IsNullOrEmpty(Model.WorkIdScan))
-                                {
-                                    <div class="mb-2">
-                                        <a href="@Model.WorkIdScan" target="_blank" class="btn btn-sm btn-outline-secondary">
-                                            <i class="ti ti-file me-1"></i>View Current File
-                                        </a>
-                                    </div>
-                                }
-                                <input type="file" class="form-control" asp-for="WorkIdScanFile" accept="image/*,.pdf">
-                                <small class="text-muted">Leave empty to keep current file</small>
-                                <span asp-validation-for="WorkIdScanFile" class="text-danger small d-block mt-1"></span>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label" asp-for="SignatureScanFile">Signature Scan <span class="text-danger">*</span></label>
-                                @if (!string.IsNullOrEmpty(Model.SignatureScan))
-                                {
-                                    <div class="mb-2">
-                                        <a href="@Model.SignatureScan" target="_blank" class="btn btn-sm btn-outline-secondary">
-                                            <i class="ti ti-file me-1"></i>View Current File
-                                        </a>
-                                    </div>
-                                }
-                                <input type="file" class="form-control" asp-for="SignatureScanFile" accept="image/*,.pdf">
-                                <small class="text-muted">Leave empty to keep current file</small>
-                                <span asp-validation-for="SignatureScanFile" class="text-danger small d-block mt-1"></span>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label" asp-for="ApprovalAttachmentFile">MD Approval Attachment <span class="text-danger">*</span></label>
-                                @if (!string.IsNullOrEmpty(Model.ApprovalAttachment))
-                                {
-                                    <div class="mb-2">
-                                        <a href="@Model.ApprovalAttachment" target="_blank" class="btn btn-sm btn-outline-secondary">
-                                            <i class="ti ti-file me-1"></i>View Current File
-                                        </a>
-                                    </div>
-                                }
-                                <input type="file" class="form-control" id="ApprovalAttachmentFile" name="ApprovalAttachmentFile" accept="image/*,.pdf">
-                                <small class="text-muted">Leave empty to keep current file</small>
-                                <span asp-validation-for="ApprovalAttachmentFile" class="text-danger small d-block mt-1"></span>
-                            </div>
-                        </div>
                     </div>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 mt-4">
                         <button type="submit" class="btn btn-brown">
                             <i class="ti ti-check me-1"></i>Update
                         </button>
@@ -156,4 +199,34 @@
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const phoneInput = document.getElementById('PhoneNumberInput');
+            const phoneHidden = document.getElementById('PhoneNumberHidden');
+
+            // Only allow digits
+            phoneInput.addEventListener('input', function () {
+                this.value = this.value.replace(/\D/g, '').substring(0, 9);
+                syncHiddenField();
+            });
+
+            // Sync hidden field on any change
+            phoneInput.addEventListener('change', function () {
+                syncHiddenField();
+            });
+
+            function syncHiddenField() {
+                const digits = phoneInput.value.replace(/\D/g, '');
+                phoneHidden.value = digits;
+            }
+
+            // Sync on page load (for Edit with existing value)
+            syncHiddenField();
+
+            // Intercept form submission to ensure sync
+            phoneInput.closest('form').addEventListener('submit', function () {
+                syncHiddenField();
+            });
+        });
+    </script>
 }

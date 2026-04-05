@@ -19,17 +19,18 @@
 -->
 
 @{
-    var userRoles = User.FindAll("appRole").Select(c => c.Value);
-    bool isAdmin = userRoles.Contains("VMS:Admin");
-    bool isCurrencyApprover = userRoles.Contains("VMS:Currency Approver");
-    bool isContractManager = userRoles.Contains("VMS:Contract Manager");
-    bool isStockVerifier = userRoles.Contains("VMS:Stock Verifier");
-    bool isStockApprover = userRoles.Contains("VMS:Stock Approver");
+    // var userRoles = User.FindAll("appRole").Select(c => c.Value);
+    var userRoles = string.Join(", ", User.FindAll("appRole").Where(c => c.Value.StartsWith("VMS:")).Select(c => c.Value.Split(":")[1]).ToList());
+    bool isAdmin = userRoles.Contains(SystemPolicy.Roles.Admin);
+    bool isCurrencyApprover = userRoles.Contains(SystemPolicy.Roles.CurrencyApprover);
+    bool isContractManager = userRoles.Contains(SystemPolicy.Roles.ContractManager);
+    bool isStockVerifier = userRoles.Contains(SystemPolicy.Roles.StockVerifier);
+    bool isStockApprover = userRoles.Contains(SystemPolicy.Roles.StockApprover);
     
-    bool isRemittancesOfficer = userRoles.Contains("VMS:Remittances and Control Officer");
-    bool isHeadOfBackOffice = userRoles.Contains("VMS:Head of Back Office");
-    bool isBranchManager = userRoles.Contains("VMS:Branch Manager");
-    bool isAssistantBranchManager = userRoles.Contains("VMS:Assistant Branch Manager");
+    bool isRemittancesOfficer = userRoles.Contains(SystemPolicy.Roles.RemittancesOfficer);
+    bool isHeadOfBackOffice = userRoles.Contains(SystemPolicy.Roles.HeadBackOffice);
+    bool isBranchManager = userRoles.Contains(SystemPolicy.Roles.StockApprover);
+    bool isAssistantBranchManager = userRoles.Contains(SystemPolicy.Roles.StockVerifier);
 
     // bool isCommercialBank = userRoles.Contains("VMS:Commercial Bank");
     // bool isStockReceiver = userRoles.Contains("VMS:StockReceiver");
@@ -154,6 +155,23 @@
                             <span class="sidebar-text">Stock Movement</span>
                         </a>
                     </li>
+
+                    <li class="nav-item">
+                        <a asp-controller="Deposits" asp-action="Index" target="_blank" class="nav-link d-flex align-items-center">
+                            <span class="sidebar-icon fs-5 me-4">
+                                <i class="ti ti-circle-arrow-down-left-filled"></i>
+                            </span>
+                            <span class="sidebar-text">Deposits</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a asp-controller="AgentDetails" asp-action="Index" target="_blank" class="nav-link d-flex align-items-center">
+                            <span class="sidebar-icon fs-5 me-4">
+                                <i class="ti ti-user-square-rounded"></i>
+                            </span>
+                            <span class="sidebar-text">Agent Details</span>
+                        </a>
+                    </li>
                 }
 
                 @if (isAdmin)
@@ -259,7 +277,7 @@
             </ul>
         </div>
     </nav>
-    <main class="content">
+    <main class="content min-h-100">
         <nav class="navbar navbar-top navbar-expand navbar-dashboard navbar-dark ps-0 pe-2 pb-0 pt-1">
             <div class="container-fluid px-0">
                 <div class="d-flex justify-content-between w-100" id="navbarSupportedContent">

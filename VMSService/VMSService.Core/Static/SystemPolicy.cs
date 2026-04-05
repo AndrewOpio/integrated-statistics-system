@@ -12,13 +12,16 @@
             public const string Director = "Director";
 
             public const string BranchManager = "Branch Manager";
-            public const string RemittancesOfficer = "Remittances and Control Officer";
+            public const string RemittancesOfficer = "Remittance Officer";
 
             public const string CbMaker = "CB Maker";
             public const string CbApprover = "CB Approver";
             public const string BouChecker = "Bou Checker";
             public const string PanelA = "Panel A";
             public const string PanelB = "Panel B";
+
+            public const string Admin = "Admin";
+            public const string HeadBackOffice = "Head of Back Office";
         }
 
         public static class ClaimType

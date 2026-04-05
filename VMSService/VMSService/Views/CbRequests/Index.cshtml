@@ -1,25 +1,24 @@
 ﻿@using System.Security.Claims
+@using static VMSService.Core.Static.WithdrawStatuses
+@model VMSService.Core.Models.CbRequests.CbRequestsIndexViewModel
 
 @{
     Layout = "_CbLayout";
     ViewData["Title"] = "Dashboard";
 
-    var recentRequests = new[] {
-        new { Id="WR-009", Type="Withdrawal", Amount=300000,  Status="with_bank",           Date="14 Mar 2026", Purpose="Audit team refreshments" },
-        new { Id="WR-002", Type="Withdrawal", Amount=320000,  Status="pending_supervisor",  Date="11 Mar 2026", Purpose="Workshop supplies" },
-        new { Id="DEP-003", Type="Deposit",   Amount=1500000, Status="completed",           Date="09 Mar 2026", Purpose="Sales collections – week 10" },
-        new { Id="WR-001", Type="Withdrawal", Amount=850000,  Status="completed",           Date="10 Mar 2026", Purpose="Staff field allowances" },
-        new { Id="DEP-001", Type="Deposit",   Amount=2200000, Status="rejected",            Date="05 Mar 2026", Purpose="Market collections" },
-    };
+    var recentRequests = Model.RecentRequests;
 
     string BadgeCss(string s) => s switch
     {
-        "pending_supervisor" => "text-bg-warning",
-        "with_bank" => "text-bg-primary",
-        "bank_review" => "text-bg-info",
-        "pending_manager" => "text-bg-secondary",
-        "completed" => "text-bg-success",
-        "rejected" => "text-bg-danger",
+        WithdrawalStatusNames.Draft => "text-bg-secondary",
+        WithdrawalStatusNames.SubmittedToSupervisor => "text-bg-warning",
+        WithdrawalStatusNames.ReturnedForRevision => "text-bg-danger",
+        WithdrawalStatusNames.SubmittedToBank => "text-bg-primary",
+        WithdrawalStatusNames.PendingSpecialApproval => "text-bg-info",
+        WithdrawalStatusNames.Recommended => "text-bg-warning",
+        WithdrawalStatusNames.Approved => "text-bg-success",
+        WithdrawalStatusNames.Rejected => "text-bg-danger",
+        WithdrawalStatusNames.Cancelled => "text-bg-secondary",
         _ => "text-bg-secondary"
     };
     string BadgeLbl(string s) => s switch
@@ -62,7 +61,7 @@
             </a>
             <a asp-controller="AgentDetails" asp-action="Index"
                class="btn btn-light btn-sm fw-semibold d-flex align-items-center gap-1">
-                <i class="ti ti-user-square-rounded text-info"></i>Agent Details
+                <i class="ti ti-user-square-rounded text-purple"></i>Agent Details
             </a>
         </div>
     </div>
@@ -150,7 +149,7 @@
         <div class="d-flex flex-column gap-2">
             @foreach (var r in recentRequests)
             {
-                <a href="/CashWithdrawal?highlight=@r.Id" class="req-row-link">
+                <a href="/CbwithdrawRequests/Details/@r.Id" class="req-row-link">
                     <div class="card border shadow-sm">
                         <div class="card-body py-3 d-flex align-items-center gap-3">
 
@@ -164,14 +163,14 @@
                             <!-- Info -->
                             <div class="flex-grow-1 overflow-hidden">
                                 <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
-                                    <span class="fw-semibold" style="font-size:14px">@r.Purpose</span>
+                                    <span class="fw-semibold" style="font-size:14px">KLA08WR19032601</span>
                                     <span class="tx-pill @(r.Type == "Withdrawal" ? "tx-wd" : "tx-dep")">
                                         <i class="ti @(r.Type == "Withdrawal" ? "ti ti ti-arrow-up-right-circle" : "ti ti ti-arrow-down-left-circle")"></i>
                                         @r.Type
                                     </span>
                                 </div>
                                 <div class="text-muted d-flex gap-3 flex-wrap" style="font-size:12px">
-                                    <span><i class="bi bi-hash"></i> @r.Id</span>
+                                    <span><i class="bi bi-hash"></i> @User.FindFirst("cbName")?.Value</span>
                                     <span><i class="bi bi-calendar3"></i> @r.Date</span>
                                 </div>
                             </div>

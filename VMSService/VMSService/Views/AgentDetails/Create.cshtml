@@ -31,7 +31,14 @@
                             </div>
                             <div class="mb-3">
                                 <label class="form-label" asp-for="PhoneNumber">Phone Number</label>
-                                <input type="tel" class="form-control" asp-for="PhoneNumber" placeholder="Enter phone number">
+                                <div class="input-group">
+                                    <span class="input-group-text fw-semibold">+256</span>
+                                    <input type="tel" class="form-control" id="PhoneNumberInput" asp-for="PhoneNumber"
+                                           placeholder="712345678" maxlength="9"
+                                           pattern="\d{9}" title="Enter 9 digits after +256">
+                                </div>
+                                <input type="hidden" id="PhoneNumberHidden" asp-for="PhoneNumber">
+                                <small class="text-muted">Enter the 9 digits after the country code</small>
                                 <span asp-validation-for="PhoneNumber" class="text-danger small d-block mt-1"></span>
                             </div>
                             <div class="mb-3">
@@ -91,4 +98,34 @@
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const phoneInput = document.getElementById('PhoneNumberInput');
+            const phoneHidden = document.getElementById('PhoneNumberHidden');
+
+            // Only allow digits
+            phoneInput.addEventListener('input', function () {
+                this.value = this.value.replace(/\D/g, '').substring(0, 9);
+                syncHiddenField();
+            });
+
+            // Sync hidden field on any change
+            phoneInput.addEventListener('change', function () {
+                syncHiddenField();
+            });
+
+            function syncHiddenField() {
+                const digits = phoneInput.value.replace(/\D/g, '');
+                phoneHidden.value = digits;
+            }
+
+            // Sync on page load (for Edit with existing value)
+            syncHiddenField();
+
+            // Intercept form submission to ensure sync
+            phoneInput.closest('form').addEventListener('submit', function () {
+                syncHiddenField();
+            });
+        });
+    </script>
 }

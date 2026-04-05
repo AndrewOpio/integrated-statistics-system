@@ -12,8 +12,8 @@ using VMSService.Data.Configurations;
 namespace VMSService.Data.Migrations
 {
     [DbContext(typeof(VMSServiceDbContext))]
-    [Migration("20260402055739_ChangedAgentDetailsStatusHistory")]
-    partial class ChangedAgentDetailsStatusHistory
+    [Migration("20260402100743_InitialMigration")]
+    partial class InitialMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -897,10 +897,11 @@ namespace VMSService.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<int>("BouBranchId")
-                        .HasColumnType("int");
+                    b.Property<string>("BouBranchCode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("CbBranchId")
+                    b.Property<int>("BouBranchId")
                         .HasColumnType("int");
 
                     b.Property<string>("CbCode")
@@ -919,10 +920,6 @@ namespace VMSService.Data.Migrations
 
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("InitiatorUserId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ModifiedBy")
                         .IsRequired()
@@ -952,7 +949,8 @@ namespace VMSService.Data.Migrations
                     b.Property<int>("StatusTypeId")
                         .HasColumnType("int");
 
-                    b.Property<string>("SupervisorUserId")
+                    b.Property<string>("StatusTypeName")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("TotalAmount")
@@ -964,12 +962,8 @@ namespace VMSService.Data.Migrations
                     b.Property<decimal>("TotalNotesAmount")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<string>("TraansactionRefNumber")
-                        .IsRequired()
+                    b.Property<string>("TransactionRefNumber")
                         .HasColumnType("nvarchar(450)");
-
-                    b.Property<Guid>("cbUserId")
-                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
@@ -979,8 +973,9 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("StatusTypeId");
 
-                    b.HasIndex("TraansactionRefNumber")
-                        .IsUnique();
+                    b.HasIndex("TransactionRefNumber")
+                        .IsUnique()
+                        .HasFilter("[TransactionRefNumber] IS NOT NULL");
 
                     b.HasIndex("CbId", "BouBranchId", "CollectionDate");
 
@@ -1121,8 +1116,16 @@ namespace VMSService.Data.Migrations
                     b.Property<int>("NewStatusId")
                         .HasColumnType("int");
 
+                    b.Property<string>("NewStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("OldStatusId")
                         .HasColumnType("int");
+
+                    b.Property<string>("OldStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Remarks")
                         .HasColumnType("nvarchar(max)");

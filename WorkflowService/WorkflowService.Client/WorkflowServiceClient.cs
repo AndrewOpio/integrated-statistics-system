@@ -224,5 +224,29 @@ namespace WorkflowService.Client
                 return new StatusTypeDto();
             }
         }
+
+        public async Task<List<WorkflowTransitionDto>> GetAvailableTransitionsAsync(string entityType, int statusId, int userRole)
+        {
+            try
+            {
+                var requestData = new GetAvailableTransitionsRequestDto
+                {
+                    ApplicationAcronym = "Myapp",
+                    EntityTypeName = entityType,
+                    CurrentStatusId = statusId,
+                    AppRole = userRole,
+                };
+
+                return await this.GetAvailableTransitions(requestData)
+                       ?? new List<WorkflowTransitionDto>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Error fetching available transitions for {EntityType} status {StatusId}",
+                    entityType, statusId);
+                return new List<WorkflowTransitionDto>();
+            }
+        }
     }
 }

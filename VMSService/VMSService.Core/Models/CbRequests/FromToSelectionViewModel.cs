@@ -8,10 +8,11 @@ using System.Threading.Tasks;
 
 namespace VMSService.Core.Models.CbRequests
 {
-    public class BranchSelectionViewModel
+    public class FromToSelectionViewModel
     {
         public IEnumerable<BranchDto> BouBranches { get; init; } = [];
-        public IEnumerable<CommercialBankBranchDto> CbBranches { get; init; } = [];
-        //public IReadOnlyList<CommercialBankBranchDto> CbBranches { get; init; } = [];
+        public CommercialBankDto Cb { get; init; } = null!;
+        public int SelectedCbBranchId { get; set; }
+        public int SelectedbankBranchId { get; set; }
     }
 }

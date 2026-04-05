@@ -231,6 +231,12 @@ namespace VMSService.Controllers
 
             try
             {
+                // Prepend country code before saving
+                if (!string.IsNullOrEmpty(model.PhoneNumber))
+                {
+                    model.PhoneNumber = "+256" + model.PhoneNumber.TrimStart('+').Replace("256", "");
+                }
+
                 // Handle file uploads
                 model.PassportPhoto = await SaveFileAsync(model.PassportPhotoFile, "passportphotos");
                 model.WorkIdScan = await SaveFileAsync(model.WorkIdScanFile, "workidscans");
@@ -238,17 +244,28 @@ namespace VMSService.Controllers
                 model.ApprovalAttachment = await SaveFileAsync(model.ApprovalAttachmentFile, "approvalattachments");
 
                 var agentDetail = _mapper.Map<AgentDetail>(model);
+
+                // Set status to Draft
+                var requestData = new GetStatusByNameRequestDto
+                {
+                    ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                    StatusName = StatusConstants.AgentDetail.Draft,
+                    EntityTypeName = StatusConstants.Entity.AgentDetail
+                };
+                StatusTypeDto status = await _workflowServiceClient.FindStatusByName(requestData);
+                agentDetail.CurrentStatusId = status.Id;
+
                 //bool isCreated = await _agentDetailRepository.Create(agentDetail);
                 int agentDetailId = await _agentDetailRepository.CreateNew(agentDetail);
 
                 if (agentDetailId > 0)
                 {
-                    TempData["Success"] = "Agent detail created successfully!";
+                    TempData["Success"] = "Agent added successfully!";
                     return RedirectToAction(nameof(Details), new { id = agentDetailId });
                 }
                 else
                 {
-                    TempData["Error"] = "Failed to create agent detail. Please try again.";
+                    TempData["Error"] = "Failed to create agent. Please try again.";
                     _logger.LogError("Error creating agent detail");
                     ModelState.AddModelError("", "Failed to create agent detail. Please try again.");
                 }
@@ -288,6 +305,13 @@ namespace VMSService.Controllers
 
                 var branches = await _configService.GetAllBranches();
                 var model = _mapper.Map<AgentDetailViewModel>(agentDetail);
+
+                // Strip country code for display in the edit form
+                if (!string.IsNullOrEmpty(model.PhoneNumber) && model.PhoneNumber.StartsWith("+256"))
+                {
+                    model.PhoneNumber = model.PhoneNumber[4..]; // Remove "+256" prefix
+                }
+
                 model.BranchList = branches.Select(b => new SelectListItem
                 {
                     Value = b.Id.ToString(),
@@ -369,7 +393,10 @@ namespace VMSService.Controllers
                 agentDetail.CommercialBankBranchId = model.CommercialBankBranchId;
                 agentDetail.AgentNames = model.AgentNames;
                 agentDetail.NIN = model.NIN;
-                agentDetail.PhoneNumber = model.PhoneNumber;
+                agentDetail.PhoneNumber = !string.IsNullOrEmpty(model.PhoneNumber)
+                    ? "+256" + model.PhoneNumber.TrimStart('+').Replace("256", "")
+                    : model.PhoneNumber;
+                agentDetail.IsActive = model.IsActive;
 
                 // Handle file uploads - only update if new file is provided
                 if (model.PassportPhotoFile != null)
@@ -571,6 +598,49 @@ namespace VMSService.Controllers
             {
                 _logger.LogError(ex, "Error executing action {Action} on procurement {Id}", actionName, id);
                 TempData["Error"] = "An error occurred while executing the action.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // POST: AgentDetails/Deactivate/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Deactivate(int id)
+        {
+            try
+            {
+                var agentDetail = await _agentDetailRepository.FindById(id);
+                if (agentDetail == null)
+                {
+                    TempData["Error"] = "Agent not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                if (!agentDetail.IsActive)
+                {
+                    TempData["Error"] = "Agent is already inactive.";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
+
+                agentDetail.IsActive = false;
+
+                bool isUpdated = await _agentDetailRepository.Update(agentDetail);
+                if (isUpdated)
+                {
+                    _logger.LogInformation("Agent {AgentId} deactivated by {User}", id,
+                        User.FindFirst(ClaimTypes.Name)?.Value ?? "System");
+                    TempData["Success"] = "Agent deactivated successfully.";
+                }
+                else
+                {
+                    TempData["Error"] = "Failed to deactivate agent. Please try again.";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deactivating agent with id {AgentDetailId}", id);
+                TempData["Error"] = "An error occurred while deactivating the agent. Please try again.";
             }
 
             return RedirectToAction(nameof(Details), new { id });
