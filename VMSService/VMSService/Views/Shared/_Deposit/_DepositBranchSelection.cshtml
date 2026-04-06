@@ -1,0 +1,97 @@
+@model VMSService.Core.Models.CbRequests.FromToSelectionViewModel
+
+<div class="card mb-4 border-top-0 border-end-0 border-bottom-0 border-4 border-warning shadow-sm">
+    <div class="card-body">
+        <div class="d-flex align-items-center mb-3 justify-content-between">
+            <div class="d-flex align-items-center gap-2 fw-bolder">
+                <i class="ti ti-replace"></i>
+                <span class="text-uppercase mb-0">Sender & Receiver Branch Details</span>
+            </div>
+            <div class="d-flex gap-2">
+                <span class="badge text-bg-danger-lt text-danger border border-danger-subtle small">
+                    * Required
+                </span>
+            </div>
+        </div>
+        <div class="row g-4 align-items-end">
+
+            @* ?? Cb Branch (Sender for deposits) ?? *@
+            <div class="col-md-6">
+                <div class="text-uppercase text-muted small mb-1">
+                    FROM — SENDER (DEPOSITOR)
+                </div>
+
+                <div id="cbBranchCard">
+                    <div class="d-flex align-items-stretch rounded-3 overflow-hidden border border-success">
+                        <div class="d-flex align-items-center justify-content-center px-3 bg-success bg-opacity-10">
+                            <i class="ti ti-circle-arrow-down-left-filled text-success fs-4"></i>
+                        </div>
+                        <div class="flex-grow-1 px-3 py-2">
+                            <p class="text-muted mb-0" style="font-size:9px;">FROM COMMERCIAL BANK</p>
+                            <p class="fw-bold mb-0">@Model.Cb.Name</p>
+                            <p class="mb-0">@Model.Cb.Code</p>
+                            <p class="mb-0" id="cbCode">@Model.Cb.CBCode</p>
+                        </div>
+                        <div class="d-flex align-items-center pe-3">
+                            <span class="badge bg-success">
+                                <i class="ti ti-toggle-left"></i>
+                                Sender
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @* ?? Bou Branch (Receiver) ?? *@
+            <div class="col-md-6">
+                <select id="bouBranchSelect"
+                        name="bouBranchId"
+                        class="form-select mb-3"
+                        onchange="onDepositBouBranchSelected(this.value); loadDepositBranchDetails('bou', this.value)">
+                    <option value="">— Select BOU Branch —</option>
+                    @foreach (var branch in Model.BouBranches)
+                    {
+                        <option value="@branch.Id">@branch.Name</option>
+                    }
+                </select>
+
+                <div id="bouBranchCard" style="display:none;">
+                    <div class="text-uppercase text-muted small mb-1">
+                        TO — RECEIVER
+                    </div>
+                    <div class="d-flex align-items-stretch rounded-3 overflow-hidden border border-danger">
+                        <div class="d-flex align-items-center justify-content-center px-3 bg-danger bg-opacity-10">
+                            <i class="ti ti-building-bank text-danger fs-4"></i>
+                        </div>
+                        <div class="flex-grow-1 px-3 py-2">
+                            <p class="text-muted mb-0" style="font-size:9px;">TO BRANCH</p>
+                            <p class="fw-bold mb-0">Bank of Uganda</p>
+                            <p class="mb-0" id="bouBranchName"></p>
+                            <p class="text-muted fw-light mb-0" id="bouBranchCode"></p>
+                        </div>
+                        <div class="d-flex align-items-center pe-3">
+                            <span class="badge bg-danger">
+                                <i class="ti ti-toggle-right-filled"></i>
+                                Receiver
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="row g-4 my-1">
+            <div class="col-md-6">
+                <label class="form-label text-uppercase text-muted small mb-1">
+                    Deposit Date <span class="text-danger">*</span>
+                </label>
+                <input type="date"
+                       id="depositDate"
+                       class="form-control"
+                       onchange="depositFormState.depositDate = this.value || null;" />
+                <small class="text-muted">Date the cash will be deposited</small>
+            </div>
+        </div>
+    </div>
+</div>

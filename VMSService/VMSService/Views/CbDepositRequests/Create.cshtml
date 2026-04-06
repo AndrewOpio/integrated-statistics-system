@@ -1,0 +1,116 @@
+@using System.Security.Claims
+@model VMSService.Core.Models.CbDepositRequest.CreateDepositViewModel
+@{
+    Layout = "_CbLayout";
+    ViewData["Title"] = "Submit Deposit Request";
+
+    var currentRole = "requestor";
+}
+
+@await Html.PartialAsync("~/Views/Shared/_Withdrawal/_WithdrawNavSteps.cshtml", Model.Steps)
+
+@if (TempData["Errors"] is List<string> errors && errors.Any())
+{
+    <div class="alert alert-danger mb-4">
+        <ul class="mb-0">
+            @foreach (var error in errors)
+            {
+                <li>@error</li>
+            }
+        </ul>
+    </div>
+}
+
+<div class="">
+    <h4 class="fw-bold mb-1 text-success">Deposit Request - @User.FindFirst("cbName")?.Value</h4>
+    <p class="text-muted mb-3">
+        Fill in your deposit request details and the denominations to deposit.
+    </p>
+</div>
+
+<div id="depositForm">
+
+    @*Branch Selection*@
+    @await Html.PartialAsync("~/Views/Shared/_Deposit/_DepositBranchSelection.cshtml", Model.Branches)
+
+    <div class="role-panel @(currentRole == "requestor" ? "active" : "")" id="panel-requestor">
+
+        @*Agent Selection*@
+        @await Html.PartialAsync("~/Views/Shared/_Withdrawal/_AgentSelection.cshtml", Model.Agents)
+
+        @*Denomination Selection (with subcategories)*@
+        @await Html.PartialAsync("~/Views/Shared/_Deposit/_DepositDenomTable.cshtml", Model.Denoms)
+
+    </div>
+
+    @*RTGS Details*@
+    <div class="card mb-4 border-top-0 border-end-0 border-bottom-0 border-4 shadow-sm" style="border-color: #541010">
+        <div class="card-body">
+            <div class="d-flex align-items-center mb-3 justify-content-between">
+                <div class="d-flex align-items-center gap-2 fw-bolder">
+                    <i class="ti ti-clock-bolt"></i>
+                    <span class="text-uppercase mb-0">RTGS Details</span>
+                </div>
+                <span class="badge bg-success bg-opacity-10 text-uppercase text-success small">
+                    Final step before submission
+                </span>
+            </div>
+            <div class="alert alert-warning d-flex align-items-start gap-2 py-2 mb-3">
+                <i class="ti ti-info-circle text-warning mt-1 flex-shrink-0"></i>
+                <small>
+                    Enter the RTGS date and reference code once confirmed with the bank.
+                </small>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">RTGS Date</label>
+                    <input type="date"
+                           id="rtgsDate"
+                           class="form-control"
+                           onchange="depositFormState.rtgsDate = this.value || null" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">RTGS Code</label>
+                    <input type="text"
+                           id="rtgsCode"
+                           class="form-control"
+                           placeholder="e.g. RTGS-2026-001"
+                           oninput="depositFormState.rtgsCode = this.value || null" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @*Actions*@
+    <div class="d-flex justify-content-end gap-2 mt-4 mb-5">
+        <button type="button"
+                class="btn btn-secondary"
+                onclick="submitDepositForm('/CbDepositRequests/SaveDraft')">
+            <i class="ti ti-device-floppy me-1"></i> Save as Draft
+        </button>
+        <button type="button"
+                class="btn btn-primary"
+                onclick="submitDepositForm('/CbDepositRequests/submit-to-supervisor')">
+            <i class="ti ti-send me-1"></i> Submit to Supervisor
+        </button>
+    </div>
+    @Html.AntiForgeryToken()
+</div>
+
+@section Scripts {
+
+    <script src="~/js/deposit-form.js"></script>
+    <script src="~/js/deposit-branch-selection.js"></script>
+    <script src="~/js/deposit-agent-selection.js"></script>
+    <script src="~/js/deposit-denom-table.js"></script>
+
+    <script>
+        window.denomData = {
+            notes: @Html.Raw(Json.Serialize(Model.Denoms.Notes.Select(d => new { id = d.Id, value = d.Value, label = $"UGX {d.Value:N0}", typeId = d.DenominationTypeId }))),
+            coins: @Html.Raw(Json.Serialize(Model.Denoms.Coins.Select(d => new { id = d.Id, value = d.Value, label = $"UGX {d.Value:N0}", typeId = d.DenominationTypeId })))
+        };
+
+        depositFormState.cbCode = document.getElementById('cbCode')?.textContent?.trim() || null;
+    </script>
+}

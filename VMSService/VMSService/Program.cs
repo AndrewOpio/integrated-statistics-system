@@ -29,6 +29,7 @@ using VMSService.Core.Repositories.CounterPartyTypes;
 using VMSService.Core.Repositories.CurrencyVendors;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.DenominationTypes;
+using VMSService.Core.Repositories.DepositUnitOfWorks;
 using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.ReceivedStocks;
@@ -218,7 +219,7 @@ builder.Services.AddScoped<IWithdrawalRequestStatusHistoryRepository, Withdrawal
 builder.Services.AddScoped<IWithdrawalTransactionRefNumberGenerator, WithdrawalTransactionRefNumberGenerator>();
 builder.Services.AddScoped<IWithdrawalUnitOfWork, WithdrawalUnitOfWork>();
 builder.Services.AddScoped<IAgentDetailStatusHistoryRepository, AgentDetailStatusHistoryRepository>();
-
+builder.Services.AddScoped<IDepositUnitOfWork, DepositUnitOfWork>();
 
 // ── Resource-based ownership check ────────────────────────────
 builder.Services.AddSingleton<IAuthorizationHandler, CbOwnershipAuthorizationHandler>();

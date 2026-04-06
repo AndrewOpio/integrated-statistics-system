@@ -36,6 +36,11 @@ namespace VMSService.Data.Configurations
         public DbSet<WithdrawalRequestStatusHistory> WithdrawalRequestStatusHistory { get; set; }
         public DbSet<AgentDetailStatusHistory> AgentDetailStatusHistory { get; set; }
 
+                // Deposit
+        public DbSet<DepositRequest> DepositRequests { get; set; }
+        public DbSet<DepositRequestAgent> DepositRequestAgents { get; set; }
+        public DbSet<DepositRequestDenomination> DepositRequestDenominations { get; set; }
+        public DbSet<DepositRequestStatusHistory> DepositRequestStatusHistory { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -340,6 +340,232 @@ namespace VMSService.Data.Migrations
                     b.ToTable("CurrencyVendors");
                 });
 
+            modelBuilder.Entity("VMSService.Data.Entities.DepositRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("BouBranchId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CbBranchId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CbCode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("CbId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateOnly>("DepositDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("InitiatorUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RtgsCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateOnly?>("RtgsDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("StatusTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SupervisorUserId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalCoinsAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalNotesAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("TransactionRefNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("cbUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DepositRequests");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.DepositRequestAgent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AgentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("AttachmentContentType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("AttachmentData")
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("AttachmentFileName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AttachmentRemarks")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("DepositRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("EnteredBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepositRequestId");
+
+                    b.ToTable("DepositRequestAgents");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.DepositRequestDenomination", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("Boxes")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("Bundles")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DenominationId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DenominationTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("DenominationValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("DepositRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("SubCategoryId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepositRequestId");
+
+                    b.ToTable("DepositRequestDenominations");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.DepositRequestStatusHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ChangedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("DepositRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("NewStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OldStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepositRequestId");
+
+                    b.ToTable("DepositRequestStatusHistory");
+                });
+
             modelBuilder.Entity("VMSService.Data.Entities.ExPrintMint", b =>
                 {
                     b.Property<int>("Id")
@@ -1189,6 +1415,39 @@ namespace VMSService.Data.Migrations
                     b.Navigation("VendorType");
                 });
 
+            modelBuilder.Entity("VMSService.Data.Entities.DepositRequestAgent", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.DepositRequest", "DepositRequest")
+                        .WithMany("DepositRequestAgents")
+                        .HasForeignKey("DepositRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DepositRequest");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.DepositRequestDenomination", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.DepositRequest", "DepositRequest")
+                        .WithMany("DepositRequestDenominations")
+                        .HasForeignKey("DepositRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DepositRequest");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.DepositRequestStatusHistory", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.DepositRequest", "DepositRequest")
+                        .WithMany("DepositRequestStatusHistory")
+                        .HasForeignKey("DepositRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DepositRequest");
+                });
+
             modelBuilder.Entity("VMSService.Data.Entities.ExPrintMint", b =>
                 {
                     b.HasOne("VMSService.Data.Entities.ApprovedCurrencyProcurement", "ApprovedCurrencyProcurement")
@@ -1316,6 +1575,15 @@ namespace VMSService.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("WithdrawalRequest");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.DepositRequest", b =>
+                {
+                    b.Navigation("DepositRequestAgents");
+
+                    b.Navigation("DepositRequestDenominations");
+
+                    b.Navigation("DepositRequestStatusHistory");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.StockMovement", b =>
