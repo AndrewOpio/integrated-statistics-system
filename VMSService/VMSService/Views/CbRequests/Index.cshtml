@@ -149,7 +149,8 @@
         <div class="d-flex flex-column gap-2">
             @foreach (var r in recentRequests)
             {
-                <a href="/CbwithdrawRequests/Details/@r.Id" class="req-row-link">
+                string detailsLink = $"/Cb{@r.Type}Requests/Details/{@r.Id}";
+                <a href=@detailsLink class="req-row-link">
                     <div class="card border shadow-sm">
                         <div class="card-body py-3 d-flex align-items-center gap-3">
 
@@ -163,7 +164,7 @@
                             <!-- Info -->
                             <div class="flex-grow-1 overflow-hidden">
                                 <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
-                                    <span class="fw-semibold" style="font-size:14px">KLA08WR19032601</span>
+                                    <span class="fw-semibold" style="font-size:14px">KLA08D19032601</span>
                                     <span class="tx-pill @(r.Type == "Withdrawal" ? "tx-wd" : "tx-dep")">
                                         <i class="ti @(r.Type == "Withdrawal" ? "ti ti ti-arrow-up-right-circle" : "ti ti ti-arrow-down-left-circle")"></i>
                                         @r.Type

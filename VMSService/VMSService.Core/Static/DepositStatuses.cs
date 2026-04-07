@@ -15,18 +15,20 @@ namespace VMSService.Core.Static
             public const string Cancelled = "Cancelled";
         }
 
-        public static class DepositStatusIds
-        {
-            public const int Draft = 33;
-            public const int SubmittedToSupervisor = 34;
-            public const int ReturnedForRevision = 35;
-            public const int SubmittedToBank = 36;
-            public const int PendingSpecialApproval = 37;
-            public const int Recommended = 38;
-            public const int Approved = 39;
-            public const int Rejected = 40;
-            public const int Cancelled = 41;
-        }
+        public const string EntityName = "DepositRequest";
+
+        //public static class DepositStatusIds
+        //{
+        //    public const string Draft = "Draft";
+        //    public const string SubmittedToSupervisor = "Submitted To Supervisor";
+        //    public const string ReturnedForRevision = "Returned For Revision";
+        //    public const string SubmittedToBank = "Submitted To Bank";
+        //    public const string PendingSpecialApproval = "Pending Special Approval";
+        //    public const string Recommended = "Recommended";
+        //    public const string Approved = "Approved";
+        //    public const string Rejected = "Rejected";
+        //    public const string Cancelled = "Cancelled";
+        //}
 
         public static class DepositOrigin
         {

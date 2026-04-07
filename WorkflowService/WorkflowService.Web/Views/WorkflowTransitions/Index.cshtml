@@ -48,7 +48,7 @@
                                 <span class="badge bg-info">@transition.FromStatusName</span>
                             </td>
                             <td class="px-1">
-                                <a href="@Url.Action("Details", "WorkflowTransitions", new { id = transition.Id })" class="btn btn-gray-200">
+                            <a href="@Url.Action("Details", "WorkflowTransitions", new { id = transition.Id, applicationId = @ViewBag.ApplicationId })" class="btn btn-gray-200">
                                     <strong>@transition.ActionName</strong>
                                     <br />
                                     <small class="text-muted">@transition.DisplayLabel</small>

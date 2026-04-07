@@ -2,10 +2,11 @@
 using NotificationService.Client;
 using NotificationService.Client.Dtos;
 using VMSService.Core.Models.CbRequests;
+using VMSService.Core.Repositories.DepositUnitOfWorks;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 
 namespace VMSService.Web.Controllers;
-public class CbRequestsController(IWithdrawalUnitOfWork _uow) : Controller
+public class CbRequestsController(IWithdrawalUnitOfWork _uow, IDepositUnitOfWork _duow) : Controller
 {
     public async Task<IActionResult> Index(CancellationToken ct)
     {
@@ -25,9 +26,21 @@ public class CbRequestsController(IWithdrawalUnitOfWork _uow) : Controller
             Purpose = string.IsNullOrEmpty(r.RtgsCode) ? "—" : r.RtgsCode,
         });
 
+        var depositRequests = await _duow.Requests.GetByCbAsync(cbId, ct);
+        var depositRows = depositRequests.Select(r => new RecentRequestRowViewModel
+        {
+            Id = r.Id,
+            Type = "Deposit",
+            Amount = r.TotalAmount,
+            Status = "r.StatusTypeName",
+            StatusName = "r.StatusTypeName",
+            Date = r.DepositDate,
+            Purpose = string.IsNullOrEmpty(r.RtgsCode) ? "—" : r.RtgsCode,
+        });
+
         return View(new CbRequestsIndexViewModel
         {
-            RecentRequests = rows,
+            RecentRequests = depositRows,
         });
 
         //return View();
