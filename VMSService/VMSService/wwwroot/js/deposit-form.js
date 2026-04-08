@@ -13,6 +13,7 @@ const depositFormState = {
     rtgsCode: null,
     agentIds: [],         // exactly 2 required
     remarks: null,
+    cbId: null
 };
 
 // ?????????????????????????????????????????????
@@ -134,6 +135,7 @@ async function submitDepositForm(action) {
         agentIds: depositFormState.agentIds.filter(Boolean),
         denominations: buildDepositDenomLines(),
         remarks: depositFormState.remarks,
+        cbId: parseInt(depositFormState.cbId) || 0,
     };
 
     setDepositButtonsDisabled(true);

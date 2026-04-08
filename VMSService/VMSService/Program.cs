@@ -220,6 +220,8 @@ builder.Services.AddScoped<IWithdrawalTransactionRefNumberGenerator, WithdrawalT
 builder.Services.AddScoped<IWithdrawalUnitOfWork, WithdrawalUnitOfWork>();
 builder.Services.AddScoped<IAgentDetailStatusHistoryRepository, AgentDetailStatusHistoryRepository>();
 builder.Services.AddScoped<IDepositUnitOfWork, DepositUnitOfWork>();
+builder.Services.AddScoped<IDepositTransactionRefNumberGenerator, DepositTransactionRefNumberGenerator>();
+builder.Services.AddScoped<IDepositRequestRepository, DepositRequestRepository>();
 
 // ── Resource-based ownership check ────────────────────────────
 builder.Services.AddSingleton<IAuthorizationHandler, CbOwnershipAuthorizationHandler>();

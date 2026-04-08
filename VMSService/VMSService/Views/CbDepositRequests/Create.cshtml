@@ -7,7 +7,7 @@
     var currentRole = "requestor";
 }
 
-@await Html.PartialAsync("~/Views/Shared/_Withdrawal/_WithdrawNavSteps.cshtml", Model.Steps)
+@await Html.PartialAsync("~/Views/Shared/_Deposit/_DepositNavSteps.cshtml", Model.Steps)
 
 @if (TempData["Errors"] is List<string> errors && errors.Any())
 {
@@ -89,11 +89,11 @@
                 onclick="submitDepositForm('/CbDepositRequests/SaveDraft')">
             <i class="ti ti-device-floppy me-1"></i> Save as Draft
         </button>
-        <button type="button"
+        @* <button type="button"
                 class="btn btn-primary"
                 onclick="submitDepositForm('/CbDepositRequests/submit-to-supervisor')">
             <i class="ti ti-send me-1"></i> Submit to Supervisor
-        </button>
+        </button> *@
     </div>
     @Html.AntiForgeryToken()
 </div>
@@ -112,5 +112,6 @@
         };
 
         depositFormState.cbCode = document.getElementById('cbCode')?.textContent?.trim() || null;
+        depositFormState.cbId = @Html.Raw(Model.Branches.Cb.Id);
     </script>
 }

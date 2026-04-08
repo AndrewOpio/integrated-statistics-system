@@ -5,7 +5,7 @@ namespace VMSService.Core.Models.CbDepositRequest
 {
     public class CreateDepositViewModel
     {
-        public WithdrawalStepViewModel Steps { get; init; } = null!;
+        public DepositStepViewModel Steps { get; init; } = null!;
         public FromToSelectionViewModel Branches { get; init; } = null!;
         public AgentSelectionViewModel Agents { get; init; } = null!;
         public DepositDenomTableViewModel Denoms { get; init; } = null!;

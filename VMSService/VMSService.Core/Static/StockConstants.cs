@@ -11,5 +11,11 @@
         {
             public const string New = "New";
         }
+
+        public static class DenominationTypes
+        {
+            public const string Note = "Note";
+            public const string Coin = "Coin";
+        }
     }
 }

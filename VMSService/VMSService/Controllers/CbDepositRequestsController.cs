@@ -8,7 +8,9 @@ using VMSService.Core.Models.CbDepositRequest;
 using VMSService.Core.Models.CbRequests;
 using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.Denominations;
+using VMSService.Core.Repositories.DenominationTypes;
 using VMSService.Core.Repositories.DepositUnitOfWorks;
+using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
@@ -29,7 +31,8 @@ namespace VMSService.Web.Controllers
         ILogger<CbDepositRequestsController> _logger,
         IMapper _mapper,
         IDepositTransactionRefNumberGenerator _depositTransactionRefNumberGenerator,
-        IWorkflowServiceClient _workflowServiceClient) : BaseWithdrawController(authorizationService)
+        IWorkflowServiceClient _workflowServiceClient,
+        IDenominationTypeRepository _denominationTypeRepo) : BaseWithdrawController(authorizationService)
     {
         public IActionResult Index()
         {
@@ -48,7 +51,7 @@ namespace VMSService.Web.Controllers
 
             var vm = new CreateDepositViewModel
             {
-                Steps = WithdrawalStepViewModelFactory.Build("CbMaker", false, User),
+                Steps = DepositStepViewModelFactory.Build("CbMaker", false, User),
                 Branches = new FromToSelectionViewModel
                 {
                     BouBranches = bouBranches,
@@ -229,6 +232,8 @@ namespace VMSService.Web.Controllers
                 RtgsDate = request.RtgsDate,
                 RtgsCode = request.RtgsCode,
                 DepositAgents = agentDetails,
+                CbName = "",
+                CbBranchName = "",
                 FitNotes = cbDenoms
                     .Where(d => d.DenominationTypeId == 1 && d.SubCategoryId == 1)
                     .Select(d => new DepositDenominationLineViewModel
@@ -347,6 +352,11 @@ namespace VMSService.Web.Controllers
 
                 StatusTypeDto draftStatus = await GetStatusByNameAsync(DepositStatuses.DepositStatusNames.Draft);
 
+                DenominationType noteType = (await _denominationTypeRepo.FindAll()).FirstOrDefault(x => x.Name == StockConstants.DenominationTypes.Note);
+                int notTypeId = noteType != null ? noteType.Id : 0;
+                DenominationType coinType = (await _denominationTypeRepo.FindAll()).FirstOrDefault(x => x.Name == StockConstants.DenominationTypes.Coin);
+                int coinTypeId = coinType != null ? coinType.Id : 0;
+
                 request = new DepositRequest
                 {
                     TransactionRefNumber = transactionRefNumber,
@@ -359,19 +369,18 @@ namespace VMSService.Web.Controllers
                     //CbId = GetCbIdFromClaims(),
                     CbId = vm.CbId,
                     StatusTypeId = draftStatus.Id,
+                    // Calculate totals from denominations
+                    TotalNotesAmount = vm.Denominations
+                        .Where(d => d.DenominationTypeId == notTypeId)
+                        .Sum(d => d.Amount),
+                    TotalCoinsAmount = vm.Denominations
+                        .Where(d => d.DenominationTypeId == coinTypeId)
+                        .Sum(d => d.Amount)
                 };
+                request.TotalAmount = request.TotalNotesAmount + request.TotalCoinsAmount;
 
                 await _uow.Requests.Create(request);
             }
-
-            // Calculate totals from denominations
-            request.TotalNotesAmount = vm.Denominations
-                .Where(d => d.DenominationTypeId == 1)
-                .Sum(d => d.Amount);
-            request.TotalCoinsAmount = vm.Denominations
-                .Where(d => d.DenominationTypeId == 2)
-                .Sum(d => d.Amount);
-            request.TotalAmount = request.TotalNotesAmount + request.TotalCoinsAmount;
 
             return request;
         }
