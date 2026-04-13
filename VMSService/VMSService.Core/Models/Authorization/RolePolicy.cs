@@ -12,13 +12,14 @@
         public const string BouChecker = "Bou Checker";
         public const string PanelA = "Panel A";
         public const string PanelB = "Panel B";
+        public const string RemittanceOfficer = "Remittance Officer";
 
         // ── Groupings ─────────────────────────────────────────────
         public static readonly IReadOnlySet<string> CbRoles =
             new HashSet<string> { CbMaker, CbApprover };
 
         public static readonly IReadOnlySet<string> BouRoles =
-            new HashSet<string> { BouChecker, PanelA, PanelB };
+            new HashSet<string> { BouChecker, PanelA, PanelB, RemittanceOfficer };
 
         // ── Policy names (used in [Authorize] attributes) ─────────
         public const string CbOnly = "CbOnly";

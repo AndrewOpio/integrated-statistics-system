@@ -367,7 +367,8 @@ namespace VMSService.Web.Controllers
                     actionName: actionName,
                     username: username,
                     userRoles: userRoles,
-                    remarks: remarks);
+                    remarks: remarks,
+                    ct: ct);
 
                 if (isExecuted)
                     TempData["Success"] = "Action completed successfully.";

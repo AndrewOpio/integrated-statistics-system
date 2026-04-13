@@ -1,5 +1,6 @@
 ﻿using WorkflowService.Client.Dto;
 using VMSService.Core.Models.CbRequests;
+using VMSService.Core.Models.CbDepositRequests;
 
 namespace VMSService.Core.Models.CbDepositRequest
 {

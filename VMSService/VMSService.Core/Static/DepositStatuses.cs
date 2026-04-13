@@ -15,8 +15,6 @@ namespace VMSService.Core.Static
             public const string Cancelled = "Cancelled";
         }
 
-        public const string EntityName = "DepositRequest";
-
         //public static class DepositStatusIds
         //{
         //    public const string Draft = "Draft";

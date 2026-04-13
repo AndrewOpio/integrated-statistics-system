@@ -1,4 +1,4 @@
-﻿namespace VMSService.Core.Models.CbRequests
+﻿namespace VMSService.Core.Models.CbDepositRequests
 {
     public class DepositStepViewModel
     {

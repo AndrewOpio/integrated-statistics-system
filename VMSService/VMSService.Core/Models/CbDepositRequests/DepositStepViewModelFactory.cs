@@ -1,7 +1,8 @@
 ﻿using System.Security.Claims;
 using VMSService.Core.Authorization;
+using VMSService.Core.Models.CbRequests;
 
-namespace VMSService.Core.Models.CbRequests;
+namespace VMSService.Core.Models.CbDepositRequests;
 public class DepositStepViewModelFactory
 {
 

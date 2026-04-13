@@ -3,8 +3,10 @@ using ConfigurationsService.Client;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using VMSService.Core.Authorization;
 using VMSService.Core.Models.AgentDetails;
 using VMSService.Core.Models.CbDepositRequest;
+using VMSService.Core.Models.CbDepositRequests;
 using VMSService.Core.Models.CbRequests;
 using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.Denominations;
@@ -34,9 +36,102 @@ namespace VMSService.Web.Controllers
         IWorkflowServiceClient _workflowServiceClient,
         IDenominationTypeRepository _denominationTypeRepo) : BaseWithdrawController(authorizationService)
     {
-        public IActionResult Index()
+        public async Task<IActionResult> Index(CancellationToken ct)
         {
-            return View();
+            try
+            {
+                //var userRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? string.Empty;
+                //var isBouUser = RolePolicy.BouRoles.Contains(userRole);
+                var userRoles = User.FindAll("appRole").Where(c => c.Value.StartsWith("VMS:")).Select(c => c.Value.Split(":")[1]).ToList();
+                var isBouUser = false;
+                foreach (var role in userRoles)
+                {
+                    isBouUser = RolePolicy.BouRoles.Contains(role);
+                }
+
+                IEnumerable<DepositRequest> deposits;
+
+                if (isBouUser)
+                {
+                    // BOU users see all deposit requests
+                    deposits = await _uow.Requests.FindAll();
+                }
+                else
+                {
+                    // CB users see only their own deposits
+                    var cbId = GetCbIdFromClaims();
+                    deposits = await _uow.Requests.GetByCbAsync(cbId, ct);
+                }
+
+                var rows = new List<DepositRequestRowViewModel>();
+
+                foreach (var d in deposits.OrderByDescending(d => d.CreatedDate))
+                {
+                    // Resolve status name
+                    string statusName;
+                    try
+                    {
+                        var status = await _workflowServiceClient.FindStatusById(d.StatusTypeId);
+                        statusName = status?.Name ?? "Unknown";
+                    }
+                    catch
+                    {
+                        statusName = "Unknown";
+                    }
+
+                    // Resolve CB name
+                    string cbName;
+                    try
+                    {
+                        var cb = await _configServiceClient.GetCbIdAsync(d.CbId);
+                        cbName = cb?.Name ?? "—";
+                    }
+                    catch
+                    {
+                        cbName = "—";
+                    }
+
+                    // Resolve BOU branch name
+                    string bouBranchName;
+                    try
+                    {
+                        var bouBranch = await _configServiceClient.GetBouBranchByIdAsync(d.BouBranchId);
+                        bouBranchName = bouBranch?.Name ?? "—";
+                    }
+                    catch
+                    {
+                        bouBranchName = "—";
+                    }
+
+                    rows.Add(new DepositRequestRowViewModel
+                    {
+                        Id = d.Id,
+                        TransactionRefNumber = d.TransactionRefNumber,
+                        CbName = cbName,
+                        CbCode = d.CbCode,
+                        BouBranchName = bouBranchName,
+                        DepositDate = d.DepositDate,
+                        TotalAmount = d.TotalAmount,
+                        StatusTypeId = d.StatusTypeId,
+                        StatusName = statusName,
+                        CreatedDate = d.CreatedDate,
+                    });
+                }
+
+                var vm = new DepositRequestIndexViewModel
+                {
+                    Deposits = rows,
+                    IsBouUser = isBouUser,
+                };
+
+                return View(vm);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving deposit requests");
+                TempData["Error"] = "An error occurred while retrieving deposit requests. Please try again.";
+                return View(new DepositRequestIndexViewModel());
+            }
         }
 
         // Create
@@ -204,6 +299,7 @@ namespace VMSService.Web.Controllers
             var request = await _uow.Requests.GetWithDetailsAsync(id, ct);
             if (request == null) return NotFound();
 
+            // Current status
             StatusTypeDto currentStatus = await _workflowServiceClient.FindStatusById(request.StatusTypeId);
 
             var currentStepKey = GetCurrentStepKey(currentStatus.Name);
@@ -217,25 +313,80 @@ namespace VMSService.Web.Controllers
                     agentDetails.Add(_mapper.Map<AgentDetailViewModel>(agent));
             }
 
+            // Get denominations for CB
             var cbDenoms = request.DepositRequestDenominations
                 .Where(d => d.Origin == DepositStatuses.DepositOrigin.Cb);
 
             StatusTypeDto approvedStatus = await GetStatusByNameAsync(DepositStatuses.DepositStatusNames.Approved);
 
+            // Commercial bank details
+            var cb = await _configServiceClient.GetCbIdAsync(request.CbId);
+            string cbBranchName = string.Empty;
+            if (request.CbBranchId > 0)
+            {
+                var cbBranch = await _configServiceClient.GetCbBranchByIdAsync(request.CbBranchId);
+                cbBranchName = cbBranch.Name;
+            }
+
+            // Bou branch details
+            var bouBranch = await _configServiceClient.GetBouBranchByIdAsync(request.BouBranchId);
+
+            // Denominatiom types
+            DenominationType noteType = (await _denominationTypeRepo.FindAll()).FirstOrDefault(x => x.Name == StockConstants.DenominationTypes.Note);
+            int noteTypeId = noteType != null ? noteType.Id : 0;
+            DenominationType coinType = (await _denominationTypeRepo.FindAll()).FirstOrDefault(x => x.Name == StockConstants.DenominationTypes.Coin);
+            int coinTypeId = coinType != null ? coinType.Id : 0;
+
+            // Comments/Status History
+            var statusHistoryList = _mapper.Map<IEnumerable<DepositRequestStatusHistoryViewModel>>(request.DepositRequestStatusHistory);
+
+            foreach (var history in statusHistoryList)
+            {
+                var status = await _workflowServiceClient.FindStatusById(history.NewStatusId);
+                history.NewStatusName = status.Name;
+                var oldStatus = await _workflowServiceClient.FindStatusById(history.OldStatusId);
+                history.OldStatusName = oldStatus.Name;
+            }
+
+            // Logged in user's roles
+            var userRoles = GetUserRoles();
+
+            var availableTransitions = new List<WorkflowTransitionDto>();
+            foreach (var userRole in userRoles)
+            {
+                var requestData = new GetAvailableTransitionsRequestDto
+                {
+                    ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                    EntityTypeName = StatusConstants.Entity.DepositRequest,
+                    CurrentStatusId = request.StatusTypeId,
+                    AppRole = userRole,
+                };
+
+                var transitions = await _workflowServiceClient.GetAvailableTransitions(requestData);
+                if (transitions != null)
+                {
+                    availableTransitions.AddRange(transitions);
+                }
+            }
+
             var vm = new DepositRequestDetailsViewModel
             {
                 Id = request.Id,
                 ReferenceNumber = request.TransactionRefNumber,
-                StatusId = request.StatusTypeId,
+                StatusTypeId = request.StatusTypeId,
                 StatusName = currentStatus.Name,
                 DepositDate = request.DepositDate,
                 RtgsDate = request.RtgsDate,
                 RtgsCode = request.RtgsCode,
                 DepositAgents = agentDetails,
-                CbName = "",
-                CbBranchName = "",
+                CbName = cb.Name,
+                CbBranchName = cbBranchName,
+                CbBicCode = cb.Code,
+                CbCode = cb.CBCode,
+                BouBranchName = bouBranch.Name,
+                BouBranchCode = bouBranch.BranchCode,
                 FitNotes = cbDenoms
-                    .Where(d => d.DenominationTypeId == 1 && d.SubCategoryId == 1)
+                    .Where(d => d.DenominationTypeId == noteTypeId && d.SubCategoryId == 1)
                     .Select(d => new DepositDenominationLineViewModel
                     {
                         DenominationLabel = $"UGX {d.DenominationValue:N0}",
@@ -245,7 +396,7 @@ namespace VMSService.Web.Controllers
                         SubCategoryName = "Fit",
                     }),
                 UnfitNotes = cbDenoms
-                    .Where(d => d.DenominationTypeId == 1 && d.SubCategoryId == 2)
+                    .Where(d => d.DenominationTypeId == noteTypeId && d.SubCategoryId == 2)
                     .Select(d => new DepositDenominationLineViewModel
                     {
                         DenominationLabel = $"UGX {d.DenominationValue:N0}",
@@ -255,7 +406,7 @@ namespace VMSService.Web.Controllers
                         SubCategoryName = "Unfit",
                     }),
                 NANotes = cbDenoms
-                    .Where(d => d.DenominationTypeId == 1 && d.SubCategoryId == 3)
+                    .Where(d => d.DenominationTypeId == noteTypeId && d.SubCategoryId == 3)
                     .Select(d => new DepositDenominationLineViewModel
                     {
                         DenominationLabel = $"UGX {d.DenominationValue:N0}",
@@ -265,7 +416,7 @@ namespace VMSService.Web.Controllers
                         SubCategoryName = "N/A",
                     }),
                 Coins = cbDenoms
-                    .Where(d => d.DenominationTypeId == 2)
+                    .Where(d => d.DenominationTypeId == coinTypeId)
                     .Select(d => new DepositDenominationLineViewModel
                     {
                         DenominationLabel = $"UGX {d.DenominationValue:N0}",
@@ -277,14 +428,15 @@ namespace VMSService.Web.Controllers
                 TotalNotesAmount = request.TotalNotesAmount,
                 TotalCoinsAmount = request.TotalCoinsAmount,
                 TotalAmount = request.TotalAmount,
-                Steps = WithdrawalStepViewModelFactory.Build(currentStepKey, 
+                Steps = DepositStepViewModelFactory.Build(currentStepKey, 
                     request.StatusTypeId == approvedStatus.Id, User),
-                StatusHistory = request.DepositRequestStatusHistory,
+                StatusHistory = statusHistoryList,
+                AvailableTransitions = availableTransitions,   
             };
 
-            var userRole = GetUserRole();
-            vm.AvailableTransitions = await _workflowService
-                .GetAvailableTransitionsAsync("DepositRequest", request.StatusTypeId, userRole);
+            //var userRoles = GetUserRoles();
+            //vm.AvailableTransitions = await _workflowService
+            //    .GetAvailableTransitionsAsync("DepositRequest", request.StatusTypeId, userRole);
 
             return View(vm);
         }
@@ -305,26 +457,39 @@ namespace VMSService.Web.Controllers
             var request = await _uow.Requests.GetWithDetailsAsync(id, ct);
             if (request == null) return NotFound();
 
-            var userId = GetUserId();
-            var userRole = GetUserRole();
+            try
+            {
+                var username = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? "System";
+                var userRoles = GetUserRoles();
 
-            var success = await _workflowService.ExecuteTransition(
-                "DepositRequest", id, request.StatusTypeId,
-                actionName, userId, [userRole], remarks);
+                bool isExecuted = await _workflowService.ExecuteTransition(
+                    StatusConstants.Entity.DepositRequest, id, request.StatusTypeId,
+                    actionName, username, userRoles, remarks, ct);
 
-            if (!success)
-                return BadRequest(new { errors = new[] { "Failed to execute action." } });
-
+                if (isExecuted)
+                {
+                    TempData["Success"] = "Action completed successfully.";
+                }
+                else
+                {
+                    TempData["Error"] = $"Failed to execute {actionName} action on Deposit Request {request.TransactionRefNumber}";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing action {Action} on Deposit Request {TransactionRefNumber}", actionName, request.TransactionRefNumber);
+                TempData["Error"] = "An error occurred while executing the action.";
+            }
             // Reload to get new status
-            var updated = await _uow.Requests.GetWithDetailsAsync(id, ct);
+            //var updated = await _uow.Requests.GetWithDetailsAsync(id, ct);
 
-            await AddStatusHistoryAsync(
-                id,
-                request.StatusTypeId,
-                updated!.StatusTypeId,
-                userId,
-                remarks,
-                ct);
+            //await AddStatusHistoryAsync(
+            //    id,
+            //    request.StatusTypeId,
+            //    updated!.StatusTypeId,
+            //    userId,
+            //    remarks,
+            //    ct);
 
             return RedirectToAction(nameof(Details), new { id });
         }
@@ -496,8 +661,15 @@ namespace VMSService.Web.Controllers
             await _uow.SaveAsync(ct);
         }
 
-        private int GetUserRole()
-            => int.TryParse(User.FindFirst("roleId")?.Value, out var r) ? r : 0;
+        private List<int> GetUserRoles()
+        {
+            return User.FindAll("appRoleId")
+                    .Where(c => c.Value.StartsWith("VMS:"))
+                    .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
+                    .Where(id => id.HasValue)
+                    .Select(id => id.Value)
+                    .ToList();
+        }
 
         private int GetCbIdFromClaims()
             => int.TryParse(User.FindFirst("cbId")?.Value, out var id) ? id : 0;
@@ -508,9 +680,10 @@ namespace VMSService.Web.Controllers
             {
                 ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
                 StatusName = statusName,
-                EntityTypeName = DepositStatuses.EntityName
+                EntityTypeName = StatusConstants.Entity.DepositRequest,
             };
             return await _workflowServiceClient.FindStatusByName(requestData);
         }
+        
     }
 }

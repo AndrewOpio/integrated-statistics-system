@@ -222,6 +222,7 @@ builder.Services.AddScoped<IAgentDetailStatusHistoryRepository, AgentDetailStatu
 builder.Services.AddScoped<IDepositUnitOfWork, DepositUnitOfWork>();
 builder.Services.AddScoped<IDepositTransactionRefNumberGenerator, DepositTransactionRefNumberGenerator>();
 builder.Services.AddScoped<IDepositRequestRepository, DepositRequestRepository>();
+builder.Services.AddScoped<IDepositRequestStatusHistoryRepository, DepositRequestStatusHistoryRepository>();
 
 // ── Resource-based ownership check ────────────────────────────
 builder.Services.AddSingleton<IAuthorizationHandler, CbOwnershipAuthorizationHandler>();

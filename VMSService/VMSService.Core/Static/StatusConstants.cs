@@ -80,6 +80,7 @@
             public const string StockMovementDiscrepancy = "StockMovementDiscrepancy";
             public const string WithdrawalRequest = "WithdrawalRequest";
             public const string AgentDetail = "AgentDetail";
+            public const string DepositRequest = "DepositRequest";
         }
     }
 }

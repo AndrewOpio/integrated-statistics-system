@@ -1,4 +1,5 @@
 using VMSService.Core.Models.AgentDetails;
+using VMSService.Core.Models.CbDepositRequests;
 using VMSService.Core.Models.CbRequests;
 using VMSService.Data.Entities;
 using WorkflowService.Client.Dto;
@@ -10,7 +11,7 @@ namespace VMSService.Core.Models.CbDepositRequest
         public Guid Id { get; init; }
         public string? ReferenceNumber { get; init; }
         public string StatusName { get; init; } = string.Empty;
-        public int StatusId { get; init; }
+        public int StatusTypeId { get; init; }
 
         // ?? Dates ?????????????????????????????????
         public DateOnly DepositDate { get; init; }
@@ -25,6 +26,8 @@ namespace VMSService.Core.Models.CbDepositRequest
         public string CbName { get; init; } = string.Empty;
         public string BouBranchName { get; init; } = string.Empty;
         public string BouBranchCode { get; init; } = string.Empty;
+        public string CbBicCode { get; init; } = string.Empty;
+        public string CbCode { get; init; } = string.Empty;
 
         // ?? Collectors ????????????????????????????
         public IEnumerable<AgentDetailViewModel> DepositAgents { get; init; } = [];
@@ -45,7 +48,7 @@ namespace VMSService.Core.Models.CbDepositRequest
         public string TotalAmountInWords { get; init; } = string.Empty;
 
         // ?? Nav Steps ?????????????????????????????
-        public WithdrawalStepViewModel Steps { get; init; } = null!;
+        public DepositStepViewModel Steps { get; init; } = null!;
 
         // ?? Action Permissions ????????????????????
         public bool CanEdit { get; init; }
@@ -54,6 +57,6 @@ namespace VMSService.Core.Models.CbDepositRequest
         public bool CanReturn { get; init; }
         public bool CanCancel { get; init; }
 
-        public IEnumerable<DepositRequestStatusHistory> StatusHistory { get; set; } = [];
+        public IEnumerable<DepositRequestStatusHistoryViewModel> StatusHistory { get; set; } = [];
     }
 }

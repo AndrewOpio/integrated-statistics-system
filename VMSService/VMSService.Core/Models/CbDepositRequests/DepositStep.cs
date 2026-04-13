@@ -1,4 +1,6 @@
-﻿namespace VMSService.Core.Models.CbRequests
+﻿using VMSService.Core.Models.CbRequests;
+
+namespace VMSService.Core.Models.CbDepositRequests
 {
     public class DepositStep
     {

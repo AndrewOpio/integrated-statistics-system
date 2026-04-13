@@ -400,7 +400,8 @@ body {
         }
 
         .step-pill.done:hover {
-            background: #f0faf4;
+            /*background: #f0faf4;*/
+            background: rgba(0, 0, 0, 0.1);
         }
 
     /* ?? ACTIVE state — blue ?? */

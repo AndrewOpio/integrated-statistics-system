@@ -4,22 +4,23 @@
     ViewData["Title"] = "Deposit Request Details";
 }
 
-@await Html.PartialAsync("~/Views/Shared/_Withdrawal/_WithdrawNavSteps.cshtml", Model.Steps)
+@await Html.PartialAsync("~/Views/Shared/_Deposit/_DepositNavSteps.cshtml", Model.Steps)
 
-<div class="mb-4">
-    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-        <div>
-            <h4 class="fw-bold mb-1 text-success">Deposit Request - @Model.CbName</h4>
-            <p class="text-muted mb-0">Ref: @(Model.ReferenceNumber ?? "—")</p>
+
+<div class="card mb-4 border-top-0 border-end-0 border-bottom-0 border-4 border-light shadow-sm">
+    <div class="card-header bg-white">
+        <div class="mb-4">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div>
+                    <h4 class="fw-bold mb-1 text-success">Deposit Request - @(Model.ReferenceNumber ?? "—")</h4>
+                    <p class="text-muted mb-0">@Model.CbName</p>
+                </div>
+                <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 fs-6">
+                    @Model.StatusName
+                </span>
+            </div>
         </div>
-        <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 fs-6">
-            @Model.StatusName
-        </span>
     </div>
-</div>
-
-    @*Branch Details (matching _DepositBranchSelection.cshtml style)*@
-<div class="card mb-4 border-top-0 border-end-0 border-bottom-0 border-4 border-warning shadow-sm">
     <div class="card-body">
         <div class="d-flex align-items-center mb-3 justify-content-between">
             <div class="d-flex align-items-center gap-2 fw-bolder">
@@ -41,6 +42,8 @@
                     <div class="flex-grow-1 px-3 py-2">
                         <p class="text-muted mb-0" style="font-size:9px;">FROM COMMERCIAL BANK</p>
                         <p class="fw-bold mb-0">@Model.CbName</p>
+                        <p class="mb-0">@Model.CbBicCode</p>
+                        <p class="mb-0" id="cbCode">@Model.CbCode</p>
                         <p class="mb-0">@Model.CbBranchName</p>
                     </div>
                     <div class="d-flex align-items-center pe-3">
@@ -78,38 +81,38 @@
 
         </div>
 
-        <div class="row g-4 my-1">
+        <div class="row g-4 my-1 mb-4">
             <div class="col-md-4">
                 <p class="text-uppercase text-muted small mb-1">Deposit Date</p>
                 <p class="fw-bold mb-0">@Model.DepositDate.ToString("dd MMM yyyy")</p>
             </div>
-            <div class="col-md-4">
+            @* <div class="col-md-4">
                 <p class="text-uppercase text-muted small mb-1">RTGS Date</p>
                 <p class="fw-bold mb-0">@(Model.RtgsDate?.ToString("dd MMM yyyy") ?? "—")</p>
             </div>
             <div class="col-md-4">
                 <p class="text-uppercase text-muted small mb-1">RTGS Code</p>
                 <p class="fw-bold mb-0">@(Model.RtgsCode ?? "—")</p>
-            </div>
+            </div> *@
         </div>
-    </div>
-</div>
 
-@*Agent Details (matching _AgentSelection.cshtml style)*@
-<div class="card mb-4 border-top-0 border-end-0 border-bottom-0 border-4 shadow-sm" style="border-color: #D4500A">
-    <div class="card-body">
+
+
+
         <div class="d-flex align-items-center mb-3 justify-content-between">
             <div class="d-flex align-items-center gap-2 fw-bolder">
                 <i class="ti ti-friends"></i>
                 <span class="text-uppercase mb-0">Agent Details</span>
             </div>
         </div>
-        <div class="row g-4">
-            @{ var agentIndex = 0; }
+        <div class="row g-4 mb-4">
+            @{
+                var agentIndex = 0;
+            }
             @foreach (var agent in Model.DepositAgents)
             {
                 agentIndex++;
-                <div class="col-md-6">
+                <div class="col-md-6" style="cursor:pointer;" onclick="window.location.href='@Url.Action("Details", "AgentDetails", new { id = agent.Id })'">
                     <div class="border bg-light rounded-3 p-3">
 
                         @* Header *@
@@ -157,39 +160,41 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="row">
+                            @* Work ID Scan — full width *@
+                            @if (!string.IsNullOrEmpty(agent.WorkIdScan))
+                            {
+                                <div class="col-md-6">
+                                    <p class="text-muted mb-1" style="font-size:9px;">WORK ID SCAN</p>
+                                    <img src="@agent.WorkIdScan" alt="Work ID Scan"
+                                         class="rounded-2 border w-100"
+                                         style="max-height:150px;object-fit:contain;" />
+                                </div>
+                            }
 
-                        @* Work ID Scan — full width *@
-                        @if (!string.IsNullOrEmpty(agent.WorkIdScan))
-                        {
-                            <div class="mb-2">
-                                <p class="text-muted mb-1" style="font-size:9px;">WORK ID SCAN</p>
-                                <img src="@agent.WorkIdScan" alt="Work ID Scan"
-                                     class="rounded-2 border w-100"
-                                     style="max-height:150px;object-fit:contain;" />
-                            </div>
-                        }
-
-                        @* Signature — full width *@
-                        @if (!string.IsNullOrEmpty(agent.SignatureScan))
-                        {
-                            <div>
-                                <p class="text-muted mb-1" style="font-size:9px;">SIGNATURE</p>
-                                <img src="@agent.SignatureScan" alt="Signature"
-                                     class="rounded-2 border w-100"
-                                     style="max-height:70px;object-fit:contain;" />
-                            </div>
-                        }
+                            @* Signature — full width *@
+                            @if (!string.IsNullOrEmpty(agent.SignatureScan))
+                            {
+                                <div class="col-md-6">
+                                    <p class="text-muted mb-1" style="font-size:9px;">SIGNATURE</p>
+                                    <img src="@agent.SignatureScan" alt="Signature"
+                                         class="rounded-2 border w-100"
+                                         style="max-height:70px;object-fit:contain;" />
+                                </div>
+                            }
+                        </div>
 
                     </div>
                 </div>
             }
         </div>
-    </div>
-</div>
 
-@*Denomination Details (matching _DepositDenomTable.cshtml style)*@
-<div class="card mb-4 border-top-0 border-end-0 border-bottom-0 border-4 shadow-sm" style="border-color: #0d6efd">
-    <div class="card-body">
+
+
+
+
+
+
         @* Card Header *@
         <div class="d-flex align-items-center mb-3 justify-content-between">
             <div class="d-flex align-items-center gap-2 fw-bolder">
@@ -199,7 +204,7 @@
         </div>
 
         @* Subcategory Legend *@
-        <div class="d-flex gap-3 mb-3 flex-wrap">
+       @*  <div class="d-flex gap-3 mb-3 flex-wrap">
             <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-3 py-2">
                 <i class="ti ti-check me-1"></i> Fit — Good condition banknotes
             </span>
@@ -209,7 +214,7 @@
             <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle px-3 py-2">
                 <i class="ti ti-minus me-1"></i> N/A — Not applicable (coins)
             </span>
-        </div>
+        </div> *@
 
         @* Fit Notes *@
         @if (Model.FitNotes.Any())
@@ -373,8 +378,8 @@
         }
 
         @* Sub-Totals by Category *@
-        <div class="mt-3">
-            <div class="d-flex justify-content-between align-items-center px-4 py-2 border-bottom">
+        <div class="mt-4">
+            @* <div class="d-flex justify-content-between align-items-center px-4 py-2 border-bottom">
                 <span class="d-flex align-items-center gap-2 small fw-semibold text-success">
                     <i class="ti ti-check"></i> Fit Banknotes
                 </span>
@@ -385,7 +390,7 @@
                     <i class="ti ti-x"></i> Unfit Banknotes
                 </span>
                 <span class="fw-bold text-danger">UGX @Model.UnfitNotes.Sum(d => d.Amount).ToString("N0")</span>
-            </div>
+            </div> *@
             <div class="d-flex justify-content-between align-items-center px-4 py-2 border-bottom">
                 <span class="d-flex align-items-center gap-2 small fw-semibold text-primary">
                     <i class="ti ti-circle-letter-n-filled"></i> Total Banknotes
@@ -408,15 +413,17 @@
                 <span class="fw-bold text-white" style="font-size:20px;">UGX @Model.TotalAmount.ToString("N0")</span>
             </div>
             <div class="border-top pt-2 fs-6 fst-italic text-end text-white opacity-75" style="border-color:rgba(255,255,255,.2)!important;">
-                <span>@Model.TotalAmountInWords</span>
+                <span id="total-in-words">@Model.TotalAmountInWords</span>
             </div>
         </div>
-
     </div>
 </div>
 
+
+
+
 @*Actions*@
-@if (Model.AvailableTransitions.Any())
+@* @if (Model.AvailableTransitions.Any())
 {
     <div class="card mb-4 shadow-sm">
         <div class="card-body">
@@ -442,40 +449,230 @@
             </form>
         </div>
     </div>
-}
+} *@
 
-@*Status History*@
-@if (Model.StatusHistory.Any())
-{
-    <div class="card mb-4 shadow-sm">
-        <div class="card-body">
-            <div class="d-flex align-items-center gap-2 fw-bolder mb-3">
-                <i class="ti ti-history"></i>
-                <span class="text-uppercase">Status History</span>
-            </div>
-            <div class="table-responsive">
-                <table class="table table-sm">
-                    <thead class="small text-muted">
-                        <tr>
-                            <th>Date</th>
-                            <th>Changed By</th>
-                            <th>Status</th>
-                            <th>Remarks</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var h in Model.StatusHistory.OrderByDescending(h => h.ChangedAt))
+<div class="row">
+    <div class="col-12">
+        <!-- Status History Section -->
+        <div class="card border-0 shadow-sm mb-3">
+            @* <div class="card-header bg-white border-bottom no-after">
+                <h6 class="card-title mb-0">
+                    <i class="ti ti-message me-2 text-secondary"></i>Comments
+                </h6>
+            </div> *@
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-2 fw-bolder mb-3">
+                    <i class="ti ti-message"></i>
+                    <span class="text-uppercase">Comments</span>
+                </div>
+                @if (Model.StatusHistory != null && Model.StatusHistory.Any())
+                {
+                    <div class="timeline">
+                        @foreach (var history in Model.StatusHistory.OrderBy(x => x.ChangedAt))
                         {
-                            <tr>
-                                <td>@h.ChangedAt.ToString("dd MMM yyyy HH:mm")</td>
-                                <td>@h.ChangedBy</td>
-                                <td><span class="badge bg-primary bg-opacity-10 text-primary">Status @h.NewStatusId</span></td>
-                                <td>@(h.Remarks ?? "—")</td>
-                            </tr>
+                            <div class="timeline-item mb-4">
+                                <div class="d-flex gap-3">
+                                    <div class="timeline-marker">
+                                        <i class="ti ti-circle-check text-success"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h6 class="mb-1 small">
+                                                    <strong>@history.OldStatusName</strong>
+                                                    <i class="ti ti-arrow-right text-muted"></i>
+                                                    <strong>@history.NewStatusName</strong>
+                                                </h6>
+                                                <small class="text-muted">
+                                                    By: <strong>@history.ChangedBy</strong>
+                                                </small>
+                                            </div>
+                                            <small class="text-muted">
+                                                @history.ChangedAt.ToString("dd/MMM/yyyy HH:mm:ss")
+                                            </small>
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(history.Remarks))
+                                        {
+                                            <div class="mt-2 p-2 bg-white rounded border">
+                                                <span class="d-block">@history.Remarks</span>
+                                            </div>
+                                        }
+
+                                    </div>
+                                </div>
+                            </div>
                         }
-                    </tbody>
-                </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted text-center">
+                        <i class="ti ti-inbox me-2"></i>No comments yet.
+                    </p>
+                }
             </div>
         </div>
     </div>
-}
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <!-- Workflow Actions Section -->
+        @if (Model.AvailableTransitions.Any())
+        {
+            <div class="card border-0 bg-white mb-1 shadow-sm">
+                @* <div class="card-header bg-white border-bottom no-after">
+                    <h6 class="card-title mb-0">
+                        <i class="ti ti-checkbox me-2 text-primary"></i>Available Actions
+                    </h6>
+                </div> *@
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-2 fw-bolder mb-3">
+                        <i class="ti ti-bolt"></i>
+                        <span class="text-uppercase">Actions</span>
+                    </div>
+                    <form method="post" asp-action="ExecuteAction" asp-route-id="@Model.Id" id="workflowForm">
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Action <span class="text-danger">*</span>
+                            </label>
+                            <select id="actionSelect" name="actionName" class="form-select" required>
+                                <option value="">-- Select an action --</option>
+                                @foreach (var transition in Model.AvailableTransitions)
+                                {
+                                    <option value="@transition.ActionName" data-requires-comments="@transition.RequiresComments.ToString().ToLower()" data-button-class="@transition.ButtonClass" data-display-label="@transition.DisplayLabel">
+                                        @transition.DisplayLabel
+                                    </option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Comments
+                                <span id="commentRequired" class="text-danger" style="display: none;">*</span>
+                            </label>
+                            <textarea id="remarksTextarea"
+                                  class="form-control"
+                                  name="remarks"
+                                  rows="3"
+                                  placeholder="Enter your comments..."></textarea>
+                            <small id="commentHint" class="text-muted d-block mt-1"></small>
+                        </div>
+
+                        <button type="submit" id="submitBtn" class="text-white btn btn-brown" disabled>
+                            <i class="ti ti-check me-1"></i><span id="submitBtnLabel">Submit</span>
+                        </button>
+                        @Html.AntiForgeryToken()
+                    </form>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const actionSelect = document.getElementById('actionSelect');
+        const remarksTextarea = document.getElementById('remarksTextarea');
+        const commentRequired = document.getElementById('commentRequired');
+        const commentHint = document.getElementById('commentHint');
+        const submitBtn = document.getElementById('submitBtn');
+        const submitBtnLabel = document.getElementById('submitBtnLabel');
+        const workflowForm = document.getElementById('workflowForm');
+
+        // Only wire up workflow actions when the form is present
+        if (actionSelect && workflowForm) {
+            // Define hint messages for each action
+            const hintMessages = {
+                'Verify': 'Provide your verification comments.',
+                'Reject': 'Explain why you are rejecting this procurement.',
+                'Resubmit': 'Explain what changes were made.'
+            };
+
+            // Handle action selection change
+            actionSelect.addEventListener('change', function () {
+                const selectedOption = this.options[this.selectedIndex];
+                const requiresComments = selectedOption.dataset.requiresComments === 'true';
+                const actionName = selectedOption.value;
+                const displayLabel = selectedOption.dataset.displayLabel;
+                const buttonClass = selectedOption.dataset.buttonClass;
+
+                if (actionName) {
+                    // Update comment requirement
+                    if (requiresComments) {
+                        commentRequired.style.display = 'inline';
+                        remarksTextarea.required = true;
+                    } else {
+                        commentRequired.style.display = 'none';
+                        remarksTextarea.required = false;
+                    }
+
+                    // Update hint message
+                    commentHint.textContent = hintMessages[actionName] || '';
+
+                    // Update button
+                    submitBtn.disabled = false;
+                    submitBtnLabel.textContent = displayLabel;
+                    submitBtn.className = `text-white btn ${buttonClass}`;
+                } else {
+                    // Reset to default state
+                    commentRequired.style.display = 'none';
+                    remarksTextarea.required = false;
+                    remarksTextarea.value = '';
+                    commentHint.textContent = '';
+                    submitBtn.disabled = true;
+                    submitBtnLabel.textContent = 'Submit';
+                    submitBtn.className = 'text-white btn btn-primary';
+                }
+            });
+
+            // Form submission validation
+            workflowForm.addEventListener('submit', function (e) {
+                const selectedOption = actionSelect.options[actionSelect.selectedIndex];
+                const requiresComments = selectedOption.dataset.requiresComments === 'true';
+                const remarksValue = remarksTextarea.value.trim();
+
+                if (requiresComments && !remarksValue) {
+                    e.preventDefault();
+                    alert('Comments are required for this action.');
+                    remarksTextarea.focus();
+                    return false;
+                }
+            });
+        }
+
+        // Amount in words
+        const ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+            'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+            'Seventeen', 'Eighteen', 'Nineteen'];
+        const TENS = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+        function wordsUnder1000(n) {
+            if (n === 0) return '';
+            if (n < 20) return ONES[n];
+            if (n < 100) return TENS[Math.floor(n / 10)] + (n % 10 ? ' ' + ONES[n % 10] : '');
+            return ONES[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + wordsUnder1000(n % 100) : '');
+        }
+
+        function toWords(n) {
+            if (n === 0) return 'Zero shillings';
+            const scales = [[1e12, 'Trillion'], [1e9, 'Billion'], [1e6, 'Million'], [1e3, 'Thousand'], [1, '']];
+            let res = '', rem = n;
+            scales.forEach(([s, name]) => {
+                if (rem >= s) {
+                    const chunk = Math.floor(rem / s);
+                    res += wordsUnder1000(chunk) + (name ? ' ' + name + ' ' : ' ');
+                    rem %= s;
+                }
+            });
+            return res.trim() + ' Shillings';
+        }
+
+        document.getElementById('total-in-words').textContent = toWords(@Html.Raw(Model.TotalAmount)) + ' only';
+    
+    });
+
+    
+
+</script>

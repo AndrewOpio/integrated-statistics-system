@@ -23,6 +23,7 @@ using VMSService.Core.Services.Identity.IdentityEntities;
 using VMSService.Core.Models.AgentDetails;
 using ConfigurationsService.Dto;
 using VMSService.Core.Model.AgentDetailStatusHistories;
+using VMSService.Core.Models.CbDepositRequest;
 
 namespace VMSService.Core.Mappings
 {
@@ -66,6 +67,8 @@ namespace VMSService.Core.Mappings
             CreateMap<NonStaffUser, NonStaffUserViewModel>().ReverseMap();
             CreateMap<AgentDetail, AgentDetailViewModel>().ReverseMap();
             CreateMap<AgentDetailStatusHistory, AgentDetailStatusHistoryViewModel>().ReverseMap();
+            CreateMap<DepositRequest, DepositRequestDetailsViewModel>().ReverseMap();
+            CreateMap<DepositRequestStatusHistory, DepositRequestStatusHistoryViewModel>().ReverseMap();
         }
     }
 }

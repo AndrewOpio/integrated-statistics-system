@@ -5,6 +5,7 @@ using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.AgentDetailStatusHistories;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
+using VMSService.Core.Repositories.DepositUnitOfWorks;
 using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.ReceivedStocks;
@@ -39,7 +40,8 @@ namespace VMSService.Core.Services.Workflows
         IWithdrawalTransactionRefNumberGenerator _txnrefNoGenerator,
         IWithdrawalUnitOfWork _uow,
         IAgentDetailRepository _agentDetailRepository,
-        IAgentDetailStatusHistoryRepository _agentDetailStatusHistoryRepository) : IWorkflowService
+        IAgentDetailStatusHistoryRepository _agentDetailStatusHistoryRepository,
+        IDepositUnitOfWork _duow) : IWorkflowService
     {
 
 
@@ -102,7 +104,7 @@ namespace VMSService.Core.Services.Workflows
                 return false;
             }
         }
-        public async Task<bool> ExecuteTransition(string entityType, Guid entityId, int currentStatusId, string actionName, string username, List<int> userRoles, string remarks)
+        public async Task<bool> ExecuteTransition(string entityType, Guid entityId, int currentStatusId, string actionName, string username, List<int> userRoles, string remarks, CancellationToken ct)
         {
             var requestData = new GetTransitionByKeyRequestDto
             {
@@ -138,6 +140,11 @@ namespace VMSService.Core.Services.Workflows
                         await HandleWithdrawalTransitions(
                             entityId, currentStatusId, actionName,
                             username, remarks, transition),
+
+                    StatusConstants.Entity.DepositRequest =>
+                            await HandleDepositTransitions(
+                            entityId, currentStatusId, actionName,
+                            username, remarks, transition, ct),
 
                     _ => LogUnknownEntity(entityType)
                 };
@@ -558,6 +565,60 @@ namespace VMSService.Core.Services.Workflows
 
             _logger.LogInformation(
                 "WithdrawalRequest {Id} transitioned from {From} to {To} by {Username} via action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
+        private async Task<bool> HandleDepositTransitions(Guid entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition, CancellationToken ct)
+        {
+            var deposit = await _duow.Requests.FindById(entityId);
+            if (deposit == null)
+            {
+                _logger.LogWarning("Deposit {Id} not found", entityId);
+                return false;
+            }
+
+            // Verify current status matches
+            if (deposit.StatusTypeId != currentStatusId)
+            {
+                _logger.LogWarning("Deposit {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, deposit.StatusTypeId, currentStatusId);
+                return false;
+            }
+
+            // Create status history record
+            var statusHistory = new DepositRequestStatusHistory
+            {
+                DepositRequestId = entityId,
+                OldStatusId = deposit.StatusTypeId,
+                NewStatusId = transition.ToStatusId,
+                ChangedBy = username,
+                ChangedAt = DateTime.Now,
+                Remarks = remarks,
+                IsDeleted = false
+            };
+
+            await _duow.StatusHistory.Create(statusHistory);
+
+            // Update deposit status
+            deposit.StatusTypeId = transition.ToStatusId;
+            await _duow.Requests.Update(deposit);
+
+            await _duow.SaveAsync(ct);
+
+            // Send notifications
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                $"Deposit #{entityId} (UGX {deposit.TotalAmount:N0})",
+                transition,
+                transition.ToStatus.Name,
+                username, remarks);
+            }
+
+            _logger.LogInformation("Deposit {Id} transitioned from status {From} to {To} by user {Username} with action {Action}",
                 entityId, currentStatusId, transition.ToStatusId, username, actionName);
 
             return true;
