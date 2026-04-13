@@ -5,8 +5,9 @@
         <div class="d-flex align-items-center mb-3 justify-content-between">
             <div class="d-flex align-items-center gap-2 fw-bolder">
                 <i class="ti ti-replace"></i>
-                <span class="text-uppercase mb-0">Sender & Receiver Branch Details</span>
+                <span class="text-uppercase mb-0">Sender & Receiver Details</span>
             </div>
+            <hr />
             <div class="d-flex gap-2">
                 <span class="badge text-bg-danger-lt text-danger border border-danger-subtle small">
                     * Required
@@ -21,16 +22,6 @@
                 <div class="text-uppercase text-muted small mb-1">
                     FROM — SENDER
                 </div>
-              @*   <select id="cbBranchSelect"
-                        name="CbBranchId"
-                        class="form-select mb-3"
-                        onchange="onCbBranchSelected(this.value); loadBranchDetails('cb', this.value)">
-                    <option value="">— Select COMPANY Branch —</option>
-                    @foreach (var branch in Model.CbBranches)
-                    {
-                        <option value="@branch.Id">@branch.Name</option>
-                    }
-                </select> *@
 
                 <div id="cbBranchCard">
                     <div class="d-flex align-items-stretch rounded-3 overflow-hidden border border-danger">
@@ -39,7 +30,7 @@
                         </div>
                         <div class="flex-grow-1 px-3 py-2">
                             <p class="text-muted mb-0" style="font-size:9px;">FROM COMMERCIAL BANK</p>
-                            <p class="fw-bold mb-0" >@Model.Cb.Name</p>
+                            <p class="fw-bold mb-0">@Model.Cb.Name</p>
                             <p class="mb-0">@Model.Cb.Code</p>
                             <p class="mb-0" id="cbCode">@Model.Cb.CBCode</p>
                         </div>
@@ -55,14 +46,17 @@
 
             @* ── Bou Branch ── *@
             <div class="col-md-6">
-                <select id="bouBranchSelect"
-                        name="bouBranchId"
+                <select id="BouBranchSelect"
+                        name="BouBranchId"
                         class="form-select mb-3"
                         onchange="onBouBranchSelected(this.value); loadBranchDetails('bou', this.value)">
                     <option value="">— Select BOU Branch —</option>
                     @foreach (var branch in Model.BouBranches)
                     {
-                        <option value="@branch.Id">@branch.Name</option>
+                        <option value="@branch.Id"
+                                selected="@(Model.SelectedBouBranchId != 0 && branch.Id == Model.SelectedBouBranchId)">
+                            @branch.Name
+                        </option>
                     }
                 </select>
 
@@ -78,7 +72,7 @@
                             <p class="text-muted mb-0" style="font-size:9px;">TO BRANCH</p>
                             <p class="fw-bold mb-0">Bank of Uganda</p>
                             <p class="mb-0" id="bouBranchName"></p>
-                            <p class="text-muted fw-light mb-0" id="bouBranchCode" ></p>
+                            <p class="text-muted fw-light mb-0" id="bouBranchCode"></p>
                         </div>
                         <div class="d-flex align-items-center pe-3">
                             <span class="badge bg-success">
@@ -92,7 +86,7 @@
 
         </div>
 
-        <div class="row g-4 my-1">
+        @* <div class="row g-4 my-1">
             <div class="col-md-6">
                 <label class="form-label text-uppercase text-muted small mb-1">
                     Collection Date <span class="text-danger">*</span>
@@ -100,8 +94,65 @@
                 <input type="date"
                        id="collectionDate"
                        class="form-control"
-                       onchange="formState.collectionDate = this.value || null; checkSpecialApproval();" />
+                       onchange="formState.collectionDate = this.value || null;
+                 checkSpecialApproval();
+                 document.getElementById('rtgsDate').min = this.value || new Date().toISOString().split('T')[0];" />
                 <small class="text-muted">Date the cash will be withdrawn</small>
+            </div>
+        </div> *@
+        <div class="row g-4 my-1">
+            <div class="col-md-6">
+                <label class="form-label text-uppercase text-muted small mb-1">
+                    Collection Date <span class="text-danger">*</span>
+                </label>
+                @if (Model.IsEdit)
+                {
+                    <p class="fw-bold mb-0 @(Model.CollectionDate == DateOnly.FromDateTime(Model.CreatedDate) ? "text-danger" : "")">
+                        @Model.CollectionDate.ToString("dd MMM yyyy")
+                    </p>
+                    <small class="text-muted">Date the cash will be withdrawn</small>
+                }
+                else
+                {
+                    <input type="date"
+                           id="collectionDate"
+                           class="form-control"
+                           onchange="formState.collectionDate = this.value || null;
+                                 checkSpecialApproval();
+                                 document.getElementById('rtgsDate').min = this.value || new Date().toISOString().split('T')[0];" />
+                    <small class="text-muted">Date the cash will be withdrawn</small>
+                }
+            </div>
+            <div class="col-md-6">
+                <label class="form-label text-uppercase text-muted small mb-1">
+                    Create Date
+                </label>
+                <p class="fw-bold mb-0">
+                    @(Model.IsEdit? Model.CreatedDate.ToString("dd MMM yyyy") : DateTime.Now.ToString("dd MMM yyyy"))
+                </p>
+                <small class="text-muted">Date request was created</small>
+            </div>
+
+            <div id="specialApprovalWarning"
+                 class="alert alert-danger d-flex align-items-start gap-2 py-2 mt-3 mb-0"
+                 style="display:none!important;">
+                <i class="ti ti-alert-triangle text-danger fs-5 mt-1 flex-shrink-0"></i>
+                <div class="flex-grow-1">
+                    <p class="fw-bold mb-1">Special Approval Required!</p>
+                    <p class="mb-1 small">
+                        Collection date matches RTGS date. This request will be routed for
+                        <strong>special approval</strong> before processing.
+                    </p>
+                    <div class="border-top pt-2 mt-1">
+                        <p class="text-muted mb-0" style="font-size:9px;">REASON PROVIDED</p>
+                        <p class="fw-semibold small mb-0" id="specialApprovalReasonDisplay"></p>
+                    </div>
+                    <button type="button"
+                            class="btn btn-sm btn-outline-danger mt-2"
+                            onclick="editSpecialApprovalReason()">
+                        <i class="ti ti-edit me-1"></i> Edit Reason
+                    </button>
+                </div>
             </div>
         </div>
     </div>

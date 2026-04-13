@@ -1,0 +1,259 @@
+﻿@using System.Security.Claims
+@model VMSService.Core.Models.CbWithdrawRequest.EditWithdrawViewModel
+@{
+    Layout = "_CbLayout";
+    ViewData["Title"] = "Edit Withdraw Request";
+}
+
+@await Html.PartialAsync("~/Views/Shared/_Withdrawal/_WithdrawNavSteps.cshtml", Model.Steps)
+
+@if (TempData["Errors"] is List<string> errors && errors.Any())
+{
+    <div class="alert alert-danger mb-4">
+        <ul class="mb-0">
+            @foreach (var error in errors)
+            {
+                <li>@error</li>
+            }
+        </ul>
+    </div>
+}
+
+<div class="">
+    <h5 class="mb-1 text-danger">Withdrawal Request - @User.FindFirst("cbName")?.Value</h5>
+    <p class="text-muted mb-3">
+        Fill in your withdrawal request details and the denominations required.
+    </p>
+</div>
+
+<div id="withdrawalForm">
+
+    @* ── Branch Selection ── *@
+
+    @await Html.PartialAsync("~/Views/Shared/_Withdrawal/_BranchSelection.cshtml", Model.Branches)
+
+
+    @* <div class="role-panel @(currentRole == "requestor" ? "active" : "")" id="panel-requestor"> *@
+
+        @* ── Agent Selection ── *@
+
+        @await Html.PartialAsync("~/Views/Shared/_Withdrawal/_AgentSelection.cshtml", Model.Agents)
+
+        @* ── Denomination Selection ── *@
+
+        @await Html.PartialAsync("~/Views/Shared/_Withdrawal/_DenomTable.cshtml", Model.Denoms)
+
+    @* </div> *@
+
+    @* ── Collection Date ── *@
+    @* <div class="card mb-3">
+        <div class="card-header bg-white d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+                <i class="ti ti-clock-12 "></i>
+                <span class="text-uppercase mb-0">Collection Details</span>
+            </div>
+        </div>
+        <div class="card-body">
+        </div>
+    </div> *@
+
+    @* ── RTGS Details ── *@
+    <div class="card mb-4 border-top-0 border-end-0 border-bottom-0 border-4 shadow-sm" style="border-color: #541010">
+        <div class="card-body">
+            <div class="d-flex align-items-center mb-3 justify-content-between">
+                <div class="d-flex align-items-center gap-2 fw-bolder">
+                    <i class="ti ti-clock-bolt"></i>
+                    <span class="text-uppercase mb-0">RTGS Details</span>
+                </div>
+                <span class="badge bg-success bg-opacity-10 text-uppercase text-success small">
+                    Final step before submission
+                </span>
+            </div>
+            <div class="alert alert-warning d-flex align-items-start gap-2 py-2 mb-3">
+                <i class="ti ti-info-circle text-warning mt-1 flex-shrink-0"></i>
+                <small>
+                    Enter the RTGS date and reference code once confirmed with the bank.
+                    RTGS date must be after the collection date.
+                </small>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">RTGS Date</label>
+                    @* <input type="date"
+                           id="rtgsDate"
+                           class="form-control"
+                           onchange="formState.rtgsDate = this.value || null; checkSpecialApproval();" /> *@
+                    <input type="date"
+                           id="rtgsDate"
+                           class="form-control"
+                           onchange="formState.rtgsDate = this.value || null;"/>
+
+                   @*  <small id="rtgsDateError" class="text-danger mt-1" style="display:none;">
+                        <i class="ti ti-alert-circle me-1"></i>
+                        RTGS date cannot be before the collection date.
+                    </small> *@
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">RTGS Code</label>
+                    <input type="text"
+                           id="rtgsCode"
+                           class="form-control"
+                           placeholder="e.g. RTGS-2026-001"
+                           oninput="formState.rtgsCode = this.value || null" />
+                </div>
+            </div>
+
+            <div id="specialApprovalWarning"
+                 class="alert alert-danger d-flex align-items-start gap-2 py-2 mt-3 mb-0"
+                 style="display:none!important;">
+                <i class="ti ti-alert-triangle text-danger fs-5 mt-1 flex-shrink-0"></i>
+                <div class="flex-grow-1">
+                    <p class="fw-bold mb-1">Special Approval Required!</p>
+                    <p class="mb-1 small">
+                        Collection date matches RTGS date. This request will be routed for
+                        <strong>special approval</strong> before processing.
+                    </p>
+                    <div class="border-top pt-2 mt-1">
+                        <p class="text-muted mb-0" style="font-size:9px;">REASON PROVIDED</p>
+                        <p class="fw-semibold small mb-0" id="specialApprovalReasonDisplay"></p>
+                    </div>
+                    <button type="button"
+                            class="btn btn-sm btn-outline-danger mt-2"
+                            onclick="editSpecialApprovalReason()">
+                        <i class="ti ti-edit me-1"></i> Edit Reason
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @* ── Special Approval Modal ── *@
+    <div class="modal fade" id="specialApprovalModal" tabindex="-1"
+         data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-bottom">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="rounded-2 bg-danger bg-opacity-10 d-flex align-items-center justify-content-center"
+                             style="width:36px;height:36px;">
+                            <i class="ti ti-alert-triangle text-danger fs-5"></i>
+                        </div>
+                        <div>
+                            <h5 class="modal-title mb-0 fw-bold">Special Approval Required</h5>
+                            <p class="text-muted small mb-0">Collection date matches Creation date</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger d-flex gap-2 py-2 mb-3">
+                        <i class="ti ti-info-circle flex-shrink-0 mt-1"></i>
+                        <small>
+                            Same-day RTGS requests require special authorization.
+                            Please provide a reason — this will be reviewed before processing.
+                        </small>
+                    </div>
+                    <label class="form-label">
+                        Reason for Same-Day Submission <span class="text-danger">*</span>
+                    </label>
+                    <textarea id="specialApprovalReasonInput"
+                              class="form-control"
+                              rows="3"
+                              placeholder="type reason for same-day withdrawal"></textarea>
+                    <small id="specialApprovalReasonError"
+                           class="text-danger mt-1"
+                           style="display:none;">
+                        <i class="ti ti-alert-circle me-1"></i>
+                        Please provide a reason before continuing.
+                    </small>
+                </div>
+                <div class="modal-footer border-top">
+                    <button type="button"
+                            class="btn btn-outline-secondary"
+                            onclick="onSpecialApprovalCancelled()">
+                        <i class="ti ti-x me-1"></i> Cancel
+                    </button>
+                    <button type="button"
+                            class="btn btn-danger"
+                            onclick="onSpecialApprovalConfirmed()">
+                        <i class="ti ti-check me-1"></i> Confirm & Continue
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @* ── Actions ── *@
+    <div class="d-flex justify-content-between gap-2 mt-4 mb-5 ">
+        <a asp-action="Details" asp-route-id="@Model.Request.Id" class="btn btn-outline-secondary">
+            <i class="ti ti-arrow-left me-1"></i> Back to Details
+        </a>
+        <button type="button"
+                class="btn btn-secondary"
+                onclick="submitForm('/CbWithdrawRequests/SaveDraft')">
+            <i class="ti ti-device-floppy me-1"></i> Save as Draft
+        </button>
+    </div>
+    @Html.AntiForgeryToken()
+</div>
+
+@section Scripts {
+
+    <script src="~/js/withdrawal-form.js"></script>
+    <script src="~/js/branch-selection.js"></script>
+    <script src="~/js/agent-selection.js"></script>
+    <script src="~/js/denom-table.js"></script>
+
+    <script>
+        // const today = new Date().toISOString().split('T')[0];
+        document.getElementById('rtgsDate').max = today;
+
+        // ── Denomination data — must be set before DOMContentLoaded fires preFillDenoms ──
+        window.savedDenoms = @Html.Raw(Json.Serialize(
+            Model.Denoms.SelectedDenominations.Select(d => new {
+                id      = d.DenominationId,
+                bundles = d.Bundles,
+                boxes   = d.Boxes
+            })));
+
+        window.denomData = {
+            notes: @Html.Raw(Json.Serialize(Model.Denoms.Notes.Select(d => new {
+                id     = d.Id,
+                value  = d.Value,
+                label  = $"UGX {d.Value:N0}",
+                typeId = d.DenominationTypeId
+            }))),
+            coins: @Html.Raw(Json.Serialize(Model.Denoms.Coins.Select(d => new {
+                id     = d.Id,
+                value  = d.Value,
+                label  = $"UGX {d.Value:N0}",
+                typeId = d.DenominationTypeId
+            })))
+        };
+
+        // ── formState — safe to set now that withdrawal-form.js has run ──────
+        formState.id          = '@Model.Request.Id';
+        formState.bankBranchId = @Model.Request.BouBranchId;
+        formState.cbCode      = document.getElementById('cbCode')?.textContent?.trim() || null;
+        formState.createdDate = '@Model.Request.CreatedDate.ToString("yyyy-MM-dd")';
+
+        formState.rtgsDate = @Html.Raw(Model.Request.RtgsDate.HasValue
+            ? $"'{Model.Request.RtgsDate.Value.ToString("yyyy-MM-dd")}'"
+            : "null");
+        formState.rtgsCode = @Html.Raw(string.IsNullOrEmpty(Model.Request.RtgsCode)
+            ? "null"
+            : $"'{Model.Request.RtgsCode}'");
+
+        // Pre-fill RTGS inputs
+        if (formState.rtgsDate) {
+            const el = document.getElementById('rtgsDate');
+            if (el) el.value = formState.rtgsDate;
+        }
+        if (formState.rtgsCode) {
+            const el = document.getElementById('rtgsCode');
+            if (el) el.value = formState.rtgsCode;
+        }
+
+        // ── Trigger denom pre-fill manually ──────────────────────────────────
+        // if (window.savedDenoms?.length) preFillDenoms();
+    </script>
+}

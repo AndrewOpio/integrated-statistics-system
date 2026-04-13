@@ -3,9 +3,13 @@ using NotificationService.Client;
 using NotificationService.Client.Dtos;
 using VMSService.Core.Models.CbRequests;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
+using VMSService.Core.Services.Workflows;
+using WorkflowService.Client;
 
 namespace VMSService.Web.Controllers;
-public class CbRequestsController(IWithdrawalUnitOfWork _uow) : Controller
+public class CbRequestsController(
+    IWorkflowServiceClient _workflowServiceClient,
+    IWithdrawalUnitOfWork _uow) : Controller
 {
     public async Task<IActionResult> Index(CancellationToken ct)
     {
@@ -14,16 +18,31 @@ public class CbRequestsController(IWithdrawalUnitOfWork _uow) : Controller
 
         var requests = await _uow.Requests.GetByCbAsync(cbId, ct);
 
-        var rows = requests.Select(r => new RecentRequestRowViewModel
+        //var rows = requests.Select(r => new RecentRequestRowViewModel
+        //{
+        //    Id = r.Id,
+        //    //Type = "Withdrawal",
+        //    Amount = r.TotalAmount,
+        //    StatusTypeName = (await _workflowServiceClient.FindStatusById(r.StatusTypeId)).Name,
+        //    CollectionDate = r.CollectionDate,
+        //    TransactionRefNumber = r.TransactionRefNumber ?? "Not Generated",
+        //    CreationDate = r.CreatedDate,
+        //    RequiresSpecialApproval = r.RequiresSpecialApproval,
+
+        //    RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "—" : r.RtgsCode,
+        //});
+
+        var rows = await Task.WhenAll(requests.Select(async r => new RecentRequestRowViewModel
         {
             Id = r.Id,
-            Type = "Withdrawal",
             Amount = r.TotalAmount,
-            Status = r.StatusTypeName,
-            StatusName = r.StatusTypeName,
-            Date = r.CollectionDate,
-            Purpose = string.IsNullOrEmpty(r.RtgsCode) ? "—" : r.RtgsCode,
-        });
+            StatusTypeName = (await _workflowServiceClient.FindStatusById(r.StatusTypeId)).Name,
+            CollectionDate = r.CollectionDate,
+            TransactionRefNumber = r.TransactionRefNumber ?? "Not Generated",
+            CreationDate = r.CreatedDate,
+            RequiresSpecialApproval = r.RequiresSpecialApproval,
+            RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "—" : r.RtgsCode,
+        }));
 
         return View(new CbRequestsIndexViewModel
         {

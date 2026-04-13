@@ -66,7 +66,11 @@ namespace VMSService.Data.Configurations
                 .OnDelete(DeleteBehavior.Cascade);
 
             // ── Indexes ───────────────────────────
-            modelBuilder.Entity<WithdrawalRequest>().HasIndex(r => r.TransactionRefNumber).IsUnique();
+            modelBuilder.Entity<WithdrawalRequest>()
+                .HasIndex(r => r.TransactionRefNumber)
+                .IsUnique()
+                .HasFilter("[TransactionRefNumber] IS NOT NULL"); 
+
             modelBuilder.Entity<WithdrawalRequest>().HasIndex(r => r.CbId);
             modelBuilder.Entity<WithdrawalRequest>().HasIndex(r => r.StatusTypeId);
             modelBuilder.Entity<WithdrawalRequest>().HasIndex(r => r.CollectionDate);

@@ -17,6 +17,10 @@ namespace VMSService.Core.Repositories.WithdrawalRequestStatusHistories
         public async Task<WithdrawalRequestStatusHistory> FindById(Guid id)
             => await _db.WithdrawalRequestStatusHistory.FindAsync(id)
                ?? throw new KeyNotFoundException($"WithdrawalRequestStatus {id} not found.");
+        public async Task<WithdrawalRequestStatusHistory> FindByNewStatusId(int newStatusId)
+            => await _db.WithdrawalRequestStatusHistory
+            .Where(x => x.NewStatusId == newStatusId).FirstOrDefaultAsync()
+               ?? throw new KeyNotFoundException($"WithdrawalRequestStatus {newStatusId} not found.");
 
         public async Task<bool> Create(WithdrawalRequestStatusHistory entity)
         {

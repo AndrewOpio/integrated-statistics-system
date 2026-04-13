@@ -142,11 +142,11 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a asp-controller="CbWithdrawalRequests" asp-action="Index" class="nav-link d-flex align-items-center">
+                        <a asp-controller="WithdrawalRequests" asp-action="Index" class="nav-link d-flex align-items-center">
                             <span class="sidebar-icon fs-5 me-4">
                                 <i class="ti ti-currency"></i>
                             </span>
-                            <span class="sidebar-text">CB Withdraws</span>
+                            <span class="sidebar-text">Withdrawal Requests</span>
                         </a>
                     </li>
                 }
@@ -326,20 +326,18 @@
         <div class="container-fluid pt-3">
             @if (TempData["Success"] != null)
             {
-                <div>
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        @TempData["Success"]
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
+                <div class="alert alert-success alert-dismissible fade show d-flex align-items-center gap-2" role="alert">
+                    <i class="ti ti-circle-check fs-5"></i>
+                    <span>@TempData["Success"]</span>
+                    <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
                 </div>
             }
             @if (TempData["Error"] != null)
             {
-                <div>
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        @TempData["Error"]
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
+                <div class="alert alert-danger alert-dismissible fade show d-flex align-items-center gap-2" role="alert">
+                    <i class="ti ti-alert-circle fs-5"></i>
+                    <span>@TempData["Error"]</span>
+                    <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
                 </div>
             }
             @RenderBody()

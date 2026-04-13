@@ -25,7 +25,7 @@ namespace VMSService.Core.Static
             public const int Draft = 24;
             public const int SubmittedToSupervisor = 25;
             public const int ReturnedForRevision = 26;
-            public const int SubmittedToBank = 27;
+            public const int SubmittedToBOU = 27;
             public const int PendingSpecialApproval = 28;
             public const int Recommended = 29;
             public const int Approved = 30;
@@ -48,7 +48,7 @@ namespace VMSService.Core.Static
         {
             public const string SavedAsDraft = "Saved as draft";
             public const string SubmittedToSupervisor = "Submitted to supervisor";
-            public const string SubmittedToBank = "Submitted to bank";
+            public const string SubmittedToBOU = "Submitted to BOU";
             public const string ReturnedForRevision = "Returned for revision";
         }
     }

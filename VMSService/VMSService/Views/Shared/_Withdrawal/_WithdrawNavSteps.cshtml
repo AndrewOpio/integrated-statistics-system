@@ -7,7 +7,7 @@
     {
         <div class="d-flex align-items-center gap-2 text-white-50 mb-3">
             <i class="ti ti-clock-hour-4 fs-5"></i>
-            <span>Your request has been submitted and is currently being processed by the bank.</span>
+            <span>Your request has been submitted and is currently being processed by the BOU.</span>
         </div>
     }
     @if (Model.IsApproved)
@@ -59,19 +59,19 @@
             </button>
         }
 
-        @* ── "In progress" pill for company users while request is with the bank ── *@
+        @* ── "In progress" pill for CB users while request is with the bank ── *@
         @if (Model.IsInProgress)
         {
             <div class="step-arrow">
                 <i class="ti ti-chevron-right fs-4 opacity-50"></i>
             </div>
-            <div class="step-pill wait" title="Being processed by the bank">
+            <div class="step-pill wait" title="Being Handled by BOU">
                 <div class="sp-icon">
                     <i class="ti ti-clock-hour-4"></i>
                 </div>
                 <div class="d-none d-sm-block">
                     <div class="text-white">In Progress</div>
-                    <div class="text-white-50">With the bank</div>
+                    <div class="text-white-50">BOU Handling</div>
                 </div>
             </div>
         }

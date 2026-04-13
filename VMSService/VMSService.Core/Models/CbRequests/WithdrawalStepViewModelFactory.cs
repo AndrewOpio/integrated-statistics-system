@@ -14,12 +14,12 @@ public class WithdrawalStepViewModelFactory
     [
         ("CbMaker",     "ti-user-plus",     "Initiator",   "Initiate request"),
         ("CbApprover",  "ti-building-bank", "Approver",    "Approve withdrawal"),
-        ("BOU",        "ti-clock-hour-4",  "With Bank",   "For processing"),
+        ("BOU",        "ti-clock-hour-4",  "BOU Handling",   "For processing"),
     ];
 
     private static readonly (string Key, string Icon, string Label, string SubLabel)[] BouSteps =
     [
-        ("cb",          "ti-building",             "Company",          "Company request"),
+        ("Cb",          "ti-building",             "Commercial Bank",  "Commercial Bank Request"),
         ("Remittance",  "ti-adjustments",          "Remittance",       "Validate Checks"),
         ("PanelA",      "ti-shield-check",         "Panel A",          "Review and Adjust"),
         ("PanelB",      "ti-arrow-right-circle",   "Panel B",          "Collect and Approve"),
@@ -53,7 +53,7 @@ public class WithdrawalStepViewModelFactory
             IsConnectorDone = i > 0 && (i - 1) < currentIndex,
         }).ToList();
 
-        var isInProgress = !isBouUser && currentStepKey == "bank" && !isRequestApproved;
+        var isInProgress = !isBouUser && currentStepKey == "bou" && !isRequestApproved;
         var isApproved = !isBouUser && isRequestApproved;
 
         return new WithdrawalStepViewModel

@@ -12,5 +12,6 @@ namespace VMSService.Core.Repositories.WithdrawalRequestStatusHistories
     : IRepositoryBase<WithdrawalRequestStatusHistory, Guid>
     {
         Task<IEnumerable<WithdrawalRequestStatusHistory>> GetByRequestAsync(Guid requestId, CancellationToken ct = default);
+        Task<WithdrawalRequestStatusHistory> FindByNewStatusId(int newStatusId);
     }
 }

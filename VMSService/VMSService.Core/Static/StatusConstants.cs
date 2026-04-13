@@ -53,12 +53,16 @@
             public const string DiscrepancyPendingResolution = "Discrepancy Pending Resolution";
             public const string DiscrepancyResolved = "Discrepancy Resolved";
         }
-        public static class ApprovedWithdrawalRequest
+        public static class WithdrawalRequest
         {
             public const string Draft = "Draft";
+            public const string SpecialApproval = "Special Approval";
             public const string PendingInternalApproval = "Pending Internal Approval";
+            public const string PendingDisbursement = "Request Withdraw";
+            public const string Recommended = "Recommended";
             public const string Verified = "Verified";
             public const string Returned = "Returned";
+            public const string Authorized = "Approved by BOU";
         }
 
         public static class Entity
@@ -68,7 +72,7 @@
             public const string ReceivedStock = "ReceivedStock";
             public const string StockMovement = "StockMovement";
             public const string StockMovementDiscrepancy = "StockMovementDiscrepancy";
-            public const string WithdrawalRequest = "WithdrawalRequest";
+            public const string WithdrawalRequest = "Withdrawal Request";
         }
     }
 }

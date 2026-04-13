@@ -476,3 +476,21 @@ input[type=number].form-control::-webkit-outer-spin-button {
 input[type=number].form-control {
     -moz-appearance: textfield;
 }
+
+.request-card {
+    transition: box-shadow 0.15s, transform 0.15s;
+}
+
+    .request-card:hover {
+        box-shadow: 0 4px 16px rgba(0,0,0,0.10) !important;
+        transform: translateY(-1px);
+    }
+.card-hover {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+}
+
+    .card-hover:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+    }
