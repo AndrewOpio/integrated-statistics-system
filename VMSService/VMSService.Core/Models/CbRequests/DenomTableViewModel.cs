@@ -11,7 +11,7 @@ namespace VMSService.Core.Models.CbRequests
     public class DenomTableViewModel
     {
         public IEnumerable<Denomination> Notes { get; init; } = [];
-        public IEnumerable<Denomination> Coins { get; init; } = [];
-        public List<WithdrawalRequestDenomination> ExistingLines { get; set; } = [];
+        public IEnumerable<Denomination> Coins { get; init; } = []; 
+        public IEnumerable<WithdrawalRequestDenomination> SelectedDenominations { get; init; } = [];
     }
 }

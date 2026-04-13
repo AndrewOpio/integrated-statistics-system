@@ -263,7 +263,7 @@ builder.Services.AddHttpClient<ConfigurationService>()
     });
 
 // Register Workflow Service
-var workflowServiceBaseUrl = builder.Configuration["MicroServices:workflowservice"] ?? "https://localhost:7026";
+var workflowServiceBaseUrl = builder.Configuration["MicroServices:workflowservice"] ?? "https://localhost:7288";
 builder.Services.AddWorkflowServiceClient(workflowServiceBaseUrl);
 
 // Register ConfigurationsServiceClient Service

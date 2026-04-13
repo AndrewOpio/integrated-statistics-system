@@ -18,10 +18,14 @@ namespace VMSService.Data.Entities
         public DateOnly? RtgsDate { get; set; }
         public string? RtgsCode { get; set; }
 
+        public bool RequiresSpecialApproval { get; set; } = false;
+        public string? SpecialApprovalReason { get; set; }
+
         public int StatusTypeId { get; set; }
         public decimal TotalNotesAmount { get; set; }
         public decimal TotalCoinsAmount { get; set; }
         public decimal TotalAmount { get; set; }
+        public bool IsDeleted { get; set; } = false;
 
         public ICollection<DepositRequestAgent> DepositRequestAgents { get; set; } = [];
         public ICollection<DepositRequestDenomination> DepositRequestDenominations { get; set; } = [];

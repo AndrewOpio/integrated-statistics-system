@@ -12,7 +12,10 @@ namespace VMSService.Core.Models.CbRequests
     {
         public IEnumerable<BranchDto> BouBranches { get; init; } = [];
         public CommercialBankDto Cb { get; init; } = null!;
-        public int SelectedCbBranchId { get; set; }
-        public int SelectedbankBranchId { get; set; }
+        //public int SelectedCbBranchId { get; set; }
+        public int SelectedBouBranchId { get; set; }
+        public DateOnly CollectionDate { get; set; }
+        public DateTime CreatedDate { get; set; }
+        public bool IsEdit { get; set; } = false;
     }
 }

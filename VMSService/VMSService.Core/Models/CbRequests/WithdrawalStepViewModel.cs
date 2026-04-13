@@ -9,7 +9,7 @@ namespace VMSService.Core.Models.CbRequests
     public class WithdrawalStepViewModel
     {
         public IReadOnlyList<WithdrawalStep> Steps { get; init; } = [];
-        public bool IsInProgress { get; init; }  // request is with the BOU
+        public bool IsInProgress { get; init; }  // request is with the Bank
         public bool IsApproved { get; init; }    // request fully approved
         public bool ShowBouPill { get; init; }
     }

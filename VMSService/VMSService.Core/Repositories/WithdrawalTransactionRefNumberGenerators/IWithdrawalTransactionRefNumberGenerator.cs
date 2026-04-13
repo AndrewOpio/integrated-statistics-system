@@ -9,9 +9,11 @@ namespace VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators
     public interface IWithdrawalTransactionRefNumberGenerator
     {
         Task<string> GenerateAsync(
-        int bouBranchId,
-        int cbId,
-        DateOnly collectionDate,
+            int bouBranchId,
+            string bouBranchCode,
+            int cbId,
+            string cbCode,
+            DateOnly collectionDate,
         CancellationToken ct = default);
     }
 }

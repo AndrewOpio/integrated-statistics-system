@@ -198,6 +198,7 @@ namespace WorkflowService.Client
         /// <returns>The requested status type</returns>
         public async Task<StatusTypeDto> FindStatusById(int statusId)
         {
+            _logger.LogInformation("Status code: {Status}", statusId);
             try
             {
                 // Validate input parameters
@@ -207,6 +208,7 @@ namespace WorkflowService.Client
                     return new StatusTypeDto();
                 }
 
+                _logger.LogInformation("Status code: {Status} before response: ", statusId);
                 var response = await _httpClient.GetAsync($"/api/statustype/by-id?statusId={statusId}");
 
                 if (response.IsSuccessStatusCode)

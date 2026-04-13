@@ -16,41 +16,32 @@ namespace VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators
         )
         : IWithdrawalTransactionRefNumberGenerator
     {
-        private const string Prefix = "WR";
+        private const string Prefix = "W";
 
-        public async Task<string> GenerateAsync(int bouBranchId, int cbId, DateOnly collectionDate, CancellationToken ct = default)
+        public async Task<string> GenerateAsync(
+            int bouBranchId,
+            string bouBranchCode,
+            int cbId,
+            string cbCode,
+            DateOnly collectionDate,
+            CancellationToken ct = default)
         {
-            // Resolve branch details from microservice
-            var cbBranches = await _configServiceClient.GetCbBranchesByCbIdAsync(2);
-            var bouBranches = await _configServiceClient.GetAllBouBranchesAsync();
-
-            var cbBranch = cbBranches.FirstOrDefault(b => b.Id == cbId)
-                ?? throw new InvalidOperationException($"Company branch {cbId} not found.");
-
-            var bouBranch = bouBranches.FirstOrDefault(b => b.Id == bouBranchId)
-                ?? throw new InvalidOperationException($"Bank branch {bouBranchId} not found.");
-
-            // Sequence resets per company + bank branch + collection date
+            // Sequence resets per CB + bank branch + collection date
             var existingCount = await _requestRepo.CountByCbBranchAndDateAsync(
                 cbId, bouBranchId, collectionDate, ct);
 
             var sequence = (existingCount + 1).ToString("D2");
-            var date = collectionDate.ToString("yyyyMMdd");
+            var collectiondate = collectionDate.ToString("ddMMyy");
 
-            // Format:
-            return $"{Sanitize(bouBranch.Name)}{Sanitize(cbBranch.Location)}{Prefix}{date}{sequence}";
+            // Format: {BouBranchName}{CbCode}{W}{Date}{Sequence}
+            // e.g.   KLANACMEW25032501
+            return $"{Sanitize(bouBranchCode)}{Sanitize(cbCode)}{Prefix}{collectiondate}{sequence}";
         }
-
-
-        //private static string Sanitize(string value)
-        //    => value.Trim().ToUpperInvariant().Replace(" ", "-");
-
 
         private static string Sanitize(string value)
         {
             if (string.IsNullOrWhiteSpace(value))
                 return string.Empty;
-
             return Regex.Replace(value.ToUpperInvariant(), @"[^A-Z0-9]", "");
         }
     }

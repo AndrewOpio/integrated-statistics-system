@@ -534,18 +534,18 @@ namespace VMSService.Core.Services.Workflows
             request.ModifiedDate = DateTime.Now;
 
             // If supervisor is submitting to bank — generate ref number + copy denominations
-            if (transition.ToStatusId == WithdrawStatuses.WithdrawalStatusIds.SubmittedToBank)
-            {
-                //request.SupervisorUserId = username;
+            //if (transition.ToStatusId == WithdrawStatuses.WithdrawalStatusIds.SubmittedToBOU)
+            //{
+            //    //request.SupervisorUserId = username;
 
-                request.TransactionRefNumber = await _txnrefNoGenerator.GenerateAsync(
-                    bouBranchId: request.BouBranchId,
-                    cbId: request.CbId,
-                    collectionDate: request.CollectionDate,
-                    ct: CancellationToken.None);
+            //    request.TransactionRefNumber = await _txnrefNoGenerator.GenerateAsync(
+            //        bouBranchId: request.BouBranchId,
+            //        cbId: request.CbId,
+            //        collectionDate: request.CollectionDate,
+            //        ct: CancellationToken.None);
 
-                await _uow.Denominations.CopyToBouAsync(request.Id, username, CancellationToken.None); ;
-            }
+            //    await _uow.Denominations.CopyToBouAsync(request.Id, username, CancellationToken.None); ;
+            //}
 
             await _uow.Requests.Update(request);
 
@@ -630,7 +630,7 @@ namespace VMSService.Core.Services.Workflows
             {
                 var requestData = new GetAvailableTransitionsRequestDto
                 {
-                    ApplicationAcronym = "Myapp",
+                    ApplicationAcronym = "VMS",
                     EntityTypeName = entityType,
                     CurrentStatusId = statusId,
                     AppRole = userRole,

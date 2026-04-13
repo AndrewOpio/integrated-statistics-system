@@ -8,7 +8,7 @@ namespace VMSService.Core.Models.CbWithdrawRequest
 {
     public class SaveWithdrawalRequestViewModel
     {
-        public Guid? Id { get; set; }                          // null = new, set = edit draft/revision
+        public Guid? Id { get; set; } 
         public int CbId { get; set; }
         // Branch
         //public int CbBranchId { get; set; }
@@ -20,6 +20,8 @@ namespace VMSService.Core.Models.CbWithdrawRequest
         public DateOnly CollectionDate { get; set; }
         public DateOnly? RtgsDate { get; set; }
         public string? RtgsCode { get; set; }
+        public bool RequiresSpecialApproval { get; set; }
+        public string? SpecialApprovalReason { get; set; }
 
         // Collectors — exactly 2
         public List<int> AgentIds { get; set; } = [];

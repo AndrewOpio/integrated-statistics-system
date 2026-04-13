@@ -3,6 +3,10 @@
 // Single source of truth for all form selections
 // ─────────────────────────────────────────────
 
+// Always derive "today" from Uganda time (EAT = UTC+3)
+const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Kampala' }))
+    .toISOString().split('T')[0];
+
 const formState = {
     id: null,       // set if editing existing request
     cbCode: null, 
@@ -11,21 +15,18 @@ const formState = {
     collectionDate: null,
     rtgsDate: null,
     rtgsCode: null,
-    cbCode: null,
-    agentIds: [],         // exactly 2 required
-    remarks: null,
+    requiresSpecialApproval: false,
+    specialApprovalReason: null,
+    agentIds: [],
+    createdDate: null,
 };
 
-// ─────────────────────────────────────────────
-// Branch selection — called from _BranchSelection
-// ─────────────────────────────────────────────
-
-//function onCbBranchSelected(id) {
-//    formState.cbBranchId = id || null;
-//}
+// ──────────────────────────────────────────────────────
+//To and From Selection — called from _BranchSelection
+// ──────────────────────────────────────────────────────
 
 function onBouBranchSelected(id) {
-    formState.bouBranchId = id ? parseInt(id) : null;;
+    formState.bouBranchId = id ? parseInt(id) : null;
 }
 
 // ─────────────────────────────────────────────
@@ -39,6 +40,7 @@ function onAgentSelected(slot, id) {
 // ─────────────────────────────────────────────
 // Build denomination lines from denom-table.js
 // ─────────────────────────────────────────────
+
 function buildDenomLines() {
     const rows = window.dtGetRows();
     return Object.values(rows)
@@ -53,8 +55,6 @@ function buildDenomLines() {
         }));
 }
 
-
-
 // ─────────────────────────────────────────────
 // Validation — client side pre-check
 // ─────────────────────────────────────────────
@@ -62,26 +62,28 @@ function buildDenomLines() {
 function validateForm(isDraft) {
     const errors = [];
 
-    // Draft only requires denominations or agents to be started
-    // Full validation happens server side on submit
     if (!isDraft) {
-        //if (!formState.cbBranchId)
-        //    errors.push('Please select a company branch.');
 
         if (!formState.bouBranchId)
-            errors.push('Please select a bank branch.');
+            errors.push('Please select a BOU branch.');
 
         if (formState.agentIds.filter(Boolean).length !== 2)
             errors.push('Exactly 2 agents are required.');
 
         if (!window.dtHasValue())
             errors.push('Please add at least one denomination.');
-
+             
         if (!formState.collectionDate)
             errors.push('Please select a collection date.');
 
         if (formState.rtgsCode && !formState.rtgsDate)
             errors.push('RTGS date is required when an RTGS code is provided.');
+
+        if (formState.rtgsDate && !formState.rtgsCode)
+            errors.push('RTGS code is required when an RTGS date is provided.');
+
+        if (formState.rtgsDate && formState.rtgsDate <= today)
+            errors.push('RTGS date cannot be in the past.');
     }
 
     return errors;
@@ -128,32 +130,45 @@ function getAntiForgeryToken() {
 async function submitForm(action) {
     clearErrors();
 
-
-    const isDraft = action.includes('save-draft');
+    const isDraft = action.toLowerCase().includes('savedraft');
+    const isEdit = !!formState.id;
     const errors = validateForm(isDraft);
 
-    if (errors.length > 0) {
-        showErrors(errors);
-        return;
-    }
+    if (errors.length > 0) { showErrors(errors); return; }
 
-    const payload = {
-        id: formState.id,
-        bouBranchId: parseInt(formState.bouBranchId) || 0,
-        cbCode: formState.cbCode,
-        bouBranchCode: formState.bouBranchCode,
-        collectionDate: formState.collectionDate,
-        rtgsDate: formState.rtgsDate,
-        rtgsCode: formState.rtgsCode,
-        agentIds: formState.agentIds.filter(Boolean),
-        denominations: buildDenomLines(),
-        remarks: formState.remarks,
-    };
+    // On Edit only send fields the user is allowed to change.
+    const payload = isEdit
+        ? {
+            id: formState.id,
+            bouBranchId: parseInt(formState.bouBranchId) || 0,
+            bouBranchCode: formState.bouBranchCode,
+            rtgsDate: formState.rtgsDate,
+            rtgsCode: formState.rtgsCode,
+            requiresSpecialApproval: formState.requiresSpecialApproval,
+            specialApprovalReason: formState.specialApprovalReason,
+            agentIds: formState.agentIds.filter(Boolean),
+            denominations: buildDenomLines(),
+            
+        }
+        : {
+            id: null,
+            cbCode: formState.cbCode,
+            bouBranchId: parseInt(formState.bouBranchId) || 0,
+            bouBranchCode: formState.bouBranchCode,
+            collectionDate: formState.collectionDate,
+            rtgsDate: formState.rtgsDate,
+            rtgsCode: formState.rtgsCode,
+            requiresSpecialApproval: formState.requiresSpecialApproval,
+            specialApprovalReason: formState.specialApprovalReason,
+            agentIds: formState.agentIds.filter(Boolean),
+            denominations: buildDenomLines(),
+        };
 
-    // Disable buttons to prevent double submit
     setButtonsDisabled(true);
 
     try {
+        console.log('isEdit:', isEdit, 'payload:', JSON.stringify(payload));
+
         const res = await fetch(action, {
             method: 'POST',
             headers: {
@@ -164,10 +179,9 @@ async function submitForm(action) {
         });
 
         if (res.ok) {
-            const redirectUrl = await res.text();
-            window.location.href = redirectUrl;
+            window.location.href = await res.text();
         } else {
-            const data = await res.json();
+            const data = await res.json().catch(() => ({}));
             showErrors(data.errors ?? ['An unexpected error occurred. Please try again.']);
             setButtonsDisabled(false);
         }
@@ -191,14 +205,79 @@ function setButtonsDisabled(disabled) {
 // ─────────────────────────────────────────────
 
 document.addEventListener('denomChanged', e => {
-    
     console.debug('Denom total:', e.detail.grandTotal);
 });
 
+
+// ── Special Approval ─────────────────────────────────────────────────────────
+
+function isSameDayApprovalRequired() {
+    // Always use Uganda time (EAT = UTC+3) regardless of browser locale
+    const nowUganda = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Kampala' }));
+    const isMonday = nowUganda.getDay() === 1;
+    const before11 = nowUganda.getHours() < 11;
+
+    // Monday before 11am EAT — grace period, no special approval
+    if (isMonday && before11) return false;
+
+    return formState.createdDate !== null
+        && formState.collectionDate !== null
+        && formState.createdDate === formState.collectionDate;
+}
+
 function checkSpecialApproval() {
     const warning = document.getElementById('specialApprovalWarning');
-    const show = formState.collectionDate
-        && formState.rtgsDate
-        && formState.collectionDate === formState.rtgsDate;
-    warning.style.display = show ? 'flex' : 'none';
+
+    if (isSameDayApprovalRequired()) {
+        formState.specialApprovalReason = null;
+        new bootstrap.Modal(document.getElementById('specialApprovalModal')).show();
+    } else {
+        formState.requiresSpecialApproval = false;
+        formState.specialApprovalReason = null;
+        if (warning) warning.style.setProperty('display', 'none', 'important');
+    }
 }
+
+function onSpecialApprovalConfirmed() {
+    const reasonInput = document.getElementById('specialApprovalReasonInput');
+    const reasonError = document.getElementById('specialApprovalReasonError');
+    const warning = document.getElementById('specialApprovalWarning');
+    const reason = reasonInput.value.trim();
+
+    if (!reason) {
+        reasonError.style.display = 'block';
+        return;
+    }
+
+    reasonError.style.display = 'none';
+    formState.specialApprovalReason = reason;
+    formState.requiresSpecialApproval = true;
+
+    document.getElementById('specialApprovalReasonDisplay').textContent = reason;
+
+    bootstrap.Modal.getInstance(document.getElementById('specialApprovalModal')).hide();
+
+    if (warning) warning.style.setProperty('display', 'flex', 'important');
+}
+
+function editSpecialApprovalReason() {
+    const input = document.getElementById('specialApprovalReasonInput');
+    input.value = formState.specialApprovalReason || '';
+    new bootstrap.Modal(document.getElementById('specialApprovalModal')).show();
+}
+
+function onSpecialApprovalCancelled() {
+    formState.collectionDate = null;
+    formState.specialApprovalReason = null;
+    formState.requiresSpecialApproval = false;
+
+    document.getElementById('collectionDate').value = '';
+    document.getElementById('specialApprovalReasonInput').value = '';
+
+    const warning = document.getElementById('specialApprovalWarning');
+    if (warning) warning.style.setProperty('display', 'none', 'important');
+
+    bootstrap.Modal.getInstance(document.getElementById('specialApprovalModal')).hide();
+}
+
+

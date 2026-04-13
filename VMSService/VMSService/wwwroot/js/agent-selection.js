@@ -71,3 +71,14 @@ function setImage(imgId, placeholderId, url) {
         if (placeholder) placeholder.style.display = 'block';
     }
 }
+
+function initAgentSelection() {
+    for (let i = 1; i <= 2; i++) {
+        const select = document.getElementById(`agentSelect${i}`);
+        if (select?.value) {
+            loadAgentDetails(i, select.value);
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', initAgentSelection);

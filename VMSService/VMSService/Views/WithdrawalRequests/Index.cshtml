@@ -1,0 +1,176 @@
+﻿@model VMSService.Core.Models.WithdrawalRequests.BouWithdrawalRequestViewModel
+@{
+    ViewData["Title"] = "Withdraw Requests";
+
+}
+
+@* ── Page Header ── *@
+<div class="mb-3">
+    <h5 class="fw-bold mb-0">Withdrawal Requests</h5>
+    <p class="text-muted small mb-0">Cash Operations · @DateTime.Now.ToString("dddd d MMMM yyyy")</p>
+</div>
+
+@* ── Special Approval Alert ── *@
+@if (Model.SpecialApprovalCount > 0)
+{
+    <div class="alert d-flex align-items-center gap-2 py-2 mb-4"
+         style="background:#faeeda;border:1px solid #EF9F27;color:#633806">
+        <i class="ti ti-alert-triangle fs-5" style="color:#854F0B"></i>
+        <span>
+            <strong>@Model.SpecialApprovalCount request@(Model.SpecialApprovalCount > 1 ? "s" : "")</strong>
+            require special approval — review before the collection date.
+        </span>
+    </div>
+}
+
+@* ── Metric Cards ── *@
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card-hover rounded-3 p-3 text-white" style="background:#b31b34">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <span class="small fw-semibold opacity-75 text-uppercase" style="font-size:11px;">Pending action</span>
+                <div class="rounded-2 d-flex align-items-center justify-content-center"
+                     style="width:28px;height:28px;background:rgba(255,255,255,0.15)">
+                    <i class="ti ti-clock-hour-4" style="font-size:14px;"></i>
+                </div>
+            </div>
+            <div class="fw-bold mb-1" style="font-size:26px;">@Model.PendingCbCount</div>
+            <div class="opacity-75" style="font-size:11px;">Awaiting review</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card-hover rounded-3 p-3 text-white" style="background:#c44a1a">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <span class="small fw-semibold opacity-75 text-uppercase" style="font-size:11px;">Special approval</span>
+                <div class="rounded-2 d-flex align-items-center justify-content-center"
+                     style="width:28px;height:28px;background:rgba(255,255,255,0.15)">
+                    <i class="ti ti-star" style="font-size:14px;"></i>
+                </div>
+            </div>
+            <div class="fw-bold mb-1" style="font-size:26px;">@Model.SpecialApprovalCount</div>
+            <div class="opacity-75" style="font-size:11px;">Same-day collection</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card-hover rounded-3 p-3 text-white" style="background:#BA7517">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <span class="small fw-semibold opacity-75 text-uppercase" style="font-size:11px;">Approved </span>
+                <div class="rounded-2 d-flex align-items-center justify-content-center"
+                     style="width:28px;height:28px;background:rgba(255,255,255,0.15)">
+                    <i class="ti ti-check" style="font-size:14px;"></i>
+                </div>
+            </div>
+            <div class="fw-bold mb-1" style="font-size:26px;">@Model.ApprovedCount</div>
+            <div class="opacity-75" style="font-size:11px;">+@Model.ApprovedCountDiff from last month</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card-hover rounded-3 p-3 text-white" style="background:#EF9F27">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <span class="small fw-semibold opacity-75 text-uppercase" style="font-size:11px;">Total processed</span>
+                <div class="rounded-2 d-flex align-items-center justify-content-center"
+                     style="width:28px;height:28px;background:rgba(255,255,255,0.15)">
+                    <i class="ti ti-lock" style="font-size:14px;"></i>
+                </div>
+            </div>
+            <div class="fw-bold mb-1" style="font-size:22px;">UGX @Model.TotalProcessed.ToString("N0")</div>
+            <div class="opacity-75" style="font-size:11px;">@DateTime.Now.ToString("MMMM yyyy")</div>
+        </div>
+    </div>
+</div>
+
+@* ── Requests Table ── *@
+<div class="">
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex align-items-center gap-2 py-2">
+            <i class="ti ti-layout-list text-muted"></i>
+            <span class="fw-semibold text-uppercase">Requests</span>
+        </div>
+
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="requestsTable" class="table align-middle mb-0">
+                    <thead>
+                        <tr style="background:linear-gradient(90deg,#b31b34,#c44a1a,#BA7517)">
+                            <th class="text-white fw-semibold " style="font-size:11px;">Transaction Ref no.</th>
+                            <th class="text-white fw-semibold" style="font-size:11px;">CB to BOU </th>
+                            <th class="text-white fw-semibold" style="font-size:11px;">Collection date</th>
+                            <th class="text-white fw-semibold" style="font-size:11px;">Amount</th>
+                            <th class="text-white fw-semibold" style="font-size:11px;">Status</th>
+                            <th class="text-white fw-semibold" style="font-size:11px;">Special</th>
+                            <th class="text-white" style="font-size:11px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.Requests)
+                        {
+                            <tr class="border-bottom">
+                                <td class="ps-3">
+                                    <span class="text-primary fw-semibold">
+                                        @row.TransactionRefNumber
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="rounded-circle border d-flex align-items-center justify-content-center bg-light fw-semibold"
+                                             style="width:32px;height:32px;font-size:10px;flex-shrink:0">
+                                            @(row.CbName?.Length >= 2 ? row.CbName[..2].ToUpper() : "—")
+                                        </div>
+                                        <span class="small">@row.CbName · @row.BouBranchCode</span>
+                                    </div>
+                                </td>
+                                <td class="small">@row.CollectionDate.ToString("dd MMM yyyy")</td>
+                                <td class="fw-semibold small">UGX @row.Amount.ToString("N0")</td>
+                                <td>
+                                    <span class="badge rounded-pill px-2 py-1">
+                                        @row.StatusTypeName
+                                    </span>
+                                </td>
+                                <td>
+                                    @if (row.RequiresSpecialApproval)
+                                    {
+                                        <span class="badge rounded-pill px-2 py-1"
+                                              style="background:#E1F5EE;color:#0F6E56;font-size:10px;">
+                                            <i class="ti ti-star me-1"></i>Yes
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td>
+                                    <a asp-action="Details" asp-route-id="@row.Id"
+                                       class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
+                                       style="font-size:11px;">
+                                        <i class="ti ti-eye"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                        @if (!Model.Requests.Any())
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4 small">
+                                    <i class="ti ti-inbox me-1"></i> No requests found.
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $('#requestsTable').DataTable({
+            order: [[2, 'desc']],
+            pageLength: 25,
+            columnDefs: [
+                { orderable: false, targets: [1, 5, 6] }
+            ]
+        });
+    </script>
+}

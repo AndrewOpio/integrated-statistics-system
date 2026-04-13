@@ -1,9 +1,12 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
+using VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators;
 using VMSService.Data.Configurations;
 using VMSService.Data.Entities;
 
@@ -36,7 +39,7 @@ namespace VMSService.Core.Repositories.WithdrawalRequests
         => await _db.WithdrawalRequests
             .Include(r => r.WithdrawalRequestDenominations)
             .Include(r => r.WithdrawalRequestAgents)
-            .Include(r => r.WithdrawalRequestStatusHistory)
+            //.Include(r => r.WithdrawalRequestStatusHistory)
             .FirstOrDefaultAsync(r => r.Id == id, ct);
 
         
@@ -48,7 +51,7 @@ namespace VMSService.Core.Repositories.WithdrawalRequests
 
         public async Task<IEnumerable<WithdrawalRequest>> GetByCbAsync(int cbId, CancellationToken ct = default)
         => await _db.WithdrawalRequests
-            .Where(r => r.CbId == cbId)
+            .Where(r => r.CbId == cbId && !r.IsDeleted)
             .OrderByDescending(r => r.CreatedDate)
             .ToListAsync(ct);
 
@@ -58,6 +61,8 @@ namespace VMSService.Core.Repositories.WithdrawalRequests
 
         public Task<bool> Save()
             => Task.FromResult(true);
+
+        //transactionReferenceNumber
 
     }
 }
