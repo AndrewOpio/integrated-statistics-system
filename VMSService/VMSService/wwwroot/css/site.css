@@ -511,7 +511,8 @@ input[type=number].form-control {
 
 .bg-purple {
     --bs-bg-opacity: 1;
-    background-color: #6b3eb0 !important;
+    background-color: rgba(107, 62, 176, var(--bs-bg-opacity)) !important;
+/*    background-color: #6b3eb0 !important;*/
 }
 
 .bg-active {

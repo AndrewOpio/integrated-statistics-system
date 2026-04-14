@@ -87,11 +87,22 @@
                 <label class="form-label text-uppercase text-muted small mb-1">
                     Deposit Date <span class="text-danger">*</span>
                 </label>
-                <input type="date"
-                       id="depositDate"
-                       class="form-control"
-                       onchange="depositFormState.depositDate = this.value || null;" />
-                <small class="text-muted">Date the cash will be deposited</small>
+                @if (Model.IsEdit)
+                {
+                    <p class="fw-bold mb-0 @(Model.CollectionDate == DateOnly.FromDateTime(Model.CreatedDate) ? "text-danger" : "")">
+                        @Model.CollectionDate.ToString("dd MMM yyyy")
+                    </p>
+                    <small class="text-muted">Date the cash will be withdrawn</small>
+                }
+                else
+                {
+                    <input type="date"
+                           id="depositDate"
+                           class="form-control"
+                           onchange="depositFormState.depositDate = this.value || null;
+                            checkSpecialApproval();" />
+                    <small class="text-muted">Date the cash will be deposited</small>
+                }
             </div>
         </div>
     </div>

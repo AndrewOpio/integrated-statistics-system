@@ -8,19 +8,17 @@
 
     var recentRequests = Model.RecentRequests;
 
-    // string BadgeCss(string s) => s switch
-    // {
-    //     StatusConstants.WithdrawalRequest.Draft => "text-bg-secondary",
-    //     StatusConstants.WithdrawalRequest.SubmittedToSupervisor => "text-bg-warning",
-    //     StatusConstants.WithdrawalRequest.ReturnedForRevision => "text-bg-danger",
-    //     WithdrawalStatusNames.SubmittedToBank => "text-bg-primary",
-    //     WithdrawalStatusNames.PendingSpecialApproval => "text-bg-info",
-    //     WithdrawalStatusNames.Recommended => "text-bg-warning",
-    //     WithdrawalStatusNames.Approved => "text-bg-success",
-    //     WithdrawalStatusNames.Rejected => "text-bg-danger",
-    //     WithdrawalStatusNames.Cancelled => "text-bg-secondary",
-    //     _ => "text-bg-secondary"
-    // };
+    string BadgeCss(string s) => s switch
+    {
+        StatusConstants.WithdrawalRequest.Draft => "text-bg-secondary",
+        WithdrawalStatusNames.SubmittedToBank => "text-bg-primary",
+        WithdrawalStatusNames.PendingSpecialApproval => "text-bg-info",
+        WithdrawalStatusNames.Recommended => "text-bg-warning",
+        WithdrawalStatusNames.Approved => "text-bg-success",
+        WithdrawalStatusNames.Rejected => "text-bg-danger",
+        WithdrawalStatusNames.Cancelled => "text-bg-secondary",
+        _ => "text-bg-secondary"
+    };
     string BadgeLbl(string s) => s switch
     {
         "pending_supervisor" => "Pending Supervisor",
@@ -149,7 +147,7 @@
         <div class="d-flex flex-column gap-2">
             @foreach (var r in recentRequests)
             {
-                <a href="/CbWithdrawRequests/Details/@r.Id" class="text-decoration-none">
+                <a href="@($"/Cb{(r.Type == "Withdrawal" ? "Withdraw" : "Deposit")}Requests/Details/{r.Id}")" class="req-row-link">
                     <div class="card border shadow-sm mb-2 request-card @(r.RequiresSpecialApproval ? "border-warning" : "")">
                         <div class="card-body py-3">
                             <div class="d-flex align-items-center gap-3">
@@ -169,7 +167,7 @@
                                         <span class="fw-bold small">
                                             @(string.IsNullOrEmpty(r.TransactionRefNumber) ? "-" : r.TransactionRefNumber)
                                         </span>
-                                        <span class="badge rounded-pill @(r.Type == "Withdrawal" ? "bg-danger-subtle text-danger" : "bg-success-subtle text-success")">
+                                        <span class="tx-pill @(r.Type == "Withdrawal" ? "tx-wd" : "tx-dep")" >
                                             <i class="ti @(r.Type == "Withdrawal" ? "ti-arrow-up-right-circle" : "ti-arrow-down-left-circle") me-1"></i>
                                             @r.Type
                                         </span>
@@ -188,7 +186,7 @@
                                     </div>
 
                                     @* Dates + bank *@
-                                    <div class="text-muted small d-flex flex-wrap gap-3">
+                                    <div class="text-muted small d-flex flex-wrap gap-2">
                                         <span>
                                             <i class="ti ti-building me-1"></i>
                                             @User.FindFirst("cbName")?.Value
@@ -198,7 +196,7 @@
                                             <span class="text-muted">Created:</span>
                                             @r.CreationDate.ToString("dd MMM yyyy")
                                             <span class="text-muted mx-1"> | </span>
-                                            <span class="text-muted">Collection:</span>
+                                            <span class="text-muted">@(r.Type == "Withdrawal" ? "Collection Date:" : "Deposit Date:")</span>
                                             <span class="@(r.CollectionDate == DateOnly.FromDateTime(r.CreationDate) ? "text-danger fw-semibold" : "")">
                                                 @r.CollectionDate.ToString("dd MMM yyyy")
                                             </span>
@@ -214,9 +212,8 @@
                                     <div class="fw-bold mb-1 @(r.Type == "Withdrawal" ? "text-danger" : "text-success")">
                                         UGX @r.Amount.ToString("N0")
                                     </div>
-                                    <span class="badge rounded-pill bg-info text-dark p-2">
-                                        @* <i class="ti @BadgeIcon(r.StatusTypeName) me-1"></i> *@
-                                        @r.StatusTypeName
+                                    <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill">
+                                        <i class="ti @BadgeIcon(r.StatusTypeName) me-1"></i>@BadgeLbl(r.StatusTypeName)
                                     </span>
                                 </div>
 

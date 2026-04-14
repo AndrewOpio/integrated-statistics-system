@@ -19,46 +19,39 @@ public class CbRequestsController(
 
         var requests = await _uow.Requests.GetByCbAsync(cbId, ct);
 
-        //var rows = requests.Select(r => new RecentRequestRowViewModel
-        //{
-        //    Id = r.Id,
-        //    //Type = "Withdrawal",
-        //    Amount = r.TotalAmount,
-        //    StatusTypeName = (await _workflowServiceClient.FindStatusById(r.StatusTypeId)).Name,
-        //    CollectionDate = r.CollectionDate,
-        //    TransactionRefNumber = r.TransactionRefNumber ?? "Not Generated",
-        //    CreationDate = r.CreatedDate,
-        //    RequiresSpecialApproval = r.RequiresSpecialApproval,
-
-        //    RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "—" : r.RtgsCode,
-        //});
-
         var rows = await Task.WhenAll(requests.Select(async r => new RecentRequestRowViewModel
         {
             Id = r.Id,
+            //Type = "Withdrawal",
             Amount = r.TotalAmount,
             StatusTypeName = (await _workflowServiceClient.FindStatusById(r.StatusTypeId)).Name,
             CollectionDate = r.CollectionDate,
             TransactionRefNumber = r.TransactionRefNumber ?? "Not Generated",
             CreationDate = r.CreatedDate,
             RequiresSpecialApproval = r.RequiresSpecialApproval,
+
             RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "—" : r.RtgsCode,
         }));
 
         var depositRequests = await _duow.Requests.GetByCbAsync(cbId, ct);
-        var depositRows = depositRequests.Select(r => new RecentRequestRowViewModel
+
+        var depositRows = await Task.WhenAll(depositRequests.Select(async r => new RecentRequestRowViewModel
         {
             Id = r.Id,
             Amount = r.TotalAmount,
-            StatusTypeName = "r.StatusTypeName",
+            StatusTypeName = (await _workflowServiceClient.FindStatusById(r.StatusTypeId)).Name,
             CollectionDate = r.DepositDate,
-            RequiresSpecialApproval = false,
+            TransactionRefNumber = r.TransactionRefNumber ?? "Not Generated",
+            CreationDate = r.CreatedDate,
+            RequiresSpecialApproval = r.RequiresSpecialApproval,
+            RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "—" : r.RtgsCode,
+        }));
 
-        });
+        var allRows = rows.Concat(depositRows).ToArray();
 
         return View(new CbRequestsIndexViewModel
         {
-            RecentRequests = depositRows,
+            RecentRequests = [.. allRows.OrderByDescending(r => r.CreationDate)],
         });
 
         //return View();

@@ -17,6 +17,8 @@ namespace VMSService.Core.Models.CbDepositRequest
         public DateOnly DepositDate { get; init; }
         public DateOnly? RtgsDate { get; init; }
         public string? RtgsCode { get; init; }
+        public bool RequiresSpecialApproval { get; set; }
+        public string? SpecialApprovalReason { get; set; }
 
         // ?? Users ?????????????????????????????????
         public string InitiatorName { get; init; } = string.Empty;
