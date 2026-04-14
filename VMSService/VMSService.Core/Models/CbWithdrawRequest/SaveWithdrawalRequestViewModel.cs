@@ -16,18 +16,17 @@ namespace VMSService.Core.Models.CbWithdrawRequest
         public int BouBranchId { get; set; }
         public string BouBranchCode{ get; set; }
 
-        // Dates
         public DateOnly CollectionDate { get; set; }
         public DateOnly? RtgsDate { get; set; }
         public string? RtgsCode { get; set; }
         public bool RequiresSpecialApproval { get; set; }
         public string? SpecialApprovalReason { get; set; }
-
-        // Collectors — exactly 2
         public List<int> AgentIds { get; set; } = [];
 
         // Denominations
         public List<SaveDenominationLine> Denominations { get; set; } = [];
+        public bool IsLumpSum { get; set; } = false;
+        public decimal? LumpSumAmount { get; set; }
 
     }
 }

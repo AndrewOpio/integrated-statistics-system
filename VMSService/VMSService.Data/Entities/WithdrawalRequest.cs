@@ -28,6 +28,7 @@ namespace VMSService.Data.Entities
         public decimal TotalNotesAmount { get; set; }
         public decimal TotalCoinsAmount { get; set; }
         public decimal TotalAmount { get; set; }
+        public bool IsLumpSum { get; set; } = false;
 
         public bool IsDeleted { get; set; } = false;
         public ICollection<WithdrawalRequestAgent> WithdrawalRequestAgents { get; set; } = [];

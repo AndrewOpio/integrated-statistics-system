@@ -43,14 +43,14 @@ namespace VMSService.Core.Models.CbWithdrawRequest
         public decimal TotalNotesAmount { get; init; }
         public decimal TotalCoinsAmount { get; init; }
         public decimal TotalAmount { get; init; }
-        public string TotalAmountInWords { get; init; } = string.Empty;
+        public bool IsLumpSum { get; set; } = false;
 
 
         public WithdrawalStepViewModel Steps { get; init; } = null!;
 
         public bool CanEdit { get; init; }
 
-        public WithdrawalRequestStatusHistory WithdrawalRequestStatus { get; set; }
+        //public WithdrawalRequestStatusHistory WithdrawalRequestStatus { get; set; }
         public string? CurrentStatusName { get; set; }
     }
 }

@@ -143,6 +143,9 @@ namespace VMSService.Web.Controllers
                 Notes = denomList.Where(d => d.DenominationType.Name.Equals("Note")),
                 Coins = denomList.Where(d => d.DenominationType.Name.Equals("Coin")),
                 SelectedDenominations = selectedDenoms,
+                IsLumpSum = request.IsLumpSum,
+                LumpSumAmount = request.IsLumpSum ? request.TotalAmount : 0,
+                IsEdit = request.Id != Guid.Empty,
             };
 
 
@@ -214,6 +217,16 @@ namespace VMSService.Web.Controllers
 
             WithdrawalRequest request;
 
+            // Guard: lump sum must be a whole bundle (multiple of 1,000)
+            if (vm.IsLumpSum)
+            {
+                if (vm.LumpSumAmount is null or <= 0)
+                    return BadRequest(new { errors = new[] { "Please enter a valid lump sum amount." } });
+
+                if (vm.LumpSumAmount % 1000 != 0)
+                    return BadRequest(new { errors = new[] { "Lump sum amount must be a whole bundle — no partial amounts allowed." } });
+            }
+
             if (vm.Id.HasValue)
             {
                 // ── EDIT path — only touch allowed fields ─────────────────────────
@@ -227,20 +240,19 @@ namespace VMSService.Web.Controllers
                 //if (!await CanAccessRequestAsync(request.CbId))  // CbId not Id
                 //    return Forbid();
 
-                // Guard: only allow edits in Draft / ReturnedForRevision
-                //if (request.StatusTypeName != StatusConstants.WithdrawalRequest.Draft
-                //    && request.StatusTypeName != StatusConstants.WithdrawalRequest.Returned)
-                //    return BadRequest(new { errors = new[] { "This request can no longer be edited." } });
-
                 request.RtgsDate = vm.RtgsDate;
                 request.RtgsCode = vm.RtgsCode;
                 request.ModifiedDate = DateTime.Now;
                 request.ModifiedBy = userId;
 
                 // Recompute totals from the new denom lines
-                request.TotalAmount = vm.Denominations.Sum(d => d.Amount);
-                request.TotalNotesAmount = vm.Denominations.Where(d => d.Bundles.HasValue).Sum(d => d.Amount);
-                request.TotalCoinsAmount = vm.Denominations.Where(d => d.Boxes.HasValue).Sum(d => d.Amount);
+                //request.TotalAmount = vm.Denominations.Sum(d => d.Amount);
+                //request.TotalNotesAmount = vm.Denominations.Where(d => d.Bundles.HasValue).Sum(d => d.Amount);
+                //request.TotalCoinsAmount = vm.Denominations.Where(d => d.Boxes.HasValue).Sum(d => d.Amount);
+                request.IsLumpSum = vm.IsLumpSum;
+                request.TotalAmount = vm.IsLumpSum ? vm.LumpSumAmount ?? 0 : vm.Denominations.Sum(d => d.Amount);
+                request.TotalNotesAmount = vm.IsLumpSum ? 0 : vm.Denominations.Where(d => d.Bundles.HasValue).Sum(d => d.Amount);
+                request.TotalCoinsAmount = vm.IsLumpSum ? 0 : vm.Denominations.Where(d => d.Boxes.HasValue).Sum(d => d.Amount);
 
                 // Regenerate transaction ref number only if bank branch changed
                 if (request.BouBranchId != vm.BouBranchId)
@@ -270,9 +282,13 @@ namespace VMSService.Web.Controllers
                     StatusTypeId = WithdrawalStatusIds.Draft,
                     CreatedBy = userId,
                     CreatedDate = DateTime.Now,
-                    TotalAmount = vm.Denominations.Sum(d => d.Amount),
-                    TotalNotesAmount = vm.Denominations.Where(d => d.Bundles.HasValue).Sum(d => d.Amount),
-                    TotalCoinsAmount = vm.Denominations.Where(d => d.Boxes.HasValue).Sum(d => d.Amount),
+                    //TotalAmount = vm.Denominations.Sum(d => d.Amount),
+                    //TotalNotesAmount = vm.Denominations.Where(d => d.Bundles.HasValue).Sum(d => d.Amount),
+                    //TotalCoinsAmount = vm.Denominations.Where(d => d.Boxes.HasValue).Sum(d => d.Amount),
+                    IsLumpSum = vm.IsLumpSum,
+                    TotalAmount = vm.IsLumpSum ? vm.LumpSumAmount ?? 0 : vm.Denominations.Sum(d => d.Amount),
+                    TotalNotesAmount = vm.IsLumpSum ? 0 : vm.Denominations.Where(d => d.Bundles.HasValue).Sum(d => d.Amount),
+                    TotalCoinsAmount = vm.IsLumpSum ? 0 : vm.Denominations .Where(d => d.Boxes.HasValue).Sum(d => d.Amount),
                 };
 
                 request.TransactionRefNumber = await _txnrefNoGenerator
@@ -307,89 +323,6 @@ namespace VMSService.Web.Controllers
 
             return Ok(Url.Action("Details", new { id = request.Id }));
         }
-
-        // ── Save as Draft ─────────────────────────
-        //[HttpPost("save-draft")]
-        //[ValidateAntiForgeryTokenFromHeader]
-        //public async Task<IActionResult> SaveDraft([FromBody]
-        //    SaveWithdrawalRequestViewModel vm, CancellationToken ct)
-        //{
-
-        //    var userId = GetUserId();
-
-        //    var request = await GetOrCreateRequestAsync(vm, userId, ct);
-
-        //    var oldStatusId = request.StatusTypeId;
-        //    var oldStatusName = request.StatusTypeName;
-
-        //    request.StatusTypeId = WithdrawalStatusIds.Draft;
-        //    request.ModifiedDate = DateTime.Now;
-        //    request.ModifiedBy = userId;
-
-        //    await SaveDenominationsAsync(request.Id, vm.Denominations, userId, ct);
-        //    await SaveAgentsAsync(request.Id, vm.AgentIds, userId, ct);
-
-        //    var existingHistory = await _withdrawalRequestStatusHistRepo.GetByRequestAsync(request.Id);
-
-        //    await AddStatusHistoryAsync
-        //        (request.Id,
-        //        oldStatusId, oldStatusName,
-        //        WithdrawalStatusIds.Draft,
-        //        WithdrawStatuses.WithdrawalStatusNames.Draft, userId, "Saved as draft", ct);
-
-        //    await _uow.SaveAsync(ct);
-
-        //    return Ok(Url.Action("Details", new { id = request.Id }));
-        //}
-
-        //// ── Submit to Supervisor ──────────────────
-        //[HttpPost("submit-to-supervisor")]
-        //public async Task<IActionResult> SubmitToSupervisor(SaveWithdrawalRequestViewModel vm, CancellationToken ct)
-        //{
-        //    if (!ValidateSubmit(vm, out var errors))
-        //    {
-        //        TempData["Errors"] = errors;
-        //        return RedirectToAction(vm.Id.HasValue ? "Edit" : "Create", new { id = vm.Id });
-        //    }
-
-        //    var userId = GetUserId(); 
-        //    var request = await GetOrCreateRequestAsync(vm, userId, ct);
-
-
-        //    // Block if already submitted and not returned for revision
-        //    if (request.StatusTypeId == WithdrawalStatusIds.SubmittedToSupervisor)
-        //        return Forbid();
-
-        //    var oldStatusId = request.StatusTypeId;
-        //    var oldStatusName = request.StatusTypeName;
-
-        //    // Check for special approval — collection date == RTGS date
-        //    var newStatusId = vm.RtgsDate.HasValue && vm.CollectionDate == vm.RtgsDate.Value
-        //        ? WithdrawalStatusIds.PendingSpecialApproval
-        //        : WithdrawalStatusIds.SubmittedToSupervisor;
-
-        //    var newStatusName = vm.RtgsDate.HasValue && vm.CollectionDate == vm.RtgsDate.Value
-        //        ? WithdrawStatuses.WithdrawalStatusNames.PendingSpecialApproval
-        //        : WithdrawStatuses.WithdrawalStatusNames.SubmittedToSupervisor;
-
-
-        //    request.StatusTypeId = newStatusId;
-        //    request.RequiresSpecialApproval = newStatusId == WithdrawalStatusIds.PendingSpecialApproval;
-        //    request.ModifiedDate = DateTime.Now;
-        //    request.ModifiedBy = userId;
-
-        //    await SaveDenominationsAsync(request.Id, vm.Denominations, userId, ct);
-        //    await SaveAgentsAsync(request.Id, vm.AgentIds, userId, ct);
-        //    await AddStatusHistoryAsync(request.Id,
-        //        oldStatusId, oldStatusName,
-        //        newStatusId, newStatusName,
-        //        userId, "Submitted to supervisor", ct);
-
-        //    await _uow.SaveAsync(ct);
-
-        //    //return RedirectToAction("Confirmation", new { id = request.Id });
-        //    return Ok(Url.Action("Confirmation", new { id = request.Id }));
-        //}
 
 
 
@@ -474,6 +407,7 @@ namespace VMSService.Web.Controllers
                 TotalAmount = request.TotalAmount,
                 CurrentStatusName = currentStatus.Name,
                 CanEdit = canEdit,
+                IsLumpSum = request.IsLumpSum,
                 Steps = BuildStepViewModel(request.StatusTypeId,
                            request.StatusTypeId == WithdrawalStatusIds.Approved),
             };
@@ -489,10 +423,6 @@ namespace VMSService.Web.Controllers
                 })
                 .ToList();
 
-            //vm.AvailableTransitions = await _workflowService.GetAvailableTransitionsAsync(
-            //    StatusConstants.Entity.WithdrawalRequest,
-            //    request.StatusTypeId,
-            //    GetUserRole());
 
             return View(vm);
         }
@@ -502,7 +432,7 @@ namespace VMSService.Web.Controllers
             WithdrawalStatusIds.Draft => "CbMaker",
             WithdrawalStatusIds.ReturnedForRevision => "CbMaker",
             WithdrawalStatusIds.SubmittedToSupervisor => "CbApprover",
-            WithdrawalStatusIds.PendingSpecialApproval => "CbApprover",
+            WithdrawalStatusIds.PendingSpecialApproval => "BOU",
             WithdrawalStatusIds.SubmittedToBank => "BOU",
             WithdrawalStatusIds.Recommended => "BOU",
             WithdrawalStatusIds.Approved => "BOU",
