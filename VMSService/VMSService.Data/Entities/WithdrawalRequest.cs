@@ -10,7 +10,6 @@ namespace VMSService.Data.Entities
     public class WithdrawalRequest : AuditableEntity
     {
         public Guid Id { get; set; } = Guid.NewGuid();
-        //BOUBranch-CbCode-W-CollectionDate-SequenceNumber
         public string? TransactionRefNumber { get; set; } = null;
         public int CbId { get; set; }
         public string CbCode { get; set; } = string.Empty;

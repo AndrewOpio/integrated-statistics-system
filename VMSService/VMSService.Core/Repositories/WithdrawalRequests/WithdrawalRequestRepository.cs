@@ -9,11 +9,13 @@ using System.Threading.Tasks;
 using VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators;
 using VMSService.Data.Configurations;
 using VMSService.Data.Entities;
+using WorkflowService.Client;
 
 namespace VMSService.Core.Repositories.WithdrawalRequests
 {
 
-    public class WithdrawalRequestRepository(VMSServiceDbContext _db) : IWithdrawalRequestRepository
+    public class WithdrawalRequestRepository(
+        VMSServiceDbContext _db) : IWithdrawalRequestRepository
     {
         public async Task<ICollection<WithdrawalRequest>> FindAll()
             => await _db.WithdrawalRequests.ToListAsync();
@@ -41,8 +43,18 @@ namespace VMSService.Core.Repositories.WithdrawalRequests
             .Include(r => r.WithdrawalRequestAgents)
             //.Include(r => r.WithdrawalRequestStatusHistory)
             .FirstOrDefaultAsync(r => r.Id == id, ct);
+        public async Task<IEnumerable<WithdrawalRequest>> FindAllBouRequestAsync(CancellationToken ct = default)
+        {
+            //var statusType = _workflowServiceClient.FindStatusById(request.StatusTypeId);
 
-        
+            return await _db.WithdrawalRequests
+            .Include(r => r.WithdrawalRequestDenominations)
+            .Include(r => r.WithdrawalRequestAgents)
+            //.Include(r => r.WithdrawalRequestStatusHistory)
+            .ToListAsync(ct);
+        }
+
+
         public async Task<int> CountByCbBranchAndDateAsync(int cbId, int bouBranchId, DateOnly date, CancellationToken ct = default)
         => await _db.WithdrawalRequests
             .CountAsync(r => r.CbId == cbId

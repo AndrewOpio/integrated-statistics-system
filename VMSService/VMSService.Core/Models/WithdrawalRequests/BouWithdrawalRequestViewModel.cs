@@ -1,8 +1,11 @@
-﻿using System;
+﻿
+using ConfigurationsService.Client;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using VMSService.Core.Models.Branches;
 using VMSService.Core.Models.CbRequests;
 
 namespace VMSService.Core.Models.WithdrawalRequests
@@ -15,6 +18,11 @@ namespace VMSService.Core.Models.WithdrawalRequests
         public int ApprovedCount { get; set; }
         public int ApprovedCountDiff { get; set; }
         public decimal TotalProcessed { get; set; }
+        public string? SelectedBranch { get; set; }
+        public bool CanViewAllLocations { get; set; } = false;
+        public BranchViewModel UserBranch { get; set; } = new();
+        public IEnumerable<BranchDto> BouBranches { get; set; } = new List<BranchDto>();
+
         public IEnumerable<RecentRequestRowViewModel> Requests { get; set; } = [];
     }
 }

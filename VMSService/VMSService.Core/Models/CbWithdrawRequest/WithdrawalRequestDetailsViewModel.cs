@@ -17,8 +17,8 @@ namespace VMSService.Core.Models.CbWithdrawRequest
         public string? TransactionRefNumber { get; init; }
         public string StatusName { get; init; } = string.Empty;
         public int StatusId { get; init; }
-
         public DateOnly CollectionDate { get; init; }
+        public DateTime CreatedDate { get; init; }
         public DateOnly? RtgsDate { get; init; }
         public string? RtgsCode { get; init; }
         public bool RequiresSpecialApproval { get; set; }

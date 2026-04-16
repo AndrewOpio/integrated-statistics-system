@@ -19,7 +19,8 @@ public class WithdrawalStepViewModelFactory
 
     private static readonly (string Key, string Icon, string Label, string SubLabel)[] BouSteps =
     [
-        ("Cb",          "ti-building",             "Commercial Bank",  "Commercial Bank Request"),
+        ("BOU",        "ti-clock-hour-4",  "BOU Handling",   "For processing"),
+        //("BOU",          "ti-building",             "Commercial Bank",  "Commercial Bank Request"),
         ("Remittance",  "ti-adjustments",          "Remittance",       "Validate Checks"),
         ("PanelA",      "ti-shield-check",         "Panel A",          "Review and Adjust"),
         ("PanelB",      "ti-arrow-right-circle",   "Panel B",          "Collect and Approve"),
@@ -34,8 +35,9 @@ public class WithdrawalStepViewModelFactory
         bool isRequestApproved,
         ClaimsPrincipal user)
     {
-        var userRole = user.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value ?? string.Empty;
-        var isBouUser = RolePolicy.BouRoles.Contains(userRole);
+        //var userRole = user.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value ?? string.Empty;
+        var isBouUser = user.HasClaim(c => c.Type == "isStaff" && c.Value == "true");  //RolePolicy.BouRoles.Contains(userRole);
+ 
 
         var activeSteps = isBouUser ? BouSteps : CbSteps;
         var currentIndex = Array.FindIndex(activeSteps, s => s.Key == currentStepKey);
