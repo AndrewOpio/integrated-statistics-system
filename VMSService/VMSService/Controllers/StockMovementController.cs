@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using SmartBreadcrumbs.Attributes;
 using VMSService.Controllers;
 using VMSService.Core.Models.StockMovement;
+using VMSService.Core.Repositories.Logistics;
 using VMSService.Core.Repositories.StatusTypes;
 using VMSService.Core.Repositories.StockMovementDiscrepancies;
 using VMSService.Core.Repositories.StockMovements;
@@ -22,18 +23,45 @@ using VMSService.Data.Entities;
 namespace VMSService.Web.Controllers
 {
     [Authorize]
-    public class StockMovementController(
-        ILogger<StockMovementController> _logger,
-        IHttpClientFactory _httpClientFactory,
-        IStockMovementRepository _stockMovementRepository,
-        IStockMovementStatusHistoryRepository _statusHistoryRepository,
-        IStockMovementDiscrepancyRepository _discrepancyRepository,
-        IStatusTypeRepository _statusTypeRepository,
-        IWorkflowTransitionRepository _workflowTransitionRepository,
-        IWorkflowService _workflowService,
-        IStockService _stockService,
-        IStockPositionService _stockPositionService) : Controller
+    public class StockMovementController : Controller
     {
+        private readonly ILogger<StockMovementController> _logger;
+        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IStockMovementRepository _stockMovementRepository;
+        private readonly IStockMovementStatusHistoryRepository _statusHistoryRepository;
+        private readonly IStockMovementDiscrepancyRepository _discrepancyRepository;
+        private readonly IStatusTypeRepository _statusTypeRepository;
+        private readonly IWorkflowTransitionRepository _workflowTransitionRepository;
+        private readonly IWorkflowService _workflowService;
+        private readonly IStockService _stockService;
+        private readonly IStockPositionService _stockPositionService;
+        private readonly ILogisticsRepository _logisticsRepository;
+
+        public StockMovementController(
+            ILogger<StockMovementController> logger,
+            IHttpClientFactory httpClientFactory,
+            IStockMovementRepository stockMovementRepository,
+            IStockMovementStatusHistoryRepository statusHistoryRepository,
+            IStockMovementDiscrepancyRepository discrepancyRepository,
+            IStatusTypeRepository statusTypeRepository,
+            IWorkflowTransitionRepository workflowTransitionRepository,
+            IWorkflowService workflowService,
+            IStockService stockService,
+            IStockPositionService stockPositionService,
+            ILogisticsRepository logisticsRepository)
+        {
+            _logger = logger;
+            _httpClientFactory = httpClientFactory;
+            _stockMovementRepository = stockMovementRepository;
+            _statusHistoryRepository = statusHistoryRepository;
+            _discrepancyRepository = discrepancyRepository;
+            _statusTypeRepository = statusTypeRepository;
+            _workflowTransitionRepository = workflowTransitionRepository;
+            _workflowService = workflowService;
+            _stockService = stockService;
+            _stockPositionService = stockPositionService;
+            _logisticsRepository = logisticsRepository;
+        }
         [Breadcrumb("Stock Movement", FromController = typeof(HomeController), FromAction = nameof(Index))]
         public async Task<IActionResult> Index()
         {
@@ -71,10 +99,40 @@ namespace VMSService.Web.Controllers
             var branches = await _stockService.GetAllBranches();
             var denominations = await _stockService.GetAllDenominations();
             var categories = await _stockService.GetAllCategories();
+            
+            // Get user roles
+            var userRoles = User.FindAll("appRole")
+                .Where(c => c.Value.StartsWith("VMS:"))
+                .Select(c => c.Value.Split(":")[1])
+                .ToList();
+
+            // If user is a Branch Manager, filter branches to only their branch
+            if (userRoles.Contains(SystemPolicy.Roles.BranchManager) || 
+                userRoles.Contains(SystemPolicy.Roles.AssistantBranchManager))
+            {
+                // Extract branch names from user roles (everything after "VMS:")
+                // Branch managers have roles like "VMS:Kampala Branch", "VMS:Mbarara Branch", etc.
+                var userBranchNames = User.FindAll("appRole")
+                    .Where(c => c.Value.StartsWith("VMS:"))
+                    .Select(c => c.Value.Split(":")[1])
+                    .Where(role => branches.Any(b => b.Name == role))
+                    .ToList();
+
+                // If they have branches assigned, filter to those; otherwise show no branches
+                // branches = userBranchNames.Any() 
+                //     ? branches.Where(b => userBranchNames.Contains(b.Name)).ToList()
+                //     : new List<Branch>();
+
+                if (userBranchNames.Any())
+                {
+                    branches = branches.Where(b => userBranchNames.Contains(b.Name)).ToList();
+                }
+            }
 
             ViewBag.Branches = branches;
             ViewBag.Denominations = denominations;
             ViewBag.Categories = categories;
+            ViewBag.UserRoles = userRoles;
             return View();
         }
 
@@ -97,7 +155,7 @@ namespace VMSService.Web.Controllers
                 return BadRequest(new { message = "Draft status not found." });
             }
 
-            if (model.MovementType == "branch")
+            if (model.MovementType == StockConstants.StockMovementTypes.BranchToBranch)
             {
                 var categories = await _stockService.GetAllCategories();
                 
@@ -112,7 +170,6 @@ namespace VMSService.Web.Controllers
                     ReferenceNumber = model.BranchReferenceNumber,
                     DispatchingBranchId = model.DispatchingBranch,
                     ReceivingBranchId = model.ReceivingBranch,
-                    Categorization = model.Categorization,
                     TotalBagsBoxes = model.BranchTotalBagsBoxes,
                     GrandTotalValue = model.BranchGrandTotalValue,
                     CurrentStatusId = draftStatus.Id,
@@ -124,7 +181,8 @@ namespace VMSService.Web.Controllers
                             NumBundles = x.NumBundles,
                             CategoryId = x.CategoryId,
                             ContainerType = x.ContainerType,
-                            SubTotalValue = x.SubTotalValue
+                            SubTotalValue = x.SubTotalValue,
+                            Categorization = x.Categorization
                         };
                     }).ToList()
                 };
@@ -132,7 +190,8 @@ namespace VMSService.Web.Controllers
                 await _stockMovementRepository.CreateAsync(movement);
                 return Json(new { redirectUrl = Url.Action("Index") });
             }
-            else if (model.MovementType == "internal")
+            else if (model.MovementType == StockConstants.StockMovementTypes.BufferToOperational ||
+                     model.MovementType == StockConstants.StockMovementTypes.OperationalToBuffer)
             {
                 var category = await _stockService.GetAllCategories();
                 var newCategory = category.FirstOrDefault(c => c.Name == "New");
@@ -198,10 +257,12 @@ namespace VMSService.Web.Controllers
             var branches = await _stockService.GetAllBranches();
             var denominations = await _stockService.GetAllDenominations();
             var categories = await _stockService.GetAllCategories();
+            var commercialBanks = await _stockService.GetAllCommercialBanks();
 
             ViewBag.Branches = branches;
             ViewBag.Denominations = denominations;
             ViewBag.Categories = categories;
+            ViewBag.CommercialBanks = commercialBanks;
 
             // Load status history
             var statusHistory = await _statusHistoryRepository.FindByStockMovementId(id);
@@ -215,7 +276,8 @@ namespace VMSService.Web.Controllers
             var availableTransitions = new List<WorkflowTransitionDto>();
 
             // If internal movement and it's already approved, show no transitions
-            if (movement.MovementType?.ToLower() == "internal" &&
+            if ((movement.MovementType?.ToLower() == StockConstants.StockMovementTypes.BufferToOperational ||
+                movement.MovementType?.ToLower() == StockConstants.StockMovementTypes.OperationalToBuffer) &&
                 movement.CurrentStatus?.Name == StatusConstants.StockMovement.Approved)
             {
                 availableTransitions = new List<WorkflowTransitionDto>();
@@ -250,6 +312,22 @@ namespace VMSService.Web.Controllers
             ViewBag.Discrepancies = discrepancies;
             ViewBag.CurrentDiscrepancy = currentDiscrepancy;
             ViewBag.HasMismatches = discrepancies.Any(d => d.CurrentStatus?.Name == StatusConstants.StockMovementDiscrepancy.PendingDiscrepancy);
+
+            // Get latest 20 approved logistics forms
+            var logisticsList = await _logisticsRepository.GetAllAsync();
+            var approvedLogistics = logisticsList
+                .Where(l => l.CurrentStatus?.Name == StatusConstants.Logistics.Approved)
+                .OrderByDescending(l => l.Date)
+                .Take(20)
+                .ToList();
+            ViewBag.LogisticsList = approvedLogistics;
+
+            // Get the attached logistics form if it exists
+            if (movement.LogisticsId.HasValue)
+            {
+                var attachedLogistics = await _logisticsRepository.GetByIdAsync(movement.LogisticsId.Value);
+                ViewBag.AttachedLogistics = attachedLogistics;
+            }
 
             // Get available discrepancy transitions from workflow system
             var discrepancyTransitions = new List<WorkflowTransitionDto>();
@@ -332,7 +410,7 @@ namespace VMSService.Web.Controllers
                 return BadRequest(new { message = "Only draft or returned stock movements can be edited." });
             }
 
-            if (movement.MovementType == "branch")
+            if (movement.MovementType == StockConstants.StockMovementTypes.BranchToBranch)
             {
                 var categories = await _stockService.GetAllCategories();
                 
@@ -345,7 +423,6 @@ namespace VMSService.Web.Controllers
                 movement.ReferenceNumber = model.BranchReferenceNumber;
                 movement.DispatchingBranchId = model.DispatchingBranch;
                 movement.ReceivingBranchId = model.ReceivingBranch;
-                movement.Categorization = model.Categorization;
                 movement.TotalBagsBoxes = model.BranchTotalBagsBoxes;
                 movement.GrandTotalValue = model.BranchGrandTotalValue;
 
@@ -378,7 +455,7 @@ namespace VMSService.Web.Controllers
                 await _stockMovementRepository.SaveAsync();
                 return Json(new { redirectUrl = Url.Action("Details", new { id }) });
             }
-            else if (movement.MovementType == "internal")
+            else if (movement.MovementType == StockConstants.StockMovementTypes.BufferToOperational || movement.MovementType == StockConstants.StockMovementTypes.OperationalToBuffer)
             {
                 var filteredDenoms = model.InternalDenominationRows?
                     .Where(x => x.DenominationId > 0 && (
@@ -446,7 +523,7 @@ namespace VMSService.Web.Controllers
 
 
         [HttpPost]
-        public async Task<IActionResult> ExecuteAction(int id, string actionName, string remarks)
+        public async Task<IActionResult> ExecuteAction(int id, string actionName, string remarks, int? logisticsId = null)
         {
             var movement = await _stockMovementRepository.FindByIdAsync(id);
             if (movement == null)
@@ -538,6 +615,13 @@ namespace VMSService.Web.Controllers
 
             // Get the updated movement with new status
             var updatedMovement = await _stockMovementRepository.FindByIdAsync(id);
+            
+            // Update logistics ID if provided
+            if (logisticsId.HasValue && logisticsId.Value > 0)
+            {
+                updatedMovement.LogisticsId = logisticsId.Value;
+                await _stockMovementRepository.UpdateAsync(updatedMovement);
+            }
             
             // Update stock position if transitioning to Dispatched or Received
             if (updatedMovement != null && updatedMovement.CurrentStatusId.HasValue)

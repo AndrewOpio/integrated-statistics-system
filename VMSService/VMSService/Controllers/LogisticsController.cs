@@ -13,13 +13,25 @@ namespace VMSService.Web.Controllers
     {
         private readonly ILogisticsRepository _logisticsRepository;
         private readonly ILogger<LogisticsController> _logger;
+        private readonly VMSService.Core.Repositories.StatusTypes.IStatusTypeRepository _statusTypeRepository;
+        private readonly VMSService.Core.Repositories.WorkflowTransitions.IWorkflowTransitionRepository _workflowTransitionRepository;
+        private readonly VMSService.Core.Services.Workflows.IWorkflowService _workflowService;
+        private readonly ILogisticsStatusHistoryRepository _statusHistoryRepository;
 
         public LogisticsController(
             ILogisticsRepository logisticsRepository,
-            ILogger<LogisticsController> logger)
+            ILogger<LogisticsController> logger,
+            VMSService.Core.Repositories.StatusTypes.IStatusTypeRepository statusTypeRepository,
+            VMSService.Core.Repositories.WorkflowTransitions.IWorkflowTransitionRepository workflowTransitionRepository,
+            VMSService.Core.Services.Workflows.IWorkflowService workflowService,
+            ILogisticsStatusHistoryRepository statusHistoryRepository)
         {
             _logisticsRepository = logisticsRepository;
             _logger = logger;
+            _statusTypeRepository = statusTypeRepository;
+            _workflowTransitionRepository = workflowTransitionRepository;
+            _workflowService = workflowService;
+            _statusHistoryRepository = statusHistoryRepository;
         }
 
         [Breadcrumb("Logistics", FromController = typeof(HomeController), FromAction = nameof(HomeController.Index))]
@@ -46,27 +58,37 @@ namespace VMSService.Web.Controllers
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var currentUserName = User.FindFirstValue("displayName") ?? User.Identity?.Name ?? "Unknown";
 
+
+
+            // Fetch the Draft status for Logistics
+            var draftStatus = await _statusTypeRepository.FindByName(
+                VMSService.Core.Static.StatusConstants.StockMovement.Draft, // "Draft"
+                "Logistics" // Category name for Logistics
+            );
+
             var logistics = new Data.Entities.Logistics
             {
                 Title = model.Title,
                 Description = model.Description,
                 ReferenceNumber = model.ReferenceNumber,
                 Date = model.Date,
+                TeamLeader = model.TeamLeader,
+                AssistantTeamLeader = model.AssistantTeamLeader,
                 CreatedBy = currentUserId,
-                CreatedByName = currentUserName,
                 CreatedDate = DateTime.UtcNow,
+                CurrentStatusId = draftStatus.Id,
                 Categories = model.Categories.Select((cat, catIndex) => new LogisticsCategory
                 {
                     Name = cat.Name,
-                    Description = cat.Description,
                     SortOrder = catIndex,
                     Details = cat.Details.Select((det, detIndex) => new LogisticsDetail
                     {
                         ItemName = det.ItemName,
                         Description = det.Description,
+                        UnitCost = det.UnitCost,
                         Quantity = det.Quantity,
-                        UnitPrice = det.UnitPrice,
-                        TotalPrice = det.TotalPrice,
+                        Frequency = det.Frequency,
+                        TotalCost = det.TotalCost,
                         Notes = det.Notes,
                         SortOrder = detIndex
                     }).ToList()
@@ -86,7 +108,70 @@ namespace VMSService.Web.Controllers
             if (logistics == null)
                 return NotFound();
 
+            // Fetch available workflow transitions for this logistics record using user roles (controller logic, not service)
+            var userRoles = User.FindAll("appRole")
+                .Where(c => c.Value.StartsWith("VMS:"))
+                .Select(c => c.Value.Split(":")[1])
+                .ToList();
+            var transitions = await _workflowTransitionRepository.FindByEntityTypeAndStatus(
+                VMSService.Core.Static.StatusConstants.Entity.Logistics,
+                logistics.CurrentStatusId
+            );
+            var availableTransitions = transitions
+                .Where(t => userRoles.Contains(t.RequiredRole))
+                .Select(t => new VMSService.Core.Models.Logistics.WorkflowTransitionDto
+                {
+                    ActionName = t.ActionName,
+                    DisplayLabel = t.DisplayLabel,
+                    RequiresComments = t.RequiresComments,
+                    ButtonClass = t.ButtonClass
+                }).ToList();
+            ViewBag.AvailableTransitions = availableTransitions;
+
+            // Fetch status history via repository (not navigation property)
+            var statusHistory = await _statusHistoryRepository.GetByLogisticsIdAsync(id);
+            ViewBag.StatusHistory = statusHistory ?? new List<VMSService.Data.Entities.LogisticsStatusHistory>();
+
             return View(logistics);
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> WorkflowAction(int id, [FromForm] string actionName, [FromForm] string? remarks)
+        {
+            try
+            {
+                var logistics = await _logisticsRepository.GetByIdAsync(id);
+                if (logistics == null)
+                    return NotFound(new { success = false, message = $"Logistics record not found (ID: {id})." });
+
+                var userRoles = User.FindAll("appRole")
+                    .Where(c => c.Value.StartsWith("VMS:"))
+                    .Select(c => c.Value.Split(":")[1])
+                    .ToList();
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "System";
+
+                var success = await _workflowService.ExecuteTransition(
+                    VMSService.Core.Static.StatusConstants.Entity.Logistics,
+                    id,
+                    logistics.CurrentStatusId,
+                    actionName,
+                    userId,
+                    userRoles,
+                    remarks
+                );
+
+                if (!success)
+                    return BadRequest(new { success = false, message = "Failed to execute workflow action." });
+
+                // Get updated logistics for new status
+                var updatedLogistics = await _logisticsRepository.GetByIdAsync(id);
+                return Json(new { success = true, message = "Workflow action completed.", newStatus = updatedLogistics?.CurrentStatus?.Name });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in WorkflowAction for Logistics ID {Id}, Action: {ActionName}", id, actionName);
+                return StatusCode(500, new { success = false, message = $"Internal server error: {ex.Message}" });
+            }
         }
 
         [HttpGet]
@@ -96,6 +181,13 @@ namespace VMSService.Web.Controllers
             var logistics = await _logisticsRepository.GetByIdAsync(id);
             if (logistics == null)
                 return NotFound();
+
+            // Only allow editing if the record is in Draft or Returned status
+            if (logistics.CurrentStatus?.Name != "Draft" && logistics.CurrentStatus?.Name != "Returned")
+            {
+                TempData["Error"] = "Only draft or returned logistics records can be edited.";
+                return RedirectToAction("Details", new { id });
+            }
 
             return View(logistics);
         }
@@ -111,6 +203,12 @@ namespace VMSService.Web.Controllers
             if (existingLogistics == null)
                 return NotFound(new { message = "Logistics record not found." });
 
+            // Only allow editing if the record is in Draft or Returned status
+            if (existingLogistics.CurrentStatus?.Name != "Draft" && existingLogistics.CurrentStatus?.Name != "Returned")
+            {
+                return BadRequest(new { message = "Only draft or returned logistics records can be edited." });
+            }
+
             var logistics = new Data.Entities.Logistics
             {
                 Id = id,
@@ -118,18 +216,21 @@ namespace VMSService.Web.Controllers
                 Description = model.Description,
                 ReferenceNumber = model.ReferenceNumber,
                 Date = model.Date,
+                TeamLeader = model.TeamLeader,
+                AssistantTeamLeader = model.AssistantTeamLeader,
+                CurrentStatusId = existingLogistics.CurrentStatusId, // Ensure status is preserved
                 Categories = model.Categories.Select((cat, catIndex) => new LogisticsCategory
                 {
                     Name = cat.Name,
-                    Description = cat.Description,
                     SortOrder = catIndex,
                     Details = cat.Details.Select((det, detIndex) => new LogisticsDetail
                     {
                         ItemName = det.ItemName,
                         Description = det.Description,
+                        UnitCost = det.UnitCost,
                         Quantity = det.Quantity,
-                        UnitPrice = det.UnitPrice,
-                        TotalPrice = det.TotalPrice,
+                        Frequency = det.Frequency,
+                        TotalCost = det.TotalCost,
                         Notes = det.Notes,
                         SortOrder = detIndex
                     }).ToList()
@@ -157,6 +258,8 @@ namespace VMSService.Web.Controllers
         public string? Description { get; set; }
         public string? ReferenceNumber { get; set; }
         public DateTime Date { get; set; } = DateTime.Today;
+        public string? TeamLeader { get; set; }
+        public string? AssistantTeamLeader { get; set; }
         public List<LogisticsCategoryViewModel> Categories { get; set; } = new();
     }
 
@@ -171,9 +274,10 @@ namespace VMSService.Web.Controllers
     {
         public string ItemName { get; set; } = string.Empty;
         public string? Description { get; set; }
+        public decimal UnitCost { get; set; }
         public decimal Quantity { get; set; }
-        public decimal UnitPrice { get; set; }
-        public decimal TotalPrice { get; set; }
+        public decimal Frequency { get; set; } = 1;
+        public decimal TotalCost { get; set; }
         public string? Notes { get; set; }
     }
 }

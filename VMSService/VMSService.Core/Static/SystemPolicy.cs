@@ -12,7 +12,9 @@
             public const string Director = "Director";
 
             public const string BranchManager = "Branch Manager";
+            public const string AssistantBranchManager = "Assistant Branch Manager";
             public const string RemittancesOfficer = "Remittances and Control Officer";
+            public const string HeadOfBackOffice = "Head of Back Office";
         }
 
         public static class ClaimType

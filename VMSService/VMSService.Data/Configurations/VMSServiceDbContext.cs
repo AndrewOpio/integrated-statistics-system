@@ -18,6 +18,7 @@ namespace VMSService.Data.Configurations
         //public DbSet<Denomination> Denominations { get; set; }
         public DbSet<ApprovedCurrencyProcurement> ApprovedCurrencyProcurements { get; set; }
         public DbSet<ExPrintMint> ExPrintMints { get; set; }
+        public DbSet<ExPrintMintDetail> ExPrintMintDetails { get; set; }
         public DbSet<ApprovedCurrencyDenomination> ApprovedCurrencyDenominations { get; set; }
         //public DbSet<DenominationType> DenominationTypes { get; set; }
         public DbSet<StatusType> StatusTypes { get; set; }
@@ -37,10 +38,47 @@ namespace VMSService.Data.Configurations
         public DbSet<CommercialBankUser> CommercialBankUsers { get; set; }
         public DbSet<AgentDetail> AgentDetails { get; set; }
 
+        public DbSet<LogisticsStatusHistory> LogisticsStatusHistory { get; set; }
+        public DbSet<ReceivedStatusTypes> ReceivedStatusTypes { get; set; }
+        public DbSet<PackingListRange> PackingListRanges { get; set; }
+        public DbSet<PackingListDetails> PackingListDetails { get; set; }
+        public DbSet<NewCaseFullStatusTypes> NewCaseFullStatusTypes { get; set; }
+        public DbSet<NewStockMovementlog> NewStockMovementLogs { get; set; }
+        public DbSet<ReceivedStockDetails> ReceivedStockDetails { get; set; }
+        public DbSet<NewStockAccountingStatus> NewStockAccountingStatuses { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            // Configure ReceivedStockDetails foreign keys to prevent cascade delete conflicts
+            modelBuilder.Entity<ReceivedStockDetails>()
+                .HasOne(x => x.ReceivedStock)
+                .WithMany(x => x.ReceivedStockDetails)
+                .HasForeignKey(x => x.ReceivedStockId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<ReceivedStockDetails>()
+                .HasOne(x => x.PackingListRange)
+                .WithMany(x => x.ReceivedStockDetails)
+                .HasForeignKey(x => x.PackingListRangeId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            // Configure PackingListRange foreign keys to prevent cascade delete conflicts
+            // ✅ Pass the collection navigation in WithMany()
+            modelBuilder.Entity<PackingListRange>()
+                .HasOne(x => x.ExPrintMintDetail)
+                .WithMany(x => x.PackingListRanges)   // ← tell EF about the other side
+                .HasForeignKey(x => x.ExPrintMintDetailId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            // Configure PackingListDetails foreign key
+            modelBuilder.Entity<PackingListDetails>()
+                .HasOne(x => x.PackingListRange)
+                .WithMany(x => x.PackingListDetails)
+                .HasForeignKey(x => x.PackingListRangeId)
+                .OnDelete(DeleteBehavior.NoAction);
 
             // Configure StockMovementStatusHistory foreign keys to prevent cascade delete conflicts
             modelBuilder.Entity<StockMovementStatusHistory>()
@@ -60,6 +98,18 @@ namespace VMSService.Data.Configurations
                 .WithMany(x => x.StatusHistory)
                 .HasForeignKey(x => x.StockMovementId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<LogisticsStatusHistory>()
+                .HasOne(l => l.OldStatus)
+                .WithMany()
+                .HasForeignKey(l => l.OldStatusId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<LogisticsStatusHistory>()
+                .HasOne(l => l.NewStatus)
+                .WithMany()
+                .HasForeignKey(l => l.NewStatusId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

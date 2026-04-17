@@ -8,5 +8,8 @@ namespace VMSService.Core.Models.StockMovement
         public int? NumBundles { get; set; }
         public int? CategoryId { get; set; }
         public decimal SubTotalValue { get; set; }
+
+        // Buffer/Operational per denomination
+        public string? Categorization { get; set; } // "buffer" or "operational"
     }
 }

@@ -26,11 +26,17 @@ using VMSService.Core.Models.Branches;
 using VMSService.Core.Repositories.Branches;
 using VMSService.Core.Repositories.DenominationTypes;
 
+using VMSService.Core.Repositories.ExPrintMintDetails;
+using VMSService.Core.Models.ExPrintMintDetails;
+using VMSService.Core.Repositories.PackingListRanges;
+using VMSService.Data.Entities;
+
 namespace VMSService.Web.Controllers
 {
     [Authorize]
     public class ExPrintMintsController(
         IExPrintMintRepository _exPrintMintRepository,
+        IExPrintMintDetailRepository _exPrintMintDetailRepository,
         IStatusTypeRepository _statusTypeRepository,
         IMapper _mapper,
         ILogger<ExPrintMintsController> _logger,
@@ -41,7 +47,8 @@ namespace VMSService.Web.Controllers
         IWorkflowService _workflowService,
         IExPrintMintStatusHistoryRepository _statusHistoryRepository,
         IBranchRepository _branchRepository,
-        IDenominationTypeRepository _denominationTypeRepository) : Controller
+        IDenominationTypeRepository _denominationTypeRepository,
+        IPackingListRangeRepository _packingListRangeRepository) : Controller
     {
         [Breadcrumb("Expected Stock", FromController = typeof(HomeController), FromAction = nameof(Index))]
         // GET: ExPrintMints
@@ -117,13 +124,27 @@ namespace VMSService.Web.Controllers
                 model.StatusHistory = _mapper.Map<ICollection<ExPrintMintStatusHistoryViewModel>>(
                     await _statusHistoryRepository.FindByExPrintMintId(id ?? 0));
 
-                model.Denomination = _mapper.Map<DenominationViewModel>(await _denominationRepository.FindById(model.DenominationId));
-
-                DenominationType denominationType = await _denominationTypeRepository.FindById(model.Denomination.DenominationTypeId);
-
-                model.Denomination.DenominationType = _mapper.Map<DenominationTypeViewModel>(denominationType);
+                // Fetch the details (denominations) for this batch
+                var details = await _exPrintMintDetailRepository.FindByExPrintMintId(id.Value);
+                if (details != null)
+                {
+                    var detailViewModels = _mapper.Map<ICollection<ExPrintMintDetailViewModel>>(details);
+                    
+                    // Enrich with denomination names from Stock Service
+                    foreach (var detail in detailViewModels)
+                    {
+                        var denomination = await _denominationRepository.FindById(detail.DenominationId);
+                        detail.DenominationName = denomination?.Name ?? $"Denomination {detail.DenominationId}";
+                    }
+                    
+                    model.Details = detailViewModels;
+                }
 
                 model.Branch = _mapper.Map<BranchViewModel>(await _branchRepository.FindById(model.BranchId));
+
+                // Check if packing list ranges exist for this ExPrintMint
+                var packingListRanges = await _packingListRangeRepository.FindByExStockIdAsync(id.Value);
+                ViewBag.PackingListRanges = packingListRanges ?? new List<PackingListRange>();
 
                 return View(model);
             }
@@ -146,7 +167,7 @@ namespace VMSService.Web.Controllers
                 ViewBag.VendorTypes = _mapper.Map<List<VendorType>>(await _vendorTypeRepository.FindAll());
                 ViewBag.ApprovedCurrencyProcurements = _mapper.Map<List<ApprovedCurrencyProcurementsViewModel>>(await _approvedCurrencyProcurementRepo.FindVerified());
                 ViewBag.BranchList = _mapper.Map<List<BranchViewModel>>(await _branchRepository.FindAll());
-                return View(new ExPrintMintViewModel());
+                return View(new ExPrintMintBatchCreateViewModel());
             }
             catch (Exception ex)
             {
@@ -160,7 +181,7 @@ namespace VMSService.Web.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Breadcrumb("Create", FromController = typeof(ExPrintMintsController), FromAction = nameof(Index))]
-        public async Task<IActionResult> Create(ExPrintMintViewModel model)
+        public async Task<IActionResult> Create(ExPrintMintBatchCreateViewModel model)
         {
             ViewBag.CurrencyVendors = _mapper.Map<List<CurrencyVendorViewModel>>(await _currencyVendorRepository.FindAll());
             ViewBag.Denominations = _mapper.Map<List<DenominationViewModel>>(await _denominationRepository.FindAll());
@@ -180,7 +201,7 @@ namespace VMSService.Web.Controllers
                 return View(model);
             }
 
-            if (model.Attachment != null && model.AttachmentFile.ContentType != "application/pdf")
+            if (model.AttachmentFile != null && model.AttachmentFile.ContentType != "application/pdf")
             {
                 ModelState.AddModelError("", "Invalid file type");
                 return View(model);
@@ -192,6 +213,8 @@ namespace VMSService.Web.Controllers
 
                 if (!Directory.Exists(uploadsFolder))
                     Directory.CreateDirectory(uploadsFolder);
+
+                string attachmentPath = null;
 
                 if (model.AttachmentFile != null)
                 {
@@ -213,30 +236,65 @@ namespace VMSService.Web.Controllers
                         await model.AttachmentFile.CopyToAsync(stream);
                     }
 
-                    model.Attachment = filePath;
+                    attachmentPath = filePath;
                 }
 
-                StatusType status = await _statusTypeRepository.FindByName(StatusConstants.ExPrintMint.Draft, StatusConstants.Category.ExPrintMint);
-                model.CurrentStatusId = status.Id;
+                StatusType draftStatus = await _statusTypeRepository.FindByName(StatusConstants.ExPrintMint.Draft, StatusConstants.Category.ExPrintMint);
 
-                ExPrintMint newExPrintMint = _mapper.Map<ExPrintMint>(model);
-                bool isCreated = await _exPrintMintRepository.Create(newExPrintMint);
-
-                if (isCreated)
+                // Create the parent ExPrintMint record (the batch)
+                var exPrintMint = new ExPrintMint
                 {
-                    TempData["Success"] = "Expected Stock created successfully!";
-                    return RedirectToAction(nameof(Index));
-                }
-                else
+                    ExPrintMintReference = model.ExPrintMintReference,
+                    CurrencyVendorId = model.CurrencyVendorId,
+                    DenominationId = 0, // No specific denomination for the parent
+                    DeliveryDate = model.DeliveryDate,
+                    Attachment = attachmentPath,
+                    ApprovedCurrencyProcurementId = model.ApprovedCurrencyProcurementId,
+                    CurrentStatusId = draftStatus.Id,
+                    BranchId = model.BranchId,
+                    IsDeleted = false
+                };
+
+                bool isParentCreated = await _exPrintMintRepository.Create(exPrintMint);
+                
+                if (!isParentCreated)
                 {
-                    TempData["Error"] = "Failed to create Expected Stock. Please try again.";
-                    _logger.LogError("Error creating Expected Stock");
-                    ModelState.AddModelError("", "Failed to create Expected Stock. Please try again.");
+                    _logger.LogError("Error creating parent Expected Stock");
+                    ModelState.AddModelError("", "Failed to create Expected Stock batch. Please try again.");
+                    return View(model);
                 }
+
+                // Create an ExPrintMintDetail record for each denomination entry
+                foreach (var denomEntry in model.Denominations)
+                {
+                    if (denomEntry.DenominationId <= 0 || denomEntry.NumberOfPieces <= 0)
+                        continue;
+
+                    var detail = new ExPrintMintDetail
+                    {
+                        ExPrintMintId = exPrintMint.Id,
+                        DenominationId = denomEntry.DenominationId,
+                        NumberOfPieces = denomEntry.NumberOfPieces,
+                        Value = denomEntry.Value,
+                        NumberOfBoxes = denomEntry.NumberOfBoxes,
+                        IsDeleted = false
+                    };
+
+                    bool isDetailCreated = await _exPrintMintDetailRepository.Create(detail);
+                    if (!isDetailCreated)
+                    {
+                        _logger.LogError("Error creating Expected Stock detail for denomination {DenominationId}", denomEntry.DenominationId);
+                        ModelState.AddModelError("", $"Failed to create Expected Stock detail for denomination. Please try again.");
+                        return View(model);
+                    }
+                }
+
+                TempData["Success"] = "Expected Stock batch created successfully!";
+                return RedirectToAction(nameof(Index));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating Expected Stock");
+                _logger.LogError(ex, "Error creating Expected Stock batch");
                 ModelState.AddModelError("", "Failed to create Expected Stock. An unexpected error occurred.");
                 TempData["Error"] = ex.Message;
             }
@@ -274,6 +332,17 @@ namespace VMSService.Web.Controllers
                 ViewBag.BranchList = _mapper.Map<List<BranchViewModel>>(await _branchRepository.FindAll());
 
                 var model = _mapper.Map<ExPrintMintViewModel>(exPrintMint);
+                
+                // Load and enrich details with denomination names
+                if (model.Details != null && model.Details.Any())
+                {
+                    foreach (var detail in model.Details)
+                    {
+                        var denomination = await _denominationRepository.FindById(detail.DenominationId);
+                        detail.DenominationName = denomination?.Name ?? $"Denomination {detail.DenominationId}";
+                    }
+                }
+                
                 return View(model);
             }
             catch (Exception ex)
@@ -324,16 +393,8 @@ namespace VMSService.Web.Controllers
 
                 exPrintMint.ExPrintMintReference = model.ExPrintMintReference;
                 exPrintMint.CurrencyVendorId = model.CurrencyVendorId;
-                exPrintMint.DenominationId = model.DenominationId;
                 exPrintMint.DeliveryDate = model.DeliveryDate;
-                exPrintMint.NumberOfPieces = model.NumberOfPieces;
-                exPrintMint.Value = model.Value;
-                exPrintMint.BoxNumberPrefix = model.BoxNumberPrefix;
-                exPrintMint.BoxNumberRangeStart = model.BoxNumberRangeStart;
-                exPrintMint.BoxNumberRangeEnd = model.BoxNumberRangeEnd;
-                exPrintMint.SerialNumberPrefix = model.SerialNumberPrefix;
-                exPrintMint.SerialNumberRangeStart = model.SerialNumberRangeStart;
-                exPrintMint.SerialNumberRangeEnd = model.SerialNumberRangeEnd;
+                exPrintMint.ApprovedCurrencyProcurementId = model.ApprovedCurrencyProcurementId;
                 exPrintMint.BranchId = model.BranchId;
 
                 if (model.AttachmentFile != null && model.AttachmentFile.ContentType != "application/pdf")
@@ -371,6 +432,58 @@ namespace VMSService.Web.Controllers
                 }
 
                 bool isUpdated = await _exPrintMintRepository.Update(exPrintMint);
+                
+                // Update denomination details
+                if (isUpdated && model.Details != null && model.Details.Any())
+                {
+                    // Get current details from database
+                    var currentDetails = await _exPrintMintDetailRepository.FindByExPrintMintId(id);
+                    
+                    // Process updates and additions
+                    foreach (var detailModel in model.Details)
+                    {
+                        if (detailModel.DenominationId <= 0) continue; // Skip empty selections
+                        
+                        if (detailModel.Id > 0)
+                        {
+                            // Update existing detail
+                            var existingDetail = currentDetails.FirstOrDefault(d => d.Id == detailModel.Id);
+                            if (existingDetail != null)
+                            {
+                                existingDetail.DenominationId = detailModel.DenominationId;
+                                existingDetail.NumberOfPieces = detailModel.NumberOfPieces;
+                                existingDetail.Value = detailModel.Value;
+                                existingDetail.NumberOfBoxes = detailModel.NumberOfBoxes;
+                                await _exPrintMintDetailRepository.Update(existingDetail);
+                            }
+                        }
+                        else
+                        {
+                            // Create new detail
+                            var newDetail = new ExPrintMintDetail
+                            {
+                                ExPrintMintId = id,
+                                DenominationId = detailModel.DenominationId,
+                                NumberOfPieces = detailModel.NumberOfPieces,
+                                Value = detailModel.Value,
+                                NumberOfBoxes = detailModel.NumberOfBoxes,
+                                IsDeleted = false
+                            };
+                            await _exPrintMintDetailRepository.Create(newDetail);
+                        }
+                    }
+                    
+                    // Delete removed details (those not in the current request)
+                    var submittedDetailIds = model.Details.Where(d => d.Id > 0).Select(d => d.Id).ToList();
+                    foreach (var detail in currentDetails.Where(d => !submittedDetailIds.Contains(d.Id)))
+                    {
+                        detail.IsDeleted = true;
+                        await _exPrintMintDetailRepository.Update(detail);
+                    }
+                    
+                    await _exPrintMintDetailRepository.Save();
+                }
+                
                 if (isUpdated)
                 {
                     TempData["Success"] = "Expected Stock updated successfully!";

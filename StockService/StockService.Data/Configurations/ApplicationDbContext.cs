@@ -18,7 +18,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<DenominationType> DenominationTypes { get; set; }
     public DbSet<StockLedger> StockLedger { get; set; }
     public DbSet<StockLedgerDetail> StockLedgerDetails { get; set; }
-
+    
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

@@ -86,73 +86,73 @@
 
                         <div class="field mb-4">
                             <span class="d-block text-muted small mb-2 text-uppercase">Number of Pieces</span>
-                            <span class="d-block fw-normal">@Model.NumberOfPieces.ToString("N0")</span>
+                            @* <span class="d-block fw-normal">@Model.NumberOfPieces.ToString("N0")</span> *@
                         </div>
 
                         <div class="field">
                             <span class="d-block text-muted small mb-2 text-uppercase">Total Value (UGX)</span>
-                            <span class="d-block fw-normal text-success fw-bold">@Model.Value.ToString("N0")</span>
+                            @* <span class="d-block fw-normal text-success fw-bold">@Model.Value.ToString("N0")</span> *@
                         </div>
                     </div>
                 </div>
 
-                @if (!string.IsNullOrEmpty(Model.BoxNumberPrefix))
-                {
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <div class="field mb-4">
-                                <span class="d-block text-muted small mb-2 text-uppercase">Box Number Prefix</span>
-                                <span class="d-block fw-normal">
-                                    <span class="badge bg-warning">@Model.BoxNumberPrefix</span>
-                                </span>
-                            </div>
+                @* @if (!string.IsNullOrEmpty(Model.BoxNumberPrefix)) *@
+                @* { *@
+                @*     <div class="row mb-4"> *@
+                @*         <div class="col-md-6"> *@
+                @*             <div class="field mb-4"> *@
+                @*                 <span class="d-block text-muted small mb-2 text-uppercase">Box Number Prefix</span> *@
+                @*                 <span class="d-block fw-normal"> *@
+                @*                     <span class="badge bg-warning">@Model.BoxNumberPrefix</span> *@
+                @*                 </span> *@
+                @*             </div> *@
 
-                            <div class="field">
-                                <span class="d-block text-muted small mb-2 text-uppercase">Box Number Range</span>
-                                <span class="d-block fw-normal">
-                                    @if (Model.BoxNumberRangeStart.HasValue && Model.BoxNumberRangeEnd.HasValue)
-                                    {
-                                        <span>@Model.BoxNumberPrefix@Model.BoxNumberRangeStart - @Model.BoxNumberPrefix@Model.BoxNumberRangeEnd</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted">-</span>
-                                    }
-                                </span>
-                            </div>
-                        </div>
+                @*             <div class="field"> *@
+                @*                 <span class="d-block text-muted small mb-2 text-uppercase">Box Number Range</span> *@
+                @*                 <span class="d-block fw-normal"> *@
+                @*                     @if (Model.BoxNumberRangeStart.HasValue && Model.BoxNumberRangeEnd.HasValue) *@
+                @*                     { *@
+                @*                         <span>@Model.BoxNumberPrefix@Model.BoxNumberRangeStart - @Model.BoxNumberPrefix@Model.BoxNumberRangeEnd</span> *@
+                @*                     } *@
+                @*                     else *@
+                @*                     { *@
+                @*                         <span class="text-muted">-</span> *@
+                @*                     } *@
+                @*                 </span> *@
+                @*             </div> *@
+                @*         </div> *@
 
-                        <div class="col-md-6">
-                            <div class="field mb-4">
-                                <span class="d-block text-muted small mb-2 text-uppercase">Serial Number Prefix</span>
-                                <span class="d-block fw-normal">
-                                    @if (!string.IsNullOrEmpty(Model.SerialNumberPrefix))
-                                    {
-                                        <span class="badge bg-danger text-white">@Model.SerialNumberPrefix</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted">-</span>
-                                    }
-                                </span>
-                            </div>
+                @*         <div class="col-md-6"> *@
+                @*             <div class="field mb-4"> *@
+                @*                 <span class="d-block text-muted small mb-2 text-uppercase">Serial Number Prefix</span> *@
+                @*                 <span class="d-block fw-normal"> *@
+                @*                     @if (!string.IsNullOrEmpty(Model.SerialNumberPrefix)) *@
+                @*                     { *@
+                @*                         <span class="badge bg-danger text-white">@Model.SerialNumberPrefix</span> *@
+                @*                     } *@
+                @*                     else *@
+                @*                     { *@
+                @*                         <span class="text-muted">-</span> *@
+                @*                     } *@
+                @*                 </span> *@
+                @*             </div> *@
 
-                            <div class="field">
-                                <span class="d-block text-muted small mb-2 text-uppercase">Serial Number Range</span>
-                                <span class="d-block fw-normal">
-                                    @if (Model.SerialNumberRangeStart.HasValue && Model.SerialNumberRangeEnd.HasValue)
-                                    {
-                                        <span>@Model.SerialNumberPrefix@Model.SerialNumberRangeStart - @Model.SerialNumberPrefix@Model.SerialNumberRangeEnd</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted">-</span>
-                                    }
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                }
+                @*             <div class="field"> *@
+                @*                 <span class="d-block text-muted small mb-2 text-uppercase">Serial Number Range</span> *@
+                @*                 <span class="d-block fw-normal"> *@
+                @*                     @if (Model.SerialNumberRangeStart.HasValue && Model.SerialNumberRangeEnd.HasValue) *@
+                @*                     { *@
+                @*                         <span>@Model.SerialNumberPrefix@Model.SerialNumberRangeStart - @Model.SerialNumberPrefix@Model.SerialNumberRangeEnd</span> *@
+                @*                     } *@
+                @*                     else *@
+                @*                     { *@
+                @*                         <span class="text-muted">-</span> *@
+                @*                     } *@
+                @*                 </span> *@
+                @*             </div> *@
+                @*         </div> *@
+                @*     </div> *@
+                @* } *@
             </div>
 
             <div class="card-footer bg-transparent border-top pt-3">

@@ -126,6 +126,7 @@ namespace VMSService.Core.Services.StockPositions
                 CounterPartyId = storeId,
                 StoreId = movement.DispatchingBranchId ?? 0,
                 Notes = $"Dispatch for Stock Movement {movement.ReferenceNumber}",
+                StockMovementId = movement.Id,
                 StockLedgerDetails = new List<StockLedgerDetail>()
             };
 
@@ -135,7 +136,7 @@ namespace VMSService.Core.Services.StockPositions
                 {
                     DenominationId = denom.DenominationId,
                     CategoryId = denom.CategoryId ?? 0,
-                    NumberOfPieces = (denom.NumBundles ?? 0) * 100,
+                    NumberOfPieces = (denom.NumBundles ?? 0) * 1000,
                     NumberOfBoxes = denom.NumBagsBoxes ?? 0,
                     NumberOfBundles = denom.NumBundles ?? 0,
                     Value = denom.SubTotalValue
@@ -162,6 +163,7 @@ namespace VMSService.Core.Services.StockPositions
                 CounterPartyId = storeId,
                 StoreId = movement.ReceivingBranchId ?? 0,
                 Notes = $"Receipt for Stock Movement {movement.ReferenceNumber}",
+                StockMovementId = movement.Id,
                 StockLedgerDetails = new List<StockLedgerDetail>()
             };
 
@@ -171,7 +173,7 @@ namespace VMSService.Core.Services.StockPositions
                 {
                     DenominationId = denom.DenominationId,
                     CategoryId = denom.CategoryId ?? 0,
-                    NumberOfPieces = (denom.NumBundles ?? 0) * 100,
+                    NumberOfPieces = (denom.NumBundles ?? 0) * 1000,
                     NumberOfBoxes = denom.NumBagsBoxes ?? 0,
                     NumberOfBundles = denom.NumBundles ?? 0,
                     Value = denom.SubTotalValue
@@ -218,6 +220,7 @@ namespace VMSService.Core.Services.StockPositions
                         CounterPartyId = discrepancy.StockMovement.ReceivingBranchId ?? 0,
                         StoreId = discrepancy.StockMovement.DispatchingBranchId ?? 0,
                         Notes = $"Reversal for missing denominations in Stock Movement {discrepancy.StockMovement.ReferenceNumber}",
+                        StockMovementId = discrepancy.StockMovement.Id,
                         StockLedgerDetails = new List<StockLedgerDetail>()
                     };
 
@@ -231,7 +234,7 @@ namespace VMSService.Core.Services.StockPositions
                             {
                                 DenominationId = missingDenomId,
                                 CategoryId = sentDenom.CategoryId ?? 0,
-                                NumberOfPieces = (sentDenom.NumBundles ?? 0) * 100,
+                                NumberOfPieces = (sentDenom.NumBundles ?? 0) * 1000,
                                 NumberOfBoxes = sentDenom.NumBagsBoxes ?? 0,
                                 NumberOfBundles = sentDenom.NumBundles ?? 0,
                                 Value = sentDenom.SubTotalValue
@@ -253,6 +256,7 @@ namespace VMSService.Core.Services.StockPositions
                         CounterPartyId = discrepancy.StockMovement.ReceivingBranchId ?? 0,
                         StoreId = discrepancy.StockMovement.DispatchingBranchId ?? 0,
                         Notes = $"Extra denominations received in Stock Movement {discrepancy.StockMovement.ReferenceNumber}",
+                        StockMovementId = discrepancy.StockMovement.Id,
                         StockLedgerDetails = new List<StockLedgerDetail>()
                     };
 
@@ -266,7 +270,7 @@ namespace VMSService.Core.Services.StockPositions
                             {
                                 DenominationId = extraDenomId,
                                 CategoryId = receivedDenom.CategoryId ?? 0,
-                                NumberOfPieces = (receivedDenom.NumBundles ?? 0) * 100,
+                                NumberOfPieces = (receivedDenom.NumBundles ?? 0) * 1000,
                                 NumberOfBoxes = receivedDenom.NumBagsBoxes ?? 0,
                                 NumberOfBundles = receivedDenom.NumBundles ?? 0,
                                 Value = receivedDenom.SubTotalValue
@@ -305,7 +309,7 @@ namespace VMSService.Core.Services.StockPositions
                                 {
                                     DenominationId = denomId,
                                     CategoryId = sentDenom.CategoryId ?? 0,
-                                    NumberOfPieces = (sentDenom.NumBundles ?? 0) * 100 - (receivedDenom.NumBundles ?? 0) * 100,
+                                    NumberOfPieces = (sentDenom.NumBundles ?? 0) * 1000 - (receivedDenom.NumBundles ?? 0) * 1000,
                                     NumberOfBoxes = (sentDenom.NumBagsBoxes ?? 0) - (receivedDenom.NumBagsBoxes ?? 0),
                                     NumberOfBundles = (sentDenom.NumBundles ?? 0) - (receivedDenom.NumBundles ?? 0),
                                     Value = Math.Abs(valueDifference)
@@ -318,7 +322,7 @@ namespace VMSService.Core.Services.StockPositions
                                 {
                                     DenominationId = denomId,
                                     CategoryId = receivedDenom.CategoryId ?? 0,
-                                    NumberOfPieces = (receivedDenom.NumBundles ?? 0) * 100 - (sentDenom.NumBundles ?? 0) * 100,
+                                    NumberOfPieces = (receivedDenom.NumBundles ?? 0) * 1000 - (sentDenom.NumBundles ?? 0) * 1000,
                                     NumberOfBoxes = (receivedDenom.NumBagsBoxes ?? 0) - (sentDenom.NumBagsBoxes ?? 0),
                                     NumberOfBundles = (receivedDenom.NumBundles ?? 0) - (sentDenom.NumBundles ?? 0),
                                     Value = valueDifference
@@ -339,6 +343,7 @@ namespace VMSService.Core.Services.StockPositions
                         CounterPartyId = discrepancy.StockMovement.ReceivingBranchId ?? 0,
                         StoreId = discrepancy.StockMovement.DispatchingBranchId ?? 0,
                         Notes = $"Credit for quantity shortages in Stock Movement {discrepancy.StockMovement.ReferenceNumber}",
+                        StockMovementId = discrepancy.StockMovement.Id,
                         StockLedgerDetails = creditDetailsForQuantity
                     };
                     ledgers.Add(creditLedger);
@@ -355,6 +360,7 @@ namespace VMSService.Core.Services.StockPositions
                         CounterPartyId = discrepancy.StockMovement.ReceivingBranchId ?? 0,
                         StoreId = discrepancy.StockMovement.DispatchingBranchId ?? 0,
                         Notes = $"Debit for quantity overages in Stock Movement {discrepancy.StockMovement.ReferenceNumber}",
+                        StockMovementId = discrepancy.StockMovement.Id,
                         StockLedgerDetails = debitDetailsForQuantity
                     };
                     ledgers.Add(debitLedger);

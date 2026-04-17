@@ -13,6 +13,7 @@ using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.StockMovementStatusHistories;
 using VMSService.Core.Repositories.StockMovementDiscrepancies;
 using VMSService.Core.Repositories.StatusTypes;
+using VMSService.Core.Repositories.Logistics;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
 
@@ -31,7 +32,9 @@ namespace VMSService.Core.Services.Workflows
         IStockMovementRepository _stockMovementRepository,
         IStockMovementStatusHistoryRepository _stockMovementStatusHistoryRepository,
         IStockMovementDiscrepancyRepository _stockMovementDiscrepancyRepository,
-        IStatusTypeRepository _statusTypeRepository) : IWorkflowService
+        IStatusTypeRepository _statusTypeRepository,
+        ILogisticsRepository _logisticsRepository,
+        ILogisticsStatusHistoryRepository _logisticsStatusHistoryRepository) : IWorkflowService
     {
         public async Task<ICollection<WorkflowTransitionViewModel>> GetAvailableTransitions(
             string entityType, int currentStatusId, string userRole)
@@ -140,6 +143,12 @@ namespace VMSService.Core.Services.Workflows
                     return await HandleStockMovementTransitions(entityId, currentStatusId, actionName, userId, remarks, transition);
                 }
 
+                // Handle Logistics transitions
+                if (entityType == StatusConstants.Entity.Logistics)
+                {
+                    return await HandleLogisticsTransitions(entityId, currentStatusId, actionName, userId, remarks, transition);
+                }
+
                 return false;
             }
             catch (Exception ex)
@@ -148,6 +157,50 @@ namespace VMSService.Core.Services.Workflows
                     entityType, entityId, actionName);
                 return false;
             }
+
+        }
+
+        private async Task<bool> HandleLogisticsTransitions(int entityId, int currentStatusId, string actionName,
+            string userId, string remarks, WorkflowTransition transition)
+        {
+            // Find logistics record
+            var logistics = await _logisticsRepository.GetByIdAsync(entityId);
+            if (logistics == null)
+            {
+                _logger.LogWarning("Logistics {Id} not found", entityId);
+                return false;
+            }
+
+            // Verify current status matches
+            if (logistics.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Logistics {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, logistics.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            // Create status history record
+            var statusHistory = new LogisticsStatusHistory
+            {
+                LogisticsId = entityId,
+                OldStatusId = logistics.CurrentStatusId,
+                NewStatusId = transition.ToStatusId,
+                ChangedBy = userId,
+                ChangedAt = DateTime.Now,
+                Remarks = remarks,
+                //IsDeleted = false
+            };
+
+            await _logisticsStatusHistoryRepository.CreateAsync(statusHistory);
+
+            // Update logistics status
+            logistics.CurrentStatusId = transition.ToStatusId;
+            await _logisticsRepository.UpdateAsync(logistics);
+
+            _logger.LogInformation("Logistics {Id} transitioned from status {From} to {To} by user {UserId} with action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, userId, actionName);
+
+            return true;
         }
 
         private async Task<bool> HandleExPrintMintTransitions(int entityId, int currentStatusId, string actionName,

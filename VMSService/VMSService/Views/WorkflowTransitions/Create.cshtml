@@ -37,6 +37,7 @@
                             <option value="ReceivedStock">Received Stock</option>
                             <option value="StockMovement">Stock Movement</option>
                             <option value="StockMovementDiscrepancy">Stock Movement Discrepancy</option>
+                            <option value="Logistics">Logistics</option>
                         </select>
                         <span asp-validation-for="EntityType" class="invalid-feedback"></span>
                     </div>
@@ -160,7 +161,8 @@
             'ExPrintMint': 'ExPrint and ExMint',
             'ReceivedStock': 'Received Stock',
             'StockMovement': 'Stock Movement',
-            'StockMovementDiscrepancy': 'Stock Movement Discrepancy'
+            'StockMovementDiscrepancy': 'Stock Movement Discrepancy',
+            'Logistics': 'Logistics'
         };
 
         const $entityTypeSelect = $('#EntityType');

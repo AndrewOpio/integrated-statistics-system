@@ -18,12 +18,18 @@ namespace VMSService.Data.Entities
         // Branch to Branch
         public int? DispatchingBranchId { get; set; }
         public int? ReceivingBranchId { get; set; }
-        public string? Categorization { get; set; } // "buffer" or "operational"
+
+        //Commercial bank
+        public int? CommercialBankBranchId { get; set; }
 
         // Common
         public ICollection<StockMovementDenomination> Denominations { get; set; }
         public ICollection<StockMovementStatusHistory> StatusHistory { get; set; }
         public ICollection<StockMovementDiscrepancy> StockMovementDiscrepancies { get; set; }
+
+        // Link to Logistics
+        public int? LogisticsId { get; set; }
+        public Logistics? Logistics { get; set; }
 
         // Totals
         public int? TotalBagsBoxes { get; set; }

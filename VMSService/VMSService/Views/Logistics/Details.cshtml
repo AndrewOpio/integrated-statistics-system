@@ -1,4 +1,5 @@
 @model VMSService.Data.Entities.Logistics
+@using VMSService.Core.Models.Logistics
 
 @{
     ViewData["Title"] = "Logistics Details";
@@ -8,7 +9,13 @@
     <div class="col-12">
         <div class="card border-0 shadow mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h2 class="fs-5 fw-bold mb-0">Logistics Details</h2>
+                <div class="d-flex align-items-center gap-3">
+                    <h2 class="fs-5 fw-bold mb-0">Logistics Details</h2>
+                    @if (Model.CurrentStatus != null)
+                    {
+                        <span class="badge bg-secondary" style="font-size:1rem;">@Model.CurrentStatus.Name</span>
+                    }
+                </div>
                 <div class="d-flex gap-2">
                     <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary">
                         <i class="ti ti-edit me-1"></i>Edit
@@ -21,19 +28,30 @@
             <div class="card-body">
                 <!-- Basic Information -->
                 <div class="row mb-4">
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small">Title</label>
-                        <p class="fw-bold mb-0">@Model.Title</p>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label text-muted small">Date</label>
-                        <p class="fw-bold mb-0">@Model.Date.ToString("dd/MMM/yyyy")</p>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label text-muted small">Reference Number</label>
-                        <p class="fw-bold mb-0">@(Model.ReferenceNumber ?? "—")</p>
-                    </div>
+                <div class="col-md-6">
+                    <label class="form-label text-muted small">Title</label>
+                    <p class="fw-bold mb-0">@Model.Title</p>
                 </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">Date</label>
+                    <p class="fw-bold mb-0">@Model.Date.ToString("dd/MMM/yyyy")</p>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small">Reference Number</label>
+                    <p class="fw-bold mb-0">@(Model.ReferenceNumber ?? "—")</p>
+                </div>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label class="form-label text-muted small">Team Leader</label>
+                    <p class="fw-bold mb-0">@(Model.TeamLeader ?? "—")</p>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-muted small">Assistant Team Leader</label>
+                    <p class="fw-bold mb-0">@(Model.AssistantTeamLeader ?? "—")</p>
+                </div>
+            </div>
 
                 @if (!string.IsNullOrWhiteSpace(Model.Description))
                 {
@@ -46,10 +64,6 @@
                 }
 
                 <div class="row mb-4">
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small">Created By</label>
-                        <p class="mb-0">@Model.CreatedByName</p>
-                    </div>
                     <div class="col-md-6">
                         <label class="form-label text-muted small">Created Date</label>
                         <p class="mb-0">@Model.CreatedDate.ToString("dd/MMM/yyyy HH:mm")</p>
@@ -67,34 +81,29 @@
 
                     foreach (var category in Model.Categories.OrderBy(c => c.SortOrder))
                     {
-                        decimal categoryTotal = category.Details?.Sum(d => d.TotalPrice) ?? 0;
+                        decimal categoryTotal = category.Details?.Sum(d => d.TotalCost) ?? 0;
                         grandTotal += categoryTotal;
 
                         <div class="card border mb-3">
                             <div class="card-header bg-light py-2">
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <strong>@category.Name</strong>
-                                        @if (!string.IsNullOrWhiteSpace(category.Description))
-                                        {
-                                            <span class="text-muted ms-2">— @category.Description</span>
-                                        }
-                                    </div>
+                                    <strong>@category.Name</strong>
                                     <span class="badge bg-primary">@(category.Details?.Count ?? 0) items</span>
                                 </div>
                             </div>
                             <div class="card-body p-0">
                                 <div class="table-responsive">
-                                    <table class="table table-bordered mb-0">
-                                        <thead class="table-light">
+                                    <table class="table table-hover align-middle mb-0">
+                                        <thead style="background-color: #f8fafc; border-bottom: 2px solid #e9ecef;">
                                             <tr>
-                                                <th style="width: 5%;">#</th>
-                                                <th style="width: 20%;">Item Name</th>
-                                                <th style="width: 20%;">Description</th>
-                                                <th style="width: 12%;" class="text-end">Quantity</th>
-                                                <th style="width: 12%;" class="text-end">Unit Price</th>
-                                                <th style="width: 12%;" class="text-end">Total</th>
-                                                <th style="width: 19%;">Notes</th>
+                                                <th style="width: 5%; color: #495057; font-weight: 600; border: none; padding: 0.75rem;">#</th>
+                                                <th style="width: 18%; color: #495057; font-weight: 600; border: none; padding: 0.75rem;">Item Name</th>
+                                                <th style="width: 15%; color: #495057; font-weight: 600; border: none; padding: 0.75rem;">Description</th>
+                                                <th style="width: 10%; color: #495057; font-weight: 600; border: none; padding: 0.75rem; text-align: right;">Unit Cost</th>
+                                                <th style="width: 10%; color: #495057; font-weight: 600; border: none; padding: 0.75rem; text-align: right;">Quantity</th>
+                                                <th style="width: 10%; color: #495057; font-weight: 600; border: none; padding: 0.75rem; text-align: right;">Frequency</th>
+                                                <th style="width: 10%; color: #495057; font-weight: 600; border: none; padding: 0.75rem; text-align: right;">Total Cost</th>
+                                                <th style="width: 12%; color: #495057; font-weight: 600; border: none; padding: 0.75rem;">Notes</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -103,14 +112,15 @@
                                                 int rowNum = 1;
                                                 foreach (var detail in category.Details.OrderBy(d => d.SortOrder))
                                                 {
-                                                    <tr>
-                                                        <td>@rowNum</td>
-                                                        <td>@detail.ItemName</td>
-                                                        <td>@(detail.Description ?? "—")</td>
-                                                        <td class="text-end">@detail.Quantity.ToString("N2")</td>
-                                                        <td class="text-end">@detail.UnitPrice.ToString("N2")</td>
-                                                        <td class="text-end">@detail.TotalPrice.ToString("N2")</td>
-                                                        <td>@(detail.Notes ?? "—")</td>
+                                                    <tr style="border-bottom: 1px solid #f0f2f5;">
+                                                        <td style="border: none; padding: 0.75rem;">@rowNum</td>
+                                                        <td style="border: none; padding: 0.75rem;">@detail.ItemName</td>
+                                                        <td style="border: none; padding: 0.75rem;">@(detail.Description ?? "—")</td>
+                                                        <td class="text-end" style="border: none; padding: 0.75rem;">@detail.UnitCost.ToString("N0")</td>
+                                                        <td class="text-end" style="border: none; padding: 0.75rem;">@detail.Quantity.ToString("N0")</td>
+                                                        <td class="text-end" style="border: none; padding: 0.75rem;">@detail.Frequency.ToString("N0")</td>
+                                                        <td class="text-end" style="border: none; padding: 0.75rem;">@detail.TotalCost.ToString("N0")</td>
+                                                        <td style="border: none; padding: 0.75rem;">@(detail.Notes ?? "—")</td>
                                                     </tr>
                                                     rowNum++;
                                                 }
@@ -118,15 +128,15 @@
                                             else
                                             {
                                                 <tr>
-                                                    <td colspan="7" class="text-center text-muted">No details</td>
+                                                    <td colspan="8" class="text-center text-muted" style="border: none; padding: 0.75rem;">No details</td>
                                                 </tr>
                                             }
                                         </tbody>
-                                        <tfoot class="table-light">
+                                        <tfoot style="background-color: #f8fafc; border-top: 2px solid #e9ecef;">
                                             <tr>
-                                                <td colspan="5" class="text-end fw-bold">Category Total:</td>
-                                                <td class="text-end fw-bold">@categoryTotal.ToString("N2")</td>
-                                                <td></td>
+                                                <td colspan="6" class="text-end fw-bold" style="border: none; padding: 0.75rem;">Category Total:</td>
+                                                <td class="text-end fw-bold" style="border: none; padding: 0.75rem;">@categoryTotal.ToString("N0")</td>
+                                                <td style="border: none; padding: 0.75rem;"></td>
                                             </tr>
                                         </tfoot>
                                     </table>
@@ -139,7 +149,7 @@
                         <div class="card-body py-2">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span class="fw-bold">Grand Total:</span>
-                                <span class="fs-5 fw-bold text-primary">@grandTotal.ToString("N2")</span>
+                                <span class="fs-5 fw-bold text-primary">@grandTotal.ToString("N0")</span>
                             </div>
                         </div>
                     </div>
@@ -150,7 +160,200 @@
                         <i class="ti ti-info-circle me-2"></i>No categories found.
                     </div>
                 }
+
+                <!-- Workflow Actions Section -->
+                <hr class="my-4" />
+                <div class="card border mb-4">
+                    <div class="card-header bg-light py-2">
+                        <i class="ti ti-checkbox me-2 text-primary"></i>Available Actions
+                    </div>
+                    <div class="card-body">
+                        @{
+                            var availableTransitions = ViewBag.AvailableTransitions as List<WorkflowTransitionDto>;
+                        }
+                        @if (availableTransitions != null && availableTransitions.Any())
+                        {
+                            <form method="post" asp-action="WorkflowAction" asp-route-id="@Model.Id" id="workflowForm">
+                                <div class="mb-3">
+                                    <label class="form-label">Action <span class="text-danger">*</span></label>
+                                    <select id="actionSelect" name="actionName" class="form-select" required>
+                                        <option value="">-- Select an action --</option>
+                                        @foreach (var transition in availableTransitions)
+                                        {
+                                            <option value="@transition.ActionName" data-requires-comments="@transition.RequiresComments.ToString().ToLower()" data-button-class="@transition.ButtonClass" data-display-label="@transition.DisplayLabel">
+                                                @transition.DisplayLabel
+                                            </option>
+                                        }
+                                    </select>
+                                    <span id="commentRequired" class="text-danger ms-2" style="display:none;">*</span>
+                                    <span id="commentHint" class="text-muted small ms-2"></span>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Comments</label>
+                                    <textarea id="remarksTextarea" name="remarks" class="form-control" rows="2"></textarea>
+                                </div>
+                                <button type="submit" class="text-white btn btn-primary" id="submitBtn" disabled>
+                                    <span id="submitBtnLabel">Submit</span>
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info mb-0">No available actions at this time.</div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Status History Timeline -->
+                <div class="card border mb-4">
+                    <div class="card-header bg-light py-2">
+                        <i class="ti ti-history me-2 text-secondary"></i>Status History
+                    </div>
+                    <div class="card-body">
+                        @{
+                            var statusHistory = ViewBag.StatusHistory as List<VMSService.Data.Entities.LogisticsStatusHistory>;
+                        }
+                        @if (statusHistory != null && statusHistory.Any())
+                        {
+                            <div class="timeline">
+                                @foreach (var history in statusHistory)
+                                {
+                                    <div class="timeline-item mb-4">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <div class="timeline-marker"><i class="ti ti-circle-check text-success"></i></div>
+                                            <div>
+                                                <h6 class="mb-1 small">
+                                                    <strong>@history.OldStatus.Name</strong>
+                                                    <i class="ti ti-arrow-right text-muted"></i>
+                                                    <strong>@history.NewStatus.Name</strong>
+                                                </h6>
+                                                <small class="text-muted">By: <strong>@history.ChangedBy</strong></small>
+                                                <br />
+                                                <small class="text-muted">@history.ChangedAt.ToString("dd/MMM/yyyy HH:mm:ss")</small>
+                                                @if (!string.IsNullOrEmpty(history.Remarks))
+                                                {
+                                                    <div class="mt-2 p-2 bg-white rounded border">
+                                                        <span class="d-block">@history.Remarks</span>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="text-muted text-center">
+                                <i class="ti ti-inbox me-2"></i>No status history yet.
+                            </p>
+                        }
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+    .timeline {
+        position: relative;
+        padding-left: 0;
+    }
+    .timeline-item {
+        position: relative;
+    }
+    .timeline-marker {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background-color: #f0f0f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+</style>
+
+<script>
+    const actionSelect = document.getElementById('actionSelect');
+    if (actionSelect) {
+        actionSelect.addEventListener('change', function () {
+            const selectedOption = this.options[this.selectedIndex];
+            const requiresComments = selectedOption.getAttribute('data-requires-comments') === 'true';
+            const buttonClass = selectedOption.getAttribute('data-button-class') || 'btn-primary';
+            const displayLabel = selectedOption.getAttribute('data-display-label') || 'Submit';
+
+            const commentRequired = document.getElementById('commentRequired');
+            const remarksTextarea = document.getElementById('remarksTextarea');
+            const submitBtn = document.getElementById('submitBtn');
+            const submitBtnLabel = document.getElementById('submitBtnLabel');
+            const commentHint = document.getElementById('commentHint');
+
+            if (this.value === '') {
+                submitBtn.disabled = true;
+                commentRequired.style.display = 'none';
+                remarksTextarea.required = false;
+                commentHint.textContent = '';
+            } else {
+                submitBtn.disabled = false;
+                submitBtnLabel.textContent = displayLabel;
+                submitBtn.className = `text-white btn ${buttonClass}`;
+
+                if (requiresComments) {
+                    commentRequired.style.display = 'inline';
+                    remarksTextarea.required = true;
+                    commentHint.textContent = 'Comments are required for this action.';
+                } else {
+                    commentRequired.style.display = 'none';
+                    remarksTextarea.required = false;
+                    commentHint.textContent = 'Comments are optional.';
+                }
+            }
+        });
+    }
+
+    const workflowForm = document.getElementById('workflowForm');
+    if (workflowForm) {
+        workflowForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const actionSelect = document.getElementById('actionSelect');
+            const remarksTextarea = document.getElementById('remarksTextarea');
+            const requiresComments = actionSelect.options[actionSelect.selectedIndex].getAttribute('data-requires-comments') === 'true';
+
+            if (requiresComments && !remarksTextarea.value.trim()) {
+                alert('Comments are required for this action.');
+                remarksTextarea.focus();
+                return;
+            }
+
+            const formData = new FormData(workflowForm);
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Submitting...';
+
+            fetch(workflowForm.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'Workflow action failed.');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<span id="submitBtnLabel">Submit</span>';
+                }
+            })
+            .catch(() => {
+                alert('An error occurred while submitting the workflow action.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span id="submitBtnLabel">Submit</span>';
+            });
+        });
+    }
+</script>

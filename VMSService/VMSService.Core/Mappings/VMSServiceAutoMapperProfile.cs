@@ -13,7 +13,9 @@ using VMSService.Core.Models.Denominations;
 using VMSService.Core.Models.DenominationTypes;
 using VMSService.Core.Models.ExPrintMints;
 using VMSService.Core.Models.ExPrintMintStatusHistories;
+using VMSService.Core.Models.ExPrintMintDetails;
 using VMSService.Core.Models.ReceivedStocks;
+using VMSService.Core.Models.ReceivedStocksDetails;
 using VMSService.Core.Models.ReceivedStockStatusHistories;
 using VMSService.Core.Models.StatusTypes;
 using VMSService.Core.Models.StockLedgers;
@@ -37,10 +39,12 @@ namespace VMSService.Core.Mappings
             CreateMap<ApprovedCurrencyProcurement, ApprovedCurrencyProcurementsViewModel>().ReverseMap();
             CreateMap<ApprovedCurrencyDenomination, ApprovedCurrencyDenominationViewModel>().ReverseMap();
             CreateMap<ExPrintMint, ExPrintMintViewModel>().ReverseMap();
+            CreateMap<ExPrintMintDetail, ExPrintMintDetailViewModel>().ReverseMap();
             CreateMap<ExPrintMintStatusHistory, ExPrintMintStatusHistoryViewModel>().ReverseMap();
             CreateMap<ApprovedCurrencyStatusHistory, ApprovedCurrencyStatusHistoryViewModel>().ReverseMap();
             CreateMap<StatusType, StatusTypeViewModel>().ReverseMap();
             CreateMap<ReceivedStock, ReceivedStockViewModel>().ReverseMap();
+            CreateMap<ReceivedStockDetails, ReceivedStockDetailViewModel>().ReverseMap();
             CreateMap<WorkflowTransition, WorkflowTransitionViewModel>().ReverseMap();
             CreateMap<ReceivedStockStatusHistory, ReceivedStockStatusHistoryViewModel>().ReverseMap();
 

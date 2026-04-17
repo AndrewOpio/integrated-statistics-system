@@ -16,11 +16,13 @@
             <div class="card-body">
                 <form id="logisticsForm">
                     <!-- Basic Information -->
-                    <div class="row mb-4">
-                        <div class="col-md-6">
+                    <div class="row mb-3">
+                        <div class="col-12">
                             <label class="form-label">Title <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="title" required />
                         </div>
+                    </div>
+                    <div class="row mb-4">
                         <div class="col-md-3">
                             <label class="form-label">Date <span class="text-danger">*</span></label>
                             <input type="date" class="form-control" id="date" value="@DateTime.Today.ToString("yyyy-MM-dd")" required />
@@ -28,6 +30,14 @@
                         <div class="col-md-3">
                             <label class="form-label">Reference Number</label>
                             <input type="text" class="form-control" id="referenceNumber" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Team Leader</label>
+                            <input type="text" class="form-control" id="teamLeader" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Assistant Team Leader</label>
+                            <input type="text" class="form-control" id="assistantTeamLeader" />
                         </div>
                     </div>
                     <div class="row mb-4">
@@ -49,6 +59,14 @@
 
                     <div id="categoriesContainer">
                         <!-- Categories will be added here dynamically -->
+                    </div>
+
+                    <!-- Grand Total Card -->
+                    <div class="card border-primary my-3" id="grandTotalCard" style="display:none;">
+                        <div class="card-body py-2 d-flex justify-content-between align-items-center">
+                            <span class="fw-bold">Grand Total:</span>
+                            <span class="fs-5 fw-bold text-primary" id="grandTotalValue">0</span>
+                        </div>
                     </div>
 
                     <hr class="my-4" />
@@ -73,7 +91,6 @@
             <div class="d-flex align-items-center gap-2 flex-grow-1">
                 <i class="ti ti-grip-vertical text-muted"></i>
                 <input type="text" class="form-control form-control-sm category-name" placeholder="Category Name *" style="max-width: 300px;" required />
-                <input type="text" class="form-control form-control-sm category-description" placeholder="Description (optional)" style="max-width: 400px;" />
             </div>
             <div class="d-flex gap-2">
                 <button type="button" class="btn btn-sm btn-outline-primary add-detail-btn" title="Add Detail Row">
@@ -86,26 +103,27 @@
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-bordered mb-0">
-                    <thead class="table-light">
+                <table class="table table-hover align-middle mb-0">
+                    <thead style="background-color: #f8fafc; border-bottom: 2px solid #e9ecef;">
                         <tr>
-                            <th style="width: 25%;">Item Name</th>
-                            <th style="width: 20%;">Description</th>
-                            <th style="width: 12%;">Quantity</th>
-                            <th style="width: 12%;">Unit Price</th>
-                            <th style="width: 12%;">Total</th>
-                            <th style="width: 14%;">Notes</th>
-                            <th style="width: 5%;">Actions</th>
+                            <th style="width: 20%; color: #495057; font-weight: 600; border: none; padding: 0.75rem;">Item Name</th>
+                            <th style="width: 15%; color: #495057; font-weight: 600; border: none; padding: 0.75rem;">Description</th>
+                            <th style="width: 10%; color: #495057; font-weight: 600; border: none; padding: 0.75rem;">Unit Cost</th>
+                            <th style="width: 10%; color: #495057; font-weight: 600; border: none; padding: 0.75rem;">Quantity</th>
+                            <th style="width: 12%; color: #495057; font-weight: 600; border: none; padding: 0.75rem;">Frequency</th>
+                            <th style="width: 10%; color: #495057; font-weight: 600; border: none; padding: 0.75rem;">Total Cost</th>
+                            <th style="width: 13%; color: #495057; font-weight: 600; border: none; padding: 0.75rem;">Notes</th>
+                            <th style="width: 5%; color: #495057; font-weight: 600; border: none; padding: 0.75rem;">Actions</th>
                         </tr>
                     </thead>
-                    <tbody class="details-container">
+                    <tbody class="details-container" style="border: none;">
                         <!-- Detail rows will be added here -->
                     </tbody>
-                    <tfoot class="table-light">
+                    <tfoot style="background-color: #f8fafc; border-top: 2px solid #e9ecef;">
                         <tr>
-                            <td colspan="4" class="text-end fw-bold">Category Total:</td>
-                            <td class="fw-bold category-total">0.00</td>
-                            <td colspan="2"></td>
+                            <td colspan="5" class="text-end fw-bold" style="border: none; padding: 0.75rem;">Category Total:</td>
+                            <td class="fw-bold category-total" style="border: none; padding: 0.75rem;">0</td>
+                            <td colspan="2" style="border: none;"></td>
                         </tr>
                     </tfoot>
                 </table>
@@ -116,26 +134,29 @@
 
 <!-- Detail Row Template -->
 <template id="detailRowTemplate">
-    <tr class="detail-row">
-        <td>
-            <input type="text" class="form-control form-control-sm detail-item-name" placeholder="Item name" />
+    <tr class="detail-row" style="border-bottom: 1px solid #f0f2f5;">
+        <td style="border: none; padding: 0.75rem;">
+            <input type="text" class="form-control form-control-sm detail-item-name" placeholder="Item name" style="border: 1px solid #dee2e6;" />
         </td>
-        <td>
-            <input type="text" class="form-control form-control-sm detail-description" placeholder="Description" />
+        <td style="border: none; padding: 0.75rem;">
+            <input type="text" class="form-control form-control-sm detail-description" placeholder="Description" style="border: 1px solid #dee2e6;" />
         </td>
-        <td>
-            <input type="number" class="form-control form-control-sm detail-quantity" placeholder="0" step="0.01" min="0" value="0" />
+        <td style="border: none; padding: 0.75rem;">
+            <input type="number" class="form-control form-control-sm detail-unit-cost" placeholder="0" step="0.01" min="0" value="0" style="border: 1px solid #dee2e6;" />
         </td>
-        <td>
-            <input type="number" class="form-control form-control-sm detail-unit-price" placeholder="0.00" step="0.01" min="0" value="0" />
+        <td style="border: none; padding: 0.75rem;">
+            <input type="number" class="form-control form-control-sm detail-quantity" placeholder="0" step="0.01" min="0" value="0" style="border: 1px solid #dee2e6;" />
         </td>
-        <td>
-            <input type="number" class="form-control form-control-sm detail-total" placeholder="0.00" step="0.01" readonly />
+        <td style="border: none; padding: 0.75rem;">
+            <input type="number" class="form-control form-control-sm detail-frequency" placeholder="1" step="0.01" min="0" value="1" style="border: 1px solid #dee2e6;" />
         </td>
-        <td>
-            <input type="text" class="form-control form-control-sm detail-notes" placeholder="Notes" />
+        <td style="border: none; padding: 0.75rem;">
+            <input type="text" class="form-control form-control-sm detail-total-cost" placeholder="0" readonly style="border: 1px solid #dee2e6;" />
         </td>
-        <td class="text-center">
+        <td style="border: none; padding: 0.75rem;">
+            <input type="text" class="form-control form-control-sm detail-notes" placeholder="Notes" style="border: 1px solid #dee2e6;" />
+        </td>
+        <td class="text-center" style="border: none; padding: 0.75rem;">
             <button type="button" class="btn btn-sm btn-outline-danger remove-detail-btn" title="Remove Row">
                 <i class="ti ti-x"></i>
             </button>
@@ -180,21 +201,24 @@
                 const template = document.getElementById('detailRowTemplate').content.cloneNode(true);
                 const row = template.querySelector('.detail-row');
 
-                // Setup calculation on quantity/price change
+                // Setup calculation on quantity/price/frequency change
                 const quantityInput = row.querySelector('.detail-quantity');
-                const unitPriceInput = row.querySelector('.detail-unit-price');
-                const totalInput = row.querySelector('.detail-total');
+                const unitPriceInput = row.querySelector('.detail-unit-cost');
+                const frequencyInput = row.querySelector('.detail-frequency');
+                const totalInput = row.querySelector('.detail-total-cost');
 
                 function calculateRowTotal() {
                     const quantity = parseFloat(quantityInput.value) || 0;
                     const unitPrice = parseFloat(unitPriceInput.value) || 0;
-                    const total = quantity * unitPrice;
-                    totalInput.value = total.toFixed(2);
+                    const frequency = parseFloat(frequencyInput.value) || 1;
+                    const total = unitPrice * quantity * frequency;
+                    totalInput.value = Math.round(total).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
                     updateCategoryTotal(categoryCard);
                 }
 
                 quantityInput.addEventListener('input', calculateRowTotal);
                 unitPriceInput.addEventListener('input', calculateRowTotal);
+                frequencyInput.addEventListener('input', calculateRowTotal);
 
                 // Remove row button
                 row.querySelector('.remove-detail-btn').addEventListener('click', function () {
@@ -203,23 +227,30 @@
                 });
 
                 categoryCard.querySelector('.details-container').appendChild(row);
+                // Initialize total for new rows
+                calculateRowTotal();
             }
 
             function updateCategoryTotal(categoryCard) {
                 let total = 0;
-                categoryCard.querySelectorAll('.detail-total').forEach(function (input) {
-                    total += parseFloat(input.value) || 0;
+                categoryCard.querySelectorAll('.detail-total-cost').forEach(function (input) {
+                    total += parseFloat(input.value.replace(/,/g, '')) || 0;
                 });
-                categoryCard.querySelector('.category-total').textContent = total.toFixed(2);
+                categoryCard.querySelector('.category-total').textContent = Math.round(total).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
                 updateGrandTotal();
             }
 
             function updateGrandTotal() {
                 let grandTotal = 0;
                 document.querySelectorAll('.category-total').forEach(function (el) {
-                    grandTotal += parseFloat(el.textContent) || 0;
+                    grandTotal += parseFloat(el.textContent.replace(/,/g, '')) || 0;
                 });
-                // You can display grand total somewhere if needed
+                const card = document.getElementById('grandTotalCard');
+                const value = document.getElementById('grandTotalValue');
+                if (card && value) {
+                    value.textContent = Math.round(grandTotal).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                    card.style.display = grandTotal > 0 ? '' : 'none';
+                }
             }
 
             // Form Submit
@@ -236,16 +267,17 @@
                         details.push({
                             itemName: row.querySelector('.detail-item-name').value.trim(),
                             description: row.querySelector('.detail-description').value.trim(),
-                            quantity: parseFloat(row.querySelector('.detail-quantity').value) || 0,
-                            unitPrice: parseFloat(row.querySelector('.detail-unit-price').value) || 0,
-                            totalPrice: parseFloat(row.querySelector('.detail-total').value) || 0,
+                            unitCost: parseFloat(row.querySelector('.detail-unit-cost').value.replace(/,/g, '')) || 0,
+                            quantity: parseFloat(row.querySelector('.detail-quantity').value.replace(/,/g, '')) || 0,
+                            frequency: parseFloat(row.querySelector('.detail-frequency').value.replace(/,/g, '')) || 1,
+                            totalCost: parseFloat(row.querySelector('.detail-total-cost').value.replace(/,/g, '')) || 0,
                             notes: row.querySelector('.detail-notes').value.trim()
                         });
                     });
 
                     categories.push({
                         name: categoryName,
-                        description: categoryCard.querySelector('.category-description').value.trim(),
+                        description: '',
                         details: details
                     });
                 });
@@ -255,6 +287,8 @@
                     description: $('#description').val(),
                     referenceNumber: $('#referenceNumber').val(),
                     date: $('#date').val(),
+                    teamLeader: $('#teamLeader').val(),
+                    assistantTeamLeader: $('#assistantTeamLeader').val(),
                     categories: categories
                 };
 

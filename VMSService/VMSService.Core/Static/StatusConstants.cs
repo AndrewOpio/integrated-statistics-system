@@ -54,6 +54,13 @@
             public const string DiscrepancyResolved = "Discrepancy Resolved";
         }
 
+        public static class Logistics
+        {
+            public const string Draft = "Draft";
+            public const string PendingApproval = "Pending Approval";
+            public const string Approved = "Approved";
+        }
+
         public static class Entity
         {
             public const string ApprovedCurrencyProcurement = "ApprovedCurrencyProcurement";
@@ -61,6 +68,7 @@
             public const string ReceivedStock = "ReceivedStock";
             public const string StockMovement = "StockMovement";
             public const string StockMovementDiscrepancy = "StockMovementDiscrepancy";
+            public const string Logistics = "Logistics";
         }
     }
 }

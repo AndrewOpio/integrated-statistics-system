@@ -29,16 +29,18 @@
                 <form id="stockMovementForm">
                     <div class="mb-3">
                         <label class="form-label">Stock Movement Type <span class="text-danger">*</span></label>
+                        @using VMSService.Core.Static;
                         <select class="form-select" id="movementType">
-                            @if (Model.MovementType == "branch")
+                            @foreach (var mt in StockConstants.MovementTypes)
                             {
-                                <option value="branch" selected>Branch to Branch</option>
-                                <option value="internal">Buffer to Operational</option>
-                            }
-                            else
-                            {
-                                <option value="branch">Branch to Branch</option>
-                                <option value="internal" selected>Buffer to Operational</option>
+                                if (Model.MovementType == mt.Key)
+                                {
+                                    <option value="@mt.Key" selected>@mt.Value</option>
+                                }
+                                else
+                                {
+                                    <option value="@mt.Key">@mt.Value</option>
+                                }
                             }
                         </select>
                     </div>
@@ -98,19 +100,7 @@
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Categorization <span class="text-danger">*</span></label>
-                            <select class="form-select" id="categorization">
-                                @if (Model.Categorization == "buffer")
-                                {
-                                    <option value="buffer" selected>Buffer Stocks</option>
-                                    <option value="operational">Operational Stocks</option>
-                                }
-                                else
-                                {
-                                    <option value="buffer">Buffer Stocks</option>
-                                    <option value="operational" selected>Operational Stocks</option>
-                                }
-                            </select>
+                            <!-- Categorization moved to each denomination row below -->
                         </div>
                         <div class="mb-4">
                             <label class="form-label fw-bold">Denomination Details</label>
@@ -122,6 +112,7 @@
                                         <th>Container Type</th>
                                         <th>Number of Bags/Boxes</th>
                                         <th>Number of Bundles</th>
+                                        <th>Categorization</th>
                                         <th>Sub-total Value</th>
                                         <th></th>
                                     </tr>
@@ -295,7 +286,7 @@ $(document).ready(function () {
 
     @{
         var branchRowsList = new List<dynamic>();
-        if (Model.MovementType == "branch" && Model.Denominations != null)
+        if (Model.MovementType == "BranchToBranch" && Model.Denominations != null)
         {
             foreach (var r in Model.Denominations)
             {
@@ -305,7 +296,8 @@ $(document).ready(function () {
                     containerType = r.ContainerType ?? "Bag",
                     numBundles = r.NumBundles, 
                     categoryId = r.CategoryId, 
-                    subTotalValue = r.SubTotalValue 
+                    subTotalValue = r.SubTotalValue,
+                    categorization = r.Categorization // <-- ensure categorization is included
                 });
             }
         }
@@ -319,7 +311,7 @@ $(document).ready(function () {
 
     @{
         var internalRowsList = new List<dynamic>();
-        if (Model.MovementType == "internal" && Model.Denominations != null)
+        if (Model.MovementType == "BufferToOperational" && Model.Denominations != null)
         {
             foreach (var r in Model.Denominations)
             {
@@ -392,7 +384,13 @@ $(document).ready(function () {
                     </td>
                     <td><input type="number" class="form-control branch-num-bags" value="${row.numBagsBoxes}" placeholder="0" /></td>
                     <td><input type="number" class="form-control branch-num-bundles" value="${row.numBundles}" placeholder="0" readonly /></td>
-                    <td><input type="number" class="form-control branch-subtotal" value="${row.subTotalValue}" placeholder="0" readonly /></td>
+                    <td>
+                        <select class="form-select branch-categorization">
+                            <option value="buffer" ${row.categorization === 'buffer' ? 'selected' : ''}>Buffer Stocks</option>
+                            <option value="operational" ${row.categorization === 'operational' ? 'selected' : ''}>Operational Stocks</option>
+                        </select>
+                    </td>
+                    <td><input type="text" class="form-control branch-subtotal" value="${isNaN(parseFloat(row.subTotalValue)) ? '' : parseFloat(row.subTotalValue).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}" placeholder="0" readonly /></td>
                     <td><button type="button" class="btn btn-danger btn-sm remove-branch-row"><i class="ti ti-trash"></i></button></td>
                 </tr>
             `);
@@ -441,7 +439,7 @@ $(document).ready(function () {
                         </div>
                     </td>
                     <td><input type="number" class="form-control internal-num-boxes" value="${row.numBoxes}" placeholder="0" /></td>
-                    <td><input type="number" class="form-control internal-subtotal"  value="${row.subTotalValue}" placeholder="0" readonly /></td>
+                    <td><input type="text" class="form-control internal-subtotal"  value="${isNaN(parseFloat(row.subTotalValue)) ? '' : parseFloat(row.subTotalValue).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}" placeholder="0" readonly /></td>
                     <td><button type="button" class="btn btn-danger btn-sm remove-internal-row"><i class="ti ti-trash"></i></button></td>
                 </tr>
             `);
@@ -459,7 +457,7 @@ $(document).ready(function () {
     // ─── Section toggle ───────────────────────────────────────────────────────
 
     function toggleSections() {
-        if ($('#movementType').val() === 'branch') {
+        if ($('#movementType').val() === 'BranchToBranch') {
             $('#branchSection').show();
             $('#internalSection').hide();
         } else {
@@ -477,7 +475,7 @@ $(document).ready(function () {
         if ($(this).hasClass('branch-num-bags'))      branchRows[idx].numBagsBoxes   = $(this).val();
         if ($(this).hasClass('branch-container-type')) branchRows[idx].containerType  = $(this).val();
         if ($(this).hasClass('branch-category-id'))   branchRows[idx].categoryId     = $(this).val();
-        
+        if ($(this).hasClass('branch-categorization')) branchRows[idx].categorization = $(this).val();
         // Auto-calculate bundles and subtotal
         calculateBranchRowValues(idx);
         recalculateBranchTotals();
@@ -505,7 +503,7 @@ $(document).ready(function () {
         }
         
         // Formula: number of bundles = (Number of Boxes) × (NumberOfPiecesInABox / 100)
-        const numBundles = numBoxes * (piecesInBox / 100);
+        const numBundles = numBoxes * (piecesInBox / 1000);
         
         // Calculate subtotal: piecesInBox * denomination value * number of boxes
         const subTotal = piecesInBox * denomValue * numBoxes;
@@ -515,7 +513,7 @@ $(document).ready(function () {
         branchRows[idx].subTotalValue = subTotal;
         
         $row.find('.branch-num-bundles').val(numBundles.toFixed(0));
-        $row.find('.branch-subtotal').val(subTotal.toFixed(0));
+        $row.find('.branch-subtotal').val(subTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
     }
 
     $('#addDenominationRow').on('click', function () {
@@ -568,7 +566,7 @@ $(document).ready(function () {
         // Update state and DOM
         internalRows[idx].subTotalValue = subTotal;
         
-        $row.find('.internal-subtotal').val(subTotal.toFixed(0));
+        $row.find('.internal-subtotal').val(subTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
     }
 
     // Serial range input — update state in real time
@@ -614,14 +612,14 @@ $(document).ready(function () {
         const totalBags  = branchRows.reduce((s, r) => s + (parseInt(r.numBagsBoxes)    || 0), 0);
         const grandTotal = branchRows.reduce((s, r) => s + (parseFloat(r.subTotalValue) || 0), 0);
         $('#totalBagsBoxes').val(totalBags.toFixed(0));
-        $('#grandTotalValue').val(grandTotal.toFixed(0));
+        $('#grandTotalValue').val(grandTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
     }
 
     function recalculateInternalTotals() {
         const totalBoxes = internalRows.reduce((s, r) => s + (parseInt(r.numBoxes)       || 0), 0);
         const grandTotal = internalRows.reduce((s, r) => s + (parseFloat(r.subTotalValue) || 0), 0);
         $('#internalTotalBoxes').val(totalBoxes.toFixed(0));
-        $('#internalGrandTotalValue').val(grandTotal.toFixed(0));
+        $('#internalGrandTotalValue').val(grandTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
     }
 
     // ─── AJAX Submit ──────────────────────────────────────────────────────────
@@ -630,7 +628,7 @@ $(document).ready(function () {
         event.preventDefault();
 
         const $submitBtn = $('#submitBtn');
-        const isBranch   = $('#movementType').val() === 'branch';
+        const isBranch   = $('#movementType').val() === 'BranchToBranch';
 
         // Build payload directly from state — no DOM scraping needed
         const payload = { MovementType: $('#movementType').val() };
@@ -640,10 +638,17 @@ $(document).ready(function () {
             payload.BranchReferenceNumber = $('#branchReferenceNumber').val();
             payload.DispatchingBranch     = $('#dispatchingBranch').val();
             payload.ReceivingBranch       = $('#receivingBranch').val();
-            payload.Categorization        = $('#categorization').val();
             payload.BranchTotalBagsBoxes  = parseInt($('#totalBagsBoxes').val().replace(/,/g,'')) || 0;
             payload.BranchGrandTotalValue = parseFloat($('#grandTotalValue').val().replace(/,/g,'')) || 0;
-            payload.DenominationRows      = branchRows.filter(r => r.denominationId !== '');
+            payload.DenominationRows = branchRows.filter(r => r.denominationId !== '').map(r => ({
+                DenominationId: r.denominationId,
+                NumBagsBoxes: r.numBagsBoxes,
+                ContainerType: r.containerType,
+                NumBundles: r.numBundles,
+                CategoryId: r.categoryId,
+                SubTotalValue: r.subTotalValue,
+                Categorization: r.categorization ?? 'buffer'
+            }));
         } else {
             payload.InternalDate            = $('#internalDate').val();
             payload.InternalReferenceNumber = $('#internalReferenceNumber').val();

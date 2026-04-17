@@ -20,6 +20,7 @@ namespace VMSService.Core.Repositories.Logistics
         {
             return await _context.Logistics
                 .AsNoTracking()
+                .Include(x => x.CurrentStatus)
                 .OrderByDescending(f => f.CreatedDate)
                 .ToListAsync();
         }
@@ -27,6 +28,7 @@ namespace VMSService.Core.Repositories.Logistics
         public async Task<Data.Entities.Logistics?> GetByIdAsync(int id)
         {
             return await _context.Logistics
+                .Include(f => f.CurrentStatus)
                 .Include(f => f.Categories.OrderBy(c => c.SortOrder))
                     .ThenInclude(c => c.Details.OrderBy(d => d.SortOrder))
                 .FirstOrDefaultAsync(f => f.Id == id);
@@ -54,16 +56,72 @@ namespace VMSService.Core.Repositories.Logistics
             existingLogistics.Date = logistics.Date;
             existingLogistics.ReferenceNumber = logistics.ReferenceNumber;
             existingLogistics.ModifiedDate = DateTime.UtcNow;
+            existingLogistics.CurrentStatusId = logistics.CurrentStatusId;
 
+            // Sync categories
+            var incomingCategoryIds = logistics.Categories.Select(c => c.Id).ToHashSet();
+            var existingCategoryIds = existingLogistics.Categories.Select(c => c.Id).ToHashSet();
+
+            // Remove categories not in the incoming list
             foreach (var category in existingLogistics.Categories.ToList())
             {
-                _context.LogisticsDetails.RemoveRange(category.Details);
-                _context.LogisticsCategories.Remove(category);
+                if (!incomingCategoryIds.Contains(category.Id))
+                {
+                    _context.LogisticsDetails.RemoveRange(category.Details);
+                    _context.LogisticsCategories.Remove(category);
+                }
             }
 
-            foreach (var category in logistics.Categories)
+            // Update or add categories
+            foreach (var incomingCat in logistics.Categories)
             {
-                existingLogistics.Categories.Add(category);
+                var existingCat = existingLogistics.Categories.FirstOrDefault(c => c.Id == incomingCat.Id);
+                if (existingCat != null)
+                {
+                    // Update fields
+                    existingCat.Name = incomingCat.Name;
+                    existingCat.SortOrder = incomingCat.SortOrder;
+
+                    // Sync details
+                    var incomingDetailIds = incomingCat.Details.Select(d => d.Id).ToHashSet();
+                    var existingDetailIds = existingCat.Details.Select(d => d.Id).ToHashSet();
+
+                    // Remove details not in the incoming list
+                    foreach (var detail in existingCat.Details.ToList())
+                    {
+                        if (!incomingDetailIds.Contains(detail.Id))
+                        {
+                            _context.LogisticsDetails.Remove(detail);
+                        }
+                    }
+
+                    // Update or add details
+                    foreach (var incomingDetail in incomingCat.Details)
+                    {
+                        var existingDetail = existingCat.Details.FirstOrDefault(d => d.Id == incomingDetail.Id);
+                        if (existingDetail != null)
+                        {
+                            existingDetail.ItemName = incomingDetail.ItemName;
+                            existingDetail.Description = incomingDetail.Description;
+                            existingDetail.UnitCost = incomingDetail.UnitCost;
+                            existingDetail.Quantity = incomingDetail.Quantity;
+                            existingDetail.Frequency = incomingDetail.Frequency;
+                            existingDetail.TotalCost = incomingDetail.TotalCost;
+                            existingDetail.Notes = incomingDetail.Notes;
+                            existingDetail.SortOrder = incomingDetail.SortOrder;
+                        }
+                        else
+                        {
+                            // Add new detail
+                            existingCat.Details.Add(incomingDetail);
+                        }
+                    }
+                }
+                else
+                {
+                    // Add new category (with details)
+                    existingLogistics.Categories.Add(incomingCat);
+                }
             }
 
             await _context.SaveChangesAsync();

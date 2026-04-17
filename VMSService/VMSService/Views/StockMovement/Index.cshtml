@@ -47,7 +47,11 @@
                             {
                                 <tr>
                                     <td><span class="text-primary fw-bold">@rowNumber</span></td>
-                                    <td class="fw-bold">@item.MovementType?.ToUpperInvariant()</td>
+                                    <td class="fw-bold">
+                                        @(!string.IsNullOrEmpty(item.MovementType)
+                                            ? System.Text.RegularExpressions.Regex.Replace(item.MovementType, "([a-z])([A-Z])", "$1 $2")
+                                            : "")
+                                    </td>
                                     <td>@item.Date.ToString("dd/MMM/yyyy")</td>
                                     <td>@item.ReferenceNumber</td>
                                     <td>
@@ -69,7 +73,7 @@
                                             }
                                         }
                                     </td>
-                                    <td>@item.GrandTotalValue?.ToString("N2")</td>
+                                    <td>@item.GrandTotalValue?.ToString("N0")</td>
                                     <td>
                                         <div class="btn-group" role="group">
                                             <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="View Details">

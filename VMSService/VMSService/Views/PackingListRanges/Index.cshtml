@@ -1,0 +1,235 @@
+@model List<VMSService.Data.Entities.PackingListRange>
+
+@{
+    ViewData["Title"] = "Packing List Ranges";
+    int exStockId = (int)ViewData["ExStockId"];
+    bool canEdit = (bool)ViewData["CanEdit"];
+    bool isVerified = (bool)ViewData["IsVerified"];
+    var exPrintMint = ViewData["ExPrintMint"];
+}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h2 class="fs-5 fw-bold mb-0">Packing List Ranges</h2>
+                        @if (exPrintMint != null)
+                        {
+                            <small class="text-muted d-block mt-1">
+                                <i class="ti ti-package me-1"></i>Expected Stock: <strong>@exPrintMint</strong>
+                            </small>
+                        }
+                    </div>
+                    <div class="col text-end">
+                        @if (canEdit)
+                        {
+                            <a asp-action="Create" asp-route-exStockId="@exStockId" class="btn btn-sm btn-primary">
+                                <i class="ti ti-plus me-1"></i>Add Range
+                            </a>
+                        }
+                        else
+                        {
+                            <button class="btn btn-sm btn-primary" disabled title="Cannot add ranges - status must be 'Draft' or 'Returned'">
+                                <i class="ti ti-plus me-1"></i>Add Range
+                            </button>
+                        }
+                        <a href="/exPrintMints" class="btn btn-sm btn-secondary">
+                            <i class="ti ti-arrow-left me-1"></i>Back
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                @if (Model.Count == 0)
+                {
+                    <div class="alert alert-info">
+                        <i class="ti ti-info-circle me-2"></i>
+                        No packing list ranges found. Click "Add Range" to create one.
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-centered mb-0 rounded datatable">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th class="border-0 rounded-start">#</th>
+                                    <th class="border-0">Denomination</th>
+                                    <th class="border-0">Case Number Prefix</th>
+                                    <th class="border-0">Start Case Number</th>
+                                    <th class="border-0">End Case Number</th>
+                                    <th class="border-0">SN Prefix</th>
+                                    <th class="border-0">SN Range Start</th>
+                                    <th class="border-0">SN Range End</th>
+                                    <th class="border-0 rounded-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    int rowNumber = 1;
+                                }
+                                @foreach (var item in Model)
+                                {
+                                    <tr>
+                                        <td><span class="text-primary fw-bold">@rowNumber</span></td>
+                                        <td>
+                                            @{
+                                                var denominationNames = (Dictionary<int, string>)ViewBag.DenominationNames;
+                                                if (denominationNames.ContainsKey(item.ExPrintMintDetailId))
+                                                {
+                                                    <span class="badge" style="background-color: #e7f5ff; color: #0b5394;">
+                                                        <i class="ti ti-coins me-1"></i>@denominationNames[item.ExPrintMintDetailId]
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            }
+                                        </td>
+                                        <td class="fw-bold">@item.CaseNumberPrefix</td>
+                                        <td>@item.StartCaseNumber</td>
+                                        <td>@item.EndCaseNumber</td>
+                                        <td>@item.SNPrefix</td>
+                                        <td>@item.SNRangeStart</td>
+                                        <td>@item.SNRangeEnd</td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                @if (isVerified)
+                                                {
+                                                    <a asp-action="Details" asp-route-id="@item.Id" asp-route-exStockId="@exStockId" class="btn btn-sm btn-outline-info" title="View Serial Numbers">
+                                                        <i class="ti ti-eye"></i>
+                                                    </a>
+                                                }
+                                                else
+                                                {
+                                                    <button type="button" class="btn btn-sm btn-outline-info view-details-btn" data-id="@item.Id" title="View Breakdown">
+                                                        <i class="ti ti-eye"></i>
+                                                    </button>
+                                                }
+                                                @if (canEdit)
+                                                {
+                                                    <a asp-action="Edit" asp-route-id="@item.Id" asp-route-exStockId="@exStockId" class="btn btn-sm btn-outline-primary" title="Edit">
+                                                        <i class="ti ti-edit"></i>
+                                                    </a>
+                                                }
+                                                else
+                                                {
+                                                    <button class="btn btn-sm btn-outline-primary" disabled title="Cannot edit ranges - status must be 'Draft' or 'Returned'">
+                                                        <i class="ti ti-edit"></i>
+                                                    </button>
+                                                }
+                                            </div>
+                                        </td>
+                                        @{
+                                            rowNumber++;
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+    <script>
+        document.querySelectorAll('.view-details-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const id = e.currentTarget.dataset.id;
+                try {
+                    const response = await fetch(`/PackingListRanges/GetDetails/${id}`);
+                    const data = await response.json();
+                    
+                    // Generate breakdown table
+                    let html = `<table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Case Number</th>
+                                <th>Serial Number Range</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+                    
+                    const startCase = data.startCaseNumber;
+                    const endCase = data.endCaseNumber;
+                    const totalCases = endCase - startCase + 1;
+                    const serialsPerCase = 50000;
+                    
+                    // Calculate the starting serial number
+                    let currentSerial = data.snRangeStart;
+                    
+                    for (let i = 0; i < totalCases; i++) {
+                        const caseNum = startCase + i;
+                        const fullCaseNumber = `${data.caseNumberPrefix}${caseNum}`;
+                        const serialStart = currentSerial;
+                        const serialEnd = currentSerial + serialsPerCase - 1;
+                        const serialRange = `${data.snPrefix}${String(serialStart).padStart(7, '0')} - ${data.snPrefix}${String(serialEnd).padStart(7, '0')}`;
+                        
+                        html += `<tr>
+                            <td><strong>${fullCaseNumber}</strong></td>
+                            <td>${serialRange}</td>
+                        </tr>`;
+                        
+                        currentSerial = serialEnd + 1;
+                    }
+                    
+                    html += `</tbody></table>`;
+                    
+                    document.getElementById('modalDetailsBody').innerHTML = html;
+                    document.getElementById('modalTitle').textContent = `Breakdown: ${data.caseNumberPrefix} Cases`;
+                    
+                    const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
+                    modal.show();
+                } catch (error) {
+                    console.error('Error loading details:', error);
+                    alert('Error loading breakdown. Please try again.');
+                }
+            });
+        });
+    </script>
+}
+
+<!-- Modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Breakdown</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="modalDetailsBody">
+                <!-- Details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Breakdown</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="modalDetailsBody">
+                <!-- Details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>

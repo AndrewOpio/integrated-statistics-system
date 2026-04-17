@@ -10,6 +10,7 @@ namespace VMSService.Data.Entities
         public int? NumBagsBoxes { get; set; } // or NumBoxes for internal
         public int? NumBundles { get; set; } // only for branch-to-branch
         public int? CategoryId { get; set; }
+        public string? Categorization { get; set; } // "buffer" or "operational"
         public string? ContainerType { get; set; } // "Bag" or "Box" - derived from category (New = Box, others = Bag)
         public decimal SubTotalValue { get; set; }
         public string DenominationType { get; set; } = "Sent"; // "Sent" or "Received"

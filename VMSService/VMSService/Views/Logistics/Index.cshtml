@@ -28,9 +28,8 @@
                                 <th class="border-0">Title</th>
                                 <th class="border-0">Date</th>
                                 <th class="border-0">Reference Number</th>
-                                <th class="border-0">Categories</th>
-                                <th class="border-0">Created By</th>
-                                <th class="border-0">Created Date</th>
+                                <th class="border-0">TeamLeader</th>
+                                <th class="border-0">Status</th>
                                 <th class="border-0 rounded-end">Actions</th>
                             </tr>
                         </thead>
@@ -45,22 +44,24 @@
                                     <td class="fw-bold">@item.Title</td>
                                     <td>@item.Date.ToString("dd/MMM/yyyy")</td>
                                     <td>@item.ReferenceNumber</td>
+                                    <td>@item.TeamLeader</td>
                                     <td>
-                                        <span class="badge bg-info">@item.Categories.Count categories</span>
+                                        @if (!string.IsNullOrEmpty(item.CurrentStatus?.Name))
+                                        {
+                                            <span class="badge bg-secondary" style="font-size:1em;">@item.CurrentStatus.Name</span>
+                                        }
                                     </td>
-                                    <td>@item.CreatedByName</td>
-                                    <td>@item.CreatedDate.ToString("dd/MMM/yyyy HH:mm")</td>
                                     <td>
                                         <div class="btn-group" role="group">
                                             <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
                                                 <i class="ti ti-eye"></i>
                                             </a>
-                                            <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
-                                                <i class="ti ti-edit"></i>
-                                            </a>
-                                            <button type="button" class="btn btn-sm btn-outline-danger btn-delete" data-id="@item.Id" title="Delete">
-                                                <i class="ti ti-trash"></i>
-                                            </button>
+                                            @if (item.CurrentStatus?.Name == "Draft" || item.CurrentStatus?.Name == "Returned")
+                                            {
+                                                <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
+                                                    <i class="ti ti-edit"></i>
+                                                </a>
+                                            }
                                         </div>
                                     </td>
                                 </tr>
