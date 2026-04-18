@@ -148,7 +148,7 @@
             @foreach (var r in recentRequests)
             {
                 <a href="@($"/Cb{(r.Type == "Withdrawal" ? "Withdraw" : "Deposit")}Requests/Details/{r.Id}")" class="req-row-link">
-                    <div class="card border shadow-sm mb-2 request-card @(r.RequiresSpecialApproval ? "border-warning" : "")">
+                    <div class="card border shadow-sm mb-2 request-card">
                         <div class="card-body py-3">
                             <div class="d-flex align-items-center gap-3">
 
@@ -173,16 +173,16 @@
                                         </span>
                                         @if (r.RequiresSpecialApproval)
                                         {
-                                            <span class="badge rounded-pill bg-warning-subtle text-warning border border-warning">
-                                                <i class="ti ti-star me-1"></i>Special Approval
+                                            <span class="badge rounded-pill bg-warning text-brown bg-opacity-10">
+                                                <i class="ti ti-star me-1"></i>Exceptional Approval Required
                                             </span>
                                         }
-                                        @if (r.CollectionDate == DateOnly.FromDateTime(r.CreationDate))
+                                        @* @if (r.CollectionDate == DateOnly.FromDateTime(r.CreationDate))
                                         {
-                                            <span class="badge rounded-pill bg-danger-subtle text-danger border border-danger">
+                                            <span class="badge rounded-pill bg-danger-subtle text-warning bg-warning bg-opacity-10">
                                                 <i class="ti ti-calendar-exclamation me-1"></i>Same Day
                                             </span>
-                                        }
+                                        } *@
                                     </div>
 
                                     @* Dates + bank *@
@@ -197,7 +197,7 @@
                                             @r.CreationDate.ToString("dd MMM yyyy")
                                             <span class="text-muted mx-1"> | </span>
                                             <span class="text-muted">@(r.Type == "Withdrawal" ? "Collection Date:" : "Deposit Date:")</span>
-                                            <span class="@(r.CollectionDate == DateOnly.FromDateTime(r.CreationDate) ? "text-danger fw-semibold" : "")">
+                                            <span class="@(r.CollectionDate == DateOnly.FromDateTime(r.CreationDate) ? "text-dark fw-semibold" : "")">
                                                 @r.CollectionDate.ToString("dd MMM yyyy")
                                             </span>
                                             <span class="text-muted mx-1"> | </span>
@@ -220,7 +220,7 @@
                             </div>
 
                             @* ── Special approval warning strip ── *@
-                            @if (r.RequiresSpecialApproval)
+                            @* @if (r.RequiresSpecialApproval)
                             {
                                 <div class="d-flex align-items-center gap-2 mt-2 pt-2 border-top border-warning">
                                     <i class="ti ti-alert-triangle text-warning flex-shrink-0"></i>
@@ -228,7 +228,7 @@
                                         This request will require special approval before processing.
                                     </small>
                                 </div>
-                            }
+                            } *@
                     </div>
                 </div>
             </a>

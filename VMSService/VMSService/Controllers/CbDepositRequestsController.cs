@@ -63,60 +63,17 @@ namespace VMSService.Web.Controllers
                     deposits = await _uow.Requests.GetByCbAsync(cbId, ct);
                 }
 
-                var rows = new List<DepositRequestRowViewModel>();
-
-                foreach (var d in deposits.OrderByDescending(d => d.CreatedDate))
+                var rows = await Task.WhenAll(deposits.Select(async r => new RecentRequestRowViewModel
                 {
-                    // Resolve status name
-                    string statusName;
-                    try
-                    {
-                        var status = await _workflowServiceClient.FindStatusById(d.StatusTypeId);
-                        statusName = status?.Name ?? "Unknown";
-                    }
-                    catch
-                    {
-                        statusName = "Unknown";
-                    }
-
-                    // Resolve CB name
-                    string cbName;
-                    try
-                    {
-                        var cb = await _configServiceClient.GetCbIdAsync(d.CbId);
-                        cbName = cb?.Name ?? "—";
-                    }
-                    catch
-                    {
-                        cbName = "—";
-                    }
-
-                    // Resolve BOU branch name
-                    string bouBranchName;
-                    try
-                    {
-                        var bouBranch = await _configServiceClient.GetBouBranchByIdAsync(d.BouBranchId);
-                        bouBranchName = bouBranch?.Name ?? "—";
-                    }
-                    catch
-                    {
-                        bouBranchName = "—";
-                    }
-
-                    rows.Add(new DepositRequestRowViewModel
-                    {
-                        Id = d.Id,
-                        TransactionRefNumber = d.TransactionRefNumber,
-                        CbName = cbName,
-                        CbCode = d.CbCode,
-                        BouBranchName = bouBranchName,
-                        DepositDate = d.DepositDate,
-                        TotalAmount = d.TotalAmount,
-                        StatusTypeId = d.StatusTypeId,
-                        StatusName = statusName,
-                        CreatedDate = d.CreatedDate,
-                    });
-                }
+                    Id = r.Id,
+                    Amount = r.TotalAmount,
+                    StatusTypeName = (await _workflowServiceClient.FindStatusById(r.StatusTypeId)).Name,
+                    CollectionDate = r.DepositDate,
+                    TransactionRefNumber = r.TransactionRefNumber ?? "Not Generated",
+                    CreationDate = r.CreatedDate,
+                    RequiresSpecialApproval = r.RequiresSpecialApproval,
+                    RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "—" : r.RtgsCode,
+                }));
 
                 var vm = new DepositRequestIndexViewModel
                 {
@@ -431,7 +388,9 @@ namespace VMSService.Web.Controllers
                 Steps = DepositStepViewModelFactory.Build(currentStepKey, 
                     request.StatusTypeId == approvedStatus.Id, User),
                 StatusHistory = statusHistoryList,
-                AvailableTransitions = availableTransitions,   
+                AvailableTransitions = availableTransitions,  
+                RequiresSpecialApproval = request.RequiresSpecialApproval,
+                SpecialApprovalReason = request.SpecialApprovalReason,
             };
 
             //var userRoles = GetUserRoles();
@@ -529,6 +488,8 @@ namespace VMSService.Web.Controllers
                     InitiatorUserId = userId,
                     BouBranchId = vm.BouBranchId,
                     DepositDate = vm.DepositDate,
+                    RequiresSpecialApproval = vm.RequiresSpecialApproval,
+                    SpecialApprovalReason = vm.SpecialApprovalReason,
                     RtgsDate = vm.RtgsDate,
                     RtgsCode = vm.RtgsCode,
                     //CbId = GetCbIdFromClaims(),

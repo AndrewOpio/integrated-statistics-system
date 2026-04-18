@@ -30,12 +30,12 @@
                                 @if (!string.IsNullOrEmpty(Model.BranchName))
                                 {
                                     <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
-                                        <span class="badge bg-danger">
+                                        <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill">
                                             <i class="ti ti-building-bank me-1"></i>@Model.BranchName
                                         </span>
                                     </div>
                                 }
-                                <span class="badge bg-purple">
+                                <span class="badge bg-purple text-purple bg-opacity-10 rounded-pill">
                                     <i class="ti ti-badge me-1"></i>@Model.CurrentStatusName
                                 </span>
                             </div>

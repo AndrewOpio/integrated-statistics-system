@@ -11,9 +11,12 @@ const depositFormState = {
     depositDate: null,
     rtgsDate: null,
     rtgsCode: null,
+    requiresSpecialApproval: false,
+    specialApprovalReason: null,
     agentIds: [],         // exactly 2 required
     remarks: null,
-    cbId: null
+    cbId: null,
+    createdDate: null,
 };
 
 // ?????????????????????????????????????????????
@@ -132,6 +135,8 @@ async function submitDepositForm(action) {
         depositDate: depositFormState.depositDate,
         rtgsDate: depositFormState.rtgsDate,
         rtgsCode: depositFormState.rtgsCode,
+        requiresSpecialApproval: depositFormState.requiresSpecialApproval,
+        specialApprovalReason: depositFormState.specialApprovalReason,
         agentIds: depositFormState.agentIds.filter(Boolean),
         denominations: buildDepositDenomLines(),
         remarks: depositFormState.remarks,
@@ -167,4 +172,87 @@ async function submitDepositForm(action) {
 function setDepositButtonsDisabled(disabled) {
     document.querySelectorAll('button[onclick^="submitDepositForm"]')
         .forEach(btn => btn.disabled = disabled);
+}
+
+// Special Approval
+
+function isSameDayApprovalRequired() {
+    // Always use Uganda time (EAT = UTC+3) regardless of browser locale
+    const nowUganda = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Kampala' }));
+    const isMonday = nowUganda.getDay() === 1;
+    const before11 = nowUganda.getHours() < 11;
+
+    // Monday before 11am EAT — grace period, no special approval
+    if (isMonday && before11) return false;
+
+    let today = new Date();
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Etc/GMT-3',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    });
+
+    depositFormState.createdDate = formatter.format(today);
+
+    return depositFormState.createdDate !== null
+        && depositFormState.depositDate !== null
+        && depositFormState.createdDate === depositFormState.depositDate;
+}
+
+function checkSpecialApproval() {
+    const warning = document.getElementById('specialApprovalWarning');
+    console.log("Checking Exceptional Approval");
+    if (isSameDayApprovalRequired()) {
+        depositFormState.specialApprovalReason = null;
+        new bootstrap.Modal(document.getElementById('specialApprovalModal')).show();
+        //bootstrap.Modal.getOrCreateInstance(document.getElementById('specialApprovalModal')).show();
+        console.log("After Model showing");
+    } else {
+        depositFormState.requiresSpecialApproval = false;
+        depositFormState.specialApprovalReason = null;
+        if (warning) warning.style.setProperty('display', 'none', 'important');
+    }
+}
+
+function onSpecialApprovalConfirmed() {
+    const reasonInput = document.getElementById('specialApprovalReasonInput');
+    const reasonError = document.getElementById('specialApprovalReasonError');
+    const warning = document.getElementById('specialApprovalWarning');
+    const reason = reasonInput.value.trim();
+
+    if (!reason) {
+        reasonError.style.display = 'block';
+        return;
+    }
+
+    reasonError.style.display = 'none';
+    depositFormState.specialApprovalReason = reason;
+    depositFormState.requiresSpecialApproval = true;
+
+    document.getElementById('specialApprovalReasonDisplay').textContent = reason;
+
+    bootstrap.Modal.getInstance(document.getElementById('specialApprovalModal')).hide();
+
+    if (warning) warning.style.setProperty('display', 'flex', 'important');
+}
+
+function editSpecialApprovalReason() {
+    const input = document.getElementById('specialApprovalReasonInput');
+    input.value = depositFormState.specialApprovalReason || '';
+    new bootstrap.Modal(document.getElementById('specialApprovalModal')).show();
+}
+
+function onSpecialApprovalCancelled() {
+    depositFormState.depositDate = null;
+    depositFormState.specialApprovalReason = null;
+    depositFormState.requiresSpecialApproval = false;
+
+    document.getElementById('depositDate').value = '';
+    document.getElementById('specialApprovalReasonInput').value = '';
+
+    const warning = document.getElementById('specialApprovalWarning');
+    if (warning) warning.style.setProperty('display', 'none', 'important');
+
+    bootstrap.Modal.getInstance(document.getElementById('specialApprovalModal')).hide();
 }

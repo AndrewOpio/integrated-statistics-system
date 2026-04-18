@@ -19,6 +19,8 @@ const formState = {
     specialApprovalReason: null,
     agentIds: [],
     createdDate: null,
+    //isLumpSum: false,
+    //lumpSumAmount: null,
 };
 
 // ──────────────────────────────────────────────────────
@@ -41,7 +43,21 @@ function onAgentSelected(slot, id) {
 // Build denomination lines from denom-table.js
 // ─────────────────────────────────────────────
 
+//function buildDenomLines() {
+//    const rows = window.dtGetRows();
+//    return Object.values(rows)
+//        .filter(r => r.qty > 0 && r.denomValue > 0)
+//        .map(r => ({
+//            denominationId: r.denomId,
+//            denominationTypeId: r.typeId,
+//            denominationValue: r.denomValue,
+//            bundles: r.type === 'notes' ? r.qty : null,
+//            boxes: r.type === 'coins' ? r.qty : null,
+//            amount: r.qty * 1000 * r.denomValue,
+//        }));
+//}
 function buildDenomLines() {
+    if (window.dtGetMode() === 'lumpsum') return [];
     const rows = window.dtGetRows();
     return Object.values(rows)
         .filter(r => r.qty > 0 && r.denomValue > 0)
@@ -70,8 +86,8 @@ function validateForm(isDraft) {
         if (formState.agentIds.filter(Boolean).length !== 2)
             errors.push('Exactly 2 agents are required.');
 
-        if (!window.dtHasValue())
-            errors.push('Please add at least one denomination.');
+        //if (!window.dtHasValue())
+        //    errors.push('Please add at least one denomination.');
              
         if (!formState.collectionDate)
             errors.push('Please select a collection date.');
@@ -82,8 +98,17 @@ function validateForm(isDraft) {
         if (formState.rtgsDate && !formState.rtgsCode)
             errors.push('RTGS code is required when an RTGS date is provided.');
 
-        if (formState.rtgsDate && formState.rtgsDate <= today)
-            errors.push('RTGS date cannot be in the past.');
+        //if (formState.rtgsDate && formState.rtgsDate >= today)
+        //    errors.push('RTGS date cannot be in the future.');
+
+        if (!window.dtHasValue())
+            errors.push('Please add at least one denomination or enter a lump sum amount.');
+
+        if (!window.dtIsLumpSumValid())
+            errors.push('Lump sum amount must be a whole bundle — no partial amounts allowed.');
+
+        if (window.dtGetMode() === 'lumpsum' && window.dtGetLumpSum() % 1000 !== 0)
+            errors.push('Lump sum amount must be a whole bundle — no partial amounts allowed.');
     }
 
     return errors;
@@ -147,6 +172,9 @@ async function submitForm(action) {
             requiresSpecialApproval: formState.requiresSpecialApproval,
             specialApprovalReason: formState.specialApprovalReason,
             agentIds: formState.agentIds.filter(Boolean),
+            //denominations: buildDenomLines(),
+            isLumpSum: window.dtGetMode() === 'lumpsum',
+            lumpSumAmount: window.dtGetMode() === 'lumpsum' ? window.dtGetLumpSum() : null,
             denominations: buildDenomLines(),
             
         }
@@ -161,6 +189,9 @@ async function submitForm(action) {
             requiresSpecialApproval: formState.requiresSpecialApproval,
             specialApprovalReason: formState.specialApprovalReason,
             agentIds: formState.agentIds.filter(Boolean),
+            //denominations: buildDenomLines(),
+            isLumpSum: window.dtGetMode() === 'lumpsum',
+            lumpSumAmount: window.dtGetMode() === 'lumpsum' ? window.dtGetLumpSum() : null,
             denominations: buildDenomLines(),
         };
 

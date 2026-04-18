@@ -13,7 +13,9 @@ namespace VMSService.Core.Models.CbDepositRequest
         public DateOnly? RtgsDate { get; set; }
         public string? RtgsCode { get; set; }
 
-        // Collectors — exactly 2
+        public bool RequiresSpecialApproval { get; set; }
+        public string? SpecialApprovalReason { get; set; }
+        // Depositors — exactly 2
         public List<int> AgentIds { get; set; } = [];
 
         // Denominations — each line includes SubCategoryId (1=Fit, 2=Unfit, 3=N/A)

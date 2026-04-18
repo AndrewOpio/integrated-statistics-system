@@ -204,7 +204,7 @@
     <script src="~/js/denom-table.js"></script>
 
     <script>
-        // const today = new Date().toISOString().split('T')[0];
+        // const today = new Date().toISOString().split('T')[0]; Model.IsEdit && !Model.IsLumpSum
         document.getElementById('rtgsDate').max = today;
 
         // ── Denomination data — must be set before DOMContentLoaded fires preFillDenoms ──
@@ -253,7 +253,26 @@
             if (el) el.value = formState.rtgsCode;
         }
 
-        // ── Trigger denom pre-fill manually ──────────────────────────────────
-        // if (window.savedDenoms?.length) preFillDenoms();
+        // Seed lump sum mode if request was saved as lump sum
+        document.addEventListener('DOMContentLoaded', () => {
+        @if (Model.Denoms.IsLumpSum)
+        {
+            <text>
+            window.setDenomMode('lumpsum');
+            const inp = document.getElementById('lumpSumInput');
+            if (inp) {
+                inp.value = '@Model.Denoms.LumpSumAmount';
+                window.onLumpSumInput(inp.value);
+            }
+            </text>
+        }
+        else
+        {
+            <text>
+            window.setDenomMode('breakdown');
+            </text>
+        }
+    });
+
     </script>
 }

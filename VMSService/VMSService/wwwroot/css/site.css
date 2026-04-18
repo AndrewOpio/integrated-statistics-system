@@ -492,8 +492,15 @@ input[type=number].form-control {
 }
 
 .bg-brown {
-    --bs-bg-opacity: 1;
-    background-color: #3c0b0b !important;
+    /*    --bs-bg-opacity: 1;*/
+/*    background-color: rgba(60, 11, 11, var(--bs-bg-opacity)) !important;*/
+    background-color: rgba(176, 58, 46, var(--bs-bg-opacity)) !important;
+    /*    background-color: #3c0b0b !important;*/
+}
+
+.text-brown {
+    /*    color: #3c0b0b !important;*/
+    color: #b03a2e !important
 }
 
 .btn-yellow {
@@ -510,7 +517,7 @@ input[type=number].form-control {
 }
 
 .bg-purple {
-    --bs-bg-opacity: 1;
+/*    --bs-bg-opacity: 1;*/
     background-color: rgba(107, 62, 176, var(--bs-bg-opacity)) !important;
 /*    background-color: #6b3eb0 !important;*/
 }
@@ -561,6 +568,56 @@ input[type=number].form-control {
     cursor: pointer;
 }
 
+    .card-hover:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+    }
+
+/* Hide the native radio */
+.denom-mode-input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+/* The card */
+.denom-mode-label {
+    cursor: pointer;
+}
+
+.denom-mode-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    transition: border-color .15s, background .15s;
+}
+
+/* Custom dot */
+.denom-mode-dot {
+    margin-top: 2px;
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid #adb5bd;
+    transition: border-color .15s, background .15s;
+}
+
+/* Active state — CSS does all the work */
+.denom-mode-input:checked + .denom-mode-card {
+    border-color: #b31b34;
+    background: #fcebeb;
+}
+
+    .denom-mode-input:checked + .denom-mode-card .denom-mode-dot {
+        border-color: #b31b34;
+        background: #b31b34;
+        box-shadow: inset 0 0 0 3px #fcebeb;
+    }
 .min-h-100 {
     min-height: 100%;
 }

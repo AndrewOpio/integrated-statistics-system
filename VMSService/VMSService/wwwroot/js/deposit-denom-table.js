@@ -14,11 +14,21 @@
         { id: SUB_NA,    label: 'N/A',   cssClass: 'text-bg-secondary' },
     ];
 
-    // Track state per row: { denomId, typeId, denomValue, qty, type, subCategoryId }
+    // Track state per row: { denomId, typeId, denomValue, qty, amount, type, subCategoryId, valid }
     const rows = {};
     // For notes, key is `${denomValue}-${subCategoryId}` to allow same denom in different subcategories
     const usedCombos = { notes: new Set(), coins: new Set() };
     let rid = 0;
+
+    // Strip non-digit characters and parse to integer
+    function parseAmount(str) {
+        return Math.max(0, parseInt(str.replace(/[^0-9]/g, ''), 10) || 0);
+    }
+
+    // Format a number with commas for display inside the input
+    function fmtInput(n) {
+        return n > 0 ? n.toLocaleString() : '';
+    }
 
     // Add Row
     window.depositDenomAddRow = function (type) {
@@ -33,7 +43,7 @@
 
         const id = `dep-${type}-${++rid}`;
         const defaultSub = type === 'coins' ? SUB_NA : SUB_FIT;
-        rows[id] = { denomId: null, typeId: null, denomValue: 0, qty: 0, type, subCategoryId: defaultSub };
+        rows[id] = { denomId: null, typeId: null, denomValue: 0, qty: 0, amount: 0, type, subCategoryId: defaultSub, valid: true };
 
         const tbody = $(`dep-denom-${type}-body`);
         const empty = tbody.querySelector('.denom-empty-row');
@@ -52,7 +62,7 @@
         tr.className = 'border-bottom';
 
         if (type === 'notes') {
-            // Banknotes: Denomination | Subcategory | Bundles | Amount | Actions
+            // Banknotes: Denomination | Subcategory | Amount (input) | Bundles (computed) | Actions
             const subOptHtml = SUB_OPTIONS.map(s =>
                 `<option value="${s.id}" ${s.id === defaultSub ? 'selected' : ''}>${s.label}</option>`
             ).join('');
@@ -75,10 +85,13 @@
                 <td class="px-4 py-2">
                     <input class="form-control form-control-sm text-end"
                            id="dep-denom-inp-${id}"
-                           type="number" min="0" placeholder="0"
-                           oninput="depDenomOnInput('${id}','${type}',this)" />
+                           type="text" inputmode="numeric" placeholder="0"
+                           oninput="depDenomOnAmountInput('${id}','${type}',this)" />
+                    <div class="text-danger small mt-1 d-none" id="dep-denom-warn-${id}">
+                        <i class="ti ti-alert-triangle me-1"></i>Amount must equal a whole number of bundles
+                    </div>
                 </td>
-                <td class="px-4 py-2 text-end fw-bold text-muted" id="dep-denom-amt-${id}">—</td>
+                <td class="px-4 py-2 text-end fw-bold text-muted" id="dep-denom-bundles-${id}">—</td>
                 <td class="px-2 py-2 text-center">
                     <button type="button"
                             class="btn text-danger p-0"
@@ -87,7 +100,7 @@
                     </button>
                 </td>`;
         } else {
-            // Coins: Denomination | Boxes | Amount | Actions (subcategory fixed to N/A)
+            // Coins: Denomination | Amount (input) | Boxes (computed) | Actions
             tr.innerHTML = `
                 <td class="px-4 py-2">
                     <select class="form-select form-select-sm"
@@ -99,10 +112,13 @@
                 <td class="px-4 py-2">
                     <input class="form-control form-control-sm text-end"
                            id="dep-denom-inp-${id}"
-                           type="number" min="0" placeholder="0"
-                           oninput="depDenomOnInput('${id}','${type}',this)" />
+                           type="text" inputmode="numeric" placeholder="0"
+                           oninput="depDenomOnAmountInput('${id}','${type}',this)" />
+                    <div class="text-danger small mt-1 d-none" id="dep-denom-warn-${id}">
+                        <i class="ti ti-alert-triangle me-1"></i>Amount must equal a whole number of boxes
+                    </div>
                 </td>
-                <td class="px-4 py-2 text-end fw-bold text-muted" id="dep-denom-amt-${id}">—</td>
+                <td class="px-4 py-2 text-end fw-bold text-muted" id="dep-denom-bundles-${id}">—</td>
                 <td class="px-2 py-2 text-center">
                     <button type="button"
                             class="btn text-danger p-0"
@@ -149,12 +165,31 @@
 
         row.subCategoryId = newSub;
         refreshDepositSelects(type);
+        recalcRow(id);
         refreshTotals();
     };
 
-    // On Quantity Input
-    window.depDenomOnInput = function (id, type, el) {
-        rows[id].qty = Math.max(0, parseInt(el.value) || 0);
+    // On Amount Input — user enters the amount, we format with commas and compute bundles/boxes
+    window.depDenomOnAmountInput = function (id, type, el) {
+        const raw = parseAmount(el.value);
+        rows[id].amount = raw;
+
+        // Preserve cursor position relative to digits
+        const cursorPos = el.selectionStart;
+        const beforeCursor = el.value.substring(0, cursorPos);
+        const digitsBefore = beforeCursor.replace(/[^0-9]/g, '').length;
+
+        el.value = fmtInput(raw);
+
+        // Restore cursor position
+        let digits = 0, newPos = 0;
+        for (let i = 0; i < el.value.length; i++) {
+            if (/[0-9]/.test(el.value[i])) digits++;
+            if (digits === digitsBefore) { newPos = i + 1; break; }
+        }
+        if (digitsBefore === 0) newPos = 0;
+        el.setSelectionRange(newPos, newPos);
+
         recalcRow(id);
         refreshTotals();
     };
@@ -182,18 +217,44 @@
         refreshTotals();
     };
 
-    // Recalc single row amount
+    // Recalc single row — compute bundles/boxes from amount and show warning if not whole
     function recalcRow(id) {
         const r = rows[id];
-        const amt = r.qty * BUNDLE_SIZE * r.denomValue;
-        const el = $(`dep-denom-amt-${id}`);
-        if (!el) return;
-        if (amt > 0) {
-            el.textContent = fmt(amt);
-            el.className = `px-4 py-2 text-end fw-bold ${r.type === 'notes' ? 'text-primary' : 'text-warning'}`;
+        const bundlesEl = $(`dep-denom-bundles-${id}`);
+        const warnEl = $(`dep-denom-warn-${id}`);
+        const inputEl = $(`dep-denom-inp-${id}`);
+        if (!bundlesEl) return;
+
+        const bundleValue = r.denomValue * BUNDLE_SIZE;
+
+        if (r.amount > 0 && bundleValue > 0) {
+            const bundles = r.amount / bundleValue;
+            const isWhole = Number.isInteger(bundles);
+            const label = r.type === 'notes' ? 'bundle' : 'box';
+            const pluralLabel = r.type === 'notes' ? 'bundles' : 'boxes';
+
+            r.qty = isWhole ? bundles : 0;
+            r.valid = isWhole;
+
+            bundlesEl.textContent = isWhole
+                ? `${bundles} ${bundles === 1 ? label : pluralLabel}`
+                : `${bundles.toFixed(2)} ${pluralLabel}`;
+            bundlesEl.className = isWhole
+                ? `px-4 py-2 text-end fw-bold ${r.type === 'notes' ? 'text-primary' : 'text-warning'}`
+                : 'px-4 py-2 text-end fw-bold text-danger';
+
+            // Show/hide warning
+            if (warnEl) warnEl.classList.toggle('d-none', isWhole);
+            if (inputEl) {
+                inputEl.classList.toggle('is-invalid', !isWhole);
+            }
         } else {
-            el.textContent = '—';
-            el.className = 'px-4 py-2 text-end fw-bold text-muted';
+            r.qty = 0;
+            r.valid = true;
+            bundlesEl.textContent = '—';
+            bundlesEl.className = 'px-4 py-2 text-end fw-bold text-muted';
+            if (warnEl) warnEl.classList.add('d-none');
+            if (inputEl) inputEl.classList.remove('is-invalid');
         }
     }
 
@@ -215,12 +276,13 @@
         });
     }
 
-    // Refresh totals 
+    // Refresh totals — only count valid (whole-bundle) rows
     function refreshTotals() {
         let fitAmt = 0, unfitAmt = 0, noteAmt = 0, coinAmt = 0;
 
         Object.values(rows).forEach(r => {
-            const amt = r.qty * BUNDLE_SIZE * r.denomValue;
+            if (!r.valid) return;
+            const amt = r.amount;
             if (r.type === 'notes') {
                 noteAmt += amt;
                 if (r.subCategoryId === SUB_FIT) fitAmt += amt;
@@ -246,9 +308,13 @@
         }));
     }
 
-    // Public API
+    // Public API — only valid rows count
     window.depDtHasValue = () =>
-        Object.values(rows).some(r => r.qty > 0 && r.denomValue > 0);
+        Object.values(rows).some(r => r.valid && r.amount > 0 && r.denomValue > 0);
+
+    // Returns true if all rows with amounts have whole bundles/boxes
+    window.depDtIsValid = () =>
+        Object.values(rows).every(r => r.valid);
 
     window.depDtGetRows = () => ({ ...rows });
 
