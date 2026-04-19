@@ -33,7 +33,7 @@ namespace VMSService.Core.Repositories.StockMovements
                  .AsSplitQuery()  // Runs separate queries instead of one big JOIN
                 .Include(m => m.CurrentStatus)
                 .Include(m => m.Denominations)
-                    .ThenInclude(d => d.SerialNumberRanges)
+                    .ThenInclude(d => d.BoxNumberRanges)
                 .FirstOrDefaultAsync(m => m.Id == id);
         }
 
@@ -43,7 +43,7 @@ namespace VMSService.Core.Repositories.StockMovements
                  .AsSplitQuery()
                 .Include(m => m.CurrentStatus)
                 .Include(m => m.Denominations)
-                    .ThenInclude(d => d.SerialNumberRanges)
+                    .ThenInclude(d => d.BoxNumberRanges)
                 .FirstOrDefaultAsync(m => m.Id == id);
         }
 
@@ -54,7 +54,7 @@ namespace VMSService.Core.Repositories.StockMovements
                 .AsSplitQuery()
                 .Include(m => m.CurrentStatus)
                 .Include(m => m.Denominations)
-                    .ThenInclude(d => d.SerialNumberRanges)
+                    .ThenInclude(d => d.BoxNumberRanges)
                 .Include(m => m.StockMovementDiscrepancies)
                     .ThenInclude(d => d.CurrentStatus)
                 .Where(m => branchIds.Contains(m.DispatchingBranchId ?? 0) 
@@ -72,7 +72,7 @@ namespace VMSService.Core.Repositories.StockMovements
                  .AsSplitQuery()  // Runs separate queries instead of one big JOIN
                 .Include(m => m.CurrentStatus)
                 .Include(m => m.Denominations)
-                    .ThenInclude(d => d.SerialNumberRanges)
+                    .ThenInclude(d => d.BoxNumberRanges)
                 .Include(m => m.StockMovementDiscrepancies)
                     .ThenInclude(d => d.CurrentStatus)
                 .ToListAsync();

@@ -33,7 +33,7 @@ namespace VMSService.Core.Repositories.PackingListRanges
         {
             return await _db.PackingListRanges
                 .AsNoTracking()
-                .Include(x => x.ExPrintMintDetail)
+                .Include(x => x.ExpectedStockDetail)
                 .OrderBy(x => x.Id)
                 .ToListAsync();
         }

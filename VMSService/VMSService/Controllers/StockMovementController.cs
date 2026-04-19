@@ -161,7 +161,7 @@ namespace VMSService.Web.Controllers
                 
                 var filteredDenoms = model.DenominationRows?
                     .Where(x => x.DenominationId > 0 && (x.NumBagsBoxes.HasValue || x.NumBundles.HasValue || x.SubTotalValue > 0))
-                    .ToList();
+                    .ToList() ?? new List<StockMovementDenominationViewModel>();
 
                 var movement = new StockMovement
                 {
@@ -182,7 +182,18 @@ namespace VMSService.Web.Controllers
                             CategoryId = x.CategoryId,
                             ContainerType = x.ContainerType,
                             SubTotalValue = x.SubTotalValue,
-                            Categorization = x.Categorization
+                            Categorization = x.Categorization,
+                            BoxNumberRanges = x.BoxNumberRanges?
+                                .Where(r =>
+                                    !string.IsNullOrWhiteSpace(r.Prefix) ||
+                                    !string.IsNullOrWhiteSpace(r.Start) ||
+                                    !string.IsNullOrWhiteSpace(r.End))
+                                .Select(r => new StockMovementDenominationBoxNumberRange
+                                {
+                                    Prefix = r.Prefix,
+                                    Start = r.Start,
+                                    End = r.End
+                                }).ToList()
                         };
                     }).ToList()
                 };
@@ -200,11 +211,11 @@ namespace VMSService.Web.Controllers
                     .Where(x => x.DenominationId > 0 && (
                         x.NumBoxes.HasValue ||
                         x.SubTotalValue > 0 ||
-                        (x.SerialRanges != null && x.SerialRanges.Any(r =>
+                        (x.BoxNumberRanges != null && x.BoxNumberRanges.Any(r =>
                             !string.IsNullOrWhiteSpace(r.Prefix) ||
                             !string.IsNullOrWhiteSpace(r.Start) ||
                             !string.IsNullOrWhiteSpace(r.End)))))
-                    .ToList();
+                    .ToList() ?? new List<InternalStockMovementDenominationViewModel>();
 
                 var movement = new StockMovement
                 {
@@ -223,12 +234,12 @@ namespace VMSService.Web.Controllers
                         CategoryId = newCategory?.Id,
                         ContainerType = x.ContainerType ?? "Box",
                         SubTotalValue = x.SubTotalValue,
-                        SerialNumberRanges = x.SerialRanges
+                        BoxNumberRanges = x.BoxNumberRanges?
                             .Where(r =>
                                 !string.IsNullOrWhiteSpace(r.Prefix) ||
                                 !string.IsNullOrWhiteSpace(r.Start) ||
                                 !string.IsNullOrWhiteSpace(r.End))
-                            .Select(r => new StockMovementDenominationSerialNumberRange
+                            .Select(r => new StockMovementDenominationBoxNumberRange
                             {
                                 Prefix = r.Prefix,
                                 Start = r.Start,
@@ -383,6 +394,35 @@ namespace VMSService.Web.Controllers
             ViewBag.Branches = branches;
             ViewBag.Denominations = denominations;
             ViewBag.Categories = categories;
+            
+            // Map denominations to ViewModel
+            var denominationViewModels = new List<dynamic>();
+            if (movement.Denominations != null && movement.Denominations.Any())
+            {
+                foreach (var denom in movement.Denominations)
+                {
+                    var boxRanges = denom.BoxNumberRanges?.Select(br => new 
+                    { 
+                        Prefix = br.Prefix, 
+                        Start = br.Start, 
+                        End = br.End 
+                    }).ToList();
+
+                    denominationViewModels.Add(new 
+                    { 
+                        DenominationId = denom.DenominationId,
+                        NumBagsBoxes = denom.NumBagsBoxes,
+                        NumBundles = denom.NumBundles,
+                        CategoryId = denom.CategoryId,
+                        Categorization = denom.Categorization,
+                        ContainerType = denom.ContainerType,
+                        SubTotalValue = denom.SubTotalValue,
+                        BoxNumberRanges = boxRanges
+                    });
+                }
+            }
+            
+            ViewBag.DenominationViewModels = denominationViewModels;
             return View(movement);
         }
 
@@ -447,7 +487,19 @@ namespace VMSService.Web.Controllers
                             NumBundles = x.NumBundles,
                             CategoryId = x.CategoryId,
                             ContainerType = x.ContainerType,
-                            SubTotalValue = x.SubTotalValue
+                            SubTotalValue = x.SubTotalValue,
+                            Categorization = x.Categorization,
+                            BoxNumberRanges = x.BoxNumberRanges?
+                                .Where(r =>
+                                    !string.IsNullOrWhiteSpace(r.Prefix) ||
+                                    !string.IsNullOrWhiteSpace(r.Start) ||
+                                    !string.IsNullOrWhiteSpace(r.End))
+                                .Select(r => new StockMovementDenominationBoxNumberRange
+                                {
+                                    Prefix = r.Prefix,
+                                    Start = r.Start,
+                                    End = r.End
+                                }).ToList()
                         });
                     }
                 }
@@ -461,7 +513,7 @@ namespace VMSService.Web.Controllers
                     .Where(x => x.DenominationId > 0 && (
                         x.NumBoxes.HasValue ||
                         x.SubTotalValue > 0 ||
-                        (x.SerialRanges != null && x.SerialRanges.Any(r =>
+                        (x.BoxNumberRanges != null && x.BoxNumberRanges.Any(r =>
                             !string.IsNullOrWhiteSpace(r.Prefix) ||
                             !string.IsNullOrWhiteSpace(r.Start) ||
                             !string.IsNullOrWhiteSpace(r.End)))))
@@ -499,12 +551,12 @@ namespace VMSService.Web.Controllers
                             CategoryId = newCategory?.Id,
                             ContainerType = x.ContainerType ?? "Box",
                             SubTotalValue = x.SubTotalValue,
-                            SerialNumberRanges = x.SerialRanges?
+                            BoxNumberRanges = x.BoxNumberRanges?
                                 .Where(r =>
                                     !string.IsNullOrWhiteSpace(r.Prefix) ||
                                     !string.IsNullOrWhiteSpace(r.Start) ||
                                     !string.IsNullOrWhiteSpace(r.End))
-                                .Select(r => new StockMovementDenominationSerialNumberRange
+                                .Select(r => new StockMovementDenominationBoxNumberRange
                                 {
                                     Prefix = r.Prefix,
                                     Start = r.Start,

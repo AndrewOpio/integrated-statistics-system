@@ -874,7 +874,7 @@ namespace VMSService.Data.Migrations
                     b.Property<int>("EndCaseNumber")
                         .HasColumnType("int");
 
-                    b.Property<int>("ExPrintMintDetailId")
+                    b.Property<int>("ExpectedStockDetailId")
                         .HasColumnType("int");
 
                     b.Property<int>("ExpectedStockId")
@@ -902,7 +902,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ExPrintMintDetailId");
+                    b.HasIndex("ExpectedStockDetailId");
 
                     b.HasIndex("ExpectedStockId");
 
@@ -1256,7 +1256,7 @@ namespace VMSService.Data.Migrations
                     b.ToTable("StockMovementDenominations");
                 });
 
-            modelBuilder.Entity("VMSService.Data.Entities.StockMovementDenominationSerialNumberRange", b =>
+            modelBuilder.Entity("VMSService.Data.Entities.StockMovementDenominationBoxNumberRange", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -1283,7 +1283,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("StockMovementDenominationId");
 
-                    b.ToTable("StockMovementDenominationSerialNumberRanges");
+                    b.ToTable("StockMovementDenominationBoxNumberRanges");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.StockMovementDiscrepancy", b =>
@@ -1722,11 +1722,11 @@ namespace VMSService.Data.Migrations
 
             modelBuilder.Entity("VMSService.Data.Entities.PackingListRange", b =>
                 {
-                    b.HasOne("VMSService.Data.Entities.ExPrintMintDetail", "ExPrintMintDetail")
-                        .WithMany()
-                        .HasForeignKey("ExPrintMintDetailId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();;
+                    b.HasOne("VMSService.Data.Entities.ExPrintMintDetail", "ExpectedStockDetail")
+                        .WithMany("PackingListRanges")
+                        .HasForeignKey("ExpectedStockDetailId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("VMSService.Data.Entities.ExPrintMint", "ExpectedStock")
                         .WithMany()
@@ -1734,9 +1734,9 @@ namespace VMSService.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("ExPrintMintDetail");
-
                     b.Navigation("ExpectedStock");
+
+                    b.Navigation("ExpectedStockDetail");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ReceivedStock", b =>
@@ -1834,10 +1834,10 @@ namespace VMSService.Data.Migrations
                     b.Navigation("StockMovement");
                 });
 
-            modelBuilder.Entity("VMSService.Data.Entities.StockMovementDenominationSerialNumberRange", b =>
+            modelBuilder.Entity("VMSService.Data.Entities.StockMovementDenominationBoxNumberRange", b =>
                 {
                     b.HasOne("VMSService.Data.Entities.StockMovementDenomination", "StockMovementDenomination")
-                        .WithMany("SerialNumberRanges")
+                        .WithMany("BoxNumberRanges")
                         .HasForeignKey("StockMovementDenominationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1977,7 +1977,7 @@ namespace VMSService.Data.Migrations
 
             modelBuilder.Entity("VMSService.Data.Entities.StockMovementDenomination", b =>
                 {
-                    b.Navigation("SerialNumberRanges");
+                    b.Navigation("BoxNumberRanges");
                 });
 #pragma warning restore 612, 618
         }

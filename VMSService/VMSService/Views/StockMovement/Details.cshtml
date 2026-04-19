@@ -132,10 +132,7 @@
                                 }
                                 <th>Category</th>
                                 <th>Sub-total Value</th>
-                                @if (Model.MovementType == StockConstants.StockMovementTypes.OperationalToBuffer || Model.MovementType == StockConstants.StockMovementTypes.BufferToOperational)
-                                {
-                                    <th>Serial Number Ranges</th>
-                                }
+                                <th>Box Number Ranges</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -162,27 +159,31 @@
                                     @(catObj != null ? catObj.Name : (denom.CategoryId.HasValue ? denom.CategoryId.Value.ToString() : ""))
                                 </td>
                                 <td>@denom.SubTotalValue.ToString("N0")</td>
-                                @if (Model.MovementType == StockConstants.StockMovementTypes.OperationalToBuffer || Model.MovementType == StockConstants.StockMovementTypes.BufferToOperational)
-                                {
-                                    <td>
-                                        @if (denom.SerialNumberRanges != null && denom.SerialNumberRanges.Any())
+                                <td>
+                                    @{
+                                        // Show box ranges for internal movements or BranchToBranch with NEW category
+                                        bool showBoxRanges = (Model.MovementType == StockConstants.StockMovementTypes.OperationalToBuffer || 
+                                                            Model.MovementType == StockConstants.StockMovementTypes.BufferToOperational) ||
+                                                           (Model.MovementType == StockConstants.StockMovementTypes.BranchToBranch && 
+                                                            allCategories?.FirstOrDefault(c => c.Id == denom.CategoryId)?.Name == "New");
+                                    }
+                                    @if (showBoxRanges && denom.BoxNumberRanges != null && denom.BoxNumberRanges.Any())
+                                    {
+                                        <ul class="mb-0 ps-3">
+                                        @foreach (var range in denom.BoxNumberRanges)
                                         {
-                                            <ul class="mb-0 ps-3">
-                                            @foreach (var range in denom.SerialNumberRanges)
-                                            {
-                                                <li>
-                                                    <span class="fw-semibold">@range.Prefix</span>:
-                                                    @range.Start - @range.End
-                                                </li>
-                                            }
-                                            </ul>
+                                            <li>
+                                                <span class="fw-semibold">@range.Prefix</span>:
+                                                @range.Start - @range.End
+                                            </li>
                                         }
-                                        else
-                                        {
-                                            <span class="text-muted">N/A</span>
-                                        }
-                                    </td>
-                                }
+                                        </ul>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">N/A</span>
+                                    }
+                                </td>
                             </tr>
                         }
                         </tbody>

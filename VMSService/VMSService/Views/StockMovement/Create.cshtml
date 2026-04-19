@@ -172,7 +172,7 @@
                                 <thead>
                                     <tr>
                                         <th>Denomination</th>
-                                        <th>Serial Number Range</th>
+                                        <th>Box Number Range</th>
                                         <th>Number of Boxes</th>
                                         <th>Sub-total Value</th>
                                         <th></th>
@@ -258,11 +258,11 @@ $(document).ready(function () {
     // ─── State — single source of truth ──────────────────────────────────────
 
     let branchRows = [
-        { denominationId: '', numBagsBoxes: '', containerType: 'Bag', numBundles: '', categoryId: '', subTotalValue: '', categorization: 'buffer' }
+        { denominationId: '', numBagsBoxes: '', containerType: 'Bag', numBundles: '', categoryId: '', subTotalValue: '', categorization: 'buffer', boxNumberRanges: [{ prefix: '', start: '', end: '' }] }
     ];
 
     let internalRows = [
-        { denominationId: '', serialRanges: [{ prefix: '', start: '', end: '' }], numBoxes: '', containerType: 'Box', subTotalValue: '' }
+        { denominationId: '', boxNumberRanges: [{ prefix: '', start: '', end: '' }], numBoxes: '', containerType: 'Box', subTotalValue: '' }
     ];
 
     // ─── Option builders ──────────────────────────────────────────────────────
@@ -283,6 +283,12 @@ $(document).ready(function () {
         return html;
     }
 
+    // Helper to check if category is "New" (for box number ranges)
+    function isNewCategory(categoryId) {
+        const category = categoryOptions.find(c => String(c.id) === String(categoryId));
+        return category && category.name === 'New';
+    }
+
     // ─── Render branch table ──────────────────────────────────────────────────
 
     function renderBranchTable() {
@@ -291,6 +297,20 @@ $(document).ready(function () {
         branchRows.forEach((row, idx) => {
             const defaultContainerType = getContainerLabel(row.categoryId);
             const containerType = row.containerType || defaultContainerType;
+            const showBoxRanges = isNewCategory(row.categoryId);
+            
+            let boxRangesHtml = '';
+            if (showBoxRanges && row.boxNumberRanges) {
+                boxRangesHtml = row.boxNumberRanges.map((range, rangeIdx) => `
+                    <tr data-range-idx="${rangeIdx}">
+                        <td><input type="text" class="form-control branch-box-prefix" value="${range.prefix}" placeholder="Prefix" /></td>
+                        <td><input type="text" class="form-control branch-box-start"  value="${range.start}"  placeholder="Start"  /></td>
+                        <td><input type="text" class="form-control branch-box-end"    value="${range.end}"    placeholder="End"    /></td>
+                        <td><button type="button" class="btn btn-danger btn-sm remove-branch-box-range"><i class="ti ti-trash"></i></button></td>
+                    </tr>
+                `).join('');
+            }
+            
             $tbody.append(`
                 <tr data-idx="${idx}">
                     <td><select class="form-select branch-denom-id" data-pieces-in-box="0">${buildDenomOptions(row.denominationId)}</select></td>
@@ -312,6 +332,23 @@ $(document).ready(function () {
                     <td><input type="text" class="form-control branch-subtotal" value="${isNaN(parseFloat(row.subTotalValue)) ? '' : parseFloat(row.subTotalValue).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}" placeholder="0" readonly /></td>
                     <td><button type="button" class="btn btn-danger btn-sm remove-branch-row"><i class="ti ti-trash"></i></button></td>
                 </tr>
+                ${showBoxRanges ? `
+                <tr class="branch-box-ranges-row" data-idx="${idx}">
+                    <td colspan="8">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                                <tr><th>Prefix</th><th>Start</th><th>End</th><th></th></tr>
+                            </thead>
+                            <tbody>${boxRangesHtml}</tbody>
+                        </table>
+                        <div class="d-flex justify-content-end mt-1">
+                            <button type="button" class="btn btn-success btn-sm add-branch-box-range" data-idx="${idx}">
+                                <i class="ti ti-plus"></i> Add Range
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                ` : ''}
             `);
         });
         
@@ -334,13 +371,13 @@ $(document).ready(function () {
         $tbody.empty();
         internalRows.forEach((row, denomIdx) => {
             let serialRowsHtml = '';
-            row.serialRanges.forEach((range, rangeIdx) => {
+            (row.boxNumberRanges || []).forEach((range, rangeIdx) => {
                 serialRowsHtml += `
                     <tr data-range-idx="${rangeIdx}">
-                        <td><input type="text" class="form-control serial-prefix" value="${range.prefix}" placeholder="Prefix" /></td>
-                        <td><input type="text" class="form-control serial-start"  value="${range.start}"  placeholder="Start"  /></td>
-                        <td><input type="text" class="form-control serial-end"    value="${range.end}"    placeholder="End"    /></td>
-                        <td><button type="button" class="btn btn-danger btn-sm remove-serial-range"><i class="ti ti-trash"></i></button></td>
+                        <td><input type="text" class="form-control box-prefix" value="${range.prefix}" placeholder="Prefix" /></td>
+                        <td><input type="text" class="form-control box-start"  value="${range.start}"  placeholder="Start"  /></td>
+                        <td><input type="text" class="form-control box-end"    value="${range.end}"    placeholder="End"    /></td>
+                        <td><button type="button" class="btn btn-danger btn-sm remove-box-range"><i class="ti ti-trash"></i></button></td>
                     </tr>
                 `;
             });
@@ -352,7 +389,7 @@ $(document).ready(function () {
                             <tbody>${serialRowsHtml}</tbody>
                         </table>
                         <div class="d-flex justify-content-end mt-1">
-                            <button type="button" class="btn btn-success btn-sm add-serial-range">
+                            <button type="button" class="btn btn-success btn-sm add-box-range">
                                 <i class="ti ti-plus"></i> Add Range
                             </button>
                         </div>
@@ -417,7 +454,7 @@ $(document).ready(function () {
         $('#internalReferenceNumber').val('');
         $('#internalDispatchingBranch').val('');
         $('#internalReceivingBranch').val('');
-        internalRows = [{ denominationId: '', serialRanges: [{ prefix: '', start: '', end: '' }], numBoxes: '', subTotalValue: '' }];
+        internalRows = [{ denominationId: '', boxNumberRanges: [{ prefix: '', start: '', end: '' }], numBoxes: '', containerType: 'Box', subTotalValue: '' }];
         renderInternalTable();
     }
 
@@ -426,6 +463,7 @@ $(document).ready(function () {
     $('#denominationTable').on('input change', '.branch-denom-id, .branch-num-bags, .branch-container-type, .branch-category-id, .branch-categorization', function () {
         const idx = $(this).closest('tr').data('idx');
         if (idx === undefined) return;
+        const categoryChanged = $(this).hasClass('branch-category-id');
         if ($(this).hasClass('branch-denom-id'))      branchRows[idx].denominationId = $(this).val();
         if ($(this).hasClass('branch-num-bags'))      branchRows[idx].numBagsBoxes   = $(this).val();
         if ($(this).hasClass('branch-container-type')) branchRows[idx].containerType  = $(this).val();
@@ -434,6 +472,10 @@ $(document).ready(function () {
         // Auto-calculate bundles and subtotal
         calculateBranchRowValues(idx);
         recalculateBranchTotals();
+        // Re-render table if category changed to show/hide box ranges
+        if (categoryChanged) {
+            renderBranchTable();
+        }
     });
 
     function calculateBranchRowValues(idx) {
@@ -472,13 +514,38 @@ $(document).ready(function () {
     }
 
     $('#addDenominationRow').on('click', function () {
-        branchRows.push({ denominationId: '', numBagsBoxes: '', containerType: 'Bag', numBundles: '', categoryId: '', subTotalValue: '', categorization: 'buffer' });
+        branchRows.push({ denominationId: '', numBagsBoxes: '', containerType: 'Bag', numBundles: '', categoryId: '', subTotalValue: '', categorization: 'buffer', boxNumberRanges: [{ prefix: '', start: '', end: '' }] });
         renderBranchTable();
     });
 
     $('#denominationTable').on('click', '.remove-branch-row', function () {
         if (branchRows.length > 1) {
             branchRows.splice($(this).closest('tr').data('idx'), 1);
+            renderBranchTable();
+        }
+    });
+
+    // Box range inputs — update state in real time for branch rows
+    $('#denominationTable').on('input', '.branch-box-prefix, .branch-box-start, .branch-box-end', function () {
+        const denomIdx = $(this).closest('tr[data-idx]').data('idx');
+        const rangeIdx = $(this).closest('tr[data-range-idx]').data('range-idx');
+        if (denomIdx === undefined || rangeIdx === undefined) return;
+        if ($(this).hasClass('branch-box-prefix')) branchRows[denomIdx].boxNumberRanges[rangeIdx].prefix = $(this).val();
+        if ($(this).hasClass('branch-box-start'))  branchRows[denomIdx].boxNumberRanges[rangeIdx].start  = $(this).val();
+        if ($(this).hasClass('branch-box-end'))    branchRows[denomIdx].boxNumberRanges[rangeIdx].end    = $(this).val();
+    });
+
+    $('#denominationTable').on('click', '.add-branch-box-range', function () {
+        const idx = $(this).closest('tr[data-idx]').data('idx');
+        branchRows[idx].boxNumberRanges.push({ prefix: '', start: '', end: '' });
+        renderBranchTable();
+    });
+
+    $('#denominationTable').on('click', '.remove-branch-box-range', function () {
+        const denomIdx = $(this).closest('tr[data-idx]').data('idx');
+        const rangeIdx = $(this).closest('tr[data-range-idx]').data('range-idx');
+        if (branchRows[denomIdx].boxNumberRanges.length > 1) {
+            branchRows[denomIdx].boxNumberRanges.splice(rangeIdx, 1);
             renderBranchTable();
         }
     });
@@ -524,18 +591,18 @@ $(document).ready(function () {
         $row.find('.internal-subtotal').val(subTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
     }
 
-    // Serial range input — update state in real time
-    $('#internalDenominationTable').on('input', '.serial-prefix, .serial-start, .serial-end', function () {
+    // Box range input — update state in real time
+    $('#internalDenominationTable').on('input', '.box-prefix, .box-start, .box-end', function () {
         const denomIdx = $(this).closest('tr[data-idx]').data('idx');
         const rangeIdx = $(this).closest('tr[data-range-idx]').data('range-idx');
         if (denomIdx === undefined || rangeIdx === undefined) return;
-        if ($(this).hasClass('serial-prefix')) internalRows[denomIdx].serialRanges[rangeIdx].prefix = $(this).val();
-        if ($(this).hasClass('serial-start'))  internalRows[denomIdx].serialRanges[rangeIdx].start  = $(this).val();
-        if ($(this).hasClass('serial-end'))    internalRows[denomIdx].serialRanges[rangeIdx].end    = $(this).val();
+        if ($(this).hasClass('box-prefix')) internalRows[denomIdx].boxNumberRanges[rangeIdx].prefix = $(this).val();
+        if ($(this).hasClass('box-start'))  internalRows[denomIdx].boxNumberRanges[rangeIdx].start  = $(this).val();
+        if ($(this).hasClass('box-end'))    internalRows[denomIdx].boxNumberRanges[rangeIdx].end    = $(this).val();
     });
 
     $('#addInternalDenominationRow').on('click', function () {
-        internalRows.push({ denominationId: '', serialRanges: [{ prefix: '', start: '', end: '' }], numBoxes: '', containerType: 'Box', subTotalValue: '' });
+        internalRows.push({ denominationId: '', boxNumberRanges: [{ prefix: '', start: '', end: '' }], numBoxes: '', containerType: 'Box', subTotalValue: '' });
         renderInternalTable();
     });
 
@@ -546,17 +613,17 @@ $(document).ready(function () {
         }
     });
 
-    $('#internalDenominationTable').on('click', '.add-serial-range', function () {
+    $('#internalDenominationTable').on('click', '.add-box-range', function () {
         const idx = $(this).closest('tr[data-idx]').data('idx');
-        internalRows[idx].serialRanges.push({ prefix: '', start: '', end: '' });
+        internalRows[idx].boxNumberRanges.push({ prefix: '', start: '', end: '' });
         renderInternalTable();
     });
 
-    $('#internalDenominationTable').on('click', '.remove-serial-range', function () {
+    $('#internalDenominationTable').on('click', '.remove-box-range', function () {
         const denomIdx = $(this).closest('tr[data-idx]').data('idx');
         const rangeIdx = $(this).closest('tr[data-range-idx]').data('range-idx');
-        if (internalRows[denomIdx].serialRanges.length > 1) {
-            internalRows[denomIdx].serialRanges.splice(rangeIdx, 1);
+        if (internalRows[denomIdx].boxNumberRanges.length > 1) {
+            internalRows[denomIdx].boxNumberRanges.splice(rangeIdx, 1);
             renderInternalTable();
         }
     });
@@ -605,7 +672,8 @@ $(document).ready(function () {
                 NumBundles: r.numBundles,
                 CategoryId: r.categoryId ? parseInt(r.categoryId) : null,
                 SubTotalValue: r.subTotalValue,
-                Categorization: r.categorization ?? 'buffer'
+                Categorization: r.categorization ?? 'buffer',
+                BoxNumberRanges: (r.boxNumberRanges || []).filter(s => s.prefix !== '' || s.start !== '' || s.end !== '')
             }));
         } else {
             payload.InternalDate            = $('#internalDate').val();
@@ -621,7 +689,7 @@ $(document).ready(function () {
                 .filter(r => r.denominationId !== '')
                 .map(r => ({
                     ...r,
-                    serialRanges: r.serialRanges.filter(s => s.prefix !== '' || s.start !== '' || s.end !== '')
+                    boxNumberRanges: (r.boxNumberRanges || []).filter(s => s.prefix !== '' || s.start !== '' || s.end !== '')
                 }));
         }
 
@@ -645,8 +713,8 @@ $(document).ready(function () {
                         '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>'
                     );
                     // Reset state
-                    branchRows   = [{ denominationId: '', numBagsBoxes: '', containerType: 'Bag', numBundles: '', categoryId: '', subTotalValue: '' }];
-                    internalRows = [{ denominationId: '', serialRanges: [{ prefix: '', start: '', end: '' }], numBoxes: '', containerType: 'Box', subTotalValue: '' }];
+                    branchRows   = [{ denominationId: '', numBagsBoxes: '', containerType: 'Bag', numBundles: '', categoryId: '', subTotalValue: '', boxNumberRanges: [{ prefix: '', start: '', end: '' }] }];
+                    internalRows = [{ denominationId: '', boxNumberRanges: [{ prefix: '', start: '', end: '' }], numBoxes: '', containerType: 'Box', subTotalValue: '' }];
                     renderBranchTable();
                     renderInternalTable();
                     return;
@@ -670,29 +738,44 @@ $(document).ready(function () {
             //     );
             // },
             error: function (xhr) {
-
+                console.error('Create submission error:', xhr.status, xhr.statusText, xhr.responseText);
                 if (xhr.responseJSON) {
-
                     let errors = xhr.responseJSON;
-                    let html = '<div class="alert alert-danger"><ul>';
+                    let html = '<div class="alert alert-danger alert-dismissible fade show"><ul class="mb-0">';
 
-                    for (let key in errors) {
-                        if (errors[key] && errors[key].length) {
-                            errors[key].forEach(e => {
-                                html += `<li>${e}</li>`;
-                            });
+                    // Handle { message: "..." } format
+                    if (errors.message) {
+                        html += `<li>${errors.message}</li>`;
+                    }
+                    // Handle { errors: { field: [...] } } format
+                    else if (errors.errors) {
+                        for (let key in errors.errors) {
+                            if (errors.errors[key] && errors.errors[key].length) {
+                                errors.errors[key].forEach(e => {
+                                    html += `<li>${e}</li>`;
+                                });
+                            }
+                        }
+                    }
+                    // Handle { field: [...] } format
+                    else {
+                        for (let key in errors) {
+                            if (Array.isArray(errors[key])) {
+                                errors[key].forEach(e => {
+                                    html += `<li>${e}</li>`;
+                                });
+                            } else if (typeof errors[key] === 'string') {
+                                html += `<li>${errors[key]}</li>`;
+                            }
                         }
                     }
 
-                    html += '</ul></div>';
+                    html += '</ul><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
                     $('#formAlerts').html(html);
-
                 } else {
-
                     $('#formAlerts').html(
-                        '<div class="alert alert-danger">Unexpected error occurred</div>'
+                        '<div class="alert alert-danger alert-dismissible fade show">Unexpected error occurred: ' + xhr.status + ' ' + xhr.statusText + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>'
                     );
-
                 }
             },
             complete: function () {

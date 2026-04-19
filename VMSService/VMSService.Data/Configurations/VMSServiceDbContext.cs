@@ -29,7 +29,7 @@ namespace VMSService.Data.Configurations
         public DbSet<ReceivedStockStatusHistory> ReceivedStockStatusHistory { get; set; }
         public DbSet<StockMovement> StockMovements { get; set; }
         public DbSet<StockMovementDenomination> StockMovementDenominations { get; set; }
-        public DbSet<StockMovementDenominationSerialNumberRange> StockMovementDenominationSerialNumberRanges { get; set; }
+        public DbSet<StockMovementDenominationBoxNumberRange> StockMovementDenominationBoxNumberRanges { get; set; }
         public DbSet<StockMovementStatusHistory> StockMovementStatusHistory { get; set; }
         public DbSet<StockMovementDiscrepancy> StockMovementDiscrepancies { get; set; }
         public DbSet<Logistics> Logistics { get; set; }
@@ -63,14 +63,6 @@ namespace VMSService.Data.Configurations
                 .HasOne(x => x.PackingListRange)
                 .WithMany(x => x.ReceivedStockDetails)
                 .HasForeignKey(x => x.PackingListRangeId)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            // Configure PackingListRange foreign keys to prevent cascade delete conflicts
-            // ✅ Pass the collection navigation in WithMany()
-            modelBuilder.Entity<PackingListRange>()
-                .HasOne(x => x.ExPrintMintDetail)
-                .WithMany(x => x.PackingListRanges)   // ← tell EF about the other side
-                .HasForeignKey(x => x.ExPrintMintDetailId)
                 .OnDelete(DeleteBehavior.NoAction);
 
             // Configure PackingListDetails foreign key

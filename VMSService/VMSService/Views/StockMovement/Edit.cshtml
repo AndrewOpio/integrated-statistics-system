@@ -199,7 +199,7 @@
                                 <thead>
                                     <tr>
                                         <th>Denomination</th>
-                                        <th>Serial Number Ranges</th>
+                                        <th>Box Number Range</th>
                                         <th>Number of Boxes</th>
                                         <th>Sub-total Value</th>
                                         <th></th>
@@ -286,10 +286,27 @@ $(document).ready(function () {
 
     @{
         var branchRowsList = new List<dynamic>();
-        if (Model.MovementType == "BranchToBranch" && Model.Denominations != null)
+        var denominationViewModels = ViewBag.DenominationViewModels as List<dynamic> ?? new List<dynamic>();
+        
+        if (Model.MovementType == "BranchToBranch" && denominationViewModels.Count > 0)
         {
-            foreach (var r in Model.Denominations)
+            foreach (var r in denominationViewModels)
             {
+                var boxRanges = (IEnumerable<dynamic>)r.BoxNumberRanges ?? new List<dynamic>();
+                var boxNumberRangesList = new List<dynamic>();
+                
+                if (boxRanges != null && boxRanges.Any())
+                {
+                    foreach (var s in boxRanges)
+                    {
+                        boxNumberRangesList.Add(new { prefix = s.Prefix ?? "", start = s.Start ?? "", end = s.End ?? "" });
+                    }
+                }
+                else
+                {
+                    boxNumberRangesList.Add(new { prefix = "", start = "", end = "" });
+                }
+                
                 branchRowsList.Add(new { 
                     denominationId = r.DenominationId, 
                     numBagsBoxes = r.NumBagsBoxes,
@@ -297,13 +314,14 @@ $(document).ready(function () {
                     numBundles = r.NumBundles, 
                     categoryId = r.CategoryId, 
                     subTotalValue = r.SubTotalValue,
-                    categorization = r.Categorization // <-- ensure categorization is included
+                    categorization = r.Categorization,
+                    boxNumberRanges = boxNumberRangesList
                 });
             }
         }
         else
         {
-            branchRowsList.Add(new { denominationId = "", numBagsBoxes = "", containerType = "Bag", numBundles = "", categoryId = "", subTotalValue = "" });
+            branchRowsList.Add(new { denominationId = "", numBagsBoxes = "", containerType = "Bag", numBundles = "", categoryId = "", subTotalValue = "", categorization = "buffer", boxNumberRanges = new List<dynamic> { new { prefix = "", start = "", end = "" } } });
         }
     }
 
@@ -311,26 +329,28 @@ $(document).ready(function () {
 
     @{
         var internalRowsList = new List<dynamic>();
-        if (Model.MovementType == "BufferToOperational" && Model.Denominations != null)
+        
+        if ((Model.MovementType == "BufferToOperational" || Model.MovementType == "OperationalToBuffer") && denominationViewModels.Count > 0)
         {
-            foreach (var r in Model.Denominations)
+            foreach (var r in denominationViewModels)
             {
-                var serialRangesList = new List<dynamic>();
-                if (r.SerialNumberRanges != null)
+                var boxNumberRangesList = new List<dynamic>();
+                var boxRanges = (IEnumerable<dynamic>)r.BoxNumberRanges ?? new List<dynamic>();
+                if (boxRanges != null && boxRanges.Any())
                 {
-                    foreach (var s in r.SerialNumberRanges)
+                    foreach (var s in boxRanges)
                     {
-                        serialRangesList.Add(new { prefix = s.Prefix ?? "", start = s.Start ?? "", end = s.End ?? "" });
+                        boxNumberRangesList.Add(new { prefix = s.Prefix ?? "", start = s.Start ?? "", end = s.End ?? "" });
                     }
                 }
                 else
                 {
-                    serialRangesList.Add(new { prefix = "", start = "", end = "" });
+                    boxNumberRangesList.Add(new { prefix = "", start = "", end = "" });
                 }
                 
                 internalRowsList.Add(new { 
                     denominationId = r.DenominationId, 
-                    serialRanges = serialRangesList,
+                    boxNumberRanges = boxNumberRangesList,
                     numBoxes = r.NumBagsBoxes,
                     containerType = r.ContainerType ?? "Box",
                     subTotalValue = r.SubTotalValue 
@@ -340,7 +360,7 @@ $(document).ready(function () {
         else
         {
             var defaultRanges = new List<dynamic> { new { prefix = "", start = "", end = "" } };
-            internalRowsList.Add(new { denominationId = "", serialRanges = defaultRanges, numBoxes = "", containerType = "Box", subTotalValue = "" });
+            internalRowsList.Add(new { denominationId = "", boxNumberRanges = defaultRanges, numBoxes = "", containerType = "Box", subTotalValue = "" });
         }
     }
 
@@ -364,6 +384,12 @@ $(document).ready(function () {
         return html;
     }
 
+    // Helper to check if category is "New" (for box number ranges)
+    function isNewCategory(categoryId) {
+        const category = categoryOptions.find(c => String(c.id) === String(categoryId));
+        return category && category.name === 'New';
+    }
+
     // ─── Render branch table ──────────────────────────────────────────────────
 
     function renderBranchTable() {
@@ -372,6 +398,20 @@ $(document).ready(function () {
         branchRows.forEach((row, idx) => {
             const defaultContainerType = getContainerLabel(row.categoryId);
             const containerType = row.containerType || defaultContainerType;
+            const showBoxRanges = isNewCategory(row.categoryId);
+            
+            let boxRangesHtml = '';
+            if (showBoxRanges && row.boxNumberRanges) {
+                boxRangesHtml = row.boxNumberRanges.map((range, rangeIdx) => `
+                    <tr data-range-idx="${rangeIdx}">
+                        <td><input type="text" class="form-control branch-box-prefix" value="${range.prefix}" placeholder="Prefix" /></td>
+                        <td><input type="text" class="form-control branch-box-start"  value="${range.start}"  placeholder="Start"  /></td>
+                        <td><input type="text" class="form-control branch-box-end"    value="${range.end}"    placeholder="End"    /></td>
+                        <td><button type="button" class="btn btn-danger btn-sm remove-branch-box-range"><i class="ti ti-trash"></i></button></td>
+                    </tr>
+                `).join('');
+            }
+            
             $tbody.append(`
                 <tr data-idx="${idx}">
                     <td><select class="form-select branch-denom-id" data-pieces-in-box="0">${buildDenomOptions(row.denominationId)}</select></td>
@@ -393,6 +433,23 @@ $(document).ready(function () {
                     <td><input type="text" class="form-control branch-subtotal" value="${isNaN(parseFloat(row.subTotalValue)) ? '' : parseFloat(row.subTotalValue).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}" placeholder="0" readonly /></td>
                     <td><button type="button" class="btn btn-danger btn-sm remove-branch-row"><i class="ti ti-trash"></i></button></td>
                 </tr>
+                ${showBoxRanges ? `
+                <tr class="branch-box-ranges-row" data-idx="${idx}">
+                    <td colspan="8">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                                <tr><th>Prefix</th><th>Start</th><th>End</th><th></th></tr>
+                            </thead>
+                            <tbody>${boxRangesHtml}</tbody>
+                        </table>
+                        <div class="d-flex justify-content-end mt-1">
+                            <button type="button" class="btn btn-success btn-sm add-branch-box-range" data-idx="${idx}">
+                                <i class="ti ti-plus"></i> Add Range
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                ` : ''}
             `);
         });
         
@@ -414,14 +471,14 @@ $(document).ready(function () {
         const $tbody = $('#internalDenominationTable tbody');
         $tbody.empty();
         internalRows.forEach((row, denomIdx) => {
-            let serialRowsHtml = '';
-            row.serialRanges.forEach((range, rangeIdx) => {
-                serialRowsHtml += `
+            let rangesHtml = '';
+            (row.boxNumberRanges || []).forEach((range, rangeIdx) => {
+                rangesHtml += `
                     <tr data-range-idx="${rangeIdx}">
-                        <td><input type="text" class="form-control serial-prefix" value="${range.prefix}" placeholder="Prefix" /></td>
-                        <td><input type="text" class="form-control serial-start"  value="${range.start}"  placeholder="Start"  /></td>
-                        <td><input type="text" class="form-control serial-end"    value="${range.end}"    placeholder="End"    /></td>
-                        <td><button type="button" class="btn btn-danger btn-sm remove-serial-range"><i class="ti ti-trash"></i></button></td>
+                        <td><input type="text" class="form-control box-prefix" value="${range.prefix}" placeholder="Prefix" /></td>
+                        <td><input type="text" class="form-control box-start"  value="${range.start}"  placeholder="Start"  /></td>
+                        <td><input type="text" class="form-control box-end"    value="${range.end}"    placeholder="End"    /></td>
+                        <td><button type="button" class="btn btn-danger btn-sm remove-box-range"><i class="ti ti-trash"></i></button></td>
                     </tr>
                 `;
             });
@@ -430,10 +487,10 @@ $(document).ready(function () {
                     <td><select class="form-select internal-denom-id">${buildDenomOptions(row.denominationId)}</select></td>
                     <td>
                         <table class="table table-sm mb-0">
-                            <tbody>${serialRowsHtml}</tbody>
+                            <tbody>${rangesHtml}</tbody>
                         </table>
                         <div class="d-flex justify-content-end mt-1">
-                            <button type="button" class="btn btn-success btn-sm add-serial-range">
+                            <button type="button" class="btn btn-success btn-sm add-box-range">
                                 <i class="ti ti-plus"></i> Add Range
                             </button>
                         </div>
@@ -468,9 +525,10 @@ $(document).ready(function () {
 
     // ─── Branch events ────────────────────────────────────────────────────────
 
-    $('#denominationTable').on('input change', '.branch-denom-id, .branch-num-bags, .branch-container-type, .branch-category-id', function () {
+    $('#denominationTable').on('input change', '.branch-denom-id, .branch-num-bags, .branch-container-type, .branch-category-id, .branch-categorization', function () {
         const idx = $(this).closest('tr').data('idx');
         if (idx === undefined) return;
+        const categoryChanged = $(this).hasClass('branch-category-id');
         if ($(this).hasClass('branch-denom-id'))      branchRows[idx].denominationId = $(this).val();
         if ($(this).hasClass('branch-num-bags'))      branchRows[idx].numBagsBoxes   = $(this).val();
         if ($(this).hasClass('branch-container-type')) branchRows[idx].containerType  = $(this).val();
@@ -479,6 +537,10 @@ $(document).ready(function () {
         // Auto-calculate bundles and subtotal
         calculateBranchRowValues(idx);
         recalculateBranchTotals();
+        // Re-render table if category changed to show/hide box ranges
+        if (categoryChanged) {
+            renderBranchTable();
+        }
     });
 
     function calculateBranchRowValues(idx) {
@@ -517,13 +579,38 @@ $(document).ready(function () {
     }
 
     $('#addDenominationRow').on('click', function () {
-        branchRows.push({ denominationId: '', numBagsBoxes: '', containerType: 'Bag', numBundles: '', categoryId: '', subTotalValue: '' });
+        branchRows.push({ denominationId: '', numBagsBoxes: '', containerType: 'Bag', numBundles: '', categoryId: '', subTotalValue: '', categorization: 'buffer', boxNumberRanges: [{ prefix: '', start: '', end: '' }] });
         renderBranchTable();
     });
 
     $('#denominationTable').on('click', '.remove-branch-row', function () {
         if (branchRows.length > 1) {
             branchRows.splice($(this).closest('tr').data('idx'), 1);
+            renderBranchTable();
+        }
+    });
+
+    // Box range inputs — update state in real time for branch rows
+    $('#denominationTable').on('input', '.branch-box-prefix, .branch-box-start, .branch-box-end', function () {
+        const denomIdx = $(this).closest('tr[data-idx]').data('idx');
+        const rangeIdx = $(this).closest('tr[data-range-idx]').data('range-idx');
+        if (denomIdx === undefined || rangeIdx === undefined) return;
+        if ($(this).hasClass('branch-box-prefix')) branchRows[denomIdx].boxNumberRanges[rangeIdx].prefix = $(this).val();
+        if ($(this).hasClass('branch-box-start'))  branchRows[denomIdx].boxNumberRanges[rangeIdx].start  = $(this).val();
+        if ($(this).hasClass('branch-box-end'))    branchRows[denomIdx].boxNumberRanges[rangeIdx].end    = $(this).val();
+    });
+
+    $('#denominationTable').on('click', '.add-branch-box-range', function () {
+        const idx = $(this).closest('tr[data-idx]').data('idx');
+        branchRows[idx].boxNumberRanges.push({ prefix: '', start: '', end: '' });
+        renderBranchTable();
+    });
+
+    $('#denominationTable').on('click', '.remove-branch-box-range', function () {
+        const denomIdx = $(this).closest('tr[data-idx]').data('idx');
+        const rangeIdx = $(this).closest('tr[data-range-idx]').data('range-idx');
+        if (branchRows[denomIdx].boxNumberRanges.length > 1) {
+            branchRows[denomIdx].boxNumberRanges.splice(rangeIdx, 1);
             renderBranchTable();
         }
     });
@@ -569,18 +656,18 @@ $(document).ready(function () {
         $row.find('.internal-subtotal').val(subTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
     }
 
-    // Serial range input — update state in real time
-    $('#internalDenominationTable').on('input', '.serial-prefix, .serial-start, .serial-end', function () {
+    // Box range input — update state in real time
+    $('#internalDenominationTable').on('input', '.box-prefix, .box-start, .box-end', function () {
         const denomIdx = $(this).closest('tr[data-idx]').data('idx');
         const rangeIdx = $(this).closest('tr[data-range-idx]').data('range-idx');
         if (denomIdx === undefined || rangeIdx === undefined) return;
-        if ($(this).hasClass('serial-prefix')) internalRows[denomIdx].serialRanges[rangeIdx].prefix = $(this).val();
-        if ($(this).hasClass('serial-start'))  internalRows[denomIdx].serialRanges[rangeIdx].start  = $(this).val();
-        if ($(this).hasClass('serial-end'))    internalRows[denomIdx].serialRanges[rangeIdx].end    = $(this).val();
+        if ($(this).hasClass('box-prefix')) internalRows[denomIdx].boxNumberRanges[rangeIdx].prefix = $(this).val();
+        if ($(this).hasClass('box-start'))  internalRows[denomIdx].boxNumberRanges[rangeIdx].start  = $(this).val();
+        if ($(this).hasClass('box-end'))    internalRows[denomIdx].boxNumberRanges[rangeIdx].end    = $(this).val();
     });
 
     $('#addInternalDenominationRow').on('click', function () {
-        internalRows.push({ denominationId: '', serialRanges: [{ prefix: '', start: '', end: '' }], numBoxes: '', containerType: 'Box', subTotalValue: '' });
+        internalRows.push({ denominationId: '', boxNumberRanges: [{ prefix: '', start: '', end: '' }], numBoxes: '', containerType: 'Box', subTotalValue: '' });
         renderInternalTable();
     });
 
@@ -591,17 +678,17 @@ $(document).ready(function () {
         }
     });
 
-    $('#internalDenominationTable').on('click', '.add-serial-range', function () {
+    $('#internalDenominationTable').on('click', '.add-box-range', function () {
         const idx = $(this).closest('tr[data-idx]').data('idx');
-        internalRows[idx].serialRanges.push({ prefix: '', start: '', end: '' });
+        internalRows[idx].boxNumberRanges.push({ prefix: '', start: '', end: '' });
         renderInternalTable();
     });
 
-    $('#internalDenominationTable').on('click', '.remove-serial-range', function () {
+    $('#internalDenominationTable').on('click', '.remove-box-range', function () {
         const denomIdx = $(this).closest('tr[data-idx]').data('idx');
         const rangeIdx = $(this).closest('tr[data-range-idx]').data('range-idx');
-        if (internalRows[denomIdx].serialRanges.length > 1) {
-            internalRows[denomIdx].serialRanges.splice(rangeIdx, 1);
+        if (internalRows[denomIdx].boxNumberRanges.length > 1) {
+            internalRows[denomIdx].boxNumberRanges.splice(rangeIdx, 1);
             renderInternalTable();
         }
     });
@@ -647,7 +734,8 @@ $(document).ready(function () {
                 NumBundles: r.numBundles,
                 CategoryId: r.categoryId,
                 SubTotalValue: r.subTotalValue,
-                Categorization: r.categorization ?? 'buffer'
+                Categorization: r.categorization ?? 'buffer',
+                BoxNumberRanges: (r.boxNumberRanges || []).filter(s => s.prefix !== '' || s.start !== '' || s.end !== '')
             }));
         } else {
             payload.InternalDate            = $('#internalDate').val();
@@ -660,7 +748,7 @@ $(document).ready(function () {
                 .filter(r => r.denominationId !== '')
                 .map(r => ({
                     ...r,
-                    serialRanges: r.serialRanges.filter(s => s.prefix !== '' || s.start !== '' || s.end !== '')
+                    boxNumberRanges: (r.boxNumberRanges || []).filter(s => s.prefix !== '' || s.start !== '' || s.end !== '')
                 }));
         }
 

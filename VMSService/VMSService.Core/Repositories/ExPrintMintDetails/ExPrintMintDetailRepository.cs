@@ -37,7 +37,7 @@ namespace VMSService.Core.Repositories.ExPrintMintDetails
         public async Task<ICollection<PackingListRange>> FindPackingListRangesByExPrintMintDetailId(int exPrintMintDetailId)
         {
             return await _db.PackingListRanges
-                .Where(x => x.ExPrintMintDetailId == exPrintMintDetailId)
+                .Where(x => x.ExpectedStockDetailId == exPrintMintDetailId)
                 .ToListAsync();
         }
 

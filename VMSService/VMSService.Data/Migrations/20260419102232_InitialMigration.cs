@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace VMSService.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class vmsInit : Migration
+    public partial class InitialMigration : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -58,24 +58,57 @@ namespace VMSService.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Logistics",
+                name: "NewCaseFullStatusTypes",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    Title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
-                    Date = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ReferenceNumber = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    StatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    StatusDescription = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    CreatedByName = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Logistics", x => x.Id);
+                    table.PrimaryKey("PK_NewCaseFullStatusTypes", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "NewStockAccountingStatuses",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    AccountingStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    AccountingStatusDescription = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_NewStockAccountingStatuses", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ReceivedStatusTypes",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    StatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    StatusDescription = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ReceivedStatusTypes", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -116,28 +149,6 @@ namespace VMSService.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "LogisticsCategories",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    LogisticsId = table.Column<int>(type: "int", nullable: false),
-                    Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
-                    SortOrder = table.Column<int>(type: "int", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_LogisticsCategories", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_LogisticsCategories_Logistics_LogisticsId",
-                        column: x => x.LogisticsId,
-                        principalTable: "Logistics",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "ApprovedCurrencyProcurements",
                 columns: table => new
                 {
@@ -164,20 +175,18 @@ namespace VMSService.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "StockMovements",
+                name: "Logistics",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    MovementType = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    TeamLeader = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    AssistantTeamLeader = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Title = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Date = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ReferenceNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    CurrentStatusId = table.Column<int>(type: "int", nullable: true),
-                    DispatchingBranchId = table.Column<int>(type: "int", nullable: true),
-                    ReceivingBranchId = table.Column<int>(type: "int", nullable: true),
-                    Categorization = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    TotalBagsBoxes = table.Column<int>(type: "int", nullable: true),
-                    GrandTotalValue = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
+                    ReferenceNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CurrentStatusId = table.Column<int>(type: "int", nullable: false),
                     CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -185,12 +194,13 @@ namespace VMSService.Data.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_StockMovements", x => x.Id);
+                    table.PrimaryKey("PK_Logistics", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_StockMovements_StatusTypes_CurrentStatusId",
+                        name: "FK_Logistics_StatusTypes_CurrentStatusId",
                         column: x => x.CurrentStatusId,
                         principalTable: "StatusTypes",
-                        principalColumn: "Id");
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -259,32 +269,6 @@ namespace VMSService.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "LogisticsDetails",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    LogisticsCategoryId = table.Column<int>(type: "int", nullable: false),
-                    ItemName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
-                    Quantity = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    UnitPrice = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    TotalPrice = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    Notes = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
-                    SortOrder = table.Column<int>(type: "int", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_LogisticsDetails", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_LogisticsDetails_LogisticsCategories_LogisticsCategoryId",
-                        column: x => x.LogisticsCategoryId,
-                        principalTable: "LogisticsCategories",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "ApprovedCurrencyStatusHistory",
                 columns: table => new
                 {
@@ -326,6 +310,215 @@ namespace VMSService.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "LogisticsCategories",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    LogisticsId = table.Column<int>(type: "int", nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    SortOrder = table.Column<int>(type: "int", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_LogisticsCategories", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_LogisticsCategories_Logistics_LogisticsId",
+                        column: x => x.LogisticsId,
+                        principalTable: "Logistics",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "LogisticsStatusHistory",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    LogisticsId = table.Column<int>(type: "int", nullable: false),
+                    OldStatusId = table.Column<int>(type: "int", nullable: false),
+                    NewStatusId = table.Column<int>(type: "int", nullable: false),
+                    ChangedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ChangedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Remarks = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_LogisticsStatusHistory", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_LogisticsStatusHistory_Logistics_LogisticsId",
+                        column: x => x.LogisticsId,
+                        principalTable: "Logistics",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_LogisticsStatusHistory_StatusTypes_NewStatusId",
+                        column: x => x.NewStatusId,
+                        principalTable: "StatusTypes",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_LogisticsStatusHistory_StatusTypes_OldStatusId",
+                        column: x => x.OldStatusId,
+                        principalTable: "StatusTypes",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "StockMovements",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    MovementType = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Date = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ReferenceNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CurrentStatusId = table.Column<int>(type: "int", nullable: true),
+                    DispatchingBranchId = table.Column<int>(type: "int", nullable: true),
+                    ReceivingBranchId = table.Column<int>(type: "int", nullable: true),
+                    CommercialBankBranchId = table.Column<int>(type: "int", nullable: true),
+                    LogisticsId = table.Column<int>(type: "int", nullable: true),
+                    TotalBagsBoxes = table.Column<int>(type: "int", nullable: true),
+                    GrandTotalValue = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_StockMovements", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_StockMovements_Logistics_LogisticsId",
+                        column: x => x.LogisticsId,
+                        principalTable: "Logistics",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_StockMovements_StatusTypes_CurrentStatusId",
+                        column: x => x.CurrentStatusId,
+                        principalTable: "StatusTypes",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ApprovedCurrencyDenominations",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    DenominationId = table.Column<int>(type: "int", nullable: false),
+                    ApprovedCurrencyId = table.Column<int>(type: "int", nullable: false),
+                    NumberOfPieces = table.Column<int>(type: "int", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    CurrencyVendorId = table.Column<int>(type: "int", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ApprovedCurrencyDenominations", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ApprovedCurrencyDenominations_ApprovedCurrencyProcurements_ApprovedCurrencyId",
+                        column: x => x.ApprovedCurrencyId,
+                        principalTable: "ApprovedCurrencyProcurements",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ApprovedCurrencyDenominations_CurrencyVendors_CurrencyVendorId",
+                        column: x => x.CurrencyVendorId,
+                        principalTable: "CurrencyVendors",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ExPrintMints",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ExPrintMintReference = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CurrencyVendorId = table.Column<int>(type: "int", nullable: false),
+                    DenominationId = table.Column<int>(type: "int", nullable: false),
+                    DeliveryDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Attachment = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ApprovedCurrencyProcurementId = table.Column<int>(type: "int", nullable: false),
+                    CurrentStatusId = table.Column<int>(type: "int", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    BranchId = table.Column<int>(type: "int", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ExPrintMints", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ExPrintMints_ApprovedCurrencyProcurements_ApprovedCurrencyProcurementId",
+                        column: x => x.ApprovedCurrencyProcurementId,
+                        principalTable: "ApprovedCurrencyProcurements",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ExPrintMints_CurrencyVendors_CurrencyVendorId",
+                        column: x => x.CurrencyVendorId,
+                        principalTable: "CurrencyVendors",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ExPrintMints_StatusTypes_CurrentStatusId",
+                        column: x => x.CurrentStatusId,
+                        principalTable: "StatusTypes",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "LogisticsDetails",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    LogisticsCategoryId = table.Column<int>(type: "int", nullable: false),
+                    ItemName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    UnitCost = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Quantity = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Frequency = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    TotalCost = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Notes = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    SortOrder = table.Column<int>(type: "int", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_LogisticsDetails", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_LogisticsDetails_LogisticsCategories_LogisticsCategoryId",
+                        column: x => x.LogisticsCategoryId,
+                        principalTable: "LogisticsCategories",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "StockMovementDenominations",
                 columns: table => new
                 {
@@ -335,6 +528,7 @@ namespace VMSService.Data.Migrations
                     NumBagsBoxes = table.Column<int>(type: "int", nullable: true),
                     NumBundles = table.Column<int>(type: "int", nullable: true),
                     CategoryId = table.Column<int>(type: "int", nullable: true),
+                    Categorization = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     ContainerType = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     SubTotalValue = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     DenominationType = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -421,63 +615,17 @@ namespace VMSService.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "ApprovedCurrencyDenominations",
+                name: "ExPrintMintDetails",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
+                    ExPrintMintId = table.Column<int>(type: "int", nullable: false),
                     DenominationId = table.Column<int>(type: "int", nullable: false),
-                    ApprovedCurrencyId = table.Column<int>(type: "int", nullable: false),
-                    NumberOfPieces = table.Column<int>(type: "int", nullable: false),
-                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
-                    CurrencyVendorId = table.Column<int>(type: "int", nullable: false),
-                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ApprovedCurrencyDenominations", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_ApprovedCurrencyDenominations_ApprovedCurrencyProcurements_ApprovedCurrencyId",
-                        column: x => x.ApprovedCurrencyId,
-                        principalTable: "ApprovedCurrencyProcurements",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_ApprovedCurrencyDenominations_CurrencyVendors_CurrencyVendorId",
-                        column: x => x.CurrencyVendorId,
-                        principalTable: "CurrencyVendors",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "ExPrintMints",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    ExPrintMintReference = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    CurrencyVendorId = table.Column<int>(type: "int", nullable: false),
-                    DenominationId = table.Column<int>(type: "int", nullable: false),
-                    DeliveryDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     NumberOfPieces = table.Column<int>(type: "int", nullable: false),
                     Value = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    BoxNumberPrefix = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    BoxNumberRangeStart = table.Column<int>(type: "int", nullable: true),
-                    BoxNumberRangeEnd = table.Column<int>(type: "int", nullable: true),
-                    SerialNumberPrefix = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    SerialNumberRangeStart = table.Column<int>(type: "int", nullable: true),
-                    SerialNumberRangeEnd = table.Column<int>(type: "int", nullable: true),
-                    Attachment = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    ApprovedCurrencyProcurementId = table.Column<int>(type: "int", nullable: false),
-                    CurrentStatusId = table.Column<int>(type: "int", nullable: false),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
                     NumberOfBoxes = table.Column<int>(type: "int", nullable: false),
-                    BranchId = table.Column<int>(type: "int", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
                     CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -485,45 +633,11 @@ namespace VMSService.Data.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ExPrintMints", x => x.Id);
+                    table.PrimaryKey("PK_ExPrintMintDetails", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_ExPrintMints_ApprovedCurrencyProcurements_ApprovedCurrencyProcurementId",
-                        column: x => x.ApprovedCurrencyProcurementId,
-                        principalTable: "ApprovedCurrencyProcurements",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_ExPrintMints_CurrencyVendors_CurrencyVendorId",
-                        column: x => x.CurrencyVendorId,
-                        principalTable: "CurrencyVendors",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_ExPrintMints_StatusTypes_CurrentStatusId",
-                        column: x => x.CurrentStatusId,
-                        principalTable: "StatusTypes",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "StockMovementDenominationSerialNumberRanges",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Prefix = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Start = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    End = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    StockMovementDenominationId = table.Column<int>(type: "int", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_StockMovementDenominationSerialNumberRanges", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_StockMovementDenominationSerialNumberRanges_StockMovementDenominations_StockMovementDenominationId",
-                        column: x => x.StockMovementDenominationId,
-                        principalTable: "StockMovementDenominations",
+                        name: "FK_ExPrintMintDetails_ExPrintMints_ExPrintMintId",
+                        column: x => x.ExPrintMintId,
+                        principalTable: "ExPrintMints",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -577,18 +691,16 @@ namespace VMSService.Data.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     ExPrintMintId = table.Column<int>(type: "int", nullable: false),
                     DateDelivered = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    NumberOfPieces = table.Column<int>(type: "int", nullable: false),
-                    Value = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    BoxNumberPrefix = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    BoxNumberRangeStart = table.Column<int>(type: "int", nullable: true),
-                    BoxNumberRangeEnd = table.Column<int>(type: "int", nullable: true),
-                    SerialNumberPrefix = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    SerialNumberRangeStart = table.Column<int>(type: "int", nullable: true),
-                    SerialNumberRangeEnd = table.Column<int>(type: "int", nullable: true),
+                    DeliveryAirline = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    TestingFees = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    ShippingFees = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    InsuranceFees = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    HandlingCharges = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    ClearingFees = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     CurrentStatusId = table.Column<int>(type: "int", nullable: false),
                     IsDeleted = table.Column<bool>(type: "bit", nullable: false),
-                    IsPartial = table.Column<bool>(type: "bit", nullable: false),
-                    NumberOfBoxes = table.Column<int>(type: "int", nullable: false),
+                    IsPartial = table.Column<bool>(type: "bit", nullable: true),
+                    ReceivedStatusTypesId = table.Column<int>(type: "int", nullable: true),
                     CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -604,9 +716,72 @@ namespace VMSService.Data.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
+                        name: "FK_ReceivedStock_ReceivedStatusTypes_ReceivedStatusTypesId",
+                        column: x => x.ReceivedStatusTypesId,
+                        principalTable: "ReceivedStatusTypes",
+                        principalColumn: "Id");
+                    table.ForeignKey(
                         name: "FK_ReceivedStock_StatusTypes_CurrentStatusId",
                         column: x => x.CurrentStatusId,
                         principalTable: "StatusTypes",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "StockMovementDenominationBoxNumberRanges",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Prefix = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Start = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    End = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    StockMovementDenominationId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_StockMovementDenominationBoxNumberRanges", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_StockMovementDenominationBoxNumberRanges_StockMovementDenominations_StockMovementDenominationId",
+                        column: x => x.StockMovementDenominationId,
+                        principalTable: "StockMovementDenominations",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PackingListRanges",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ExpectedStockDetailId = table.Column<int>(type: "int", nullable: false),
+                    CaseNumberPrefix = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    StartCaseNumber = table.Column<int>(type: "int", nullable: false),
+                    EndCaseNumber = table.Column<int>(type: "int", nullable: false),
+                    SNPrefix = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    SNRangeStart = table.Column<int>(type: "int", nullable: false),
+                    SNRangeEnd = table.Column<int>(type: "int", nullable: false),
+                    ExpectedStockId = table.Column<int>(type: "int", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PackingListRanges", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PackingListRanges_ExPrintMintDetails_ExpectedStockDetailId",
+                        column: x => x.ExpectedStockDetailId,
+                        principalTable: "ExPrintMintDetails",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_PackingListRanges_ExPrintMints_ExpectedStockId",
+                        column: x => x.ExpectedStockId,
+                        principalTable: "ExPrintMints",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -652,6 +827,110 @@ namespace VMSService.Data.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "PackingListDetails",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PackingListRangeId = table.Column<int>(type: "int", nullable: false),
+                    CaseNumber = table.Column<int>(type: "int", nullable: false),
+                    SerialNoteStartNumber = table.Column<int>(type: "int", nullable: false),
+                    SerialNoteEndNumber = table.Column<int>(type: "int", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PackingListDetails", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PackingListDetails_PackingListRanges_PackingListRangeId",
+                        column: x => x.PackingListRangeId,
+                        principalTable: "PackingListRanges",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ReceivedStockDetails",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ReceivedStockId = table.Column<int>(type: "int", nullable: false),
+                    PackingListRangeId = table.Column<int>(type: "int", nullable: false),
+                    ReceivedStartCaseNumber = table.Column<int>(type: "int", nullable: false),
+                    ReceivedEndCaseNumber = table.Column<int>(type: "int", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ReceivedStockDetails", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ReceivedStockDetails_PackingListRanges_PackingListRangeId",
+                        column: x => x.PackingListRangeId,
+                        principalTable: "PackingListRanges",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_ReceivedStockDetails_ReceivedStock_ReceivedStockId",
+                        column: x => x.ReceivedStockId,
+                        principalTable: "ReceivedStock",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "NewStockMovementLogs",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    StockMovementId = table.Column<int>(type: "int", nullable: false),
+                    PackingListDetailId = table.Column<long>(type: "bigint", nullable: false),
+                    SerialNoteStartNumber = table.Column<int>(type: "int", nullable: false),
+                    SerialNoteEndNumber = table.Column<int>(type: "int", nullable: false),
+                    NewStockAccountingStatus = table.Column<int>(type: "int", nullable: false),
+                    NewCaseFullStatus = table.Column<int>(type: "int", nullable: false),
+                    AccountingStatusId = table.Column<int>(type: "int", nullable: false),
+                    CaseFullStatusId = table.Column<int>(type: "int", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_NewStockMovementLogs", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_NewStockMovementLogs_NewCaseFullStatusTypes_CaseFullStatusId",
+                        column: x => x.CaseFullStatusId,
+                        principalTable: "NewCaseFullStatusTypes",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_NewStockMovementLogs_NewStockAccountingStatuses_AccountingStatusId",
+                        column: x => x.AccountingStatusId,
+                        principalTable: "NewStockAccountingStatuses",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_NewStockMovementLogs_PackingListDetails_PackingListDetailId",
+                        column: x => x.PackingListDetailId,
+                        principalTable: "PackingListDetails",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_NewStockMovementLogs_StockMovements_StockMovementId",
+                        column: x => x.StockMovementId,
+                        principalTable: "StockMovements",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_ApprovedCurrencyDenominations_ApprovedCurrencyId",
                 table: "ApprovedCurrencyDenominations",
@@ -688,6 +967,11 @@ namespace VMSService.Data.Migrations
                 column: "VendorTypeId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_ExPrintMintDetails_ExPrintMintId",
+                table: "ExPrintMintDetails",
+                column: "ExPrintMintId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ExPrintMints_ApprovedCurrencyProcurementId",
                 table: "ExPrintMints",
                 column: "ApprovedCurrencyProcurementId");
@@ -718,6 +1002,11 @@ namespace VMSService.Data.Migrations
                 column: "OldStatusId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Logistics_CurrentStatusId",
+                table: "Logistics",
+                column: "CurrentStatusId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_LogisticsCategories_LogisticsId",
                 table: "LogisticsCategories",
                 column: "LogisticsId");
@@ -728,6 +1017,56 @@ namespace VMSService.Data.Migrations
                 column: "LogisticsCategoryId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_LogisticsStatusHistory_LogisticsId",
+                table: "LogisticsStatusHistory",
+                column: "LogisticsId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LogisticsStatusHistory_NewStatusId",
+                table: "LogisticsStatusHistory",
+                column: "NewStatusId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LogisticsStatusHistory_OldStatusId",
+                table: "LogisticsStatusHistory",
+                column: "OldStatusId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_NewStockMovementLogs_AccountingStatusId",
+                table: "NewStockMovementLogs",
+                column: "AccountingStatusId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_NewStockMovementLogs_CaseFullStatusId",
+                table: "NewStockMovementLogs",
+                column: "CaseFullStatusId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_NewStockMovementLogs_PackingListDetailId",
+                table: "NewStockMovementLogs",
+                column: "PackingListDetailId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_NewStockMovementLogs_StockMovementId",
+                table: "NewStockMovementLogs",
+                column: "StockMovementId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PackingListDetails_PackingListRangeId",
+                table: "PackingListDetails",
+                column: "PackingListRangeId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PackingListRanges_ExpectedStockDetailId",
+                table: "PackingListRanges",
+                column: "ExpectedStockDetailId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PackingListRanges_ExpectedStockId",
+                table: "PackingListRanges",
+                column: "ExpectedStockId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ReceivedStock_CurrentStatusId",
                 table: "ReceivedStock",
                 column: "CurrentStatusId");
@@ -736,6 +1075,21 @@ namespace VMSService.Data.Migrations
                 name: "IX_ReceivedStock_ExPrintMintId",
                 table: "ReceivedStock",
                 column: "ExPrintMintId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ReceivedStock_ReceivedStatusTypesId",
+                table: "ReceivedStock",
+                column: "ReceivedStatusTypesId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ReceivedStockDetails_PackingListRangeId",
+                table: "ReceivedStockDetails",
+                column: "PackingListRangeId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ReceivedStockDetails_ReceivedStockId",
+                table: "ReceivedStockDetails",
+                column: "ReceivedStockId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ReceivedStockStatusHistory_NewStatusId",
@@ -753,14 +1107,14 @@ namespace VMSService.Data.Migrations
                 column: "ReceivedStockId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_StockMovementDenominationBoxNumberRanges_StockMovementDenominationId",
+                table: "StockMovementDenominationBoxNumberRanges",
+                column: "StockMovementDenominationId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_StockMovementDenominations_StockMovementId",
                 table: "StockMovementDenominations",
                 column: "StockMovementId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_StockMovementDenominationSerialNumberRanges_StockMovementDenominationId",
-                table: "StockMovementDenominationSerialNumberRanges",
-                column: "StockMovementDenominationId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_StockMovementDiscrepancies_CurrentStatusId",
@@ -776,6 +1130,11 @@ namespace VMSService.Data.Migrations
                 name: "IX_StockMovements_CurrentStatusId",
                 table: "StockMovements",
                 column: "CurrentStatusId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_StockMovements_LogisticsId",
+                table: "StockMovements",
+                column: "LogisticsId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_StockMovementStatusHistory_NewStatusId",
@@ -825,10 +1184,19 @@ namespace VMSService.Data.Migrations
                 name: "LogisticsDetails");
 
             migrationBuilder.DropTable(
+                name: "LogisticsStatusHistory");
+
+            migrationBuilder.DropTable(
+                name: "NewStockMovementLogs");
+
+            migrationBuilder.DropTable(
+                name: "ReceivedStockDetails");
+
+            migrationBuilder.DropTable(
                 name: "ReceivedStockStatusHistory");
 
             migrationBuilder.DropTable(
-                name: "StockMovementDenominationSerialNumberRanges");
+                name: "StockMovementDenominationBoxNumberRanges");
 
             migrationBuilder.DropTable(
                 name: "StockMovementDiscrepancies");
@@ -843,19 +1211,37 @@ namespace VMSService.Data.Migrations
                 name: "LogisticsCategories");
 
             migrationBuilder.DropTable(
+                name: "NewCaseFullStatusTypes");
+
+            migrationBuilder.DropTable(
+                name: "NewStockAccountingStatuses");
+
+            migrationBuilder.DropTable(
+                name: "PackingListDetails");
+
+            migrationBuilder.DropTable(
                 name: "ReceivedStock");
 
             migrationBuilder.DropTable(
                 name: "StockMovementDenominations");
 
             migrationBuilder.DropTable(
+                name: "PackingListRanges");
+
+            migrationBuilder.DropTable(
+                name: "ReceivedStatusTypes");
+
+            migrationBuilder.DropTable(
+                name: "StockMovements");
+
+            migrationBuilder.DropTable(
+                name: "ExPrintMintDetails");
+
+            migrationBuilder.DropTable(
                 name: "Logistics");
 
             migrationBuilder.DropTable(
                 name: "ExPrintMints");
-
-            migrationBuilder.DropTable(
-                name: "StockMovements");
 
             migrationBuilder.DropTable(
                 name: "ApprovedCurrencyProcurements");
