@@ -1722,7 +1722,7 @@ namespace VMSService.Data.Migrations
 
             modelBuilder.Entity("VMSService.Data.Entities.PackingListRange", b =>
                 {
-                    b.HasOne("VMSService.Data.Entities.ExPrintMintDetail", "ExpectedStockDetail")
+                    b.HasOne("VMSService.Data.Entities.ExPrintMintDetail", "ExPrintMintDetail")
                         .WithMany("PackingListRanges")
                         .HasForeignKey("ExpectedStockDetailId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1736,7 +1736,7 @@ namespace VMSService.Data.Migrations
 
                     b.Navigation("ExpectedStock");
 
-                    b.Navigation("ExpectedStockDetail");
+                    b.Navigation("ExPrintMintDetail");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ReceivedStock", b =>

@@ -51,7 +51,7 @@ namespace VMSService.Models
             return new PackingListRange
             {
                 ExpectedStockId = exStockId,
-                ExpectedStockDetailId = ExPrintMintDetailId ?? 0,
+                ExPrintMintDetailId = ExPrintMintDetailId ?? 0,
                 CaseNumberPrefix = CaseNumberPrefix?.Trim() ?? string.Empty,
                 StartCaseNumber = StartCaseNumber ?? 0,
                 EndCaseNumber = EndCaseNumber ?? 0,

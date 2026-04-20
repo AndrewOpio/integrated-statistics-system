@@ -123,7 +123,7 @@ namespace VMSService.Web.Controllers
                         if (packingListRange != null)
                         {
                             // Get the ExPrintMintDetail associated with this PackingListRange
-                            var exPrintMintDetail = await _exPrintMintDetailRepository.FindById(packingListRange.ExpectedStockDetailId);
+                            var exPrintMintDetail = await _exPrintMintDetailRepository.FindById(packingListRange.ExPrintMintDetailId);
                             if (exPrintMintDetail != null)
                             {
                                 // Get the Denomination for this ExPrintMintDetail
@@ -237,7 +237,7 @@ namespace VMSService.Web.Controllers
                 var rangesWithDenominations = new List<dynamic>();
                 foreach (var range in allPackingListRanges)
                 {
-                    var denomination = await _denominationRepository.FindById(range.ExpectedStockDetail.DenominationId);
+                    var denomination = await _denominationRepository.FindById(range.ExPrintMintDetail.DenominationId);
                     rangesWithDenominations.Add(new 
                     { 
                         range.Id, 

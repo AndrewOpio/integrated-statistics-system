@@ -5,7 +5,7 @@ namespace VMSService.Data.Entities
     public class PackingListRange : AuditableEntity
     {
         public int Id { get; set; }
-        public int ExpectedStockDetailId { get; set; }
+        public int ExPrintMintDetailId { get; set; }
         public string CaseNumberPrefix { get; set; }
         public int StartCaseNumber { get; set; }
         public int EndCaseNumber { get; set; }
@@ -15,7 +15,7 @@ namespace VMSService.Data.Entities
         public int ExpectedStockId { get; set; }
 
         public ExPrintMint? ExpectedStock { get; set; }
-        public ExPrintMintDetail? ExpectedStockDetail { get; set; }
+        public ExPrintMintDetail? ExPrintMintDetail { get; set; }
         public ICollection<PackingListDetails>? PackingListDetails { get; set; }
         public ICollection<ReceivedStockDetails>? ReceivedStockDetails { get; set; }
     }

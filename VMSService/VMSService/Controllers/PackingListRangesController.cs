@@ -63,15 +63,15 @@ namespace VMSService.Controllers
             {
                 foreach (var range in packingListRanges)
                 {
-                    if (range.ExpectedStockDetailId > 0)
+                    if (range.ExPrintMintDetailId > 0)
                     {
-                        range.ExpectedStockDetail = await _exPrintMintDetailRepository.FindById(range.ExpectedStockDetailId);
+                        range.ExPrintMintDetail = await _exPrintMintDetailRepository.FindById(range.ExPrintMintDetailId);
                         
                         // Fetch denomination name from Stock Service
-                        if (range.ExpectedStockDetail != null)
+                        if (range.ExPrintMintDetail != null)
                         {
-                            var denomination = await _denominationRepository.FindById(range.ExpectedStockDetail.DenominationId);
-                            denominationNames[range.ExpectedStockDetailId] = denomination?.Name ?? $"Denomination {range.ExpectedStockDetail.DenominationId}";
+                            var denomination = await _denominationRepository.FindById(range.ExPrintMintDetail.DenominationId);
+                            denominationNames[range.ExPrintMintDetailId] = denomination?.Name ?? $"Denomination {range.ExPrintMintDetail.DenominationId}";
                         }
                     }
                 }
