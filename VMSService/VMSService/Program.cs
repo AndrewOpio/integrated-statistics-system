@@ -1,58 +1,63 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using ConfigurationsService.Client;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
+using NotificationService.Client;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using SmartBreadcrumbs.Extensions;
 using System.Reflection;
 using System.Text;
+using VMSService.Core.Authorization;
 using VMSService.Core.Mappings;
 using VMSService.Core.Models.Authentication;
 using VMSService.Core.Repositories.AgentDetails;
+using VMSService.Core.Repositories.AgentDetailStatusHistories;
 using VMSService.Core.Repositories.ApprovedCurrencyDenominations;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
 using VMSService.Core.Repositories.BranchCategories;
 using VMSService.Core.Repositories.Branches;
 using VMSService.Core.Repositories.Categories;
+using VMSService.Core.Repositories.CommercialBankBranches;
 using VMSService.Core.Repositories.CommercialBanks;
 using VMSService.Core.Repositories.CommercialBankUsers;
 using VMSService.Core.Repositories.CounterPartyTypes;
 using VMSService.Core.Repositories.CurrencyVendors;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.DenominationTypes;
+using VMSService.Core.Repositories.DepositUnitOfWorks;
 using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ExPrintMintStatusHistories;
+using VMSService.Core.Repositories.ExPrintMintDetails;
 using VMSService.Core.Repositories.ReceivedStocks;
+using VMSService.Core.Repositories.ReceivedStocksDetails;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
 using VMSService.Core.Repositories.StockMovementDiscrepancies;
 using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.StockMovementStatusHistories;
+using VMSService.Core.Repositories.Logistics;
 using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Repositories.VendorTypes;
+using VMSService.Core.Repositories.WithdrawalRequestAgents;
+using VMSService.Core.Repositories.WithdrawalRequestDenominations;
+using VMSService.Core.Repositories.WithdrawalRequests;
+using VMSService.Core.Repositories.WithdrawalRequestStatusHistories;
+using VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators;
+using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 using VMSService.Core.Services.Configurations;
 using VMSService.Core.Services.Identity;
 using VMSService.Core.Services.StockPositions;
 using VMSService.Core.Services.Stocks;
 using VMSService.Core.Services.Workflows;
 using VMSService.Data;
+using VMSService.Core.Repositories.PackingListRangeDetails;
+using VMSService.Core.Repositories.PackingListRanges;
+using VMSService.Core.Services.PackingListRangeDetails;
 using WorkflowService.Client;
-
-using NotificationService.Client;
-using ConfigurationsService.Client;
-using VMSService.Core.Authorization;
-using VMSService.Core.Repositories.CommercialBankBranches;
-using StockService.Client;
-
-//using VMSService.Core.Authorization;
-//using VMSService.Core.Repositories.CommercialBankBranches;
-//using ConfigurationsService.Client;
-//using StockService.Client;
-//using NotificationService.Client;
-
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -194,14 +199,19 @@ builder.Services.AddScoped<IApprovedCurrencyStatusHistoryRepository, ApprovedCur
 builder.Services.AddScoped<IDenominationRepository, DenominationRepository>();
 builder.Services.AddScoped<IDenominationTypeRepository, DenominationTypeRepository>();
 builder.Services.AddScoped<IExPrintMintRepository, ExPrintMintRepository>();
+builder.Services.AddScoped<IExPrintMintDetailRepository, ExPrintMintDetailRepository>();
 builder.Services.AddScoped<IApprovedCurrencyProcurementRepository, ApprovedCurrencyProcurementRepository>();
 builder.Services.AddScoped<IApprovedCurrencyDenominationRepository, ApprovedCurrencyDenominationRepository>();
 builder.Services.AddScoped<ICurrencyVendorRepository, CurrencyVendorRepository>();
 builder.Services.AddScoped<IReceivedStockRepository, ReceivedStockRepository>();
+builder.Services.AddScoped<IReceivedStockDetailsRepository, ReceivedStockDetailsRepository>();
+builder.Services.AddScoped<IPackingListDetailService, PackingListDetailService>();
 builder.Services.AddScoped<IWorkflowService, WorkflowServices>();
 builder.Services.AddScoped<IReceivedStockStatusHistoryRepository, ReceivedStockStatusHistoryRepository>();
 builder.Services.AddScoped<IStockMovementStatusHistoryRepository, StockMovementStatusHistoryRepository>();
 builder.Services.AddScoped<IStockLedgerRepository, StockLedgerRepository>();
+builder.Services.AddScoped<IPackingListRangeRepository, PackingListRangeRepository>();
+builder.Services.AddScoped<IPackingListDetailsRepository, PackingListDetailsRepository>();
 builder.Services.AddScoped<IStockLedgerDetailRepository, StockLedgerDetailRepository>();
 builder.Services.AddScoped<ICommercialBankRepository, CommercialBankRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
@@ -213,10 +223,22 @@ builder.Services.AddScoped<ICommercialBankUserRepository, CommercialBankUserRepo
 builder.Services.AddScoped<IAgentDetailRepository, AgentDetailRepository>();
 builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
 builder.Services.AddScoped<IStockMovementDiscrepancyRepository, StockMovementDiscrepancyRepository>();
-
+builder.Services.AddScoped<IWithdrawalRequestRepository, WithdrawalRequestRepository>();
+builder.Services.AddScoped<IWithdrawalRequestAgentRepository, WithdrawalRequestAgentRepository>();
+builder.Services.AddScoped<IWithdrawalRequestDenominationRepository, WithdrawalRequestDenominationRepository>();
+builder.Services.AddScoped<IWithdrawalRequestStatusHistoryRepository, WithdrawalRequestStatusHistoryRepository>();
+builder.Services.AddScoped<IWithdrawalTransactionRefNumberGenerator, WithdrawalTransactionRefNumberGenerator>();
+builder.Services.AddScoped<IWithdrawalUnitOfWork, WithdrawalUnitOfWork>();
+builder.Services.AddScoped<IAgentDetailStatusHistoryRepository, AgentDetailStatusHistoryRepository>();
+builder.Services.AddScoped<IDepositUnitOfWork, DepositUnitOfWork>();
+builder.Services.AddScoped<IDepositTransactionRefNumberGenerator, DepositTransactionRefNumberGenerator>();
+builder.Services.AddScoped<IDepositRequestRepository, DepositRequestRepository>();
+builder.Services.AddScoped<IDepositRequestStatusHistoryRepository, DepositRequestStatusHistoryRepository>();
 
 // ── Resource-based ownership check ────────────────────────────
 builder.Services.AddSingleton<IAuthorizationHandler, CbOwnershipAuthorizationHandler>();
+builder.Services.AddScoped<ILogisticsRepository, LogisticsRepository>();
+builder.Services.AddScoped<ILogisticsStatusHistoryRepository, LogisticsStatusHistoryRepository>();
 
 // Add this in your service registration section
 builder.Services.AddScoped<IStockService, VMSService.Core.Services.Stocks.StockService>();
@@ -254,7 +276,7 @@ builder.Services.AddHttpClient<ConfigurationService>()
     });
 
 // Register Workflow Service
-var workflowServiceBaseUrl = builder.Configuration["MicroServices:workflowservice"] ?? "https://localhost:7026";
+var workflowServiceBaseUrl = builder.Configuration["MicroServices:workflowservice"] ?? "https://localhost:7288";
 builder.Services.AddWorkflowServiceClient(workflowServiceBaseUrl);
 
 // Register ConfigurationsServiceClient Service

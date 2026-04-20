@@ -53,6 +53,21 @@ namespace WorkflowService.Data.Entities
         /// </summary>
         public string ButtonClass { get; set; }
         
+        /// <summary>
+        /// Whether to send an email notification when this transition is performed
+        /// </summary>
+        public bool SendNotification { get; set; }
+
+        /// <summary>
+        /// Comma-separated list of role IDs that should receive the notification
+        /// </summary>
+        public string? NotificationRoleIds { get; set; }
+
+        /// <summary>
+        /// Comma-separated list of email addresses that should receive the notification
+        /// </summary>
+        public string? NotificationEmails { get; set; }
+
         public bool IsActive { get; set; } = true;
         public bool IsDeleted { get; set; }
     }

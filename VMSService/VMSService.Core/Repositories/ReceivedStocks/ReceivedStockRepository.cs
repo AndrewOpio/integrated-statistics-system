@@ -20,6 +20,7 @@ namespace VMSService.Core.Repositories.ReceivedStocks
                 .Include(x => x.ExPrintMint)
                 .Include(x => x.ExPrintMint.CurrencyVendor)
                 .Include(x => x.ExPrintMint.CurrencyVendor.VendorType)
+                .Include(x => x.ReceivedStockDetails)
                 .ToListAsync();
         }
 
@@ -29,6 +30,7 @@ namespace VMSService.Core.Repositories.ReceivedStocks
                 .Include(x => x.ExPrintMint)
                 .Include(x => x.ExPrintMint.CurrencyVendor)
                 .Include(x => x.ExPrintMint.CurrencyVendor.VendorType)
+                .Include(x => x.ReceivedStockDetails)
                 .FirstOrDefaultAsync(x => x.Id == id);
         }
 

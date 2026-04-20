@@ -1,3 +1,4 @@
+using GatewayService.Models;
 using GatewayService.Services.Identity;
 using GatewayService.Static;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -70,6 +71,7 @@ builder.Services
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["SecretKey"];
+var authenticationSettings = builder.Configuration.GetSection("Authentication").Get<AuthenticationSettings>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -95,6 +97,22 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     context.Token = context.Request.Cookies["AuthToken"];
                 }
                 return Task.CompletedTask;
+            },
+            OnAuthenticationFailed = context =>
+            {
+                // Handle specific authentication failures
+                context.NoResult();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.Redirect(authenticationSettings?.LoginPath ?? "/logout");
+                return Task.CompletedTask;
+            },
+            OnChallenge = async context =>
+            {
+                // This event fires when authentication fails
+                context.HandleResponse();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.Redirect(authenticationSettings?.LoginPath ?? "/logout");
+                await context.Response.CompleteAsync();
             }
         };
     });

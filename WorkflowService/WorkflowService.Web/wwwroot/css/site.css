@@ -22,6 +22,11 @@ body {
   margin-bottom: 60px;
 }
 
+/* Dark mode body background */
+[data-bs-theme="dark"] body {
+  background-color: #212529;
+}
+
 .bg-crimson {
     --bs-bg-opacity: 1;
     background-color: #b31b34 !important;
@@ -69,6 +74,11 @@ body {
     /*border-left: 3px solid lightgray;*/
 }
 
+/* Dark mode form section */
+[data-bs-theme="dark"] .form-section {
+    background-color: #2b3035;
+}
+
 .no-after::after {
     content: '';
     position: absolute;
@@ -81,4 +91,84 @@ body {
 
 .more-rounded {
     border-radius: 1rem !important;
+}
+
+/* ===========================
+   Dark mode - Navbar
+   =========================== */
+[data-bs-theme="dark"] .navbar {
+    background-color: #2b3035 !important;
+    border-color: #495057 !important;
+}
+
+[data-bs-theme="dark"] .navbar .navbar-brand,
+[data-bs-theme="dark"] .navbar .nav-link,
+[data-bs-theme="dark"] .navbar .navbar-text {
+    color: #dee2e6 !important;
+}
+
+[data-bs-theme="dark"] .navbar .nav-link:hover {
+    color: #fff !important;
+}
+
+/* ===========================
+   Dark mode - Cards
+   =========================== */
+[data-bs-theme="dark"] .card {
+    background-color: #2b3035 !important;
+    border-color: #495057 !important;
+    color: #dee2e6;
+}
+
+[data-bs-theme="dark"] .card .card-header {
+    background-color: #343a40 !important;
+    border-color: #495057 !important;
+    color: #f8f9fa;
+}
+
+[data-bs-theme="dark"] .card .card-body {
+    color: #dee2e6;
+}
+
+[data-bs-theme="dark"] .card.shadow {
+    box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .3) !important;
+}
+
+/* ===========================
+   Dark mode - Tables inside cards
+   =========================== */
+[data-bs-theme="dark"] .table {
+    color: #dee2e6;
+    border-color: #495057;
+}
+
+[data-bs-theme="dark"] .thead-light th {
+    background-color: #343a40 !important;
+    color: #dee2e6 !important;
+    border-color: #495057 !important;
+}
+
+/* ===========================
+   Dark mode - Footer
+   =========================== */
+[data-bs-theme="dark"] .footer {
+    background-color: #212529;
+    color: #adb5bd;
+    border-color: #495057 !important;
+}
+
+/* ===========================
+   Theme toggle button
+   =========================== */
+#themeToggleBtn:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-bs-theme="dark"] #themeToggleBtn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-bs-theme="dark"] #themeToggleBtn {
+    color: #dee2e6 !important;
+    border-color: #6c757d !important;
 }

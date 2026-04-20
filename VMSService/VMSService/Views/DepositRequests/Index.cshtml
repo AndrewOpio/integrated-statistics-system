@@ -1,0 +1,200 @@
+@model VMSService.Core.Models.DepositRequests.BouDepositRequestViewModel
+@{
+    ViewData["Title"] = "Deposit Requests";
+}
+
+@* Page Header *@
+<div class="mb-3">
+    <h5 class="fw-bold mb-0 text-greene">Deposit Requests</h5>
+    <p class="text-muted small mb-0">Cash Operations · @DateTime.Now.ToString("dddd d MMMM yyyy")</p>
+</div>
+
+@* Location Filter Pills *@
+<div class="d-flex align-items-center gap-2 flex-wrap mb-3">
+    <div class="position-relative pill-wrap">
+        <button type="button"
+                class="greene-location-pill @(Model.SelectedBranch == null ? "active" : "")"
+                data-branch=""
+                title="All locations">
+            ALL
+        </button>
+        <div class="pill-tooltip">All locations</div>
+    </div>
+
+    @foreach (var branch in Model.BouBranches)
+    {
+        <div class="position-relative pill-wrap">
+            <button type="button"
+                    class="location-pill @(Model.SelectedBranch == branch.BranchCode ? "active" : "")"
+                    data-branch="@branch.BranchCode"
+                    title="@branch.Name">
+                @branch.BranchCode
+            </button>
+            <div class="pill-tooltip">@branch.Name</div>
+        </div>
+    }
+</div>
+
+@* Metric Cards *@
+<div class="row g-3 mb-4" id="metric-cards">
+    <div class="col-md-3">
+        <div class="card-hover rounded-3 p-3 text-white" style="background:#0d6e3e">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <span class="small fw-semibold opacity-75 text-uppercase" style="font-size:11px;">Pending CB Action</span>
+                <div class="rounded-2 d-flex align-items-center justify-content-center"
+                     style="width:28px;height:28px;background:rgba(255,255,255,0.15)">
+                    <i class="ti ti-clock-hour-4" style="font-size:14px;"></i>
+                </div>
+            </div>
+            <div class="fw-bold mb-1" style="font-size:26px;" id="stat-pending">@Model.PendingCbCount</div>
+            <div class="opacity-75" style="font-size:11px;">Awaiting review</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card-hover rounded-3 p-3 text-white" style="background:#457031">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <span class="small fw-semibold opacity-75 text-uppercase" style="font-size:11px;">Exceptional Approval</span>
+                <div class="rounded-2 d-flex align-items-center justify-content-center"
+                     style="width:28px;height:28px;background:rgba(255,255,255,0.15)">
+                    <i class="ti ti-star" style="font-size:14px;"></i>
+                </div>
+            </div>
+            <div class="fw-bold mb-1" style="font-size:26px;" id="stat-special">@Model.SpecialApprovalCount</div>
+            <div class="opacity-75" style="font-size:11px;">Same-day deposit</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card-hover rounded-3 p-3 text-white" style="background:#8F7421">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <span class="small fw-semibold opacity-75 text-uppercase" style="font-size:11px;">Approved</span>
+                <div class="rounded-2 d-flex align-items-center justify-content-center"
+                     style="width:28px;height:28px;background:rgba(255,255,255,0.15)">
+                    <i class="ti ti-check" style="font-size:14px;"></i>
+                </div>
+            </div>
+            <div class="fw-bold mb-1" style="font-size:26px;" id="stat-approved">@Model.ApprovedCount</div>
+            <div class="opacity-75" style="font-size:11px;" id="stat-approved-diff">+@Model.ApprovedCountDiff from last month</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card-hover rounded-3 p-3 text-white" style="background:#EF9F27">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <span class="small fw-semibold opacity-75 text-uppercase" style="font-size:11px;">Total processed</span>
+                <div class="rounded-2 d-flex align-items-center justify-content-center"
+                     style="width:28px;height:28px;background:rgba(255,255,255,0.15)">
+                    <i class="ti ti-lock" style="font-size:14px;"></i>
+                </div>
+            </div>
+            <div class="fw-bold mb-1" style="font-size:26px;" id="stat-total">UGX @Model.TotalProcessed.ToString("N0")</div>
+            <div class="opacity-75" style="font-size:11px;">@DateTime.Now.ToString("MMMM yyyy")</div>
+        </div>
+    </div>
+</div>
+
+@* Requests Table *@
+<div class="">
+    <div class="card border-0 shadow-sm">
+        <div class="card-header greene-card-header bg-white d-flex align-items-center gap-2 py-2">
+            <i class="ti ti-layout-list text-muted"></i>
+            <span class="fw-semibold text-uppercase">Deposit Requests</span>
+        </div>
+
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="requestsTable" class="table align-middle mb-0">
+                    <thead>
+                        <tr style="background:linear-gradient(90deg,#0d6e3e,#1a8a5a,#BA7517)">
+                            <th class="text-white fw-semibold" style="font-size:11px;">Transaction Ref no.</th>
+                            <th class="text-white fw-semibold" style="font-size:11px;">CB</th>
+                            <th class="text-white fw-semibold" style="font-size:11px;">BOU Branch</th>
+                            <th class="text-white fw-semibold" style="font-size:11px;">Deposit date</th>
+                            <th class="text-white fw-semibold" style="font-size:11px;">Amount (UGX)</th>
+                            <th class="text-white fw-semibold" style="font-size:11px;">Status</th>
+                            <th class="text-white fw-semibold" style="font-size:11px;">Expectional Approval</th>
+                            <th class="text-white" style="font-size:11px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.Requests)
+                        {
+                            <tr class="border-bottom">
+                                <td>@row.TransactionRefNumber</td>
+                                <td>@row.CbName</td>
+                                <td>@row.BouBranchCode</td>
+                                <td class="small">@row.CollectionDate.ToString("dd MMM yyyy")</td>
+                                <td class="fw-semibold small">@row.Amount.ToString("N0")</td>
+                                <td>
+                                    <span class="badge bg-primary rounded-pill px-2 py-1">
+                                        <i class="ti ti-badge me-1"></i>@row.StatusTypeName
+                                    </span>
+                                </td>
+                                <td>
+                                    @if (row.RequiresSpecialApproval)
+                                    {
+                                        <span class="badge rounded-pill bg-secondary px-2 py-1">
+                                            <i class="ti ti-star me-1"></i>Yes
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td>
+                                    <a asp-action="Details" asp-route-id="@row.Id"
+                                       class="btn btn-sm btn-outline-info d-flex align-items-center gap-1"
+                                       style="font-size:11px;">
+                                        <i class="ti ti-eye"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                        @if (!Model.Requests.Any())
+                        {
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-4 small">
+                                    <i class="ti ti-inbox me-1"></i> No deposit requests found.
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $('#requestsTable').DataTable({
+            order: [[3, 'desc']],
+            pageLength: 25,
+            columnDefs: [
+                { orderable: false, targets: [1, 5, 6, 7] }
+            ]
+        });
+
+        document.querySelectorAll('.location-pill:not(.locked)').forEach(pill => {
+            pill.addEventListener('click', () => {
+                document.querySelectorAll('.location-pill').forEach(p => p.classList.remove('active'));
+                pill.classList.add('active');
+
+                const branch = pill.dataset.branch;
+                const url = branch
+                    ? `/DepositRequests/Stats?branchCode=${encodeURIComponent(branch)}`
+                    : `/DepositRequests/Stats`;
+
+                fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(r => r.json())
+                    .then(d => {
+                        document.getElementById('stat-pending').textContent  = d.pendingCbCount;
+                        document.getElementById('stat-special').textContent  = d.specialApprovalCount;
+                        document.getElementById('stat-approved').textContent = d.approvedCount;
+                        document.getElementById('stat-approved-diff').textContent = `+${d.approvedCountDiff} from last month`;
+                        document.getElementById('stat-total').textContent    = `UGX ${d.totalProcessed.toLocaleString()}`;
+                    })
+                    .catch(console.error);
+            });
+        });
+    </script>
+}

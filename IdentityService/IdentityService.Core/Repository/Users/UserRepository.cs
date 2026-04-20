@@ -266,5 +266,20 @@ namespace IdentityService.Core.Repository.Users
         {
             throw new NotImplementedException();
         }
+
+        public async Task<RecipientViewModel> GetRecipientByEmail(string email)
+        {
+            var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Email == email);
+            if (user == null)
+            {
+                return null;
+            }
+            return new RecipientViewModel
+            {
+                UserId = user.Id,
+                Email = user.Email,
+                DisplayName = $"{user.FirstName} {user.LastName}".Trim()
+            };
+        }
     }
 }

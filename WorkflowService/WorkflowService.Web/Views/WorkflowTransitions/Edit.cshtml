@@ -120,6 +120,50 @@
 
                     <hr />
 
+                    <!-- Notification Settings -->
+                    <h6 class="mb-3"><i class="ti ti-bell me-1"></i>Notification Settings</h6>
+
+                    <!-- Send Notification -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input asp-for="SendNotification" type="checkbox" class="form-check-input" id="SendNotification" />
+                            <label class="form-check-label" for="SendNotification">
+                                Send Email Notification
+                            </label>
+                        </div>
+                        <small class="form-hint d-block mt-2">Check to send an email notification when this transition is performed</small>
+                    </div>
+
+                    <!-- Notification Recipients (shown when SendNotification is checked) -->
+                    <div id="notificationRecipientsSection" class="d-none">
+                        <!-- Notification Roles (Multi-select) -->
+                        <div class="mb-3">
+                            <label class="form-label">Notification Recipient Roles</label>
+                            <select id="NotificationRoleIds" name="SelectedNotificationRoleIds" class="form-select" multiple size="4">
+                                @foreach (var role in Model.RequiredRoleList)
+                                {
+                                    var isSelected = Model.SelectedNotificationRoleIds.Contains(int.Parse(role.Value));
+                                    <option value="@role.Value" selected="@isSelected">@role.Text</option>
+                                }
+                            </select>
+                            <small class="form-hint">Hold Ctrl/Cmd to select multiple roles that should receive the notification</small>
+                        </div>
+
+                        <!-- Notification Emails (Tag-style input) -->
+                        <div class="mb-3">
+                            <label class="form-label">Notification Email Addresses</label>
+                            <div class="border rounded p-2" id="emailTagsContainer" style="min-height: 42px; cursor: text;">
+                                <span id="emailTags"></span>
+                                <input type="email" id="emailInput" class="border-0 outline-0 flex-grow-1" style="outline: none; min-width: 200px;" placeholder="Type an email and press Enter" />
+                            </div>
+                            <input type="hidden" id="NotificationEmails" name="NotificationEmails" value="@Model.NotificationEmails" />
+                            <div id="emailValidationError" class="text-danger small d-none">Please enter a valid email address.</div>
+                            <small class="form-hint">Type an email address and press Enter or comma to add it</small>
+                        </div>
+                    </div>
+
+                    <hr />
+
                     <!-- Form Actions -->
                     <div class="form-footer">
                         <a href="@Url.Action("Index", "WorkflowTransitions", new { applicationId })" class="btn btn-secondary"><i class="ti ti-arrow-left me-1"></i>Cancel</a>
@@ -162,4 +206,91 @@
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // --- Notification toggle ---
+            const sendNotificationCheckbox = document.getElementById('SendNotification');
+            const notificationSection = document.getElementById('notificationRecipientsSection');
+
+            function toggleNotificationSection() {
+                if (sendNotificationCheckbox.checked) {
+                    notificationSection.classList.remove('d-none');
+                } else {
+                    notificationSection.classList.add('d-none');
+                }
+            }
+
+            sendNotificationCheckbox.addEventListener('change', toggleNotificationSection);
+            toggleNotificationSection();
+
+            // --- Email tags input ---
+            const emailInput = document.getElementById('emailInput');
+            const emailTagsContainer = document.getElementById('emailTagsContainer');
+            const emailTagsSpan = document.getElementById('emailTags');
+            const hiddenEmailField = document.getElementById('NotificationEmails');
+            const emailValidationError = document.getElementById('emailValidationError');
+
+            // Initialize from existing value
+            const emailList = hiddenEmailField.value
+                ? hiddenEmailField.value.split(',').map(e => e.trim()).filter(e => e)
+                : [];
+
+            const emailRegex = /^[^\s@@]+@@[^\s@@]+\.[^\s@@]+$/;
+
+            function renderTags() {
+                emailTagsSpan.innerHTML = '';
+                emailList.forEach((email, index) => {
+                    const tag = document.createElement('span');
+                    tag.className = 'badge bg-primary me-1 mb-1';
+                    tag.style.fontSize = '0.85em';
+                    tag.innerHTML = email + ' <span class="ms-1" style="cursor:pointer;" data-index="' + index + '">&times;</span>';
+                    tag.querySelector('span').addEventListener('click', function () {
+                        emailList.splice(index, 1);
+                        renderTags();
+                    });
+                    emailTagsSpan.appendChild(tag);
+                });
+                hiddenEmailField.value = emailList.join(',');
+            }
+
+            function addEmail(value) {
+                const email = value.trim();
+                if (!email) return;
+                if (!emailRegex.test(email)) {
+                    emailValidationError.classList.remove('d-none');
+                    return;
+                }
+                emailValidationError.classList.add('d-none');
+                if (!emailList.includes(email)) {
+                    emailList.push(email);
+                    renderTags();
+                }
+                emailInput.value = '';
+            }
+
+            emailInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    addEmail(emailInput.value.replace(',', ''));
+                }
+                if (e.key === 'Backspace' && emailInput.value === '' && emailList.length > 0) {
+                    emailList.pop();
+                    renderTags();
+                }
+            });
+
+            emailInput.addEventListener('blur', function () {
+                if (emailInput.value.trim()) {
+                    addEmail(emailInput.value);
+                }
+            });
+
+            emailTagsContainer.addEventListener('click', function () {
+                emailInput.focus();
+            });
+
+            // Render existing tags on load
+            renderTags();
+        });
+    </script>
 }

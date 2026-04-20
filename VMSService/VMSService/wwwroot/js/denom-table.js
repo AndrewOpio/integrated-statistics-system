@@ -1,138 +1,302 @@
 ﻿(function () {
     const BUNDLE_SIZE = 1000;
-    const MAX_BUNDLES = 1000;
-    const bundles = {};  // keyed by d.id to avoid value clashes (e.g. 1000 note vs 1000 coin)
-
+    const fmt = n => 'UGX ' + Math.round(n).toLocaleString();
     const $ = id => document.getElementById(id);
-    const fmtN = n => Math.round(n).toLocaleString();
-    const fmt = n => 'UGX ' + fmtN(n);
 
-    // amount uses id to look up bundles, value for multiplication
-    const amount = (id, value) => (bundles[id] || 0) * BUNDLE_SIZE * value;
-    const noteTotal = () => window.denomData.notes.reduce((s, d) => s + amount(d.id, d.value), 0);
-    const coinTotal = () => window.denomData.coins.reduce((s, d) => s + amount(d.id, d.value), 0);
-    const grandTotal = () => noteTotal() + coinTotal();
+    // Track state per row: { denomId, typeId, denomValue, qty, amount, type }
+    const rows = {};
+    const usedValues = { notes: new Set(), coins: new Set() };
+    let rid = 0;
 
-    function buildRows(denoms, listId, type) {
-        denoms.forEach(d => bundles[d.id] = 0);
-        $(listId).innerHTML = denoms.map(d => `
-            <tr>
-                <td class="ps-3">
-                    <span class="fw-bold">${d.label}</span>
-                </td>
-                <td style="min-width:200px;">
-                    <div class="d-flex align-items-center gap-2">
-                        <input type="range"
-                               class="form-range flex-grow-1"
-                               id="dt-slider-${d.id}"
-                               min="0" max="${MAX_BUNDLES}" value="0" step="1"
-                               oninput="dtSlide('${d.id}', ${d.value}, '${type}', this.value)" />
-                        <input type="number"
-                               class="form-control form-control-sm text-center"
-                               id="dt-qty-${d.id}"
-                               min="0" max="${MAX_BUNDLES}" value="0"
-                               style="width:70px;"
-                               oninput="dtInput('${d.id}', ${d.value}, '${type}', this.value)" />
-                        <span class="text-muted small text-nowrap">bundle</span>
-                    </div>
-                </td>
-                <td class="text-end pe-3">
-                    <span class="fw-bold ${type === 'note' ? 'text-primary' : 'text-warning'}"
-                          id="dt-sub-${d.id}">—</span>
-                </td>
-            </tr>`).join('');
+    // ── Current mode ──────────────────────────────────────────
+    let currentMode = 'lumpsum'; // 'breakdown' | 'lumpsum'
+    let lumpSumValue = 0;
+
+    // ── Mode Switching ────────────────────────────────────────
+    window.setDenomMode = function (mode) {
+        if (mode === currentMode) return;
+        if ($(`mode-radio-${mode}`)?.disabled) return;
+        currentMode = mode;
+        const isBreakdown = mode === 'breakdown';
+        $('denom-breakdown-section').style.display = isBreakdown ? '' : 'none';
+        $('denom-lumpsum-section').style.display = isBreakdown ? 'none' : '';
+        $('denom-add-buttons').classList.toggle('d-none', !isBreakdown); 
+        if (isBreakdown) clearLumpSum();
+        else clearBreakdown();
+        refreshTotals();
+    };
+
+    // ── Clear helpers ─────────────────────────────────────────
+    function clearLumpSum() {
+        lumpSumValue = 0;
+        const inp = $('lumpSumInput');
+        if (inp) inp.value = '';
+        showLumpSumError(false);
     }
 
-    window.dtSlide = function (id, value, type, val) {
-        bundles[id] = parseInt(val) || 0;
-        $('dt-qty-' + id).value = bundles[id];
+    function clearBreakdown() {
+        ['notes', 'coins'].forEach(type => {
+            Object.keys(rows)
+                .filter(id => rows[id].type === type)
+                .forEach(id => denomRemoveRow(id, type));
+        });
+    }
+
+    // ── Lump Sum Input ────────────────────────────────────────
+    window.onLumpSumInput = function (val) {
+        const n = parseInt(val) || 0;
+        const valid = n > 0 && n % BUNDLE_SIZE === 0;
+        showLumpSumError(n > 0 && !valid);
+        lumpSumValue = valid ? n : 0;
         refreshTotals();
-        notifyParent();
     };
 
-    window.dtInput = function (id, value, type, val) {
-        bundles[id] = Math.min(MAX_BUNDLES, Math.max(0, parseInt(val) || 0));
-        $('dt-qty-' + id).value = bundles[id];
-        $('dt-slider-' + id).value = bundles[id];
-        refreshTotals();
-        notifyParent();
+    function showLumpSumError(show) {
+        const err = $('lumpSumError');
+        const hint = $('lumpSumHint');
+        if (!err) return;
+        err.style.setProperty('display', show ? 'block' : 'none', 'important');
+        if (hint) hint.style.display = show ? 'none' : '';
+    }
+
+    // ── Add Row ───────────────────────────────────────────────
+    window.denomAddRow = function (type) {
+        const denoms = type === 'notes'
+            ? window.denomData.notes
+            : window.denomData.coins;
+
+        const available = denoms.filter(d => !usedValues[type].has(d.value));
+        if (!available.length) { alert('All denominations have been added.'); return; }
+
+        const id = `${type}-${++rid}`;
+        rows[id] = { denomId: null, typeId: null, denomValue: 0, qty: 0, amount: 0, type };
+
+        const tbody = $(`denom-${type}-body`);
+        const empty = tbody.querySelector('.denom-empty-row');
+        if (empty) empty.remove();
+
+        const unitLabel = type === 'notes' ? 'bundle' : 'box';
+
+        const optHtml = '<option value="">— Select denomination —</option>'
+            + denoms.map(d =>
+                `<option value="${d.value}"
+                         data-denom-id="${d.id}"
+                         data-type-id="${d.typeId}"
+                         ${usedValues[type].has(d.value) ? 'disabled' : ''}>
+                    ${d.label}
+                </option>`).join('');
+
+        const tr = document.createElement('tr');
+        tr.id = `denom-row-${id}`;
+        tr.className = 'border-bottom';
+        tr.innerHTML = `
+            <td class="px-4 py-2">
+                <select class="form-select form-select-sm"
+                        id="denom-sel-${id}"
+                        onchange="denomOnSel('${id}','${type}',this)">
+                    ${optHtml}
+                </select>
+            </td>
+            <td class="px-4 py-2">
+                <input class="form-control form-control-sm text-end"
+                       id="denom-amt-inp-${id}"
+                       type="number" min="0" placeholder="0"
+                       oninput="denomOnAmountInput('${id}','${type}',this)" />
+                <small id="denom-amt-err-${id}" class="text-danger mt-1 d-none">
+                    <i class="ti ti-alert-circle me-1"></i>
+                    Must be a whole ${unitLabel} — no partial amounts.
+                </small>
+            </td>
+            <td class="px-4 py-2 text-end fw-bold text-muted" id="denom-qty-${id}">—</td>
+            <td class="px-2 py-2 text-center">
+                <button type="button" class="btn btn-link text-danger p-0"
+                        onclick="denomRemoveRow('${id}','${type}')">
+                    <i class="ti ti-trash fs-5"></i>
+                </button>
+            </td>`;
+        tbody.appendChild(tr);
+        return id;
     };
 
-    function refreshTotals() {
-        // Row subtotals
-        [...window.denomData.notes, ...window.denomData.coins].forEach(d => {
-            const sub = $('dt-sub-' + d.id);
-            if (!sub) return;
-            const a = amount(d.id, d.value);
-            sub.textContent = a > 0 ? fmt(a) : '—';
+    // ── On Denomination Selected ──────────────────────────────
+    window.denomOnSel = function (id, type, sel) {
+        const opt = sel.options[sel.selectedIndex];
+        const newVal = parseInt(sel.value) || 0;
+        const prevVal = rows[id]?.denomValue || 0;
+
+        if (prevVal) usedValues[type].delete(prevVal);
+        if (newVal) usedValues[type].add(newVal);
+
+        rows[id].denomValue = newVal;
+        rows[id].denomId = parseInt(opt.dataset.denomId) || 0;
+        rows[id].typeId = parseInt(opt.dataset.typeId) || 0;
+
+        // Re-validate already-entered amount against new denomination
+        const inp = $(`denom-amt-inp-${id}`);
+        if (inp && inp.value) denomOnAmountInput(id, type, inp);
+
+        refreshSelects(type);
+        refreshTotals();
+    };
+
+    // ── On Amount Input ───────────────────────────────────────
+    window.denomOnAmountInput = function (id, type, el) {
+        const r = rows[id];
+        const enteredAmt = parseInt(el.value) || 0;
+        const err = $(`denom-amt-err-${id}`);
+        const qtyEl = $(`denom-qty-${id}`);
+        const unitLabel = type === 'notes' ? 'bundle' : 'box';
+
+        // Need a denomination selected first
+        if (!r.denomValue) {
+            err.classList.remove('d-none');
+            err.innerHTML = '<i class="ti ti-alert-circle me-1"></i>Select a denomination first.';
+            r.amount = 0; r.qty = 0;
+            qtyEl.textContent = '—';
+            qtyEl.className = 'px-4 py-2 text-end fw-bold text-muted';
+            refreshTotals();
+            return;
+        }
+
+        const bundleValue = r.denomValue * BUNDLE_SIZE;
+        const valid = enteredAmt > 0 && enteredAmt % bundleValue === 0;
+
+        if (enteredAmt > 0 && !valid) {
+            err.classList.remove('d-none');
+            err.innerHTML = `<i class="ti ti-alert-circle me-1"></i>
+                Amount must be a multiple of UGX ${bundleValue.toLocaleString()} (1 ${unitLabel}).`;
+            r.amount = 0; r.qty = 0;
+            qtyEl.textContent = '—';
+            qtyEl.className = 'px-4 py-2 text-end fw-bold text-muted';
+        } else {
+            err.classList.add('d-none');
+            r.amount = enteredAmt;
+            r.qty = valid ? enteredAmt / bundleValue : 0;
+            if (r.qty > 0) {
+                qtyEl.textContent = r.qty.toLocaleString();
+                qtyEl.className = `px-4 py-2 text-end fw-bold ${type === 'notes' ? 'text-primary' : 'text-warning'}`;
+            } else {
+                qtyEl.textContent = '—';
+                qtyEl.className = 'px-4 py-2 text-end fw-bold text-muted';
+            }
+        }
+
+        refreshTotals();
+    };
+
+    // ── Remove Row ────────────────────────────────────────────
+    window.denomRemoveRow = function (id, type) {
+        const val = rows[id]?.denomValue || 0;
+        if (val) usedValues[type].delete(val);
+        delete rows[id];
+
+        $(`denom-row-${id}`)?.remove();
+        refreshSelects(type);
+
+        const tbody = $(`denom-${type}-body`);
+        if (!tbody.querySelector('tr[id]')) {
+            const tr = document.createElement('tr');
+            tr.className = 'denom-empty-row';
+            tr.innerHTML = `<td colspan="4" class="text-center py-3 text-muted small">
+                No ${type === 'notes' ? 'banknotes' : 'coins'} added</td>`;
+            tbody.appendChild(tr);
+        }
+
+        refreshTotals();
+    };
+
+    // ── Pre-fill rows from saved denominations (edit page) ────
+    window.preFillDenoms = function () {
+        if (!window.savedDenoms?.length) return;
+
+        window.savedDenoms.forEach(saved => {
+            const isNote = window.denomData.notes.some(d => d.id === saved.id);
+            const type = isNote ? 'notes' : 'coins';
+            const qty = saved.bundles ?? saved.boxes ?? 0;
+            if (!qty) return;
+
+            const allDenoms = [...window.denomData.notes, ...window.denomData.coins];
+            const denom = allDenoms.find(d => d.id === saved.id);
+            if (!denom) return;
+
+            const rowId = window.denomAddRow(type);
+            const sel = $(`denom-sel-${rowId}`);
+            if (sel) { sel.value = denom.value; denomOnSel(rowId, type, sel); }
+
+            const bundleValue = denom.value * BUNDLE_SIZE;
+            const amt = qty * bundleValue;
+            const inp = $(`denom-amt-inp-${rowId}`);
+            if (inp) { inp.value = amt; denomOnAmountInput(rowId, type, inp); }
         });
 
-        const nt = noteTotal(), ct = coinTotal(), gt = grandTotal();
+        refreshTotals();
+    };
 
-        // Badges
-        $('dt-notes-badge').textContent = fmt(nt);
-        $('dt-coins-badge').textContent = fmt(ct);
-
-        // Totals
-        $('dt-notes-total').textContent = fmt(nt);
-        $('dt-coins-total').textContent = fmt(ct);
-        $('dt-grand-total').textContent = fmt(gt);
-        $('dt-grand-words').textContent = toWords(gt);
-
-        // Breakdowns
-        const noteParts = window.denomData.notes
-            .filter(d => bundles[d.id] > 0)
-            .map(d => `${d.label} × ${bundles[d.id]} bdl`);
-        const coinParts = window.denomData.coins
-            .filter(d => bundles[d.id] > 0)
-            .map(d => `${d.label} × ${bundles[d.id]} bdl`);
-
-        $('dt-notes-breakdown').textContent = noteParts.length ? noteParts.join(' · ') : 'No notes selected';
-        $('dt-coins-breakdown').textContent = coinParts.length ? coinParts.join(' · ') : 'No coins selected';
+    // ── Refresh disabled options across all selects ───────────
+    function refreshSelects(type) {
+        document.querySelectorAll(`#denom-${type}-body .form-select`).forEach(sel => {
+            const curVal = rows[sel.id.replace('denom-sel-', '')]?.denomValue || 0;
+            Array.from(sel.options).forEach(o => {
+                if (!o.value) return;
+                o.disabled = usedValues[type].has(parseInt(o.value))
+                    && parseInt(o.value) !== curVal;
+            });
+        });
     }
 
-    // ── Amount in words ───────────────────────────────────────
-    const ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
-        'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
-        'Seventeen', 'Eighteen', 'Nineteen'];
-    const TENS = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    // ── Refresh totals ────────────────────────────────────────
+    function refreshTotals() {
+        if (currentMode === 'lumpsum') {
+            $('denom-note-sub').textContent = fmt(0);
+            $('denom-coin-sub').textContent = fmt(0);
+            $('denom-t-notes').textContent = fmt(0);
+            $('denom-t-coins').textContent = fmt(0);
+            $('denom-g-val').textContent = fmt(lumpSumValue);
+            $('denom-g-words').textContent = toWords(lumpSumValue);
+            document.dispatchEvent(new CustomEvent('denomChanged', {
+                detail: { grandTotal: lumpSumValue, mode: 'lumpsum' }
+            }));
+            return;
+        }
 
-    function wordsUnder1000(n) {
-        if (n === 0) return '';
-        if (n < 20) return ONES[n];
-        if (n < 100) return TENS[Math.floor(n / 10)] + (n % 10 ? ' ' + ONES[n % 10] : '');
-        return ONES[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + wordsUnder1000(n % 100) : '');
-    }
+        const noteAmt = Object.values(rows)
+            .filter(r => r.type === 'notes')
+            .reduce((s, r) => s + (r.amount || 0), 0);
 
-    function toWords(n) {
-        if (n === 0) return 'Zero shillings only';
-        const parts = [];
-        const trillions = Math.floor(n / 1_000_000_000_000); n %= 1_000_000_000_000;
-        const billions = Math.floor(n / 1_000_000_000); n %= 1_000_000_000;
-        const millions = Math.floor(n / 1_000_000); n %= 1_000_000;
-        const thousands = Math.floor(n / 1_000); n %= 1_000;
-        if (trillions) parts.push(wordsUnder1000(trillions) + ' Trillion');
-        if (billions) parts.push(wordsUnder1000(billions) + ' Billion');
-        if (millions) parts.push(wordsUnder1000(millions) + ' Million');
-        if (thousands) parts.push(wordsUnder1000(thousands) + ' Thousand');
-        if (n) parts.push(wordsUnder1000(n));
-        return parts.join(' ') + ' shillings only';
-    }
+        const coinAmt = Object.values(rows)
+            .filter(r => r.type === 'coins')
+            .reduce((s, r) => s + (r.amount || 0), 0);
 
-    window.dtGetBundles = () => ({ ...bundles });
-    window.dtGetGrandTotal = () => grandTotal();
-    window.dtHasValue = () => grandTotal() > 0;
-    window.dtShowError = () => $('dt-err-notes').style.removeProperty('display');
-    window.dtHideError = () => $('dt-err-notes').style.display = 'none';
+        const grand = noteAmt + coinAmt;
 
-    function notifyParent() {
+        $('denom-note-sub').textContent = fmt(noteAmt);
+        $('denom-coin-sub').textContent = fmt(coinAmt);
+        $('denom-t-notes').textContent = fmt(noteAmt);
+        $('denom-t-coins').textContent = fmt(coinAmt);
+        $('denom-g-val').textContent = fmt(grand);
+        $('denom-g-words').textContent = toWords(grand);
         document.dispatchEvent(new CustomEvent('denomChanged', {
-            detail: { grandTotal: grandTotal(), bundles: { ...bundles } }
+            detail: { grandTotal: grand, mode: 'breakdown' }
         }));
     }
 
-    // ── Init ──────────────────────────────────
-    buildRows(window.denomData.notes, 'dt-list-notes', 'note');
-    buildRows(window.denomData.coins, 'dt-list-coins', 'coin');
-    refreshTotals();
+    // ── Public API ────────────────────────────────────────────
+    window.dtGetMode = () => currentMode;
+    window.dtGetLumpSum = () => lumpSumValue;
+    window.dtHasValue = () => currentMode === 'lumpsum'
+        ? lumpSumValue > 0
+        : Object.values(rows).some(r => r.amount > 0 && r.denomValue > 0);
+    window.dtGetRows = () => ({ ...rows });
+
+    // ── Init on load ──────────────────────────────────────────
+    function initDenomSection() {
+        $('denom-breakdown-section').style.display = 'none';
+        $('denom-lumpsum-section').style.display = '';
+        $('denom-add-buttons').classList.add('d-none'); // ← changed
+        currentMode = 'lumpsum';
+        if (window.savedDenoms?.length) preFillDenoms();
+    }
+
+    document.addEventListener('DOMContentLoaded', initDenomSection);
+
 })();

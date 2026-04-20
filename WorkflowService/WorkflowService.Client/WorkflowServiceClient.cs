@@ -198,6 +198,7 @@ namespace WorkflowService.Client
         /// <returns>The requested status type</returns>
         public async Task<StatusTypeDto> FindStatusById(int statusId)
         {
+            _logger.LogInformation("Status code: {Status}", statusId);
             try
             {
                 // Validate input parameters
@@ -207,6 +208,7 @@ namespace WorkflowService.Client
                     return new StatusTypeDto();
                 }
 
+                _logger.LogInformation("Status code: {Status} before response: ", statusId);
                 var response = await _httpClient.GetAsync($"/api/statustype/by-id?statusId={statusId}");
 
                 if (response.IsSuccessStatusCode)
@@ -222,6 +224,30 @@ namespace WorkflowService.Client
             {
                 _logger.LogError(ex, "Error getting status type by ID for statusId {StatusId}", statusId);
                 return new StatusTypeDto();
+            }
+        }
+
+        public async Task<List<WorkflowTransitionDto>> GetAvailableTransitionsAsync(string entityType, int statusId, int userRole)
+        {
+            try
+            {
+                var requestData = new GetAvailableTransitionsRequestDto
+                {
+                    ApplicationAcronym = "Myapp",
+                    EntityTypeName = entityType,
+                    CurrentStatusId = statusId,
+                    AppRole = userRole,
+                };
+
+                return await this.GetAvailableTransitions(requestData)
+                       ?? new List<WorkflowTransitionDto>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Error fetching available transitions for {EntityType} status {StatusId}",
+                    entityType, statusId);
+                return new List<WorkflowTransitionDto>();
             }
         }
     }

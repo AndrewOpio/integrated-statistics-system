@@ -32,6 +32,7 @@
                     <th class="">Required Role</th>
                     <th class="">Button Class</th>
                     <th class="">Comments Required</th>
+                    <th class="">Notification</th>
                     <th class="">Status</th>
                     <th class="rounded-end">Actions</th>
                 </tr>
@@ -47,7 +48,7 @@
                                 <span class="badge bg-info">@transition.FromStatusName</span>
                             </td>
                             <td class="px-1">
-                                <a href="@Url.Action("Details", "WorkflowTransitions", new { id = transition.Id })" class="btn btn-gray-200">
+                            <a href="@Url.Action("Details", "WorkflowTransitions", new { id = transition.Id, applicationId = @ViewBag.ApplicationId })" class="btn btn-gray-200">
                                     <strong>@transition.ActionName</strong>
                                     <br />
                                     <small class="text-muted">@transition.DisplayLabel</small>
@@ -75,6 +76,18 @@
                                 }
                             </td>
                             <td class="px-1">
+                                @if (transition.SendNotification)
+                                {
+                                    <span class="badge badge-pill bg-info" title="@(string.Join(", ", transition.NotificationRoleNames.Concat(transition.NotificationEmailList)))">
+                                        <i class="ti ti-bell me-1"></i>Yes
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-pill bg-secondary">No</span>
+                                }
+                            </td>
+                            <td class="px-1">
                                 @if (transition.IsActive)
                                 {
                                     <span class="badge badge-pill bg-success">Active</span>
@@ -85,14 +98,6 @@
                                 }
                             </td>
                             <td class="px-1">
-                                @* <div class="btn-list flex-nowrap">
-                                    <a href="@Url.Action("Edit", "WorkflowTransitions", new { id = transition.Id })" class="btn btn-icon btn-ghost-primary" title="Edit">
-                                        <i class="ti ti-edit"></i>
-                                    </a>
-                                    <a href="@Url.Action("Delete", "WorkflowTransitions", new { id = transition.Id })" class="btn btn-icon btn-ghost-danger" title="Delete">
-                                        <i class="ti ti-trash"></i>
-                                    </a>
-                                </div> *@
                                 <div class="btn-group" role="group">
                                 <a asp-action="Details" asp-route-id="@transition.Id" asp-route-applicationId="@ViewBag.ApplicationId" class="btn btn-sm btn-outline-info" title="View Details">
                                         <i class="ti ti-eye"></i>

@@ -1,4 +1,5 @@
-﻿using VMSService.Data.AuditColumns;
+﻿using ConfigurationsService.Client;
+using VMSService.Data.AuditColumns;
 
 namespace VMSService.Core.Services.Stocks.StockEntities
 {
@@ -6,14 +7,13 @@ namespace VMSService.Core.Services.Stocks.StockEntities
     {
         public int Id { get; set; }
         public string ReferenceCode { get; set; }
+        public int StockMovementId { get; set; }
         public bool IsIn { get; set; }
         public int CounterPartyTypeId { get; set; }
         public CounterPartyType? CounterPartyType { get; set; }
         public int CounterPartyId { get; set; }
         public int StoreId { get; set; }
-        //public Branch? Store { get; set; }
-        //public int CategoryId { get; set; }
-        //public Category? Category { get; set; }
+        public BranchDto? Store { get; set; }
         public string Notes { get; set; }
         public ICollection<StockLedgerDetail> StockLedgerDetails { get; set; }
     }

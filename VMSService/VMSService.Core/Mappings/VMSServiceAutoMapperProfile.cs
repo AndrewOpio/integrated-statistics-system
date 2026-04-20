@@ -13,7 +13,9 @@ using VMSService.Core.Models.Denominations;
 using VMSService.Core.Models.DenominationTypes;
 using VMSService.Core.Models.ExPrintMints;
 using VMSService.Core.Models.ExPrintMintStatusHistories;
+using VMSService.Core.Models.ExPrintMintDetails;
 using VMSService.Core.Models.ReceivedStocks;
+using VMSService.Core.Models.ReceivedStocksDetails;
 using VMSService.Core.Models.ReceivedStockStatusHistories;
 using VMSService.Core.Models.StockLedgers;
 using VMSService.Core.Models.VendorTypes;
@@ -22,6 +24,8 @@ using VMSService.Data.Entities;
 using VMSService.Core.Services.Identity.IdentityEntities;
 using VMSService.Core.Models.AgentDetails;
 using ConfigurationsService.Dto;
+using VMSService.Core.Model.AgentDetailStatusHistories;
+using VMSService.Core.Models.CbDepositRequest;
 
 namespace VMSService.Core.Mappings
 {
@@ -36,9 +40,11 @@ namespace VMSService.Core.Mappings
             CreateMap<ApprovedCurrencyProcurement, ApprovedCurrencyProcurementsViewModel>().ReverseMap();
             CreateMap<ApprovedCurrencyDenomination, ApprovedCurrencyDenominationViewModel>().ReverseMap();
             CreateMap<ExPrintMint, ExPrintMintViewModel>().ReverseMap();
+            CreateMap<ExPrintMintDetail, ExPrintMintDetailViewModel>().ReverseMap();
             CreateMap<ExPrintMintStatusHistory, ExPrintMintStatusHistoryViewModel>().ReverseMap();
             CreateMap<ApprovedCurrencyStatusHistory, ApprovedCurrencyStatusHistoryViewModel>().ReverseMap();
             CreateMap<ReceivedStock, ReceivedStockViewModel>().ReverseMap();
+            CreateMap<ReceivedStockDetails, ReceivedStockDetailViewModel>().ReverseMap();
             CreateMap<ReceivedStockStatusHistory, ReceivedStockStatusHistoryViewModel>().ReverseMap();
 
             // StockLedgerDetail mappings
@@ -62,9 +68,11 @@ namespace VMSService.Core.Mappings
                 .ReverseMap();
 
             CreateMap<CommercialBankDto, CommercialBankViewModel>().ReverseMap();
-            CreateMap<CommercialBankUser, CommercialBankUserViewModel>().ReverseMap();
             CreateMap<NonStaffUser, NonStaffUserViewModel>().ReverseMap();
             CreateMap<AgentDetail, AgentDetailViewModel>().ReverseMap();
+            CreateMap<AgentDetailStatusHistory, AgentDetailStatusHistoryViewModel>().ReverseMap();
+            CreateMap<DepositRequest, DepositRequestDetailsViewModel>().ReverseMap();
+            CreateMap<DepositRequestStatusHistory, DepositRequestStatusHistoryViewModel>().ReverseMap();
         }
     }
 }

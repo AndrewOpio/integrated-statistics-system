@@ -12,5 +12,6 @@ namespace IdentityService.Core.Repository.Users
         Task<IdentityResult> Create(User model, string password);
         Task<IdentityResult> ResetPassword(string userId, string newPassword);
         Task<IdentityResult> ChangePassword(string userId, string currentPassword, string newPassword);
+        Task<RecipientViewModel> GetRecipientByEmail(string email);
     }
 }

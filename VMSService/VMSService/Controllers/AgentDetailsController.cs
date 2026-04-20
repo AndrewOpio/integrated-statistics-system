@@ -1,15 +1,23 @@
 using AutoMapper;
 using ConfigurationsService.Dto;
+using MassTransit.Middleware;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using SmartBreadcrumbs.Attributes;
 using System.Security.Claims;
+using VMSService.Core.Model.AgentDetailStatusHistories;
 using VMSService.Core.Models.AgentDetails;
 using VMSService.Core.Repositories.AgentDetails;
+using VMSService.Core.Repositories.AgentDetailStatusHistories;
 using VMSService.Core.Repositories.CommercialBankUsers;
 using VMSService.Core.Services.Configurations;
+using VMSService.Core.Services.Workflows;
+using VMSService.Core.Static;
 using VMSService.Data.Entities;
+using WorkflowService.Client;
+using WorkflowService.Client.Dto;
 
 namespace VMSService.Controllers
 {
@@ -21,7 +29,10 @@ namespace VMSService.Controllers
         IWebHostEnvironment _webHostEnvironment,
         ILogger<AgentDetailsController> _logger,
         IHttpContextAccessor _httpContextAccessor,
-        ICommercialBankUserRepository _commercialBankUserRepo) : Controller
+        ICommercialBankUserRepository _commercialBankUserRepo,
+        IWorkflowService _workflowService,
+        IWorkflowServiceClient _workflowServiceClient,
+        IAgentDetailStatusHistoryRepository _statusHistoryRepository) : Controller
     {
         [Breadcrumb("Agent Details", FromController = typeof(HomeController), FromAction = nameof(Index))]
         // GET: AgentDetails
@@ -32,12 +43,15 @@ namespace VMSService.Controllers
                 var agentDetails = (await _agentDetailRepository.FindAll()).Where(a => a.IsDeleted == false);
                 var model = _mapper.Map<List<AgentDetailViewModel>>(agentDetails);
 
-                // Populate branch names
+                // Populate branch names and status names
                 var branches = await _configService.GetAllBranches();
                 foreach (var agent in model)
                 {
                     var branch = branches.FirstOrDefault(b => b.Id == agent.BranchId);
                     agent.BranchName = branch?.Name ?? "Unknown";
+
+                    var statusType = await _workflowServiceClient.FindStatusById(agent.CurrentStatusId);
+                    agent.CurrentStatusName = statusType.Name;
                 }
 
                 return View(model);
@@ -75,10 +89,50 @@ namespace VMSService.Controllers
 
                 var model = _mapper.Map<AgentDetailViewModel>(agentDetail);
 
+                // Get available transitions for current user
+                //var userRole = User.FindFirst(SystemPolicy.ClaimType.AppRole)?.Value ?? "";
+                var userRoles = User.FindAll("appRoleId")
+                    .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
+                    .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
+                    .Where(id => id.HasValue)
+                    .Select(id => id.Value)
+                    .ToList();
+
+                var availableTransitions = new List<WorkflowTransitionDto>();
+                foreach (var userRole in userRoles)
+                {
+                    var requestData = new GetAvailableTransitionsRequestDto
+                    {
+                        ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                        EntityTypeName = StatusConstants.Entity.AgentDetail,
+                        CurrentStatusId = agentDetail.CurrentStatusId,
+                        AppRole = userRole,
+                    };
+
+                    var transitions = await _workflowServiceClient.GetAvailableTransitions(requestData);
+                    if (transitions != null)
+                    {
+                        availableTransitions.AddRange(transitions);
+                    }
+                }
+
+                model.AvailableTransitions = availableTransitions;
+
+                model.StatusHistory = _mapper.Map<ICollection<AgentDetailStatusHistoryViewModel>>(
+                    await _statusHistoryRepository.FindByAgentDetailId(id ?? 0));
+                foreach (var item in model.StatusHistory)
+                {
+                    item.OldStatusName = (await _workflowServiceClient.FindStatusById(item.OldStatusId)).Name;
+                    item.NewStatusName = (await _workflowServiceClient.FindStatusById(item.NewStatusId)).Name;
+                }
+
                 // Populate branch name
                 var branches = await _configService.GetAllBranches();
                 var branch = branches.FirstOrDefault(b => b.Id == model.BranchId);
                 model.BranchName = branch?.Name ?? "Unknown";
+
+                var statusType = await _workflowServiceClient.FindStatusById(model.CurrentStatusId);
+                model.CurrentStatusName = statusType.Name;
 
                 return View(model);
             }
@@ -100,13 +154,18 @@ namespace VMSService.Controllers
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (string.IsNullOrEmpty(userId)) { return NotFound(); }
 
-                CommercialBankUser commercialBankUser = await _commercialBankUserRepo.FindByUserId(userId);
-                if (commercialBankUser == null) { return NotFound(); }
-                var commercialBankBranches = await _configService.GetCommercialBankBranchesByBankId(commercialBankUser.CommercialBankId);
+                ICollection<CommercialBankBranchDto> commercialBankBranches = [];
+                var cbIdClaim = User.Claims.FirstOrDefault(c => c.Type == SystemPolicy.Claims.CbId)?.Value;
+                int cbId = string.IsNullOrEmpty(cbIdClaim) ? 0 : int.Parse(cbIdClaim);
+                if (cbId > 0)
+                {
+                    commercialBankBranches = await _configService.GetCommercialBankBranchesByBankId(cbId);
+                }
 
                 var branches = await _configService.GetAllBranches();
                 var model = new AgentDetailViewModel
                 {
+                    CommercialBankId = cbId,
                     BranchList = [.. branches.Select(b => new SelectListItem
                     {
                         Value = b.Id.ToString(),
@@ -138,9 +197,13 @@ namespace VMSService.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) { return NotFound(); }
 
-            CommercialBankUser commercialBankUser = await _commercialBankUserRepo.FindByUserId(userId);
-            if (commercialBankUser == null) { return NotFound(); }
-            var commercialBankBranches = await _configService.GetCommercialBankBranchesByBankId(commercialBankUser.CommercialBankId);
+            ICollection<CommercialBankBranchDto> commercialBankBranches = [];
+            var cbIdClaim = User.Claims.FirstOrDefault(c => c.Type == SystemPolicy.Claims.CbId)?.Value;
+            int cbId = string.IsNullOrEmpty(cbIdClaim) ? 0 : int.Parse(cbIdClaim);
+            if (cbId > 0)
+            {
+                commercialBankBranches = await _configService.GetCommercialBankBranchesByBankId(cbId);
+            }
 
             var branches = await _configService.GetAllBranches();
             model.BranchList = [.. branches.Select(b => new SelectListItem
@@ -169,6 +232,12 @@ namespace VMSService.Controllers
 
             try
             {
+                // Prepend country code before saving
+                if (!string.IsNullOrEmpty(model.PhoneNumber))
+                {
+                    model.PhoneNumber = "+256" + model.PhoneNumber.TrimStart('+').Replace("256", "");
+                }
+
                 // Handle file uploads
                 model.PassportPhoto = await SaveFileAsync(model.PassportPhotoFile, "passportphotos");
                 model.WorkIdScan = await SaveFileAsync(model.WorkIdScanFile, "workidscans");
@@ -176,17 +245,27 @@ namespace VMSService.Controllers
                 model.ApprovalAttachment = await SaveFileAsync(model.ApprovalAttachmentFile, "approvalattachments");
 
                 var agentDetail = _mapper.Map<AgentDetail>(model);
+
+                // Set status to Draft
+                StatusTypeDto status = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+                {
+                    ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                    StatusName = StatusConstants.AgentDetail.Draft,
+                    EntityTypeName = StatusConstants.Entity.AgentDetail
+                });
+                agentDetail.CurrentStatusId = status.Id;
+
                 //bool isCreated = await _agentDetailRepository.Create(agentDetail);
                 int agentDetailId = await _agentDetailRepository.CreateNew(agentDetail);
 
                 if (agentDetailId > 0)
                 {
-                    TempData["Success"] = "Agent detail created successfully!";
+                    TempData["Success"] = "Agent added successfully!";
                     return RedirectToAction(nameof(Details), new { id = agentDetailId });
                 }
                 else
                 {
-                    TempData["Error"] = "Failed to create agent detail. Please try again.";
+                    TempData["Error"] = "Failed to create agent. Please try again.";
                     _logger.LogError("Error creating agent detail");
                     ModelState.AddModelError("", "Failed to create agent detail. Please try again.");
                 }
@@ -226,6 +305,13 @@ namespace VMSService.Controllers
 
                 var branches = await _configService.GetAllBranches();
                 var model = _mapper.Map<AgentDetailViewModel>(agentDetail);
+
+                // Strip country code for display in the edit form
+                if (!string.IsNullOrEmpty(model.PhoneNumber) && model.PhoneNumber.StartsWith("+256"))
+                {
+                    model.PhoneNumber = model.PhoneNumber[4..]; // Remove "+256" prefix
+                }
+
                 model.BranchList = branches.Select(b => new SelectListItem
                 {
                     Value = b.Id.ToString(),
@@ -236,10 +322,11 @@ namespace VMSService.Controllers
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (!string.IsNullOrEmpty(userId))
                 {
-                    var commercialBankUser = await _commercialBankUserRepo.FindByUserId(userId);
-                    if (commercialBankUser != null)
+                    var cbIdClaim = User.Claims.FirstOrDefault(c => c.Type == SystemPolicy.Claims.CbId)?.Value;
+                    int cbId = string.IsNullOrEmpty(cbIdClaim) ? 0 : int.Parse(cbIdClaim);
+                    if (cbId > 0)
                     {
-                        var commercialBankBranches = await _configService.GetCommercialBankBranchesByBankId(commercialBankUser.CommercialBankId);
+                        var commercialBankBranches = await _configService.GetCommercialBankBranchesByBankId(cbId);
                         model.CommercialBankBranchList = commercialBankBranches.Select(cb => new SelectListItem
                         {
                             Value = cb.Id.ToString(),
@@ -268,6 +355,12 @@ namespace VMSService.Controllers
             {
                 return NotFound();
             }
+
+            // Remove file upload fields from validation since they are optional on edit
+            ModelState.Remove(nameof(model.PassportPhotoFile));
+            ModelState.Remove(nameof(model.WorkIdScanFile));
+            ModelState.Remove(nameof(model.SignatureScanFile));
+            ModelState.Remove(nameof(model.ApprovalAttachmentFile));
 
             if (!ModelState.IsValid)
             {
@@ -300,7 +393,10 @@ namespace VMSService.Controllers
                 agentDetail.CommercialBankBranchId = model.CommercialBankBranchId;
                 agentDetail.AgentNames = model.AgentNames;
                 agentDetail.NIN = model.NIN;
-                agentDetail.PhoneNumber = model.PhoneNumber;
+                agentDetail.PhoneNumber = !string.IsNullOrEmpty(model.PhoneNumber)
+                    ? "+256" + model.PhoneNumber.TrimStart('+').Replace("256", "")
+                    : model.PhoneNumber;
+                agentDetail.IsActive = model.IsActive;
 
                 // Handle file uploads - only update if new file is provided
                 if (model.PassportPhotoFile != null)
@@ -378,6 +474,9 @@ namespace VMSService.Controllers
                 var branch = branches.FirstOrDefault(b => b.Id == model.BranchId);
                 model.BranchName = branch?.Name ?? "Unknown";
 
+                var statusType = await _workflowServiceClient.FindStatusById(model.CurrentStatusId);
+                model.CurrentStatusName = statusType.Name;
+
                 return View(model);
             }
             catch (Exception ex)
@@ -451,6 +550,100 @@ namespace VMSService.Controllers
             }
 
             return $"/uploads/{folderName}/{uniqueFileName}";
+        }
+
+        // Add generic transition action
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ExecuteAction(int id, string actionName, string remarks)
+        {
+            try
+            {
+                var agentDetails = await _agentDetailRepository.FindById(id);
+                if (agentDetails == null)
+                {
+                    TempData["Error"] = "Agent not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                var username = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? "System";
+                //var userRole = User.FindFirst(SystemPolicy.ClaimType.AppRole)?.Value ?? "";
+                var userRoles = User.FindAll("appRoleId")
+                    .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
+                    .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
+                    .Where(id => id.HasValue)
+                    .Select(id => id.Value)
+                    .ToList();
+
+                bool isExecuted = await _workflowService.ExecuteTransition(
+                    StatusConstants.Entity.AgentDetail,
+                    id,
+                    agentDetails.CurrentStatusId,
+                    actionName,
+                    username,
+                    userRoles,
+                    remarks);
+
+                if (isExecuted)
+                {
+                    //TempData["Success"] = $"Procurement {actionName} successfully!";
+                    TempData["Success"] = $"Review completed successfully!";
+                }
+                else
+                {
+                    TempData["Error"] = $"Failed to execute {actionName} action. You may not have permission or the action is not valid for current status.";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing action {Action} on procurement {Id}", actionName, id);
+                TempData["Error"] = "An error occurred while executing the action.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // POST: AgentDetails/Deactivate/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Deactivate(int id)
+        {
+            try
+            {
+                var agentDetail = await _agentDetailRepository.FindById(id);
+                if (agentDetail == null)
+                {
+                    TempData["Error"] = "Agent not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                if (!agentDetail.IsActive)
+                {
+                    TempData["Error"] = "Agent is already inactive.";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
+
+                agentDetail.IsActive = false;
+
+                bool isUpdated = await _agentDetailRepository.Update(agentDetail);
+                if (isUpdated)
+                {
+                    _logger.LogInformation("Agent {AgentId} deactivated by {User}", id,
+                        User.FindFirst(ClaimTypes.Name)?.Value ?? "System");
+                    TempData["Success"] = "Agent deactivated successfully.";
+                }
+                else
+                {
+                    TempData["Error"] = "Failed to deactivate agent. Please try again.";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deactivating agent with id {AgentDetailId}", id);
+                TempData["Error"] = "An error occurred while deactivating the agent. Please try again.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id });
         }
     }
 }

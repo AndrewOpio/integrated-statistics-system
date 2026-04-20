@@ -46,13 +46,12 @@ namespace VMSService.Core.Repositories.ApprovedCurrencyProcurements
 
         public async Task<ICollection<ApprovedCurrencyProcurement>> FindVerified()
         {
-            var requestData = new GetStatusByNameRequestDto
+            var verifiedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
             {
                 ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
                 StatusName = StatusConstants.ApprovedCurrencyProcurement.Verified,
                 EntityTypeName = StatusConstants.Entity.ApprovedCurrencyProcurement
-            };
-            var verifiedStatus = await _workflowServiceClient.FindStatusByName(requestData);
+            });
 
             if (verifiedStatus == null)
             {

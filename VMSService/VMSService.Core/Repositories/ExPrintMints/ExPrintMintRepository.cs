@@ -30,6 +30,7 @@ namespace VMSService.Core.Repositories.ExpectedCurrencies
                 .Include(x => x.CurrencyVendor)
                 .Include(x => x.CurrencyVendor.VendorType)
                 .Include(x => x.ApprovedCurrencyProcurement)
+                .Include(x => x.Details.Where(d => !d.IsDeleted))
                 .FirstOrDefaultAsync(x => x.Id == id);
         }
 
