@@ -247,13 +247,12 @@ namespace VMSService.Controllers
                 var agentDetail = _mapper.Map<AgentDetail>(model);
 
                 // Set status to Draft
-                var requestData = new GetStatusByNameRequestDto
+                StatusTypeDto status = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
                 {
                     ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
                     StatusName = StatusConstants.AgentDetail.Draft,
                     EntityTypeName = StatusConstants.Entity.AgentDetail
-                };
-                StatusTypeDto status = await _workflowServiceClient.FindStatusByName(requestData);
+                });
                 agentDetail.CurrentStatusId = status.Id;
 
                 //bool isCreated = await _agentDetailRepository.Create(agentDetail);

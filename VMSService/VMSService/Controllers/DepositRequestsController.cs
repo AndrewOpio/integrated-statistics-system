@@ -437,24 +437,22 @@ namespace VMSService.Web.Controllers
 
         private async Task<StatusTypeDto> GetStatusByNameAsync(string statusName)
         {
-            var requestData = new GetStatusByNameRequestDto
+            return await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
             {
                 ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
                 StatusName = statusName,
                 EntityTypeName = StatusConstants.Entity.DepositRequest,
-            };
-            return await _workflowServiceClient.FindStatusByName(requestData);
+            });
         }
 
         private async Task<StatusTypeDto> GetStatusByNameExceptionalAsync(string statusName)
         {
-            var requestData = new GetStatusByNameRequestDto
+            return await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
             {
                 ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
                 StatusName = statusName,
                 EntityTypeName = StatusConstants.Entity.DepositRequestExceptional,
-            };
-            return await _workflowServiceClient.FindStatusByName(requestData);
+            });
         }
     }
 }

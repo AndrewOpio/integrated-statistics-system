@@ -61,7 +61,7 @@ namespace StockService.Web.Controllers
                     NumberOfPieces = d.NumberOfPieces,
                     NumberOfBoxes = d.NumberOfBoxes,
                     NumberOfBundles = d.NumberOfBundles,
-                    Value = d.Value
+                    Value = decimal.TryParse(d.Value, out decimal val) ? val : 0
                 }).ToList() ?? new List<StockLedgerDetailDto>()
             });
             return Ok(result);
@@ -115,7 +115,7 @@ namespace StockService.Web.Controllers
                     NumberOfPieces = d.NumberOfPieces,
                     NumberOfBoxes = d.NumberOfBoxes,
                     NumberOfBundles = d.NumberOfBundles,
-                    Value = d.Value
+                    Value = decimal.TryParse(d.Value, out decimal val) ? val : 0
                 }).ToList() ?? new List<StockLedgerDetailDto>()
             };
             return Ok(result);
@@ -123,13 +123,34 @@ namespace StockService.Web.Controllers
 
         [HttpPost]
         [Route("create")]
-        public async Task<IActionResult> CreateStockLedger([FromBody] StockLedger item)
+        public async Task<IActionResult> CreateStockLedger([FromBody] CreateStockLedgerDto itemDto)
         {
-            if (item == null)
-                return BadRequest();
+            if (itemDto == null)
+                return BadRequest(new { message = "item is required" });
 
             try
             {
+                // Convert DTO to entity
+                var item = new StockLedger
+                {
+                    ReferenceCode = itemDto.ReferenceCode,
+                    StockMovementId = itemDto.StockMovementId,
+                    IsIn = itemDto.IsIn,
+                    CounterPartyTypeId = itemDto.CounterPartyTypeId,
+                    CounterPartyId = itemDto.CounterPartyId,
+                    StoreId = itemDto.StoreId,
+                    Notes = itemDto.Notes,
+                    StockLedgerDetails = itemDto.StockLedgerDetails?.Select(d => new StockLedgerDetail
+                    {
+                        DenominationId = d.DenominationId,
+                        CategoryId = d.CategoryId,
+                        NumberOfPieces = d.NumberOfPieces,
+                        NumberOfBoxes = d.NumberOfBoxes,
+                        NumberOfBundles = d.NumberOfBundles,
+                        Value = d.Value.ToString(), // Convert decimal to string
+                    }).ToList() ?? new List<StockLedgerDetail>()
+                };
+
                 var created = await _stockLedgerRepository.CreateAsync(item);
                 var result = new StockLedgerDto
                 {
@@ -171,7 +192,7 @@ namespace StockService.Web.Controllers
                         NumberOfPieces = d.NumberOfPieces,
                         NumberOfBoxes = d.NumberOfBoxes,
                         NumberOfBundles = d.NumberOfBundles,
-                        Value = d.Value
+                        Value = decimal.TryParse(d.Value, out decimal val) ? val : 0
                     }).ToList() ?? new List<StockLedgerDetailDto>()
                 };
                 return CreatedAtAction(nameof(GetStockLedger), new { id = created.Id }, result);

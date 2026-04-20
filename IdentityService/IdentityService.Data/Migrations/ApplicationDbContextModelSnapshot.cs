@@ -65,7 +65,7 @@ namespace IdentityService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Applications");
+                    b.ToTable("Applications", (string)null);
                 });
 
             modelBuilder.Entity("IdentityService.Data.Entities.ApplicationRole", b =>
@@ -103,7 +103,7 @@ namespace IdentityService.Data.Migrations
 
                     b.HasIndex("RoleId");
 
-                    b.ToTable("ApplicationRoles");
+                    b.ToTable("ApplicationRoles", (string)null);
                 });
 
             modelBuilder.Entity("IdentityService.Data.Entities.Role", b =>
@@ -286,7 +286,7 @@ namespace IdentityService.Data.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserApplicationRoles");
+                    b.ToTable("UserApplicationRoles", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

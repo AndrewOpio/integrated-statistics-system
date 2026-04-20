@@ -1,7 +1,7 @@
 @model VMSService.Core.Models.ExPrintMints.ExPrintMintViewModel
 
 @{
-    ViewData["Title"] = "Expected Stock Details";
+	ViewData["Title"] = "Expected Stock Details";
 }
 
 <div class="row">
@@ -71,245 +71,133 @@
             </div>
         </div>
 
-        <div class="row">
-            <!-- Left Column -->
-            <div class="col-lg-6">
-                <!-- Vendor & Procurement Information -->
-                <div class="card border-0 shadow mb-3">
-                    <div class="card-header bg-white border-bottom no-after">
-                        <h6 class="card-title mb-0">
-                            <i class="ti ti-building me-2 text-primary"></i>Vendor Information
-                        </h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-4">
-                            <small class="text-muted text-uppercase fw-semibold d-block mb-1">Vendor</small>
-                            <p class="mb-0 fw-bold">
-                                @if (Model.CurrencyVendor != null)
-                                {
-                                    <i class="ti ti-building me-1 text-primary"></i>@Model.CurrencyVendor.Name
-                                }
-                                else
-                                {
-                                    <span class="text-muted">-</span>
-                                }
-                            </p>
-                        </div>
+		<div class="row">
+			<!-- Left Column -->
+			<div class="col-lg-6">
+				<!-- Vendor & Procurement Information -->
+				<div class="card border-0 shadow mb-3">
+					<div class="card-header bg-white border-bottom no-after">
+						<h6 class="card-title mb-0">
+							<i class="ti ti-building me-2 text-primary"></i>Vendor Information
+						</h6>
+					</div>
+					<div class="card-body">
+						<div class="mb-4">
+							<small class="text-muted text-uppercase fw-semibold d-block mb-1">Vendor</small>
+							<p class="mb-0 fw-bold">
+								@if (Model.CurrencyVendor != null)
+								{
+									<i class="ti ti-building me-1 text-primary"></i>
 
-                        <div class="mb-2">
-                            <small class="text-muted text-uppercase fw-semibold d-block mb-1">Approved Currency Procurement</small>
-                            <p class="mb-0 fw-bold">
-                                @if (Model.ApprovedCurrencyProcurement != null)
-                                {
-                                    <i class="ti ti-file-check me-1 text-success"></i>
-                                    <span class="me-1">UGX</span>
-                                    @Model.ApprovedCurrencyProcurement.Amount.ToString("N0")
-                                }
-                                else
-                                {
-                                    <span class="text-muted">-</span>
-                                }
-                            </p>
-                        </div>
-                    </div>
-                </div>
+									@Model.CurrencyVendor.Name
+								}
+								else
+								{
+									<span class="text-muted">-</span>
+								}
+							</p>
+						</div>
 
-                <!-- Denomination Details -->
-                <div class="card border-0 shadow mb-3">
-                    <div class="card-header bg-white border-bottom no-after">
-                        <h6 class="card-title mb-0">
-                            <i class="ti ti-coins me-2 text-info"></i>Denomination Information
-                        </h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-4">
-                            <small class="text-muted text-uppercase fw-semibold d-block mb-1">Denomination</small>
-                            <p class="mb-0 fw-bold">
-                                @if (Model.Denomination != null && Model.Denomination?.DenominationType?.Name == "Coin")
-                                {
-                                    <i class="ti ti-coins me-1 text-info"></i>@Model.Denomination.Name
-                                }
-                                else if (Model.Denomination != null && Model.Denomination?.DenominationType?.Name == "Note")
-                                {
-                                    <i class="ti ti-cash-banknote me-1 text-info"></i>@Model.Denomination.Name
-                                }
-                                else
-                                {
-                                    <span class="text-muted">-</span>
-                                }
-                            </p>
-                        </div>
+						<div class="mb-2">
+							<small class="text-muted text-uppercase fw-semibold d-block mb-1">Approved Currency Procurement</small>
+							<p class="mb-0 fw-bold">
+								@if (Model.ApprovedCurrencyProcurement != null)
+								{
+									<i class="ti ti-file-check me-1 text-success"></i>
+									<span class="me-1">UGX</span>
+									@Model.ApprovedCurrencyProcurement.Amount.ToString("N0")
+								}
+								else
+								{
+									<span class="text-muted">-</span>
+								}
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
 
-                        <div class="row">
-                            <div class="col-6 mb-3">
-                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Number of Pieces</small>
-                                <p class="mb-0 fw-bold fs-6">@Model.NumberOfPieces.ToString("N0")</p>
-                            </div>
-                            <div class="col-6 mb-3">
-                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Total Value (UGX)</small>
-                                <p class="mb-0 fw-bold fs-6">@Model.Value.ToString("N0")</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+			<!-- Denominations Details -->
+			<div class="col-lg-6">
+				<div class="card border-0 shadow mb-3">
+					<div class="card-header" style="background-color: #fafbfc; border-bottom: 1px solid #e9ecef;">
+						<h6 class="card-title mb-0">
+							<i class="ti ti-package me-2 text-info"></i>Denominations
+						</h6>
+					</div>
+					<div class="card-body p-0">
+						@if (Model.Details != null && Model.Details.Any())
+						{
+							<div class="table-responsive">
+								<table class="table table-hover mb-0">
+									<thead style="background-color: #f8fafc; border-bottom: 2px solid #e9ecef;">
+										<tr>
+											<th class="fs-7 fw-semibold text-secondary" style="padding: 0.75rem;">Denomination</th>
+											<th class="fs-7 fw-semibold text-secondary text-end" style="padding: 0.75rem;">Pieces</th>
+											<th class="fs-7 fw-semibold text-secondary text-end" style="padding: 0.75rem;">Amount</th>
+											<th class="fs-7 fw-semibold text-secondary text-end" style="padding: 0.75rem;">Boxes</th>
+										</tr>
+									</thead>
+									<tbody>
+										@foreach (var detail in Model.Details.OrderBy(d => d.DenominationId))
+										{
+											<tr style="border-bottom: 1px solid #f0f2f5;">
+												<td class="fs-7" style="padding: 0.75rem;">
+													<span class="badge" style="background-color: #e7f5ff; color: #0b5394;">
+														<i class="ti ti-coins me-1"></i>@detail.DenominationName
+													</span>
+												</td>
+												<td class="fs-7 text-end fw-semibold" style="padding: 0.75rem;">@detail.NumberOfPieces.ToString("N0")</td>
+												<td class="fs-7 text-end text-primary fw-semibold" style="padding: 0.75rem;">@detail.Value.ToString("N0")</td>
+												<td class="fs-7 text-end" style="padding: 0.75rem;">@detail.NumberOfBoxes.ToString("N0")</td>
+											</tr>
+										}
+									</tbody>
+								</table>
+							</div>
+						}
+						else
+						{
+							<div class="p-4 text-center">
+								<p class="text-muted mb-0">
+									<i class="ti ti-inbox fs-3 d-block mb-2 text-secondary" style="opacity: 0.5;"></i>
+									No denominations found.
+								</p>
+							</div>
+						}
+					</div>
+				</div>
+			</div>
+		</div>
 
-            <!-- Right Column -->
-            <div class="col-lg-6">
-                <!-- Box Number Details -->
-                <div class="card border-0 shadow mb-3">
-                    <div class="card-header bg-white border-bottom no-after">
-                        <h6 class="card-title mb-0">
-                            <i class="ti ti-box me-2 text-warning"></i>Box Number Details
-                        </h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-4 mb-4">
-                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Prefix</small>
-                                <p class="mb-0 fw-bold">
-                                    @if (!string.IsNullOrEmpty(Model.BoxNumberPrefix))
-                                    {
-                                        <span class="badge bg-warning">@Model.BoxNumberPrefix</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted">-</span>
-                                    }
-                                </p>
-                            </div>
-                            <div class="col-4 mb-4">
-                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Range Start</small>
-                                <p class="mb-0 fw-bold">
-                                    @if (Model.BoxNumberRangeStart.HasValue)
-                                    {
-                                        <span>@Model.BoxNumberRangeStart</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted">-</span>
-                                    }
-                                </p>
-                            </div>
-                            <div class="col-4 mb-4">
-                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Range End</small>
-                                <p class="mb-0 fw-bold">
-                                    @if (Model.BoxNumberRangeEnd.HasValue)
-                                    {
-                                        <span>@Model.BoxNumberRangeEnd</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted">-</span>
-                                    }
-                                </p>
-                            </div>
-                        </div>
+		<!-- Attachment Section -->
+		@if (!string.IsNullOrEmpty(Model.Attachment))
+		{
+			<div class="card border-0 shadow mb-3">
+				<div class="card-header bg-white border-bottom no-after">
+					<h6 class="card-title mb-0">
+						<i class="ti ti-file-pdf me-2 text-danger"></i>Documentation
+					</h6>
+				</div>
+				<div class="card-body">
+					<div class="d-flex align-items-center justify-content-between bg-light rounded">
+						<div class="d-flex align-items-center">
+							<i class="ti ti-file-type-pdf fs-2 text-danger me-3"></i>
+							<div>
+								<p class="mb-0 fw-bold">PDF Attachment</p>
+								<small class="text-muted">Click to view the attached document</small>
+							</div>
+						</div>
+						<a href="@Url.Action("ViewAttachment", "ExPrintMints", new { id = Model.Id })" target="_blank" class="btn btn-outline-danger btn-sm">
+							<i class="ti ti-external-link me-1"></i>View/Download
+						</a>
+					</div>
+				</div>
+			</div>
+		}
 
-                        @if (Model.BoxNumberRangeStart.HasValue && Model.BoxNumberRangeEnd.HasValue)
-                        {
-                            <div class="alert alert-light mb-0 p-3" role="alert">
-                                <span class="fs-6">
-                                    <i class="ti ti-info-circle me-1"></i>
-                                    Box Range: @Model.BoxNumberPrefix@Model.BoxNumberRangeStart - @Model.BoxNumberPrefix@Model.BoxNumberRangeEnd
-                                </span>
-                            </div>
-                        }
-                    </div>
-                </div>
-
-                <!-- Serial Number Details -->
-                <div class="card border-0 shadow mb-3">
-                    <div class="card-header bg-white border-bottom no-after">
-                        <h6 class="card-title mb-0">
-                            <i class="ti ti-barcode me-2 text-danger"></i>Serial Number Details
-                        </h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-4 mb-4">
-                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Prefix</small>
-                                <p class="mb-0 fw-bold">
-                                    @if (!string.IsNullOrEmpty(Model.SerialNumberPrefix))
-                                    {
-                                        <span class="badge bg-danger">@Model.SerialNumberPrefix</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted">-</span>
-                                    }
-                                </p>
-                            </div>
-                            <div class="col-4 mb-4">
-                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Range Start</small>
-                                <p class="mb-0 fw-bold">
-                                    @if (Model.SerialNumberRangeStart.HasValue)
-                                    {
-                                        <span>@Model.SerialNumberRangeStart</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted">-</span>
-                                    }
-                                </p>
-                            </div>
-                            <div class="col-4 mb-4">
-                                <small class="text-muted text-uppercase fw-semibold d-block mb-1">Range End</small>
-                                <p class="mb-0 fw-bold">
-                                    @if (Model.SerialNumberRangeEnd.HasValue)
-                                    {
-                                        <span>@Model.SerialNumberRangeEnd</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted">-</span>
-                                    }
-                                </p>
-                            </div>
-                        </div>
-
-                        @if (Model.SerialNumberRangeStart.HasValue && Model.SerialNumberRangeEnd.HasValue)
-                        {
-                            <div class="alert alert-light mb-0 p-3" role="alert">
-                                <span class="fs-6">
-                                    <i class="ti ti-info-circle me-1"></i>
-                                    Serial Range: @Model.SerialNumberPrefix@Model.SerialNumberRangeStart - @Model.SerialNumberPrefix@Model.SerialNumberRangeEnd
-                                </span>
-                            </div>
-                        }
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Attachment Section -->
-        @if (!string.IsNullOrEmpty(Model.Attachment))
-        {
-            <div class="card border-0 shadow mb-3">
-                <div class="card-header bg-white border-bottom no-after">
-                    <h6 class="card-title mb-0">
-                        <i class="ti ti-file-pdf me-2 text-danger"></i>Documentation
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between bg-light rounded">
-                        <div class="d-flex align-items-center">
-                            <i class="ti ti-file-type-pdf fs-2 text-danger me-3"></i>
-                            <div>
-                                <p class="mb-0 fw-bold">PDF Attachment</p>
-                                <small class="text-muted">Click to view the attached document</small>
-                            </div>
-                        </div>
-                        <a href="@Url.Action("ViewAttachment", "ExPrintMints", new { id = Model.Id })" target="_blank" class="btn btn-outline-danger btn-sm">
-                            <i class="ti ti-external-link me-1"></i>View/Download
-                        </a>
-                    </div>
-                </div>
-            </div>
-        }
-
-        <!-- Action Buttons -->
-        @* <div class="card border-0 shadow mb-1">
+		<!-- Action Buttons -->
+		@* <div class="card border-0 shadow mb-1">
             <div class="card-body bg-light">
                 <div class="d-flex gap-2 flex-wrap">
                     <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">
@@ -324,7 +212,7 @@
                 </div>
             </div>
         </div> *@
-    </div>
+	</div>
 </div>
 
 <div class="row">
@@ -370,214 +258,226 @@
                                             </div>
                                         }
 
-                                    </div>
-                                </div>
-                            </div>
-                        }
-                    </div>
-                }
-                else
-                {
-                    <p class="text-muted text-center">
-                        <i class="ti ti-inbox me-2"></i>No comments yet.
-                    </p>
-                }
-            </div>
-        </div>
-    </div>
+									</div>
+								</div>
+							</div>
+						}
+					</div>
+				}
+				else
+				{
+					<p class="text-muted text-center">
+						<i class="ti ti-inbox me-2"></i>No comments yet.
+					</p>
+				}
+			</div>
+		</div>
+	</div>
 </div>
 
 <div class="row">
-    <div class="col-12">
-        <!-- Workflow Actions Section -->
-        @if (Model.AvailableTransitions != null && Model.AvailableTransitions.Any())
-        {
-            <div class="card border-0 bg-light mb-1 shadow-sm">
-                <div class="card-header bg-white border-bottom no-after">
-                    <h6 class="card-title mb-0">
-                        <i class="ti ti-checkbox me-2 text-primary"></i>Available Actions
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <form method="post" asp-action="ExecuteAction" asp-route-id="@Model.Id" id="workflowForm">
-                        <div class="mb-3">
-                            <label class="form-label">
-                                Action <span class="text-danger">*</span>
-                            </label>
-                            <select id="actionSelect" name="actionName" class="form-select" required>
-                                <option value="">-- Select an action --</option>
-                                @foreach (var transition in Model.AvailableTransitions)
-                                {
-                                    <option value="@transition.ActionName" data-requires-comments="@transition.RequiresComments.ToString().ToLower()" data-button-class="@transition.ButtonClass" data-display-label="@transition.DisplayLabel">
-                                        @transition.DisplayLabel
-                                    </option>
-                                }
-                            </select>
-                        </div>
+	<div class="col-12">
+		<!-- Workflow Actions Section -->
+		@{
+			var packingListRanges = (List<VMSService.Data.Entities.PackingListRange>)ViewBag.PackingListRanges ?? new List<VMSService.Data.Entities.PackingListRange>();
+			bool hasPackingRanges = packingListRanges != null && packingListRanges.Any();
+		}
+		@if (!hasPackingRanges)
+		{
+			<div class="alert alert-warning alert-dismissible fade show" role="alert">
+				<i class="ti ti-alert-circle me-2"></i>
+				<strong>No Packing List Ranges Found</strong> - Please add packing list ranges before performing any actions.
+				<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+			</div>
+		}
+		@if (Model.AvailableTransitions != null && Model.AvailableTransitions.Any() && hasPackingRanges)
+		{
+			<div class="card border-0 bg-light mb-1 shadow-sm">
+				<div class="card-header bg-white border-bottom no-after">
+					<h6 class="card-title mb-0">
+						<i class="ti ti-checkbox me-2 text-primary"></i>Available Actions
+					</h6>
+				</div>
+				<div class="card-body">
+					<form method="post" asp-action="ExecuteAction" asp-route-id="@Model.Id" id="workflowForm">
+						<div class="mb-3">
+							<label class="form-label">
+								Action <span class="text-danger">*</span>
+							</label>
+							<select id="actionSelect" name="actionName" class="form-select" required>
+								<option value="">-- Select an action --</option>
+								@foreach (var transition in Model.AvailableTransitions)
+								{
+									<option value="@transition.ActionName" data-requires-comments="@transition.RequiresComments.ToString().ToLower()" data-button-class="@transition.ButtonClass" data-display-label="@transition.DisplayLabel">
+										@transition.DisplayLabel
+									</option>
+								}
+							</select>
+						</div>
 
-                        <div class="mb-3">
-                            <label class="form-label">
-                                Comments
-                                <span id="commentRequired" class="text-danger" style="display: none;">*</span>
-                            </label>
-                            <textarea id="remarksTextarea"
-                                  class="form-control"
-                                  name="remarks"
-                                  rows="3"
-                                  placeholder="Enter your comments..."></textarea>
-                            <small id="commentHint" class="text-muted d-block mt-1"></small>
-                        </div>
+						<div class="mb-3">
+							<label class="form-label">
+								Comments
+								<span id="commentRequired" class="text-danger" style="display: none;">*</span>
+							</label>
+							<textarea id="remarksTextarea"
+									  class="form-control"
+									  name="remarks"
+									  rows="3"
+									  placeholder="Enter your comments..."></textarea>
+							<small id="commentHint" class="text-muted d-block mt-1"></small>
+						</div>
 
-                        <button type="submit" id="submitBtn" class="text-white btn btn-primary" disabled>
-                            <i class="ti ti-check me-1"></i><span id="submitBtnLabel">Submit</span>
-                        </button>
-                    </form>
-                </div>
-            </div>
-        }
-    </div>
+						<button type="submit" id="submitBtn" class="text-white btn btn-primary" disabled>
+							<i class="ti ti-check me-1"></i><span id="submitBtnLabel">Submit</span>
+						</button>
+					</form>
+				</div>
+			</div>
+		}
+	</div>
 </div>
 
 <style>
-    .card {
-        transition: all 0.3s ease;
-    }
+	.card {
+		transition: all 0.3s ease;
+	}
 
-    /* .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
-        } */
+	/* .card:hover {
+				transform: translateY(-2px);
+				box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+			} */
 
-    .card-header {
-        background-color: #f8f9fa;
-        border-bottom: 1px solid #e9ecef;
-        padding: 1rem, 1rem;
-    }
+	.card-header {
+		background-color: #f8f9fa;
+		border-bottom: 1px solid #e9ecef;
+		padding: 1rem, 1rem;
+	}
 
-    .card-body {
-        padding: 1rem, 1rem;
-    }
+	.card-body {
+		padding: 1rem, 1rem;
+	}
 
 
-    .card-title {
-        color: #2d3748;
-        margin: 0;
-        font-weight: 600;
-    }
+	.card-title {
+		color: #2d3748;
+		margin: 0;
+		font-weight: 600;
+	}
 
-    .badge {
-        font-size: 0.75rem;
-        padding: 0.5rem 0.75rem;
-        border-radius: 0.85rem;
-    }
+	.badge {
+		font-size: 0.75rem;
+		padding: 0.5rem 0.75rem;
+		border-radius: 0.85rem;
+	}
 
-    .alert-light {
-        background-color: #f0f4ff;
-        border-color: #d0deff;
-        border-left: 4px solid #0d6efd;
-    }
+	.alert-light {
+		background-color: #f0f4ff;
+		border-color: #d0deff;
+		border-left: 4px solid #0d6efd;
+	}
 
-    .timeline {
-        position: relative;
-        padding-left: 0;
-    }
+	.timeline {
+		position: relative;
+		padding-left: 0;
+	}
 
-    .timeline-item {
-        position: relative;
-    }
+	.timeline-item {
+		position: relative;
+	}
 
-    .timeline-marker {
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        background-color: #f0f0f0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
+	.timeline-marker {
+		width: 32px;
+		height: 32px;
+		border-radius: 50%;
+		background-color: #f0f0f0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
 
-        .timeline-marker i {
-            font-size: 16px;
-        }
+		.timeline-marker i {
+			font-size: 16px;
+		}
 
-    .no-after::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 0;
-        background: unset;
-    }
+	.no-after::after {
+		content: '';
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		height: 0;
+		background: unset;
+	}
 </style>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const actionSelect = document.getElementById('actionSelect');
-        const remarksTextarea = document.getElementById('remarksTextarea');
-        const commentRequired = document.getElementById('commentRequired');
-        const commentHint = document.getElementById('commentHint');
-        const submitBtn = document.getElementById('submitBtn');
-        const submitBtnLabel = document.getElementById('submitBtnLabel');
+	document.addEventListener('DOMContentLoaded', function () {
+		const actionSelect = document.getElementById('actionSelect');
+		const remarksTextarea = document.getElementById('remarksTextarea');
+		const commentRequired = document.getElementById('commentRequired');
+		const commentHint = document.getElementById('commentHint');
+		const submitBtn = document.getElementById('submitBtn');
+		const submitBtnLabel = document.getElementById('submitBtnLabel');
 
-        // Define hint messages for each action
-        const hintMessages = {
-            'Verify': 'Provide your verification comments.',
-            'Reject': 'Explain why you are rejecting this stock.',
-            'Approve': 'Provide your approval comments.',
-            'Resubmit': 'Explain what changes were made.'
-        };
+		// Define hint messages for each action
+		const hintMessages = {
+			'Verify': 'Provide your verification comments.',
+			'Reject': 'Explain why you are rejecting this stock.',
+			'Approve': 'Provide your approval comments.',
+			'Resubmit': 'Explain what changes were made.'
+		};
 
-        // Handle action selection change
-        actionSelect.addEventListener('change', function () {
-            const selectedOption = this.options[this.selectedIndex];
-            const requiresComments = selectedOption.dataset.requiresComments === 'true';
-            const actionName = selectedOption.value;
-            const displayLabel = selectedOption.dataset.displayLabel;
-            const buttonClass = selectedOption.dataset.buttonClass;
+		// Handle action selection change
+		actionSelect.addEventListener('change', function () {
+			const selectedOption = this.options[this.selectedIndex];
+			const requiresComments = selectedOption.dataset.requiresComments === 'true';
+			const actionName = selectedOption.value;
+			const displayLabel = selectedOption.dataset.displayLabel;
+			const buttonClass = selectedOption.dataset.buttonClass;
 
-            if (actionName) {
-                // Update comment requirement
-                if (requiresComments) {
-                    commentRequired.style.display = 'inline';
-                    remarksTextarea.required = true;
-                } else {
-                    commentRequired.style.display = 'none';
-                    remarksTextarea.required = false;
-                }
+			if (actionName) {
+				// Update comment requirement
+				if (requiresComments) {
+					commentRequired.style.display = 'inline';
+					remarksTextarea.required = true;
+				} else {
+					commentRequired.style.display = 'none';
+					remarksTextarea.required = false;
+				}
 
-                // Update hint message
-                commentHint.textContent = hintMessages[actionName] || '';
+				// Update hint message
+				commentHint.textContent = hintMessages[actionName] || '';
 
-                // Update button
-                submitBtn.disabled = false;
-                submitBtnLabel.textContent = displayLabel;
-                submitBtn.className = `text-white btn ${buttonClass}`;
-            } else {
-                // Reset to default state
-                commentRequired.style.display = 'none';
-                remarksTextarea.required = false;
-                remarksTextarea.value = '';
-                commentHint.textContent = '';
-                submitBtn.disabled = true;
-                submitBtnLabel.textContent = 'Submit';
-                submitBtn.className = 'text-white btn btn-primary';
-            }
-        });
+				// Update button
+				submitBtn.disabled = false;
+				submitBtnLabel.textContent = displayLabel;
+				submitBtn.className = `text-white btn ${buttonClass}`;
+			} else {
+				// Reset to default state
+				commentRequired.style.display = 'none';
+				remarksTextarea.required = false;
+				remarksTextarea.value = '';
+				commentHint.textContent = '';
+				submitBtn.disabled = true;
+				submitBtnLabel.textContent = 'Submit';
+				submitBtn.className = 'text-white btn btn-primary';
+			}
+		});
 
-        // Form submission validation
-        document.getElementById('workflowForm').addEventListener('submit', function (e) {
-            const selectedOption = actionSelect.options[actionSelect.selectedIndex];
-            const requiresComments = selectedOption.dataset.requiresComments === 'true';
-            const remarksValue = remarksTextarea.value.trim();
+		// Form submission validation
+		document.getElementById('workflowForm').addEventListener('submit', function (e) {
+			const selectedOption = actionSelect.options[actionSelect.selectedIndex];
+			const requiresComments = selectedOption.dataset.requiresComments === 'true';
+			const remarksValue = remarksTextarea.value.trim();
 
-            if (requiresComments && !remarksValue) {
-                e.preventDefault();
-                alert('Comments are required for this action.');
-                remarksTextarea.focus();
-                return false;
-            }
-        });
-    });
+			if (requiresComments && !remarksValue) {
+				e.preventDefault();
+				alert('Comments are required for this action.');
+				remarksTextarea.focus();
+				return false;
+			}
+		});
+	});
 </script>

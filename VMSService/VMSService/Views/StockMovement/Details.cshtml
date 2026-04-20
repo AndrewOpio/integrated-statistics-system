@@ -9,17 +9,6 @@
 
 <div class="row">
     <div class="col-12 col-lg-12">
-        <div class="d-flex justify-content-end align-items-center mb-3 gap-2">
-            @if (Model.CurrentStatusName == "Draft")
-            {
-                <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">
-                    <i class="ti ti-edit me-1"></i> Edit
-                </a>
-            }
-            <a asp-action="Index" class="btn btn-outline-secondary">
-                <i class="ti ti-arrow-left me-1"></i> Back to List
-            </a>
-        </div>
         <div class="card border-0 shadow mb-4">
             <div class="card-header pb-4 bg-light">
                 <div class="d-flex justify-content-between align-items-start">
@@ -30,10 +19,24 @@
                             <span class="badge bg-info">
                                 <i class="ti ti-badge me-1"></i>@Model.CurrentStatusName
                             </span>
+                            @if (Model.CurrentStatusName == "Dispatched")
+                            {
+                                <span class="badge bg-warning text-dark">
+                                    <i class="ti ti-truck me-1"></i>IN TRANSIT
+                                </span>
+                            }
                         </div>
                     </div>
-                    <!-- Action Buttons -->
-                    <div class="d-flex gap-2 flex-row align-items-end">
+                    <div class="d-flex gap-2">
+                        @if (Model.CurrentStatusName == "Draft")
+                        {
+                            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">
+                                <i class="ti ti-edit me-1"></i> Edit
+                            </a>
+                        }
+                        <a asp-action="Index" class="btn btn-outline-secondary">
+                            <i class="ti ti-arrow-left me-1"></i> Back to List
+                        </a>
                     </div>
                 </div>
             </div>
@@ -45,7 +48,24 @@
                 }
                 <dl class="row">
                     <dt class="col-sm-4">Movement Type</dt>
-                    <dd class="col-sm-8">@Model.MovementType?.ToUpperInvariant()</dd>
+                    <dd class="col-sm-8">
+                        @(!string.IsNullOrEmpty(Model.MovementType)
+                            ? System.Text.RegularExpressions.Regex.Replace(Model.MovementType, "([a-z])([A-Z])", "$1 $2")
+                            : "")
+                    </dd>
+
+                    @* Commercial Bank display if CommercialBankId is present *@
+                    @{
+                        var allCommercialBanks = ViewBag.CommercialBanks as List<CommercialBankDto>;
+                        var commercialBank = (Model.CommercialBankBranchId.HasValue && allCommercialBanks != null)
+                        ? allCommercialBanks.FirstOrDefault(cb => cb.Id == Model.CommercialBankBranchId.Value)
+                            : null;
+                    }
+                    @if (Model.CommercialBankBranchId.HasValue && commercialBank != null)
+                    {
+                        <dt class="col-sm-4">Commercial Bank Branch</dt>
+                        <dd class="col-sm-8">@commercialBank.Name</dd>
+                    }
 
                     <dt class="col-sm-4">Date</dt>
                     <dd class="col-sm-8">@Model.Date.ToString("dd/MMM/yyyy")</dd>
@@ -60,7 +80,9 @@
                         <dd class="col-sm-8 text-muted">-</dd>
                     }
 
-                    @if (Model.MovementType == "branch")
+                    @if (Model.MovementType == StockConstants.StockMovementTypes.BranchToBranch 
+                    || Model.MovementType == StockConstants.StockMovementTypes.OperationalToBuffer 
+                    || Model.MovementType == StockConstants.StockMovementTypes.BufferToOperational)
                     {
                         <dt class="col-sm-4">Dispatching BranchDto</dt>
                         <dd class="col-sm-8">
@@ -76,13 +98,24 @@
                             }
                             @(receivingBranch != null ? receivingBranch.Name : Model.ReceivingBranchId.ToString())
                         </dd>
-                        <dt class="col-sm-4">Categorization</dt>
-                        <dd class="col-sm-8">@Model.Categorization</dd>
                     }
                     <dt class="col-sm-4">Total Bags/Boxes</dt>
                     <dd class="col-sm-8">@Model.TotalBagsBoxes</dd>
                     <dt class="col-sm-4">Grand Total Value</dt>
-                    <dd class="col-sm-8">@Model.GrandTotalValue?.ToString("N2")</dd>
+                    <dd class="col-sm-8">@Model.GrandTotalValue?.ToString("N0")</dd>
+                    
+                    @{
+                        var attachedLogistics = ViewBag.AttachedLogistics as VMSService.Data.Entities.Logistics;
+                    }
+                    @if (attachedLogistics != null)
+                    {
+                        <dt class="col-sm-4">Attached Logistics Form</dt>
+                        <dd class="col-sm-8">
+                            <a href="@Url.Action("Details", "Logistics", new { id = attachedLogistics.Id })" class="badge bg-info text-decoration-none">
+                                @attachedLogistics.Title (@attachedLogistics.ReferenceNumber)
+                            </a>
+                        </dd>
+                    }
                 </dl>
 
                 <h5 class="fw-bold mt-4">Denomination Details</h5>
@@ -92,16 +125,15 @@
                             <tr>
                                 <th>Denomination</th>
                                 <th>Number of Bags/Boxes</th>
-                                @if (Model.MovementType == "branch")
+                                <th>Container Type</th>
+                                @if (Model.MovementType == StockConstants.StockMovementTypes.BranchToBranch)
                                 {
                                     <th>Number of Bundles</th>
+                                    <th>Categorization</th>
                                 }
                                 <th>Category</th>
                                 <th>Sub-total Value</th>
-                                @if (Model.MovementType == "internal")
-                                {
-                                    <th>Serial Number Ranges</th>
-                                }
+                                <th>Box Number Ranges</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -115,9 +147,11 @@
                                     @(denomObj != null ? denomObj.Name : denom.DenominationId.ToString())
                                 </td>
                                 <td>@denom.NumBagsBoxes</td>
-                                @if (Model.MovementType == "branch")
+                                <td>@(!string.IsNullOrEmpty(denom.ContainerType) ? denom.ContainerType : "Bag")</td>
+                                @if (Model.MovementType == StockConstants.StockMovementTypes.BranchToBranch)
                                 {
                                     <td>@denom.NumBundles</td>
+                                    <td>@(string.IsNullOrEmpty(denom.Categorization) ? "-" : (denom.Categorization == "buffer" ? "Buffer Stocks" : "Operational Stocks"))</td>
                                 }
                                 <td>
                                     @{
@@ -125,28 +159,32 @@
                                     }
                                     @(catObj != null ? catObj.Name : (denom.CategoryId.HasValue ? denom.CategoryId.Value.ToString() : ""))
                                 </td>
-                                <td>@denom.SubTotalValue.ToString("N2")</td>
-                                @if (Model.MovementType == "internal")
-                                {
-                                    <td>
-                                        @if (denom.SerialNumberRanges != null && denom.SerialNumberRanges.Any())
+                                <td>@denom.SubTotalValue.ToString("N0")</td>
+                                <td>
+                                    @{
+                                        // Show box ranges for internal movements or BranchToBranch with NEW category
+                                        bool showBoxRanges = (Model.MovementType == StockConstants.StockMovementTypes.OperationalToBuffer || 
+                                                            Model.MovementType == StockConstants.StockMovementTypes.BufferToOperational) ||
+                                                           (Model.MovementType == StockConstants.StockMovementTypes.BranchToBranch && 
+                                                            allCategories?.FirstOrDefault(c => c.Id == denom.CategoryId)?.Name == "New");
+                                    }
+                                    @if (showBoxRanges && denom.BoxNumberRanges != null && denom.BoxNumberRanges.Any())
+                                    {
+                                        <ul class="mb-0 ps-3">
+                                        @foreach (var range in denom.BoxNumberRanges)
                                         {
-                                            <ul class="mb-0 ps-3">
-                                            @foreach (var range in denom.SerialNumberRanges)
-                                            {
-                                                <li>
-                                                    <span class="fw-semibold">@range.Prefix</span>:
-                                                    @range.Start - @range.End
-                                                </li>
-                                            }
-                                            </ul>
+                                            <li>
+                                                <span class="fw-semibold">@range.Prefix</span>:
+                                                @range.Start - @range.End
+                                            </li>
                                         }
-                                        else
-                                        {
-                                            <span class="text-muted">N/A</span>
-                                        }
-                                    </td>
-                                }
+                                        </ul>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">N/A</span>
+                                    }
+                                </td>
                             </tr>
                         }
                         </tbody>
@@ -162,7 +200,7 @@
                     bool hasReceivedDenominations = receivedDenominations.Any();
                 }
                 
-                @if (Model.MovementType == "branch")
+                @if (Model.MovementType == StockConstants.StockMovementTypes.BranchToBranch)
                 {
                     @if (!hasReceivedDenominations && isDispatchedStatus && isAssistantBranchManager)
                     {
@@ -233,7 +271,7 @@
                                             }
                                             @(catObj != null ? catObj.Name : (denom.CategoryId.HasValue ? denom.CategoryId.Value.ToString() : ""))
                                         </td>
-                                        <td>@denom.SubTotalValue.ToString("N2")</td>
+                                        <td>@denom.SubTotalValue.ToString("N0")</td>
                                     </tr>
                                 }
                                 </tbody>
@@ -272,7 +310,7 @@
                                     var sentTotal = (Model?.Denominations ?? new List<VMSService.Data.Entities.StockMovementDenomination>())
                                         .Where(d => d.DenominationType == "Sent" || d.DenominationType == null)
                                         .Sum(d => d.SubTotalValue);
-                                }@sentTotal.ToString("N2")</strong>
+                                }@sentTotal.ToString("N0")</strong>
                             </div>
                             <div class="col-md-4">
                                 <small class="text-muted d-block">Received Total Value</small>
@@ -280,11 +318,11 @@
                                     var receivedTotal = (Model?.Denominations ?? new List<VMSService.Data.Entities.StockMovementDenomination>())
                                         .Where(d => d.DenominationType == "Received")
                                         .Sum(d => d.SubTotalValue);
-                                }@receivedTotal.ToString("N2")</strong>
+                                }@receivedTotal.ToString("N0")</strong>
                             </div>
                             <div class="col-md-4">
                                 <small class="text-muted d-block">Difference</small>
-                                <strong class="h5 d-block text-danger">@((sentTotal - receivedTotal).ToString("N2"))</strong>
+                                <strong class="h5 d-block text-danger">@((sentTotal - receivedTotal).ToString("N0"))</strong>
                             </div>
                         </div>
 
@@ -418,18 +456,18 @@
                                                     <span class="text-muted">-</span>
                                                 }
                                             </td>
-                                            <td class="text-end">@sentValue.ToString("N2")</td>
-                                            <td class="text-end">@receivedValue.ToString("N2")</td>
+                                            <td class="text-end">@sentValue.ToString("N0")</td>
+                                            <td class="text-end">@receivedValue.ToString("N0")</td>
                                             <td class="text-end">
                                                 @if (valueDiff != 0)
                                                 {
                                                     if (valueDiff > 0)
                                                     {
-                                                        <span class="text-danger fw-bold">@valueDiff.ToString("N2") (Short)</span>
+                                                        <span class="text-danger fw-bold">@valueDiff.ToString("N0") (Short)</span>
                                                     }
                                                     else
                                                     {
-                                                        <span class="text-success fw-bold">@Math.Abs(valueDiff).ToString("N2") (Over)</span>
+                                                        <span class="text-success fw-bold">@Math.Abs(valueDiff).ToString("N0") (Over)</span>
                                                     }
                                                 }
                                                 else
@@ -499,7 +537,7 @@
         @{
             var availableTransitions = ViewBag.AvailableTransitions as List<WorkflowTransitionDto>;
             // Hide the workflow form only for branch movements with Dispatched status until received denominations are saved
-            bool showWorkflowForm = !(Model.MovementType == "branch" && isDispatchedStatus && !hasReceivedDenominations);
+            bool showWorkflowForm = !(Model.MovementType == StockConstants.StockMovementTypes.BranchToBranch && isDispatchedStatus && !hasReceivedDenominations);
         }
         @if (showWorkflowForm && availableTransitions != null && availableTransitions.Any())
         {
@@ -525,6 +563,27 @@
                                 }
                             </select>
                         </div>
+
+                        @* Logistics Dropdown for Branch Manager, Approved → Dispatched (inside workflow form) *@
+                        @{
+                            var userRoles = User.FindAll("appRole").Select(c => c.Value);
+                            bool isBranchManager = userRoles.Contains("VMS:Branch Manager");
+                            bool isApproved = Model.CurrentStatusName == "Approved";
+                            var logisticsList = ViewBag.LogisticsList as List<VMSService.Data.Entities.Logistics>;
+                        }
+                        @if (isBranchManager && isApproved && logisticsList != null && logisticsList.Any())
+                        {
+                            <div class="mb-3" id="logisticsDropdownWrapper" styrle="display: none;">
+                                <label class="form-label">Attach Logistics Form</label>
+                                <select class="form-select" id="logisticsId" name="logisticsId">
+                                    <option value="">-- Select Logistics --</option>
+                                    @foreach (var logistics in logisticsList)
+                                    {
+                                        <option value="@logistics.Id">@logistics.Title (@logistics.ReferenceNumber)</option>
+                                    }
+                                </select>
+                            </div>
+                        }
 
                         <div class="mb-3">
                             <label class="form-label">
@@ -662,16 +721,23 @@
             const submitBtn = document.getElementById('submitBtn');
             const submitBtnLabel = document.getElementById('submitBtnLabel');
             const commentHint = document.getElementById('commentHint');
+            const logisticsDropdownWrapper = document.getElementById('logisticsDropdownWrapper');
 
             if (this.value === '') {
                 submitBtn.disabled = true;
                 commentRequired.style.display = 'none';
                 remarksTextarea.required = false;
                 commentHint.textContent = '';
+                if (logisticsDropdownWrapper) logisticsDropdownWrapper.style.display = 'none';
             } else {
                 submitBtn.disabled = false;
                 submitBtnLabel.textContent = displayLabel;
                 submitBtn.className = `text-white btn ${buttonClass}`;
+
+                // Show logistics dropdown only for 'Dispatched' action
+                if (logisticsDropdownWrapper) {
+                    logisticsDropdownWrapper.style.display = this.value === 'Dispatch' ? '' : 'none';
+                }
 
                 if (requiresComments) {
                     commentRequired.style.display = 'inline';
@@ -702,8 +768,16 @@
     }
 
     // ─── Received Denomination Reconciliation ───────────────────────────────────
-    const denominations = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.Denominations ?? new List<object>()));
-    const categories = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.Categories ?? new List<object>()));
+    const denominations = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(
+        allDenominations != null 
+            ? allDenominations.Select(d => new { id = d.Id, name = d.Name, value = d.Value, piecesInBox = d.NumberOfPiecesInABox })
+            : Enumerable.Empty<object>()
+    ));
+    const categories = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(
+        allCategories != null 
+            ? allCategories.Select(c => new { id = c.Id, name = c.Name })
+            : Enumerable.Empty<object>()
+    ));
 
     const sentDenominations = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(
         (Model?.Denominations ?? new List<VMSService.Data.Entities.StockMovementDenomination>())
@@ -716,12 +790,12 @@
     ));
 
     let receivedRows = [
-        { sentDenomId: '', sentBagsBoxes: '', sentBundles: '', categoryId: '', receivedBagsBoxes: '', receivedBundles: '' }
+        { sentDenomId: '', sentBagsBoxes: '', sentBundles: '', categoryId: '', receivedBagsBoxes: '', receivedBundles: '', receivedSubtotal: '' }
     ];
 
     function getDenominationDropdown(selectedId, idx) {
         const options = denominations.map(d => 
-            `<option value="${d.Id}" ${d.Id == selectedId ? 'selected' : ''}>${d.Name}</option>`
+            `<option value="${d.id}" ${d.id == selectedId ? 'selected' : ''}>${d.name}</option>`
         ).join('');
         return `<select class="form-select form-select-sm received-denomination" data-idx="${idx}" required>
             <option value="">-- Select Denomination --</option>
@@ -731,7 +805,7 @@
 
     function getCategoryDropdown(selectedId, idx) {
         const options = categories.map(c => 
-            `<option value="${c.Id}" ${c.Id == selectedId ? 'selected' : ''}>${c.Name}</option>`
+            `<option value="${c.id}" ${c.id == selectedId ? 'selected' : ''}>${c.name}</option>`
         ).join('');
         return `<select class="form-select form-select-sm received-category" data-idx="${idx}" required>
             <option value="">-- Select Category --</option>
@@ -749,11 +823,6 @@
                 ? '<td></td>'
                 : `<td><button type="button" class="btn btn-danger btn-sm remove-received-row" data-idx="${idx}"><i class="ti ti-trash"></i></button></td>`;
             
-            // Find denomination to get its value for subtotal
-            const selectedDenom = denominations.find(d => d.Id == row.sentDenomId);
-            const denomValue = selectedDenom ? selectedDenom.Value : 0;
-            const subtotal = (parseInt(row.receivedBagsBoxes) || 0) * denomValue;
-            
             $tbody.append(`
                 <tr data-idx="${idx}" ${isDefaultRow ? 'data-default="true"' : ''}>
                     <td>
@@ -769,12 +838,12 @@
                         <input type="number" class="form-control form-control-sm received-bundles" 
                                data-idx="${idx}" 
                                value="${row.receivedBundles}" 
-                               placeholder="0" required />
+                               placeholder="0" readonly />
                     </td>
                     <td>
                         ${getCategoryDropdown(row.categoryId, idx)}
                     </td>
-                    <td><input type="number" class="form-control form-control-sm received-subtotal" data-idx="${idx}" value="${subtotal.toFixed(2)}" step="0.01" /></td>
+                    <td><input type="text" class="form-control form-control-sm received-subtotal" data-idx="${idx}" value="${isNaN(parseFloat(row.receivedSubtotal)) ? '' : parseFloat(row.receivedSubtotal).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}" step="0.01" readonly /></td>
                     ${deleteButton}
                 </tr>
             `);
@@ -783,10 +852,42 @@
         attachReceivedRowEventHandlers();
     }
 
+    function calculateReceivedRow(idx) {
+        const row = receivedRows[idx];
+        const $row = $(`#receivedDenominationTable tbody tr[data-idx="${idx}"]`);
+        if (!$row.length) return;
+
+        const denom = denominations.find(d => d.id == row.sentDenomId);
+        const denomValue = denom ? denom.value : 0;
+        const piecesInBox = denom ? denom.piecesInBox : 1;
+        const numBoxes = parseInt(row.receivedBagsBoxes) || 0;
+
+        if (!denom || numBoxes === 0) {
+            $row.find('.received-bundles').val('');
+            $row.find('.received-subtotal').val('');
+            row.receivedBundles = '';
+            row.receivedSubtotal = '';
+            return;
+        }
+
+        // Formula: number of bundles = (Number of Boxes) × (PiecesInBox / 100)
+        const numBundles = numBoxes * (piecesInBox / 1000);
+        // Calculate subtotal: piecesInBox * denomination value * number of boxes
+        const subTotal = piecesInBox * denomValue * numBoxes;
+
+        row.receivedBundles = numBundles;
+        row.receivedSubtotal = subTotal;
+
+        $row.find('.received-bundles').val(numBundles.toFixed(0));
+        const formattedSubtotal = isNaN(subTotal) ? '' : subTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        $row.find('.received-subtotal').val(formattedSubtotal);
+    }
+
     function attachReceivedRowEventHandlers() {
         $('.received-denomination').off().on('change', function () {
             const idx = $(this).data('idx');
             receivedRows[idx].sentDenomId = $(this).val();
+            calculateReceivedRow(idx);
         });
 
         $('.received-category').off().on('change', function () {
@@ -794,19 +895,10 @@
             receivedRows[idx].categoryId = $(this).val();
         });
 
-        $('.received-bags').off().on('change', function () {
+        $('.received-bags').off().on('input change', function () {
             const idx = $(this).data('idx');
             receivedRows[idx].receivedBagsBoxes = $(this).val();
-        });
-
-        $('.received-bundles').off().on('change', function () {
-            const idx = $(this).data('idx');
-            receivedRows[idx].receivedBundles = $(this).val();
-        });
-
-        $('.received-subtotal').off().on('change', function () {
-            const idx = $(this).data('idx');
-            receivedRows[idx].receivedSubtotal = $(this).val();
+            calculateReceivedRow(idx);
         });
 
         $('.remove-received-row').off().on('click', function (e) {
@@ -829,7 +921,8 @@
                 sentBundles: '',
                 categoryId: '',
                 receivedBagsBoxes: '',
-                receivedBundles: ''
+                receivedBundles: '',
+                receivedSubtotal: ''
             });
             renderReceivedTable();
         });
@@ -840,16 +933,16 @@
         receivedDenominationForm.addEventListener('submit', function (e) {
             e.preventDefault();
             
-            // Validate that all fields are filled
+            // Validate that denomination and bags/boxes are filled (bundles and subtotal are auto-calculated)
             let isValid = true;
             receivedRows.forEach((row, idx) => {
-                if (row.receivedBagsBoxes === '' || row.receivedBundles === '') {
+                if (row.receivedBagsBoxes === '' || row.sentDenomId === '') {
                     isValid = false;
                 }
             });
 
             if (!isValid) {
-                alert('Please fill in all received quantities.');
+                alert('Please select a denomination and fill in received bags/boxes.');
                 return;
             }
 

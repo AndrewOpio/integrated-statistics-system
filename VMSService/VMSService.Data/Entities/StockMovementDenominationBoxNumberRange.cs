@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace VMSService.Data.Entities
 {
-    public class StockMovementDenominationSerialNumberRange
+    public class StockMovementDenominationBoxNumberRange
     {
         public int Id { get; set; }
         public string Prefix { get; set; }

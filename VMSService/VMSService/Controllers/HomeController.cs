@@ -14,6 +14,7 @@ using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Services.StockPositions;
 using VMSService.Core.Static;
+using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Models;
 
 namespace VMSService.Controllers

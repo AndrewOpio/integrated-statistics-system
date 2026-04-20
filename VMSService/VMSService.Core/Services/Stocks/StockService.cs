@@ -381,9 +381,9 @@ namespace VMSService.Core.Services.Stocks
                     return await response.Content.ReadFromJsonAsync<StockLedger>();
                 }
 
-                //var errorContent = await response.Content.ReadAsStringAsync();
-                //_logger.LogError("Failed to create stock ledger. Status: {StatusCode}, Response: {ErrorContent}",
-                //    response.StatusCode, errorContent);
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("Failed to create stock ledger. Status: {StatusCode}, Response: {ErrorContent}",
+                    response.StatusCode, errorContent);
 
                 _logger.LogError("Failed to create stock ledger. Status: {StatusCode}", response.StatusCode);
                 return null;

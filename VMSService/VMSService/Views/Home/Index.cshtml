@@ -10,7 +10,9 @@
 }
 
 @if (userRoles.Contains(SystemPolicy.Roles.ContractManager) || userRoles.Contains(SystemPolicy.Roles.CurrencyApprover) ||
-    userRoles.Contains(SystemPolicy.Roles.StockVerifier) || userRoles.Contains(SystemPolicy.Roles.StockApprover))
+    userRoles.Contains(SystemPolicy.Roles.StockVerifier) || userRoles.Contains(SystemPolicy.Roles.StockApprover) ||
+    userRoles.Contains(SystemPolicy.Roles.BranchManager) || userRoles.Contains(SystemPolicy.Roles.AssistantBranchManager) ||
+    userRoles.Contains(SystemPolicy.Roles.RemittancesOfficer) || userRoles.Contains(SystemPolicy.Roles.HeadOfBackOffice))
 {
     <div class="row mb-4">
         <div class="col-12">
@@ -32,9 +34,9 @@
                                         <th class="border-0">Reference</th>
                                         <th class="border-0">Branch</th>
                                         <th class="border-0">Vendor</th>
-                                        <th class="border-0">Denomination</th>
+                                        @* <th class="border-0">Denomination</th> *@
                                         <th class="border-0">Expected Delivery Date</th>
-                                        <th class="border-0">Expected Value (UGX)</th>
+                                        @* <th class="border-0">Expected Value (UGX)</th> *@
                                         <th class="border-0">Status</th>
                                         <th class="border-0 rounded-end">Actions</th>
                                     </tr>
@@ -85,7 +87,7 @@
                                                     <span class="text-muted">-</span>
                                                 }
                                             </td>
-                                            <td>
+                                            @* <td>
                                                 @if (delivery.Denomination != null)
                                                 {
                                                     <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
@@ -98,13 +100,13 @@
                                                 {
                                                     <span class="text-muted">-</span>
                                                 }
-                                            </td>
+                                            </td> *@
                                             <td>
                                                 <span class="text-muted">@delivery.DeliveryDate.ToString("dd/MMM/yyyy")</span>
                                             </td>
-                                            <td>
+                                            @* <td>
                                                 <span class="fw-bold">@delivery.Value.ToString("N0")</span>
-                                            </td>
+                                            </td> *@
                                             <td>
                                                 <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
                                                     @if (delivery.CurrentStatusId > 0)
@@ -179,7 +181,7 @@
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
                             <small class="text-muted text-uppercase fw-semibold">Total Expected Value</small>
-                            <h5 class="mb-0 fw-bold mt-2">@(Model?.Sum(d => (long)d.Value).ToString("N0") ?? "0")</h5>
+                            @* <h5 class="mb-0 fw-bold mt-2">@(Model?.Sum(d => (long)d.Value).ToString("N0") ?? "0")</h5> *@
                         </div>
                         <div class="fs-2 text-success">
                             <i class="ti ti-cash-banknote"></i>
@@ -195,7 +197,7 @@
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
                             <small class="text-muted text-uppercase fw-semibold">Total Pieces</small>
-                            <h5 class="mb-0 fw-bold mt-2">@(Model?.Sum(d => d.NumberOfPieces).ToString("N0") ?? "0")</h5>
+                            @* <h5 class="mb-0 fw-bold mt-2">@(Model?.Sum(d => d.NumberOfPieces).ToString("N0") ?? "0")</h5> *@
                         </div>
                         <div class="fs-2 text-warning">
                             <i class="ti ti-package"></i>
@@ -211,7 +213,7 @@
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
                             <small class="text-muted text-uppercase fw-semibold">Total Boxes</small>
-                            <h5 class="mb-0 fw-bold mt-2">@(Model?.Sum(d => d.NumberOfBoxes).ToString("N0") ?? "0")</h5>
+                            @* <h5 class="mb-0 fw-bold mt-2">@(Model?.Sum(d => d.NumberOfBoxes).ToString("N0") ?? "0")</h5> *@
                         </div>
                         <div class="fs-2 text-primary">
                             <i class="ti ti-box"></i>

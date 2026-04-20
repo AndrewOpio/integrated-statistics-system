@@ -8,6 +8,8 @@ namespace VMSService.Core.Repositories.StockMovements
     {
         Task<StockMovement> CreateAsync(StockMovement movement);
         Task<StockMovement> FindByIdAsync(int id);
+        Task<StockMovement> FindByIdForEditAsync(int id);
+        Task<List<StockMovement>> FindByIdsAsync(List<int> branches);
         Task<ICollection<StockMovement>> FindAllAsync();
         Task<bool> UpdateAsync(StockMovement movement);
         Task<bool> DeleteAsync(int id);

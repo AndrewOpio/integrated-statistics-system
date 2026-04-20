@@ -1,0 +1,99 @@
+@model VMSService.Data.Entities.PackingListRange
+
+@{
+    ViewData["Title"] = "Edit Packing List Range";
+    int exStockId = (int)ViewData["ExStockId"];
+}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header">
+                <h2 class="fs-5 fw-bold mb-0">Edit Packing List Range</h2>
+            </div>
+            <div class="card-body">
+                @if (!ViewData.ModelState.IsValid)
+                {
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <h5 class="alert-heading">
+                            <i class="ti ti-alert-circle me-2"></i>Validation Errors
+                        </h5>
+                        @foreach (var modelState in ViewData.ModelState.Values)
+                        {
+                            @foreach (var error in modelState.Errors)
+                            {
+                                <div>@error.ErrorMessage</div>
+                            }
+                        }
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                }
+                <form asp-action="Edit" asp-route-id="@Model.Id" asp-route-exStockId="@exStockId" method="post">
+                    <input type="hidden" asp-for="Id" />
+                    <input type="hidden" asp-for="ExpectedStockId" />
+
+                    <div class="mb-3">
+                        <label asp-for="CaseNumberPrefix" class="form-label">Case Number Prefix</label>
+                        <input asp-for="CaseNumberPrefix" class="form-control" placeholder="e.g., PN" maxlength="10" />
+                        <span asp-validation-for="CaseNumberPrefix" class="text-danger"></span>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="StartCaseNumber" class="form-label">Start Case Number</label>
+                                <input asp-for="StartCaseNumber" class="form-control" type="number" />
+                                <span asp-validation-for="StartCaseNumber" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="EndCaseNumber" class="form-label">End Case Number</label>
+                                <input asp-for="EndCaseNumber" class="form-control" type="number" />
+                                <span asp-validation-for="EndCaseNumber" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="SNPrefix" class="form-label">Serial Note Prefix</label>
+                        <input asp-for="SNPrefix" class="form-control" placeholder="e.g., SN" maxlength="10" />
+                        <span asp-validation-for="SNPrefix" class="text-danger"></span>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="SNRangeStart" class="form-label">SN Range Start</label>
+                                <input asp-for="SNRangeStart" class="form-control" type="number" />
+                                <span asp-validation-for="SNRangeStart" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="SNRangeEnd" class="form-label">SN Range End</label>
+                                <input asp-for="SNRangeEnd" class="form-control" type="number" />
+                                <span asp-validation-for="SNRangeEnd" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-check me-1"></i>Update
+                        </button>
+                        <a asp-action="Index" asp-route-exStockId="@exStockId" class="btn btn-secondary">
+                            <i class="ti ti-x me-1"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

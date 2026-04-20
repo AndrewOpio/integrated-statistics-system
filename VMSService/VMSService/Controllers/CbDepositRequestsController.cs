@@ -106,13 +106,12 @@ namespace VMSService.Web.Controllers
             var bouBranches = await _configServiceClient.GetAllBouBranchesAsync();
             var cb = await _configServiceClient.GetCbIdAsync(cbId);
 
-            var requestData = new GetStatusByNameRequestDto
+            StatusTypeDto approvedStatus =  await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
             {
                 ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
                 StatusName = StatusConstants.AgentDetail.Approved,
                 EntityTypeName = StatusConstants.Entity.AgentDetail,
-            };
-            StatusTypeDto approvedStatus =  await _workflowServiceClient.FindStatusByName(requestData);
+            });
 
             var vm = new CreateDepositViewModel
             {
@@ -684,24 +683,22 @@ namespace VMSService.Web.Controllers
 
         private async Task<StatusTypeDto> GetStatusByNameAsync(string statusName)
         {
-            var requestData = new GetStatusByNameRequestDto
+            return await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
             {
                 ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
                 StatusName = statusName,
                 EntityTypeName = StatusConstants.Entity.DepositRequest,
-            };
-            return await _workflowServiceClient.FindStatusByName(requestData);
+            });
         }
 
         private async Task<StatusTypeDto> GetStatusByNameExceptionalAsync(string statusName)
         {
-            var requestData = new GetStatusByNameRequestDto
+            return await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
             {
                 ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
                 StatusName = statusName,
                 EntityTypeName = StatusConstants.Entity.DepositRequestExceptional,
-            };
-            return await _workflowServiceClient.FindStatusByName(requestData);
+            });
         }
 
     }

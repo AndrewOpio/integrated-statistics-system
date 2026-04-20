@@ -22,6 +22,8 @@
 
             public const string Admin = "Admin";
             public const string HeadBackOffice = "Head of Back Office";
+            public const string AssistantBranchManager = "Assistant Branch Manager";
+            public const string HeadOfBackOffice = "Head of Back Office";
         }
 
         public static class ClaimType

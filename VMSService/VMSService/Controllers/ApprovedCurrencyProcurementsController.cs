@@ -198,14 +198,12 @@ namespace VMSService.Web.Controllers
 
                 model.BoardApprovalAttachment = filePath;
 
-                var requestData = new GetStatusByNameRequestDto
+                StatusTypeDto status = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
                 {
                     ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
                     StatusName = StatusConstants.ApprovedCurrencyProcurement.Draft,
                     EntityTypeName = StatusConstants.Entity.ApprovedCurrencyProcurement
-                };
-
-                StatusTypeDto status = await _workflowServiceClient.FindStatusByName(requestData);
+                });
                 model.CurrentStatusId = status.Id;
                 model.CurrentStatusName = status.Name;
 
