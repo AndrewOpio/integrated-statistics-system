@@ -30,20 +30,20 @@
             public const string AppPermission = "Permission";
         }
 
-        public static class Claims
-        {
-            public const string ContractManager = "VMS:Contract Manager";
-            public const string VerificationOfficer = "VMS:Verification Officer";
-            public const string StockVerifier = "VMS:Stock Verifier";
-            public const string StockApprover = "VMS:Stock Approver";
-            public const string CurrencyApprover = "VMS:Currency Approver";
-            public const string Director = "VMS:Director";
-            public const string CbId = "cbId";
-        }
-
         public static class SystemSettings
         {
-            public const string AppAcronym = "VMS";
+            public const string AppAcronym = "CAS";
+        }
+
+        public static class Claims
+        {
+            public const string ContractManager = $"{SystemSettings.AppAcronym}:Contract Manager";
+            public const string VerificationOfficer = $"{SystemSettings.AppAcronym}:Verification Officer";
+            public const string StockVerifier = $"{SystemSettings.AppAcronym}:Stock Verifier";
+            public const string StockApprover = $"{SystemSettings.AppAcronym}:Stock Approver";
+            public const string CurrencyApprover = $"{SystemSettings.AppAcronym}:Currency Approver";
+            public const string Director = $"{SystemSettings.AppAcronym}:Director";
+            public const string CbId = "cbId";
         }
     }
 }

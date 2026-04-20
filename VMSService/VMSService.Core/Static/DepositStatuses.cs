@@ -8,11 +8,12 @@ namespace VMSService.Core.Static
             public const string SubmittedToSupervisor = "Pending Internal Approval";
             public const string ReturnedForRevision = "Returned for Internal Revision";
             public const string SubmittedToBank = "Pending Deposit Confirmation";
-            public const string PendingSpecialApproval = "Pending Special Approval";
+            public const string PendingSpecialApproval = "Pending Exceptional Approval";
             public const string Recommended = "Recommended";
             public const string Approved = "Approved";
             public const string Rejected = "Rejected";
             public const string Cancelled = "Cancelled";
+            public const string Completed = "Completed";
         }
 
         //public static class DepositStatusIds

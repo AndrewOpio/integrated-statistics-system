@@ -20,7 +20,7 @@
 
 @{
     // var userRoles = User.FindAll("appRole").Select(c => c.Value);
-    var userRoles = string.Join(", ", User.FindAll("appRole").Where(c => c.Value.StartsWith("VMS:")).Select(c => c.Value.Split(":")[1]).ToList());
+    var userRoles = string.Join(", ", User.FindAll("appRole").Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:")).Select(c => c.Value.Split(":")[1]).ToList());
     bool isAdmin = userRoles.Contains(SystemPolicy.Roles.Admin);
     bool isCurrencyApprover = userRoles.Contains(SystemPolicy.Roles.CurrencyApprover);
     bool isContractManager = userRoles.Contains(SystemPolicy.Roles.ContractManager);
@@ -32,9 +32,9 @@
     bool isBranchManager = userRoles.Contains(SystemPolicy.Roles.StockApprover);
     bool isAssistantBranchManager = userRoles.Contains(SystemPolicy.Roles.StockVerifier);
 
-    // bool isCommercialBank = userRoles.Contains("VMS:Commercial Bank");
-    // bool isStockReceiver = userRoles.Contains("VMS:StockReceiver");
-    // bool isStockManager = userRoles.Contains("VMS:StockManager");
+    // bool isCommercialBank = userRoles.Contains($"{SystemSettings.AppAcronym}:Commercial Bank");
+    // bool isStockReceiver = userRoles.Contains($"{SystemSettings.AppAcronym}:StockReceiver");
+    // bool isStockManager = userRoles.Contains($"{SystemSettings.AppAcronym}:StockManager");
 }
 
 <!DOCTYPE html>
@@ -43,7 +43,7 @@
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <!-- Primary Meta Tags -->
-    <title>VMS - @ViewData["Title"]</title>
+    <title>CAS - @ViewData["Title"]</title>
     <meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no">
     <link rel="stylesheet" href="~/css/tabler-icons.min.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/dataTables.dataTables.css" asp-append-version="true" />
@@ -57,7 +57,7 @@
         <a asp-controller="Home" asp-action="Index" class="navbar-brand me-lg-5">
             <img class="navbar-brand-dark" src="../../img/bou.png" alt="BOU logo">
             <img class="navbar-brand-light" src="../../img/bou.png" alt="BOU logo">
-            <span>Vault Management System</span>
+            <span>Currency Automation System</span>
         </a>
         <div class="d-flex align-items-center">
             <button class="navbar-toggler d-lg-none collapsed" type="button"
@@ -103,7 +103,7 @@
                             <img src="../../img/bou.png" height="50" width="50" alt="BOU Logo">
                         </div>
                         <div class="align-items-center">
-                            <span class="mt-3 ms-1 sidebar-text">Vault Management System</span>
+                            <span class="mt-3 ms-1 sidebar-text">Currency Automation System</span>
                         </div>
                     </div>
                 </li>
@@ -166,7 +166,7 @@
                     </li>
 
                     <li class="nav-item">
-                        <a asp-controller="CbDepositRequests" asp-action="Index" target="_blank" class="nav-link d-flex align-items-center">
+                        <a asp-controller="DepositRequests" asp-action="Index" class="nav-link d-flex align-items-center">
                             <span class="sidebar-icon fs-5 me-4">
                                 <i class="ti ti-circle-arrow-down-left-filled"></i>
                             </span>
@@ -174,7 +174,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a asp-controller="AgentDetails" asp-action="Index" target="_blank" class="nav-link d-flex align-items-center">
+                        <a asp-controller="AgentDetailsInternal" asp-action="Index" class="nav-link d-flex align-items-center">
                             <span class="sidebar-icon fs-5 me-4">
                                 <i class="ti ti-user-square-rounded"></i>
                             </span>
@@ -239,7 +239,7 @@
                                 <span class="sidebar-icon fs-5 me-4">
                                     <i class="ti ti-settings"></i>
                                 </span>
-                                <span class="sidebar-text">VMS Settings</span>
+                                <span class="sidebar-text">CAS Settings</span>
                             </span>
                             <span class="link-arrow">
                                 <svg class="icon icon-sm" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
@@ -259,11 +259,6 @@
                                 <li class="nav-item">
                                     <a asp-controller="CurrencyVendors" asp-action="Index" class="nav-link">
                                         <span class="sidebar-text">Currency Vendors</span>
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a asp-controller="CommercialBankUsers" asp-action="Index" class="nav-link">
-                                        <span class="sidebar-text">Commercial Bank Users</span>
                                     </a>
                                 </li>
                             </ul>
@@ -319,7 +314,7 @@
                                         <tr>
                                             <td><i class="ti ti-shield fs-6"></i></td>
                                             <td>Roles:</td>
-                                            <td>@string.Join(", ", User.FindAll("appRole").Where(c => c.Value.StartsWith("VMS:")).Select(c => c.Value.Split(":")[1]).ToList())</td>
+                                            <td>@string.Join(", ", User.FindAll("appRole").Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:")).Select(c => c.Value.Split(":")[1]).ToList())</td>
                                         </tr>
                                     </tbody>
                                 </table>

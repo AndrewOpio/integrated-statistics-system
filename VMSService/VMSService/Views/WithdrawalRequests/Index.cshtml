@@ -10,21 +10,108 @@
     <p class="text-muted small mb-0">Cash Operations · @DateTime.Now.ToString("dddd d MMMM yyyy")</p>
 </div>
 
-@* ── Special Approval Alert ── *@
-@if (Model.SpecialApprovalCount > 0)
-{
-    <div class="alert d-flex align-items-center gap-2 py-2 mb-4"
-         style="background:#faeeda;border:1px solid #EF9F27;color:#633806">
-        <i class="ti ti-alert-triangle fs-5" style="color:#854F0B"></i>
-        <span>
-            <strong>@Model.SpecialApprovalCount request@(Model.SpecialApprovalCount > 1 ? "s" : "")</strong>
-            require special approval — review before the collection date.
-        </span>
-    </div>
-}
+@* ── Metric Cards ── *@
+@* ── Location Filter Pills ── *@
+<div class="d-flex align-items-center gap-2 flex-wrap mb-3">
+
+    @* @if (Model.CanViewAllLocations)
+    { *@
+        @* Admin: all location pills *@
+        <div class="position-relative pill-wrap">
+            <button type="button"
+                    class="location-pill @(Model.SelectedBranch == null ? "active" : "")"
+                    data-branch=""
+                    title="All locations">
+                ALL
+            </button>
+            <div class="pill-tooltip">All locations</div>
+        </div>
+
+        @foreach (var branch in Model.BouBranches)
+        {
+            <div class="position-relative pill-wrap">
+                <button type="button"
+                        class="location-pill @(Model.SelectedBranch == branch.BranchCode ? "active" : "")"
+                    data-branch="@branch.BranchCode"
+                        title="@branch.Name">
+                @branch.BranchCode
+                </button>
+                <div class="pill-tooltip">@branch.Name</div>
+            </div>
+        }
+   @*  }
+    else
+    { *@
+        @* Branch user: single locked pill *@
+       @*  <div class="position-relative pill-wrap">
+            <span class="location-pill active locked">
+                <i class="ti ti-lock" style="font-size:11px;"></i>
+                @Model.UserBranch.Code
+            </span>
+            <div class="pill-tooltip">@Model.UserBranch.Name — your location</div>
+        </div> *@
+    @* } *@
+
+</div>
 
 @* ── Metric Cards ── *@
-<div class="row g-3 mb-4">
+<div class="row g-3 mb-4" id="metric-cards">
+    <div class="col-md-3">
+        <div class="card-hover rounded-3 p-3 text-white" style="background:#b31b34">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <span class="small fw-semibold opacity-75 text-uppercase" style="font-size:11px;">Pending CB Action</span>
+                <div class="rounded-2 d-flex align-items-center justify-content-center"
+                     style="width:28px;height:28px;background:rgba(255,255,255,0.15)">
+                    <i class="ti ti-clock-hour-4" style="font-size:14px;"></i>
+                </div>
+            </div>
+            <div class="fw-bold mb-1" style="font-size:26px;" id="stat-pending">@Model.PendingCbCount</div>
+            <div class="opacity-75" style="font-size:11px;">Awaiting review</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card-hover rounded-3 p-3 text-white" style="background:#c44a1a">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <span class="small fw-semibold opacity-75 text-uppercase" style="font-size:11px;">Exceptional Approval</span>
+                <div class="rounded-2 d-flex align-items-center justify-content-center"
+                     style="width:28px;height:28px;background:rgba(255,255,255,0.15)">
+                    <i class="ti ti-star" style="font-size:14px;"></i>
+                </div>
+            </div>
+            <div class="fw-bold mb-1" style="font-size:26px;" id="stat-special">@Model.SpecialApprovalCount</div>
+            <div class="opacity-75" style="font-size:11px;">Same-day collection</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card-hover rounded-3 p-3 text-white" style="background:#BA7517">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <span class="small fw-semibold opacity-75 text-uppercase" style="font-size:11px;">Approved</span>
+                <div class="rounded-2 d-flex align-items-center justify-content-center"
+                     style="width:28px;height:28px;background:rgba(255,255,255,0.15)">
+                    <i class="ti ti-check" style="font-size:14px;"></i>
+                </div>
+            </div>
+            <div class="fw-bold mb-1" style="font-size:26px;" id="stat-approved">@Model.ApprovedCount</div>
+            <div class="opacity-75" style="font-size:11px;" id="stat-approved-diff">+@Model.ApprovedCountDiff from last month</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card-hover rounded-3 p-3 text-white" style="background:#EF9F27">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <span class="small fw-semibold opacity-75 text-uppercase" style="font-size:11px;">Total processed</span>
+                <div class="rounded-2 d-flex align-items-center justify-content-center"
+                     style="width:28px;height:28px;background:rgba(255,255,255,0.15)">
+                    <i class="ti ti-lock" style="font-size:14px;"></i>
+                </div>
+            </div>
+            <div class="fw-bold mb-1" style="font-size:22px;" id="stat-total">UGX @Model.TotalProcessed.ToString("N0")</div>
+            <div class="opacity-75" style="font-size:11px;">@DateTime.Now.ToString("MMMM yyyy")</div>
+        </div>
+    </div>
+</div>
+
+
+@* <div class="row g-3 mb-4">
     <div class="col-md-3">
         <div class="card-hover rounded-3 p-3 text-white" style="background:#b31b34">
             <div class="d-flex align-items-center justify-content-between mb-3">
@@ -77,7 +164,7 @@
             <div class="opacity-75" style="font-size:11px;">@DateTime.Now.ToString("MMMM yyyy")</div>
         </div>
     </div>
-</div>
+</div> *@
 
 @* ── Requests Table ── *@
 <div class="">
@@ -93,9 +180,10 @@
                     <thead>
                         <tr style="background:linear-gradient(90deg,#b31b34,#c44a1a,#BA7517)">
                             <th class="text-white fw-semibold " style="font-size:11px;">Transaction Ref no.</th>
-                            <th class="text-white fw-semibold" style="font-size:11px;">CB to BOU </th>
+                            <th class="text-white fw-semibold" style="font-size:11px;">CB</th>
+                            <th class="text-white fw-semibold" style="font-size:11px;">BOU Branch</th>
                             <th class="text-white fw-semibold" style="font-size:11px;">Collection date</th>
-                            <th class="text-white fw-semibold" style="font-size:11px;">Amount</th>
+                            <th class="text-white fw-semibold" style="font-size:11px;">Amount (UGX)</th>
                             <th class="text-white fw-semibold" style="font-size:11px;">Status</th>
                             <th class="text-white fw-semibold" style="font-size:11px;">Special</th>
                             <th class="text-white" style="font-size:11px;"></th>
@@ -105,32 +193,26 @@
                         @foreach (var row in Model.Requests)
                         {
                             <tr class="border-bottom">
-                                <td class="ps-3">
-                                    <span class="text-primary fw-semibold">
-                                        @row.TransactionRefNumber
-                                    </span>
+                                <td>
+                                    @row.TransactionRefNumber
                                 </td>
                                 <td>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <div class="rounded-circle border d-flex align-items-center justify-content-center bg-light fw-semibold"
-                                             style="width:32px;height:32px;font-size:10px;flex-shrink:0">
-                                            @(row.CbName?.Length >= 2 ? row.CbName[..2].ToUpper() : "—")
-                                        </div>
-                                        <span class="small">@row.CbName · @row.BouBranchCode</span>
-                                    </div>
+                                    @row.CbName
+                                </td>
+                                <td>
+                                    @row.BouBranchCode
                                 </td>
                                 <td class="small">@row.CollectionDate.ToString("dd MMM yyyy")</td>
-                                <td class="fw-semibold small">UGX @row.Amount.ToString("N0")</td>
+                                <td class="fw-semibold small">@row.Amount.ToString("N0")</td>
                                 <td>
-                                    <span class="badge rounded-pill px-2 py-1">
+                                    <span class="badge bg-info rounded-pill px-2 py-1">
                                         @row.StatusTypeName
                                     </span>
                                 </td>
                                 <td>
                                     @if (row.RequiresSpecialApproval)
                                     {
-                                        <span class="badge rounded-pill px-2 py-1"
-                                              style="background:#E1F5EE;color:#0F6E56;font-size:10px;">
+                                        <span class="badge rounded-pill bg-danger px-2 py-1">
                                             <i class="ti ti-star me-1"></i>Yes
                                         </span>
                                     }
@@ -165,6 +247,7 @@
 
 @section Scripts {
     <script>
+
         $('#requestsTable').DataTable({
             order: [[2, 'desc']],
             pageLength: 25,
@@ -172,5 +255,29 @@
                 { orderable: false, targets: [1, 5, 6] }
             ]
         });
+
+                @* ── JS: fetch updated stats on pill click ── *@
+            document.querySelectorAll('.location-pill:not(.locked)').forEach(pill => {
+                pill.addEventListener('click', () => {
+                    document.querySelectorAll('.location-pill').forEach(p => p.classList.remove('active'));
+                    pill.classList.add('active');
+
+                    const branch = pill.dataset.branch;
+                    const url = branch
+                        ? `/WithdrawalRequests/Stats?branchCode=${encodeURIComponent(branch)}`
+                        : `/WithdrawalRequests/Stats`;
+
+                    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                        .then(r => r.json())
+                        .then(d => {
+                            document.getElementById('stat-pending').textContent  = d.pendingCbCount;
+                            document.getElementById('stat-special').textContent  = d.specialApprovalCount;
+                            document.getElementById('stat-approved').textContent = d.approvedCount;
+                            document.getElementById('stat-approved-diff').textContent = `+${d.approvedCountDiff} from last month`;
+                            document.getElementById('stat-total').textContent    = `UGX ${d.totalProcessed.toLocaleString()}`;
+                        })
+                        .catch(console.error);
+                });
+            });
     </script>
 }

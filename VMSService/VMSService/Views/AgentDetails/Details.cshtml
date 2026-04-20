@@ -3,7 +3,7 @@
 @{
     Layout = "_CbLayoutOther";
     ViewData["Title"] = "Agent Details";
-    var userRoles = string.Join(", ", User.FindAll("appRole").Where(c => c.Value.StartsWith("VMS:")).Select(c => c.Value.Split(":")[1]).ToList());
+    var userRoles = string.Join(", ", User.FindAll("appRole").Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:")).Select(c => c.Value.Split(":")[1]).ToList());
 }
 
 <div class="row">
@@ -38,7 +38,7 @@
                                     <i class="ti ti-badge me-1"></i>@Model.CurrentStatusName
                                 </span>
                                 <span class="badge @(Model.IsActive ? "bg-active" : "bg-inactive")">
-                                    <i class="ti ti-check me-1"></i>@(Model.IsActive ? "Active" : "Inactive")
+                                    <i class="ti @(Model.IsActive ? "ti-check" : "ti-x") me-1"></i>@(Model.IsActive ? "Active" : "Inactive")
                                 </span>                                
                             </div>
                         </div>
@@ -333,7 +333,7 @@
         // Define hint messages for each action
         const hintMessages = {
             'Verify': 'Provide your verification comments.',
-            'Reject': 'Explain why you are rejecting this procurement.',
+            'Reject': 'Explain why you are rejecting this Agent.',
             'Resubmit': 'Explain what changes were made.'
         };
 

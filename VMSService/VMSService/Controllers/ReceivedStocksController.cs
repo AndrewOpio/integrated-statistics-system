@@ -105,7 +105,7 @@ namespace VMSService.Web.Controllers
 
                 // Get available transitions for current user
                 var userRoles = User.FindAll("appRoleId")
-                    .Where(c => c.Value.StartsWith("VMS:"))
+                    .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
                     .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
                     .Where(id => id.HasValue)
                     .Select(id => id.Value)
@@ -490,7 +490,7 @@ namespace VMSService.Web.Controllers
                 }
 
                 var userRoles = User.FindAll("appRoleId")
-                    .Where(c => c.Value.StartsWith("VMS:"))
+                    .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
                     .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
                     .Where(id => id.HasValue)
                     .Select(id => id.Value)

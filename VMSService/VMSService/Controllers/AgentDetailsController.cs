@@ -92,7 +92,7 @@ namespace VMSService.Controllers
                 // Get available transitions for current user
                 //var userRole = User.FindFirst(SystemPolicy.ClaimType.AppRole)?.Value ?? "";
                 var userRoles = User.FindAll("appRoleId")
-                    .Where(c => c.Value.StartsWith("VMS:"))
+                    .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
                     .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
                     .Where(id => id.HasValue)
                     .Select(id => id.Value)
@@ -165,6 +165,7 @@ namespace VMSService.Controllers
                 var branches = await _configService.GetAllBranches();
                 var model = new AgentDetailViewModel
                 {
+                    CommercialBankId = cbId,
                     BranchList = [.. branches.Select(b => new SelectListItem
                     {
                         Value = b.Id.ToString(),
@@ -569,7 +570,7 @@ namespace VMSService.Controllers
                 var username = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? "System";
                 //var userRole = User.FindFirst(SystemPolicy.ClaimType.AppRole)?.Value ?? "";
                 var userRoles = User.FindAll("appRoleId")
-                    .Where(c => c.Value.StartsWith("VMS:"))
+                    .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
                     .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
                     .Where(id => id.HasValue)
                     .Select(id => id.Value)

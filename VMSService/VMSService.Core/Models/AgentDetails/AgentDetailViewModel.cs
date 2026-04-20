@@ -10,6 +10,9 @@ namespace VMSService.Core.Models.AgentDetails
     {
         public int Id { get; set; }
 
+        [Display(Name = "Commercial Bank")]
+        public int CommercialBankId { get; set; }
+
         [Required(ErrorMessage = "Commercial Bank Branch is required")]
         [Display(Name = "Commercial Bank Branch")]
         public int CommercialBankBranchId { get; set; }

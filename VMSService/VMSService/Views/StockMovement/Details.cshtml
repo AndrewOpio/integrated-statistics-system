@@ -157,7 +157,7 @@
                 @{
                     bool isDispatchedStatus = Model.CurrentStatusName == "Dispatched";
                     var userRoles = User.FindAll("appRole").Select(c => c.Value);
-                    bool isAssistantBranchManager = userRoles.Contains("VMS:Assistant BranchDto Manager");
+                    bool isAssistantBranchManager = userRoles.Contains($"{SystemPolicy.SystemSettings.AppAcronym}:Assistant BranchDto Manager");
                     var receivedDenominations = (Model.Denominations ?? new List<VMSService.Data.Entities.StockMovementDenomination>()).Where(d => d.DenominationType == "Received").ToList();
                     bool hasReceivedDenominations = receivedDenominations.Any();
                 }

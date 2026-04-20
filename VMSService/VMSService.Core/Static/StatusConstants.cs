@@ -85,6 +85,7 @@
             public const string WithdrawalRequest = "Withdrawal Request";
             public const string AgentDetail = "AgentDetail";
             public const string DepositRequest = "DepositRequest";
+            public const string DepositRequestExceptional = "DepositRequestExceptional";
         }
     }
 }

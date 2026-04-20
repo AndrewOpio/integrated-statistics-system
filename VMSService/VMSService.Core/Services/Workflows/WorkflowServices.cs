@@ -146,6 +146,11 @@ namespace VMSService.Core.Services.Workflows
                             entityId, currentStatusId, actionName,
                             username, remarks, transition, ct),
 
+                    StatusConstants.Entity.DepositRequestExceptional =>
+                            await HandleDepositTransitions(
+                            entityId, currentStatusId, actionName,
+                            username, remarks, transition, ct),
+
                     _ => LogUnknownEntity(entityType)
                 };
             }
@@ -413,7 +418,7 @@ namespace VMSService.Core.Services.Workflows
                         <li><strong>Comment:</strong> {remarks}</li>
                         <li><strong>Transition Time:</strong> {DateTime.Now:yyyy-MM-dd HH:mm:ss}</li>
                     </ul>
-                    <p>Please log in to the VMS system for more details.</p>
+                    <p>Please log in to the CAS system for more details.</p>
                     <p>Thank you.</p>
                     <small>THIS IS AN AUTOMATED MESSAGE. PLEASE DO NOT REPLY.</small>";
 
@@ -612,7 +617,7 @@ namespace VMSService.Core.Services.Workflows
             if (transition.SendNotification)
             {
                 await SendTransitionNotification(
-                $"Deposit #{entityId} (UGX {deposit.TotalAmount:N0})",
+                $"Deposit {deposit.TransactionRefNumber} (UGX {deposit.TotalAmount:N0})",
                 transition,
                 transition.ToStatus.Name,
                 username, remarks);
@@ -630,7 +635,7 @@ namespace VMSService.Core.Services.Workflows
             {
                 var requestData = new GetAvailableTransitionsRequestDto
                 {
-                    ApplicationAcronym = "VMS",
+                    ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
                     EntityTypeName = entityType,
                     CurrentStatusId = statusId,
                     AppRole = userRole,

@@ -44,6 +44,9 @@ namespace VMSService.Data.Migrations
                     b.Property<int>("CommercialBankBranchId")
                         .HasColumnType("int");
 
+                    b.Property<int>("CommercialBankId")
+                        .HasColumnType("int");
+
                     b.Property<string>("CreatedBy")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");

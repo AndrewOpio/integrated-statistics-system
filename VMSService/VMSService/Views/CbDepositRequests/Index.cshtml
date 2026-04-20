@@ -36,7 +36,7 @@
     // };
 
     // var userRole = User.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty;
-    // var userRoles = User.FindAll("appRole").Where(c => c.Value.StartsWith("VMS:")).Select(c => c.Value.Split(":")[1]).ToList();
+    // var userRoles = User.FindAll("appRole").Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:")).Select(c => c.Value.Split(":")[1]).ToList();
     // var isBouUser = false;
     // foreach (var role in userRoles)
     // {

@@ -42,11 +42,16 @@ namespace VMSService.Web.Controllers
             {
                 //var userRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? string.Empty;
                 //var isBouUser = RolePolicy.BouRoles.Contains(userRole);
-                var userRoles = User.FindAll("appRole").Where(c => c.Value.StartsWith("VMS:")).Select(c => c.Value.Split(":")[1]).ToList();
+                var userRoles = User.FindAll("appRole").Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:")).Select(c => c.Value.Split(":")[1]).ToList();
                 var isBouUser = false;
                 foreach (var role in userRoles)
                 {
-                    isBouUser = RolePolicy.BouRoles.Contains(role);
+                    if (RolePolicy.BouRoles.Contains(role))
+                    {
+                        isBouUser = true;
+                        break;
+                    }
+                    //isBouUser = RolePolicy.BouRoles.Contains(role);
                 }
 
                 IEnumerable<DepositRequest> deposits;
@@ -101,9 +106,17 @@ namespace VMSService.Web.Controllers
             var bouBranches = await _configServiceClient.GetAllBouBranchesAsync();
             var cb = await _configServiceClient.GetCbIdAsync(cbId);
 
+            var requestData = new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                StatusName = StatusConstants.AgentDetail.Approved,
+                EntityTypeName = StatusConstants.Entity.AgentDetail,
+            };
+            StatusTypeDto approvedStatus =  await _workflowServiceClient.FindStatusByName(requestData);
+
             var vm = new CreateDepositViewModel
             {
-                Steps = DepositStepViewModelFactory.Build("CbMaker", false, User),
+                Steps = DepositStepViewModelFactory.Build("CbMaker", false, false, User),
                 Branches = new FromToSelectionViewModel
                 {
                     BouBranches = bouBranches,
@@ -112,7 +125,7 @@ namespace VMSService.Web.Controllers
                 Agents = new AgentSelectionViewModel
                 {
                     Agents = agents
-                        .Where(a => a.IsActive && !a.IsDeleted)
+                        .Where(a => a.IsActive && !a.IsDeleted && a.CommercialBankId == cbId && a.CurrentStatusId == approvedStatus.Id)
                         .Select(a => _mapper.Map<AgentDetailViewModel>(a))
                         .ToList(),
                 },
@@ -169,7 +182,11 @@ namespace VMSService.Web.Controllers
                 var request = await GetOrCreateRequestAsync(vm, userId, ct);
 
                 // Ensure draft status
-                if (request.StatusTypeId == 0)
+                if (request.StatusTypeId == 0 && request.RequiresSpecialApproval)
+                {
+                    StatusTypeDto status = await GetStatusByNameExceptionalAsync(DepositStatuses.DepositStatusNames.Draft);
+                    request.StatusTypeId = status.Id;
+                } else if (request.StatusTypeId == 0 && !request.RequiresSpecialApproval)
                 {
                     StatusTypeDto status = await GetStatusByNameAsync(DepositStatuses.DepositStatusNames.Draft);
                     request.StatusTypeId = status.Id;
@@ -179,7 +196,8 @@ namespace VMSService.Web.Controllers
                 if (vm.Id.HasValue)
                 {
                     await _uow.Requests.Update(request);
-                } else
+                }
+                else
                 {
                     await _uow.Requests.Create(request);
                 }
@@ -201,55 +219,6 @@ namespace VMSService.Web.Controllers
             }
         }
 
-        //// Submit to Supervisor
-        //[HttpPost("submit-to-supervisor")]
-        //public async Task<IActionResult> SubmitToSupervisor(SaveDepositRequestViewModel vm, CancellationToken ct)
-        //{
-        //    if (!ValidateSubmit(vm, out var errors))
-        //    {
-        //        return BadRequest(new { errors });
-        //    }
-
-        //    try
-        //    {
-        //        var userId = GetUserId();
-        //        var request = await GetOrCreateRequestAsync(vm, userId, ct);
-
-        //        var oldStatusId = request.StatusTypeId;
-        //        request.StatusTypeId = DepositStatuses.DepositStatusIds.SubmittedToSupervisor;
-
-        //        await _uow.Requests.Update(request);
-        //        await _uow.SaveAsync(ct);
-
-        //        // Save denominations
-        //        await SaveDenominationsAsync(request.Id, vm.Denominations, userId, ct);
-
-        //        // Save agents
-        //        await SaveAgentsAsync(request.Id, vm.AgentIds, userId, ct);
-
-        //        // Copy denominations to BOU
-        //        await CopyDenominationsToBankAsync(request.Id, userId, ct);
-
-        //        // Add status history
-        //        await AddStatusHistoryAsync(
-        //            request.Id,
-        //            oldStatusId,
-        //            DepositStatuses.DepositStatusNames.Draft,
-        //            DepositStatuses.DepositStatusIds.SubmittedToSupervisor,
-        //            DepositStatuses.DepositStatusNames.SubmittedToSupervisor,
-        //            userId,
-        //            DepositStatuses.DepositRemarks.SubmittedToSupervisor,
-        //            ct);
-
-        //        return Ok($"/CbDepositRequests/Details/{request.Id}");
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Error submitting deposit to supervisor");
-        //        return BadRequest(new { errors = new[] { "An unexpected error occurred. Please try again." } });
-        //    }
-        //}
-
         // Details
         public async Task<IActionResult> Details(Guid id, CancellationToken ct)
         {
@@ -261,11 +230,32 @@ namespace VMSService.Web.Controllers
 
             var currentStepKey = GetCurrentStepKey(currentStatus.Name);
 
-            // Resolve agent details
-            var agentDetails = new List<AgentDetailViewModel>();
-            foreach (var ra in request.DepositRequestAgents)
+            var userRoles = User.FindAll("appRole").Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:")).Select(c => c.Value.Split(":")[1]).ToList();
+            var isBouUser = false;
+            foreach (var role in userRoles)
             {
-                var agent = await _agentRepo.FindById(ra.AgentId);
+                if (RolePolicy.BouRoles.Contains(role))
+                {
+                    isBouUser = true;
+                    break;
+                }
+                //isBouUser = RolePolicy.BouRoles.Contains(role);
+            }
+
+            if (isBouUser)
+            {
+                currentStepKey = GetCurrentStepKeyBOU(currentStatus.Name);
+            }
+
+            // Resolve agent details
+            var cbAgentIds = request.DepositRequestAgents
+                .Select(a => a.AgentId)
+                .ToList();
+
+            var agentDetails = new List<AgentDetailViewModel>();
+            foreach (var agentId in cbAgentIds)
+            {
+                var agent = await _agentRepo.FindById(agentId);
                 if (agent != null)
                     agentDetails.Add(_mapper.Map<AgentDetailViewModel>(agent));
             }
@@ -275,6 +265,11 @@ namespace VMSService.Web.Controllers
                 .Where(d => d.Origin == DepositStatuses.DepositOrigin.Cb);
 
             StatusTypeDto approvedStatus = await GetStatusByNameAsync(DepositStatuses.DepositStatusNames.Approved);
+
+            if (request.RequiresSpecialApproval)
+            {
+                approvedStatus = await GetStatusByNameExceptionalAsync(DepositStatuses.DepositStatusNames.Approved);
+            }
 
             // Commercial bank details
             var cb = await _configServiceClient.GetCbIdAsync(request.CbId);
@@ -306,25 +301,46 @@ namespace VMSService.Web.Controllers
             }
 
             // Logged in user's roles
-            var userRoles = GetUserRoles();
+            var userRoleIds = GetUserRoles();
 
             var availableTransitions = new List<WorkflowTransitionDto>();
-            foreach (var userRole in userRoles)
+            if (request.RequiresSpecialApproval)
             {
-                var requestData = new GetAvailableTransitionsRequestDto
+                foreach (var userRoleId in userRoleIds)
                 {
-                    ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
-                    EntityTypeName = StatusConstants.Entity.DepositRequest,
-                    CurrentStatusId = request.StatusTypeId,
-                    AppRole = userRole,
-                };
+                    var requestData = new GetAvailableTransitionsRequestDto
+                    {
+                        ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                        EntityTypeName = StatusConstants.Entity.DepositRequestExceptional,
+                        CurrentStatusId = request.StatusTypeId,
+                        AppRole = userRoleId,
+                    };
 
-                var transitions = await _workflowServiceClient.GetAvailableTransitions(requestData);
-                if (transitions != null)
-                {
-                    availableTransitions.AddRange(transitions);
+                    var transitions = await _workflowServiceClient.GetAvailableTransitions(requestData);
+                    if (transitions != null)
+                    {
+                        availableTransitions.AddRange(transitions);
+                    }
                 }
-            }
+            } else
+            {
+                foreach (var userRoleId in userRoleIds)
+                {
+                    var requestData = new GetAvailableTransitionsRequestDto
+                    {
+                        ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                        EntityTypeName = StatusConstants.Entity.DepositRequest,
+                        CurrentStatusId = request.StatusTypeId,
+                        AppRole = userRoleId,
+                    };
+
+                    var transitions = await _workflowServiceClient.GetAvailableTransitions(requestData);
+                    if (transitions != null)
+                    {
+                        availableTransitions.AddRange(transitions);
+                    }
+                }
+            } 
 
             var vm = new DepositRequestDetailsViewModel
             {
@@ -386,7 +402,7 @@ namespace VMSService.Web.Controllers
                 TotalCoinsAmount = request.TotalCoinsAmount,
                 TotalAmount = request.TotalAmount,
                 Steps = DepositStepViewModelFactory.Build(currentStepKey, 
-                    request.StatusTypeId == approvedStatus.Id, User),
+                    request.StatusTypeId == approvedStatus.Id, request.RequiresSpecialApproval, User),
                 StatusHistory = statusHistoryList,
                 AvailableTransitions = availableTransitions,  
                 RequiresSpecialApproval = request.RequiresSpecialApproval,
@@ -405,7 +421,23 @@ namespace VMSService.Web.Controllers
             DepositStatuses.DepositStatusNames.Draft or
             DepositStatuses.DepositStatusNames.ReturnedForRevision => "CbMaker",
             DepositStatuses.DepositStatusNames.SubmittedToSupervisor => "CbApprover",
-            _ => "BOU",
+            DepositStatuses.DepositStatusNames.PendingSpecialApproval or
+            DepositStatuses.DepositStatusNames.SubmittedToBank or
+            DepositStatuses.DepositStatusNames.Recommended => "BOU",
+            DepositStatuses.DepositStatusNames.Approved => "Agents",
+            _ => "none",
+        };
+
+        private static string GetCurrentStepKeyBOU(string status) => status switch
+        {
+            DepositStatuses.DepositStatusNames.Draft or
+            DepositStatuses.DepositStatusNames.ReturnedForRevision or
+            DepositStatuses.DepositStatusNames.SubmittedToSupervisor => "cb",
+            DepositStatuses.DepositStatusNames.PendingSpecialApproval => "Remittance",
+            DepositStatuses.DepositStatusNames.SubmittedToBank => "PanelA",
+            DepositStatuses.DepositStatusNames.Recommended => "PanelB",
+            DepositStatuses.DepositStatusNames.Approved => "Agents",
+            _ => "none",
         };
 
         // Execute workflow action
@@ -418,12 +450,22 @@ namespace VMSService.Web.Controllers
 
             try
             {
-                var username = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? "System";
+                var username = User.FindFirst(ClaimTypes.Name)?.Value ?? "System";
                 var userRoles = GetUserRoles();
 
-                bool isExecuted = await _workflowService.ExecuteTransition(
-                    StatusConstants.Entity.DepositRequest, id, request.StatusTypeId,
-                    actionName, username, userRoles, remarks, ct);
+                bool isExecuted = false;
+
+                if (request.RequiresSpecialApproval)
+                {
+                    isExecuted = await _workflowService.ExecuteTransition(
+                        StatusConstants.Entity.DepositRequestExceptional, id, request.StatusTypeId,
+                        actionName, username, userRoles, remarks, ct);
+                } else
+                {
+                    isExecuted = await _workflowService.ExecuteTransition(
+                        StatusConstants.Entity.DepositRequest, id, request.StatusTypeId,
+                        actionName, username, userRoles, remarks, ct);
+                }
 
                 if (isExecuted)
                 {
@@ -475,6 +517,11 @@ namespace VMSService.Web.Controllers
                 string transactionRefNumber = await _depositTransactionRefNumberGenerator.GenerateAsync(vm.BouBranchId, vm.CbId, vm.DepositDate);
 
                 StatusTypeDto draftStatus = await GetStatusByNameAsync(DepositStatuses.DepositStatusNames.Draft);
+
+                if (vm.RequiresSpecialApproval)
+                {
+                    draftStatus = await GetStatusByNameExceptionalAsync(DepositStatuses.DepositStatusNames.Draft);
+                }
 
                 DenominationType noteType = (await _denominationTypeRepo.FindAll()).FirstOrDefault(x => x.Name == StockConstants.DenominationTypes.Note);
                 int notTypeId = noteType != null ? noteType.Id : 0;
@@ -625,7 +672,7 @@ namespace VMSService.Web.Controllers
         private List<int> GetUserRoles()
         {
             return User.FindAll("appRoleId")
-                    .Where(c => c.Value.StartsWith("VMS:"))
+                    .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
                     .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
                     .Where(id => id.HasValue)
                     .Select(id => id.Value)
@@ -645,6 +692,17 @@ namespace VMSService.Web.Controllers
             };
             return await _workflowServiceClient.FindStatusByName(requestData);
         }
-        
+
+        private async Task<StatusTypeDto> GetStatusByNameExceptionalAsync(string statusName)
+        {
+            var requestData = new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                StatusName = statusName,
+                EntityTypeName = StatusConstants.Entity.DepositRequestExceptional,
+            };
+            return await _workflowServiceClient.FindStatusByName(requestData);
+        }
+
     }
 }

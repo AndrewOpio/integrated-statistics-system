@@ -48,7 +48,7 @@
                                             <tr>
                                                 <td><i class="ti ti-shield fs-6"></i></td>
                                                 <td><small>Roles:</small></td>
-                                                <td><small>@string.Join(", ", User.FindAll("appRole").Where(c => c.Value.StartsWith("VMS:")).Select(c => c.Value.Split(":")[1]).ToList())</small></td>
+                                                <td><small>@string.Join(", ", User.FindAll("appRole").Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:")).Select(c => c.Value.Split(":")[1]).ToList())</small></td>
                                             </tr>
                                         </tbody>
                                     </table>

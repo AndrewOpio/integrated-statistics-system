@@ -1,6 +1,7 @@
 ﻿using System.Security.Claims;
 using VMSService.Core.Authorization;
 using VMSService.Core.Models.CbRequests;
+using VMSService.Core.Static;
 
 namespace VMSService.Core.Models.CbDepositRequests;
 public class DepositStepViewModelFactory
@@ -15,10 +16,17 @@ public class DepositStepViewModelFactory
 
     private static readonly (string Key, string Icon, string Label, string SubLabel)[] BouSteps =
     [
-        ("cb",          "ti-building",             "Company",          "Company request"),
-        ("Remittance",  "ti-adjustments",          "Remittance",       "Validate Checks"),
+        ("cb",          "ti-building",             "Commercial Bank",          "Submit request"),
+        ("PanelA",      "ti-shield-check",         "Panel A",          "Review and recommend"),
+        ("PanelB",      "ti-arrow-right-circle",   "Panel B",          "Review and Approve"),
+    ];
+
+    private static readonly (string Key, string Icon, string Label, string SubLabel)[] BouStepsExceptional =
+    [
+        ("cb",          "ti-building",             "Commercial Bank",          "Submit request"),
+        ("Remittance",  "ti-adjustments",          "Remittance",       "Exceptional Approval"),
         ("PanelA",      "ti-shield-check",         "Panel A",          "Review and Adjust"),
-        ("PanelB",      "ti-arrow-right-circle",   "Panel B",          "Collect and Approve"),
+        ("PanelB",      "ti-arrow-right-circle",   "Panel B",          "Confirm and Approve"),
     ];
 
 
@@ -28,12 +36,22 @@ public class DepositStepViewModelFactory
     public static DepositStepViewModel Build(
         string currentStepKey,
         bool isRequestApproved,
+        bool isSpecialApprovalRequired,
         ClaimsPrincipal user)
     {
-        var userRole = user.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value ?? string.Empty;
-        var isBouUser = RolePolicy.BouRoles.Contains(userRole);
+        var userRole = user.FindAll("appRole").Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:")).Select(c => c.Value.Split(":")[1]).ToList();
+        var isBouUser = false;
+        foreach (var role in userRole)
+        {
+            if (RolePolicy.BouRoles.Contains(role))
+            {
+                isBouUser = true;
+                break;
+            }
+        }
 
         var activeSteps = isBouUser ? BouSteps : CbSteps;
+        if (isBouUser && isSpecialApprovalRequired) activeSteps = BouStepsExceptional;
         var currentIndex = Array.FindIndex(activeSteps, s => s.Key == currentStepKey);
 
         var steps = activeSteps.Select((s, i) => new DepositStep
@@ -51,6 +69,21 @@ public class DepositStepViewModelFactory
 
         var isInProgress = !isBouUser && currentStepKey == "bank" && !isRequestApproved;
         var isApproved = !isBouUser && isRequestApproved;
+
+        if(isRequestApproved)
+        {
+            // Rebuild the steps list with all states set to Done
+            steps = activeSteps.Select((s, i) => new DepositStep
+            {
+                Key = s.Key,
+                Icon = s.Icon,
+                Label = s.Label,
+                SubLabel = s.SubLabel,
+                State = StepState.Done,
+                IsVisible = true,
+                IsConnectorDone = i > 0 && (i - 1) < currentIndex,
+            }).ToList();
+        }
 
         return new DepositStepViewModel
         {

@@ -6,7 +6,7 @@
     var categories = ViewBag.Categories;
     var denominations = ViewBag.Denominations;
     var stockMatrix = ViewBag.StockMatrix;
-    var userRoles = string.Join(", ", User.FindAll("appRole").Where(c => c.Value.StartsWith("VMS:")).Select(c => c.Value.Split(":")[1]).ToList());
+    var userRoles = string.Join(", ", User.FindAll("appRole").Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:")).Select(c => c.Value.Split(":")[1]).ToList());
 }
 
 @if (userRoles.Contains(SystemPolicy.Roles.ContractManager) || userRoles.Contains(SystemPolicy.Roles.CurrencyApprover) ||

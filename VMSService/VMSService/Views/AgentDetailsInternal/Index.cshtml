@@ -13,15 +13,12 @@
                         <h2 class="fs-5 fw-bold mb-0">Agent Details</h2>
                     </div>
                     <div class="col text-end">
-                        <a asp-action="Create" class="btn btn-sm btn-primary">
-                            <i class="ti ti-plus me-1"></i>Add Agent
-                        </a>
                     </div>
                 </div>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-centered table-nowrap mb-0 rounded">
+                    <table class="table table-centered table-nowrap mb-0 rounded datatable">
                         <thead class="thead-light">
                             <tr>
                                 <th class="border-0 rounded-start">#</th>
@@ -30,6 +27,7 @@
                                 <th class="border-0">NIN</th>
                                 <th class="border-0">Phone Number</th>
                                 <th class="border-0">BOU Branch</th>
+                                <th class="border-0">Status</th>
                                 <th class="border-0 rounded-end">Actions</th>
                             </tr>
                         </thead>
@@ -74,15 +72,24 @@
                                         </div>
                                     </td>
                                     <td>
+                                        <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
+                                            <span class="badge bg-purple">
+                                                <i class="ti ti-badge me-1"></i>@item.CurrentStatusName
+                                            </span>
+                                            @{
+                                                if (item.CurrentStatusName == StatusConstants.AgentDetail.Approved)
+                                                {
+                                                    <span class="badge @(item.IsActive ? "bg-active" : "bg-inactive")">
+                                                        <i class="ti @(item.IsActive ? "ti-check" : "ti-x") me-1"></i>@(item.IsActive ? "Active" : "Inactive")
+                                                    </span>
+                                                }
+                                            }
+                                        </div>
+                                    </td>
+                                    <td>
                                         <div class="btn-group" role="group">
-                                            <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
-                                                <i class="ti ti-edit"></i>
-                                            </a>
                                             <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
                                                 <i class="ti ti-eye"></i>
-                                            </a>
-                                            <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger" title="Delete">
-                                                <i class="ti ti-trash"></i>
                                             </a>
                                         </div>
                                     </td>
