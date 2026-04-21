@@ -7,29 +7,36 @@ using VMSService.Controllers;
 using VMSService.Core.Models.Branches;
 using VMSService.Core.Models.Denominations;
 using VMSService.Core.Models.ExPrintMints;
+using VMSService.Core.Models.ExPrintMintDetails;
+using VMSService.Core.Models.ReceivedStocksDetails;
 using VMSService.Core.Models.ReceivedStocks;
 using VMSService.Core.Models.ReceivedStockStatusHistories;
 using VMSService.Core.Repositories.BranchCategories;
 using VMSService.Core.Repositories.Branches;
 using VMSService.Core.Repositories.CounterPartyTypes;
 using VMSService.Core.Repositories.Denominations;
+using VMSService.Core.Repositories.ExPrintMintDetails;
 using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ReceivedStocks;
+using VMSService.Core.Repositories.ReceivedStocksDetails;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
-using VMSService.Core.Repositories.Stocks;
+using VMSService.Core.Repositories.PackingListRanges;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
 using WorkflowService.Client;
 using WorkflowService.Client.Dto;
+using VMSService.Core.Repositories.Stocks;
 
 namespace VMSService.Web.Controllers
 {
     [Authorize]
     public class ReceivedStocksController(
         IReceivedStockRepository _receivedStockRepository,
+        IReceivedStockDetailsRepository _receivedStockDetailsRepository,
         IExPrintMintRepository _exPrintMintRepository,
+        IExPrintMintDetailRepository _exPrintMintDetailRepository,
         IMapper _mapper,
         ILogger<ReceivedStocksController> _logger,
         IWorkflowService _workflowService,
@@ -40,6 +47,7 @@ namespace VMSService.Web.Controllers
         IBranchRepository _branchRepository,
         ICounterPartyTypeRepository _counterPartyTypeRepository,
         IBranchCategoryRepository _branchCategoryRepository,
+        IPackingListRangeRepository _packingListRangeRepository,
         IWorkflowServiceClient _workflowServiceClient) : Controller
     {
         [Breadcrumb("Received Stock", FromController = typeof(HomeController), FromAction = nameof(Index))]
@@ -103,9 +111,36 @@ namespace VMSService.Web.Controllers
 
                 var model = _mapper.Map<ReceivedStockViewModel>(receivedStock);
 
+                // Explicitly map ReceivedStockDetails and load denomination names
+                model.Details = _mapper.Map<ICollection<ReceivedStockDetailViewModel>>(receivedStock.ReceivedStockDetails);
+                
+                // Populate denomination names for each detail
+                if (model.Details != null)
+                {
+                    foreach (var detail in model.Details)
+                    {
+                        // Load the PackingListRange with its ExPrintMintDetail
+                        var packingListRange = await _packingListRangeRepository.FindByIdAsync(detail.PackingListRangeId);
+                        if (packingListRange != null)
+                        {
+                            // Get the ExPrintMintDetail associated with this PackingListRange
+                            var exPrintMintDetail = await _exPrintMintDetailRepository.FindById(packingListRange.ExPrintMintDetailId);
+                            if (exPrintMintDetail != null)
+                            {
+                                // Get the Denomination for this ExPrintMintDetail
+                                var denomination = await _denominationRepository.FindById(exPrintMintDetail.DenominationId);
+                                if (denomination != null)
+                                {
+                                    detail.DenominationName = denomination.Name;
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Get available transitions for current user
                 var userRoles = User.FindAll("appRoleId")
-                    .Where(c => c.Value.StartsWith("VMS:"))
+                    .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
                     .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
                     .Where(id => id.HasValue)
                     .Select(id => id.Value)
@@ -170,6 +205,28 @@ namespace VMSService.Web.Controllers
                 {
                     exPrintMint.Denomination = _mapper.Map<DenominationViewModel>(await _denominationRepository.FindById(exPrintMint.DenominationId));
                     
+                    // Load details (denominations) for this ExPrintMint batch
+                    var details = await _exPrintMintDetailRepository.FindByExPrintMintId(exPrintMint.Id);
+                    if (details != null && details.Any())
+                    {
+                        // Create a collection of anonymous objects with denomination info for JavaScript
+                        exPrintMint.Details = new List<ExPrintMintDetailViewModel>();
+                        foreach (var detail in details)
+                        {
+                            var denomination = await _denominationRepository.FindById(detail.DenominationId);
+                            exPrintMint.Details.Add(new ExPrintMintDetailViewModel
+                            {
+                                Id = detail.Id,
+                                ExPrintMintId = detail.ExPrintMintId,
+                                DenominationId = detail.DenominationId,
+                                DenominationName = denomination?.Name ?? $"Denomination {detail.DenominationId}",
+                                NumberOfPieces = detail.NumberOfPieces,
+                                Value = detail.Value,
+                                NumberOfBoxes = detail.NumberOfBoxes
+                            });
+                        }
+                    }
+                    
                     // Add Branch information through ExPrintMint
                     if (exPrintMint.BranchId > 0)
                     {
@@ -181,7 +238,30 @@ namespace VMSService.Web.Controllers
                     }
                 }
                 ViewBag.ExPrintMints = exPrintMints;
-                return View(new ReceivedStockViewModel());
+                
+                // Load all PackingListRanges for the "Add new row" dropdown
+                // Get ranges and load their denominations
+                var allPackingListRanges = await _packingListRangeRepository.FindAllActiveAsync();
+                var rangesWithDenominations = new List<dynamic>();
+                foreach (var range in allPackingListRanges)
+                {
+                    var denomination = await _denominationRepository.FindById(range.ExPrintMintDetail.DenominationId);
+                    rangesWithDenominations.Add(new 
+                    { 
+                        range.Id, 
+                        DenominationName = denomination?.Name ?? "Unknown",
+                    });
+                }
+                ViewBag.PackingListRanges = rangesWithDenominations;
+                
+                var model = new ReceivedStockViewModel
+                {
+                    Details = new List<ReceivedStockDetailViewModel> 
+                    { 
+                        new ReceivedStockDetailViewModel() 
+                    }
+                };
+                return View(model);
             }
             catch (Exception ex)
             {
@@ -228,24 +308,42 @@ namespace VMSService.Web.Controllers
 
             try
             {
-                var requestData = new GetStatusByNameRequestDto
+                StatusTypeDto status = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
                 {
                     ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
                     StatusName = StatusConstants.ReceivedStock.Draft,
                     EntityTypeName = StatusConstants.Entity.ReceivedStock
-                };
-                StatusTypeDto status = await _workflowServiceClient.FindStatusByName(requestData);
+                });
                 model.CurrentStatusId = status.Id;
                 model.CurrentStatusName = status.Name;
 
                 ReceivedStock newReceivedStock = _mapper.Map<ReceivedStock>(model);
-                //bool isCreated = await _receivedStockRepository.Create(newReceivedStock);
-                int newReceivedStockId = await _receivedStockRepository.CreateNew(newReceivedStock);
 
-                if (newReceivedStockId > 0)
+                newReceivedStock.ReceivedStockDetails = new List<ReceivedStockDetails>();
+
+                foreach (var detailViewModel in model.Details)
+                {
+                    // Both ExPrintMint and manual rows now submit actual PackingListRangeId
+                    if (detailViewModel.PackingListRangeId > 0)
+                    {
+                        var detailEntity = new ReceivedStockDetails
+                        {
+                            PackingListRangeId = detailViewModel.PackingListRangeId,
+                            ReceivedStartCaseNumber = detailViewModel.ReceivedStartCaseNumber,
+                            ReceivedEndCaseNumber = detailViewModel.ReceivedEndCaseNumber,
+                            IsDeleted = false
+                        };
+                        newReceivedStock.ReceivedStockDetails.Add(detailEntity);
+                    }
+                }
+
+
+                bool isCreated = await _receivedStockRepository.Create(newReceivedStock);
+
+                if (isCreated)
                 {
                     TempData["Success"] = "Received stock created successfully!";
-                    return RedirectToAction(nameof(Details), new { id = newReceivedStockId });
+                    return RedirectToAction(nameof(Details), new { id = newReceivedStock.Id });
                 }
                 else
                 {
@@ -366,15 +464,15 @@ namespace VMSService.Web.Controllers
 
                 receivedStock.ExPrintMintId = model.ExPrintMintId;
                 receivedStock.DateDelivered = model.DateDelivered;
-                receivedStock.NumberOfPieces = model.NumberOfPieces;
-                receivedStock.NumberOfBoxes = model.NumberOfBoxes;
-                receivedStock.Value = model.Value;
-                receivedStock.BoxNumberPrefix = model.BoxNumberPrefix;
-                receivedStock.BoxNumberRangeStart = model.BoxNumberRangeStart;
-                receivedStock.BoxNumberRangeEnd = model.BoxNumberRangeEnd;
-                receivedStock.SerialNumberPrefix = model.SerialNumberPrefix;
-                receivedStock.SerialNumberRangeStart = model.SerialNumberRangeStart;
-                receivedStock.SerialNumberRangeEnd = model.SerialNumberRangeEnd;
+                //receivedStock.NumberOfPieces = model.NumberOfPieces;
+                //receivedStock.NumberOfBoxes = model.NumberOfBoxes;
+                //receivedStock.Value = model.Value;
+                //receivedStock.BoxNumberPrefix = model.BoxNumberPrefix;
+                //receivedStock.BoxNumberRangeStart = model.BoxNumberRangeStart;
+                //receivedStock.BoxNumberRangeEnd = model.BoxNumberRangeEnd;
+                //receivedStock.SerialNumberPrefix = model.SerialNumberPrefix;
+                //receivedStock.SerialNumberRangeStart = model.SerialNumberRangeStart;
+                //receivedStock.SerialNumberRangeEnd = model.SerialNumberRangeEnd;
 
                 bool isUpdated = await _receivedStockRepository.Update(receivedStock);
                 if (isUpdated)
@@ -490,7 +588,7 @@ namespace VMSService.Web.Controllers
                 }
 
                 var userRoles = User.FindAll("appRoleId")
-                    .Where(c => c.Value.StartsWith("VMS:"))
+                    .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
                     .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
                     .Where(id => id.HasValue)
                     .Select(id => id.Value)
@@ -532,9 +630,9 @@ namespace VMSService.Web.Controllers
                                 CreatedBy = username ?? "unknown",
                                 ModifiedBy = username ?? "unknown",
                                 DenominationId = receivedStock.ExPrintMint.DenominationId,
-                                NumberOfPieces = receivedStock.NumberOfPieces,
-                                NumberOfBoxes = receivedStock.NumberOfBoxes,
-                                Value = receivedStock.Value
+                                //NumberOfPieces = receivedStock.NumberOfPieces,
+                                //NumberOfBoxes = receivedStock.NumberOfBoxes,
+                                //Value = receivedStock.Value
                             };
 
                             List<StockLedgerDetail> stockLedgerDetails = new();
@@ -544,10 +642,10 @@ namespace VMSService.Web.Controllers
                             StockLedger stockLedger = new()
                             {
                                 ReferenceCode = receivedStock.ExPrintMint.ExPrintMintReference,
-                                StoreId = store.Id, //Branch - New
+                                //StoreId = store.Id, //Branch - New
                                 IsIn = true,
-                                CounterPartyId = receivedStock.ExPrintMint.CurrencyVendorId,
-                                CounterPartyTypeId = counterPartyType.Id, //Vendor
+                                //CounterPartyId = receivedStock.ExPrintMint.CurrencyVendorId,
+                                //CounterPartyTypeId = counterPartyType.Id, //Vendor
                                 Notes = remarks,
                                 CreatedBy = username ?? "unknown",
                                 CreatedDate = DateTime.Now,

@@ -256,6 +256,9 @@ namespace StockService.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("StockMovementId")
+                        .HasColumnType("int");
+
                     b.Property<int>("StoreId")
                         .HasColumnType("int");
 
@@ -308,8 +311,9 @@ namespace StockService.Data.Migrations
                     b.Property<int>("StockLedgerId")
                         .HasColumnType("int");
 
-                    b.Property<decimal>("Value")
-                        .HasColumnType("decimal(18,2)");
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 

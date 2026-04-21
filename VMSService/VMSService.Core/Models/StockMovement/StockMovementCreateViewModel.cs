@@ -6,6 +6,7 @@ namespace VMSService.Core.Models.StockMovement
     {
         public string? MovementType { get; set; }
 
+        public int? LogisticsId { get; set; }
         // Branch fields
         public DateTime? BranchDate { get; set; }
         public string? BranchReferenceNumber { get; set; }

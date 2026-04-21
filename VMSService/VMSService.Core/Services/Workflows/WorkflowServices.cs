@@ -1,8 +1,11 @@
 using Microsoft.Extensions.Logging;
 using NotificationService.Client;
 using NotificationService.Client.Dtos;
+using VMSService.Core.Repositories.AgentDetails;
+using VMSService.Core.Repositories.AgentDetailStatusHistories;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
+using VMSService.Core.Repositories.DepositUnitOfWorks;
 using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.ReceivedStocks;
@@ -35,7 +38,10 @@ namespace VMSService.Core.Services.Workflows
         INotificationServiceClient _notificationServiceClient,
         IIdentityService _identityService,
         IWithdrawalTransactionRefNumberGenerator _txnrefNoGenerator,
-        IWithdrawalUnitOfWork _uow) : IWorkflowService
+        IWithdrawalUnitOfWork _uow,
+        IAgentDetailRepository _agentDetailRepository,
+        IAgentDetailStatusHistoryRepository _agentDetailStatusHistoryRepository,
+        IDepositUnitOfWork _duow) : IWorkflowService
     {
 
 
@@ -83,6 +89,9 @@ namespace VMSService.Core.Services.Workflows
                     case StatusConstants.Entity.StockMovement:
                         return await HandleStockMovementTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
 
+                    case StatusConstants.Entity.AgentDetail:
+                        return await HandleAgentDetailTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
+
                     default:
                         _logger.LogWarning("Unknown entity type: {EntityType}", entityType);
                         return false;
@@ -95,7 +104,7 @@ namespace VMSService.Core.Services.Workflows
                 return false;
             }
         }
-        public async Task<bool> ExecuteTransition(string entityType, Guid entityId, int currentStatusId, string actionName, string username, List<int> userRoles, string remarks)
+        public async Task<bool> ExecuteTransition(string entityType, Guid entityId, int currentStatusId, string actionName, string username, List<int> userRoles, string remarks, CancellationToken ct)
         {
             var requestData = new GetTransitionByKeyRequestDto
             {
@@ -131,6 +140,16 @@ namespace VMSService.Core.Services.Workflows
                         await HandleWithdrawalTransitions(
                             entityId, currentStatusId, actionName,
                             username, remarks, transition),
+
+                    StatusConstants.Entity.DepositRequest =>
+                            await HandleDepositTransitions(
+                            entityId, currentStatusId, actionName,
+                            username, remarks, transition, ct),
+
+                    StatusConstants.Entity.DepositRequestExceptional =>
+                            await HandleDepositTransitions(
+                            entityId, currentStatusId, actionName,
+                            username, remarks, transition, ct),
 
                     _ => LogUnknownEntity(entityType)
                 };
@@ -399,9 +418,9 @@ namespace VMSService.Core.Services.Workflows
                         <li><strong>Comment:</strong> {remarks}</li>
                         <li><strong>Transition Time:</strong> {DateTime.Now:yyyy-MM-dd HH:mm:ss}</li>
                     </ul>
-                    <p>Please log in to the VMS system for more details.</p>
-                    <p>Thank you</p>
-                    <small>This is an automated message. Please do not reply.</small>";
+                    <p>Please log in to the CAS system for more details.</p>
+                    <p>Thank you.</p>
+                    <small>THIS IS AN AUTOMATED MESSAGE. PLEASE DO NOT REPLY.</small>";
 
                 var notificationRequest = new SendNotificationRequestDto
                 {
@@ -556,13 +575,67 @@ namespace VMSService.Core.Services.Workflows
             return true;
         }
 
+        private async Task<bool> HandleDepositTransitions(Guid entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition, CancellationToken ct)
+        {
+            var deposit = await _duow.Requests.FindById(entityId);
+            if (deposit == null)
+            {
+                _logger.LogWarning("Deposit {Id} not found", entityId);
+                return false;
+            }
+
+            // Verify current status matches
+            if (deposit.StatusTypeId != currentStatusId)
+            {
+                _logger.LogWarning("Deposit {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, deposit.StatusTypeId, currentStatusId);
+                return false;
+            }
+
+            // Create status history record
+            var statusHistory = new DepositRequestStatusHistory
+            {
+                DepositRequestId = entityId,
+                OldStatusId = deposit.StatusTypeId,
+                NewStatusId = transition.ToStatusId,
+                ChangedBy = username,
+                ChangedAt = DateTime.Now,
+                Remarks = remarks,
+                IsDeleted = false
+            };
+
+            await _duow.StatusHistory.Create(statusHistory);
+
+            // Update deposit status
+            deposit.StatusTypeId = transition.ToStatusId;
+            await _duow.Requests.Update(deposit);
+
+            await _duow.SaveAsync(ct);
+
+            // Send notifications
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                $"Deposit {deposit.TransactionRefNumber} (UGX {deposit.TotalAmount:N0})",
+                transition,
+                transition.ToStatus.Name,
+                username, remarks);
+            }
+
+            _logger.LogInformation("Deposit {Id} transitioned from status {From} to {To} by user {Username} with action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
         public async Task<List<WorkflowTransitionDto>> GetAvailableTransitionsAsync(string entityType, int statusId, int userRole)
         {
             try
             {
                 var requestData = new GetAvailableTransitionsRequestDto
                 {
-                    ApplicationAcronym = "VMS",
+                    ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
                     EntityTypeName = entityType,
                     CurrentStatusId = statusId,
                     AppRole = userRole,
@@ -578,6 +651,58 @@ namespace VMSService.Core.Services.Workflows
                     entityType, statusId);
                 return new List<WorkflowTransitionDto>();
             }
+        }
+
+        private async Task<bool> HandleAgentDetailTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition)
+        {
+            var agentDetail = await _agentDetailRepository.FindById(entityId);
+            if (agentDetail == null)
+            {
+                _logger.LogWarning("Agent Detail {Id} not found", entityId);
+                return false;
+            }
+
+            // Verify current status matches
+            if (agentDetail.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Agent Detail {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, agentDetail.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            // Create status history record
+            var statusHistory = new AgentDetailStatusHistory
+            {
+                AgentDetailId = entityId,
+                OldStatusId = agentDetail.CurrentStatusId,
+                NewStatusId = transition.ToStatusId,
+                ChangedBy = username,
+                ChangedAt = DateTime.Now,
+                Remarks = remarks,
+                IsDeleted = false
+            };
+
+            await _agentDetailStatusHistoryRepository.Create(statusHistory);
+
+            // Update agent detail status
+            agentDetail.CurrentStatusId = transition.ToStatusId;
+            await _agentDetailRepository.Update(agentDetail);
+
+            // Send notifications
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                $"Agent {agentDetail.AgentNames}",
+                transition,
+                transition.ToStatus.Name,
+                username, remarks);
+            }
+
+            _logger.LogInformation("Agent Detail {Id} transitioned from status {From} to {To} by user {Username} with action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
         }
     }
 }

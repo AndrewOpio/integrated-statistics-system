@@ -5,6 +5,7 @@ using VMSService.Core.Models.CurrencyVendors;
 using VMSService.Core.Models.Denominations;
 using VMSService.Core.Models.ExPrintMintStatusHistories;
 using WorkflowService.Client.Dto;
+using VMSService.Core.Models.ExPrintMintDetails;
 
 namespace VMSService.Core.Models.ExPrintMints
 {
@@ -17,14 +18,14 @@ namespace VMSService.Core.Models.ExPrintMints
         public int DenominationId { get; set; }
         public DenominationViewModel? Denomination { get; set; }
         public DateTime DeliveryDate { get; set; }
-        public int NumberOfPieces { get; set; }
-        public decimal Value { get; set; }
-        public string BoxNumberPrefix { get; set; }
-        public int? BoxNumberRangeStart { get; set; }
-        public int? BoxNumberRangeEnd { get; set; }
-        public string? SerialNumberPrefix { get; set; }
-        public int? SerialNumberRangeStart { get; set; }
-        public int? SerialNumberRangeEnd { get; set; }
+        // public int NumberOfPieces { get; set; }
+        // public decimal Value { get; set; }
+        // public string BoxNumberPrefix { get; set; }
+        // public int? BoxNumberRangeStart { get; set; }
+        // public int? BoxNumberRangeEnd { get; set; }
+        // public string? SerialNumberPrefix { get; set; }
+        // public int? SerialNumberRangeStart { get; set; }
+        // public int? SerialNumberRangeEnd { get; set; }
         public string? Attachment { get; set; }
         public int ApprovedCurrencyProcurementId { get; set; }
         public ApprovedCurrencyProcurementsViewModel? ApprovedCurrencyProcurement { get; set; }
@@ -32,10 +33,33 @@ namespace VMSService.Core.Models.ExPrintMints
         public string? CurrentStatusName { get; set; }
         public IFormFile AttachmentFile { get; set; }
         public bool IsDeleted { get; set; }
-        public int NumberOfBoxes { get; set; }
+        // public int NumberOfBoxes { get; set; }
         public int BranchId { get; set; }
         public BranchViewModel? Branch { get; set; }
         public ICollection<ExPrintMintStatusHistoryViewModel>? StatusHistory { get; set; } = new List<ExPrintMintStatusHistoryViewModel>();
         public ICollection<WorkflowTransitionDto>? AvailableTransitions { get; set; } = new List<WorkflowTransitionDto>();
+        public ICollection<ExPrintMintDetailViewModel>? Details { get; set; } = new List<ExPrintMintDetailViewModel>();
+    }
+
+    public class ExPrintMintBatchCreateViewModel
+    {
+        public string ExPrintMintReference { get; set; }
+        public int CurrencyVendorId { get; set; }
+        public int ApprovedCurrencyProcurementId { get; set; }
+        public int BranchId { get; set; }
+        public DateTime DeliveryDate { get; set; }
+        public IFormFile AttachmentFile { get; set; }
+        public List<DenominationEntryViewModel> Denominations { get; set; } = new()
+        {
+            new DenominationEntryViewModel()
+        };
+    }
+
+    public class DenominationEntryViewModel
+    {
+        public int DenominationId { get; set; }
+        public int NumberOfPieces { get; set; }
+        public decimal Value { get; set; }
+        public int NumberOfBoxes { get; set; }
     }
 }

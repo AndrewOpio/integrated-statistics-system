@@ -447,7 +447,7 @@ namespace VMSService.Web.Controllers
 
                 var username = User.FindFirst(ClaimTypes.Name)?.Value ?? "System";
                 var userRoles = User.FindAll("appRoleId")
-                    .Where(c => c.Value.StartsWith("VMS:"))
+                    .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
                     .Select(c => int.TryParse(c.Value.Split(":")[1], out var roleId)
                         ? roleId
                         : (int?)null)
@@ -462,7 +462,8 @@ namespace VMSService.Web.Controllers
                     actionName: actionName,
                     username: username,
                     userRoles: userRoles,
-                    remarks: remarks);
+                    remarks: remarks,
+                    ct: ct);
 
                 if (isExecuted)
                 {
@@ -740,7 +741,7 @@ namespace VMSService.Web.Controllers
         }
         private int GetUserRole()
             => User.FindAll("appRoleId")
-            .Where(c => c.Value.StartsWith("VMS:"))
+            .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
             .Select(c => int.TryParse(c.Value.Split(":")[1], out var roleId) ? roleId : 0)
             .FirstOrDefault(r => r > 0);
 

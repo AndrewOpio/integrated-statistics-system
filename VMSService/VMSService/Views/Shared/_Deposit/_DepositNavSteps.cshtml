@@ -1,0 +1,147 @@
+﻿@model VMSService.Core.Models.CbDepositRequests.DepositStepViewModel
+
+<div class="dash-hero mb-4">
+
+    @*Requestor status banner*@
+    @if (Model.IsInProgress)
+    {
+        <div class="d-flex align-items-center gap-2 text-white-50 mb-3">
+            <i class="ti ti-clock-hour-4 fs-5"></i>
+            <span>Your request has been submitted and is currently being processed by BOU.</span>
+        </div>
+    }
+    @if (Model.IsApproved)
+    {
+        <div class="d-flex align-items-center gap-2 text-success mb-3">
+            <i class="ti ti-circle-check fs-5"></i>
+            <span>This request has been approved.</span>
+        </div>
+    }
+
+    @*Step pills*@
+    <div class="d-flex align-items-center flex-wrap gap-3">
+        @{
+            var visibleSteps = Model.Steps.Where(s => s.IsVisible).ToList();
+        }
+        @for (int i = 0; i < visibleSteps.Count; i++)
+        {
+            var step = visibleSteps[i];
+
+            @* Arrow connector *@
+            @if (i > 0)
+            {
+                <div class="step-arrow @(step.IsConnectorDone ? "done" : "")">
+                    <i class="ti ti-chevron-right fs-4 @(step.IsConnectorDone ? "" : "opacity-50")"></i>
+                </div>
+            }
+
+            <button class="step-pill @step.CssState"
+                    onclick="@(step.IsClickable ? $"switchTab('{step.Key}', this)" : "")"
+                    @(step.IsClickable ? "" : "disabled")
+                    title="@step.Label — @step.SubLabel">
+
+                <div class="sp-icon">
+                    @if (step.ShowCheckIcon)
+                    {
+                        <i class="ti ti-check"></i>
+                    }
+                    else
+                    {
+                        <i class="ti @step.Icon"></i>
+                    }
+                </div>
+
+                <div class="d-none d-sm-block">
+                    <div class="text-white">@step.Label</div>
+                    <div class="text-white-50">@step.SubLabel</div>
+                </div>
+
+            </button>
+        }
+
+        @*"In progress" pill for company users while request is with the bank*@
+        @if (Model.IsInProgress)
+        {
+            <div class="step-arrow">
+                <i class="ti ti-chevron-right fs-4 opacity-50"></i>
+            </div>
+            <div class="step-pill wait" title="Being processed by BOU">
+                <div class="sp-icon">
+                    <i class="ti ti-clock-hour-4"></i>
+                </div>
+                <div class="d-none d-sm-block">
+                    <div class="text-white">In Progress</div>
+                    <div class="text-white-50">With BOU</div>
+                </div>
+            </div>
+        }
+    </div>
+
+</div>
+
+
+@* @{
+    var currentRole = "requestor";
+
+    var roleSteps = new[]
+   {
+        (Role:"requestor",  Icon:"ti ti-user-plus",        Label:"Initiate",   Sub:"Initiate request"),
+        (Role:"supervisor", Icon:"ti ti-building-bank",    Label:"Approve",  Sub:"Approve Withdraw"),
+        (Role:"banker",     Icon:"ti ti-adjustments",      Label:"Remittance",      Sub:"Adjust Request"),
+        (Role:"manager",    Icon:"ti ti-shield-check",     Label:"Panel A",     Sub:"Review and Adjust"),
+        (Role:"handover",   Icon:"ti ti-arrow-right-circle", Label:"Panel B", Sub:"Collect & Approve"),
+    };
+
+    string StepState(string role) =>
+        role == currentRole ? "active" :
+        Array.IndexOf(roleSteps.Select(r => r.Role).ToArray(), role) <
+        Array.IndexOf(roleSteps.Select(r => r.Role).ToArray(), currentRole) ? "done" : "wait";
+}
+
+<!-- Step pill nav -->
+<div class="dash-hero mb-4">
+
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+        @for (int i = 0; i < roleSteps.Length; i++)
+        {
+            var s = roleSteps[i];
+            var state = StepState(s.Role);
+
+            if (i > 0)
+            {
+                var prevDone = StepState(roleSteps[i - 1].Role) == "done";
+                <div class="step-arrow @(prevDone ? "done" : "")">
+                    @if (prevDone)
+                    {
+                        <i class="fs-4 ti ti-chevron-right"></i>
+                    }
+                    else
+                    {
+                        <i class="ti ti-chevron-right fs-4 " style="font-size:11px;opacity:.50"></i>
+                    }
+                </div>
+            }
+
+            <button class="step-pill @state"
+                    onclick="@(state != "wait" ? $"switchTab('{s.Role}', this)" : "")"
+                    @(state == "wait" ? "disabled" : "")
+                    title="@s.Label — @s.Sub">
+                <div class="sp-icon">
+                    @if (state == "done")
+                    {
+                        <i class="bi bi-check-lg"></i>
+                    }
+                    else
+                    {
+                        <i class="bi @s.Icon"></i>
+                    }
+                </div>
+                <div class="d-none d-sm-block">
+                    <div class="text-white">@s.Label</div>
+                    <div class="text-white-50">@s.Sub</div>
+                </div>
+            </button>
+        }
+
+    </div>
+</div> *@

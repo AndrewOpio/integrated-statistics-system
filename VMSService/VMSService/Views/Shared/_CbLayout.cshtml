@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/tabler-icons.min.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/GatewayService.styles.css" asp-append-version="true" />
 
 </head>
 <body>
@@ -48,11 +47,11 @@
                                             <tr>
                                                 <td><i class="ti ti-shield fs-6"></i></td>
                                                 <td><small>Roles:</small></td>
-                                                <td><small>@string.Join(", ", User.FindAll("appRole").Select(c => c.Value).ToList())</small></td>
+                                                <td><small>@string.Join(", ", User.FindAll("appRole").Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:")).Select(c => c.Value.Split(":")[1]).ToList())</small></td>
                                             </tr>
                                         </tbody>
                                     </table>
-                                    <a asp-controller="Login" asp-action="Logout" asp-route-username="@username" class="btn btn-outline-danger btn-sm mt-2 w-100">Logout</a>
+                                    <a asp-controller="Home" asp-action="Logout" class="btn btn-outline-danger btn-sm mt-2 w-100">Logout</a>
                                 </div>
                             </div>
                         </li>

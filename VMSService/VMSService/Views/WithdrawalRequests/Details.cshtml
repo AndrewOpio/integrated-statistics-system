@@ -8,7 +8,7 @@
 }
 
 @* ── Hero Header ── *@
-<div class="rounded-2 p-4 mb-3" style="background:linear-gradient(135deg, #b03a2e 15%, #c9973a 100%);">
+<div class="rounded-2 p-4 mb-3" style="background:linear-gradient(135deg, #b31b34 15%, #c9973a 100%);">
 
     @* Top row: ref + amount *@
     <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
@@ -27,15 +27,14 @@
                 Submitted by @Model.CbName
                 &middot; Collection @Model.CollectionDate.ToString("dddd dd MMM yyyy")
             </p>
-            <span class="badge rounded-pill px-3 py-2 mt-1"
-                  style="background:#d97706;font-size:11px;">
-                <i class="ti ti-point-filled me-1"></i>@Model.CurrentStatusName
+            <span class="badge bg-primary rounded-pill px-3 py-2 mt-1 bg-opacity-50">
+                <i class="ti ti-badge me-1"></i>@Model.CurrentStatusName
             </span>
             @if (Model.RequiresSpecialApproval)
             {
-                <span class="badge rounded-pill bg-danger px-3 py-2 mt-1 ms-1"
+                <span class="badge rounded-pill bg-secondary px-3 py-2 mt-1 ms-1 bg-opacity-50"
                       style="font-size:11px;">
-                    <i class="ti ti-star me-1"></i>Exceptional approval required
+                    <i class="ti ti-star me-1"></i>Exceptional Approval Required
                 </span>
             }
         </div>
@@ -293,8 +292,8 @@
                     </div>
                     <div class="d-flex justify-content-between align-items-center py-2 small">
                         <span class="text-muted">Status</span>
-                        <span class="badge rounded-pill px-3 py-2" style="background:#d97706;font-size:10px;">
-                            @Model.CurrentStatusName
+                        <span class="badge bg-primary rounded-pill px-3 py-2">
+                            <i class="ti ti-badge me-1"></i>@Model.CurrentStatusName
                         </span>
                     </div>
                 </div>

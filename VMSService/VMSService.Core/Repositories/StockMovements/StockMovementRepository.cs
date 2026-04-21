@@ -1,10 +1,13 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
+using VMSService.Core.Static;
 using VMSService.Data.Configurations;
 using VMSService.Data.Entities;
+using WorkflowService.Client;
+using WorkflowService.Client.Dto;
 
 namespace VMSService.Core.Repositories.StockMovements
 {
@@ -12,11 +15,13 @@ namespace VMSService.Core.Repositories.StockMovements
     {
         private readonly VMSServiceDbContext _context;
         private readonly ILogger<StockMovementRepository> _logger;
+        private readonly IWorkflowServiceClient _workflowServiceClient;
 
-        public StockMovementRepository(VMSServiceDbContext context, ILogger<StockMovementRepository> logger)
+        public StockMovementRepository(VMSServiceDbContext context, ILogger<StockMovementRepository> logger, IWorkflowServiceClient workflowServiceClient)
         {
             _context = context;
             _logger = logger;
+            _workflowServiceClient = workflowServiceClient;
         }
 
         public async Task<StockMovement> CreateAsync(StockMovement movement)
@@ -29,11 +34,56 @@ namespace VMSService.Core.Repositories.StockMovements
         public async Task<StockMovement> FindByIdAsync(int id)
         {
             return await _context.StockMovements
-                 .AsNoTracking() // EF won't track changes, less memory overhead
                  .AsSplitQuery()  // Runs separate queries instead of one big JOIN
                 .Include(m => m.Denominations)
-                    .ThenInclude(d => d.SerialNumberRanges)
+                    .ThenInclude(d => d.BoxNumberRanges)
                 .FirstOrDefaultAsync(m => m.Id == id);
+        }
+
+        public async Task<StockMovement> FindByIdForEditAsync(int id)
+        {
+            return await _context.StockMovements
+                 .AsSplitQuery()
+                .Include(m => m.Denominations)
+                    .ThenInclude(d => d.BoxNumberRanges)
+                .FirstOrDefaultAsync(m => m.Id == id);
+        }
+
+        public async Task<List<StockMovement>> FindByIdsAsync(List<int> branchIds)
+        {
+            StatusTypeDto dispatchedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                StatusName = StatusConstants.StockMovement.Dispatched,
+                EntityTypeName = StatusConstants.Entity.StockMovement
+            });
+
+            StatusTypeDto pendingReceiptStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                StatusName = StatusConstants.StockMovement.PendingReceipt,
+                EntityTypeName = StatusConstants.Entity.StockMovement
+            });
+
+            StatusTypeDto receivedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                StatusName = StatusConstants.StockMovement.Received,
+                EntityTypeName = StatusConstants.Entity.StockMovement
+            });
+
+            return await _context.StockMovements
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Include(m => m.Denominations)
+                    .ThenInclude(d => d.BoxNumberRanges)
+                .Include(m => m.StockMovementDiscrepancies)
+                .Where(m => branchIds.Contains(m.DispatchingBranchId ?? 0) 
+                         || (branchIds.Contains(m.ReceivingBranchId ?? 0) 
+                             && (m.CurrentStatusId == dispatchedStatus.Id
+                                 || m.CurrentStatusId == pendingReceiptStatus.Id
+                                 || m.CurrentStatusId == receivedStatus.Id)))
+                .ToListAsync();
         }
 
         public async Task<ICollection<StockMovement>> FindAllAsync()
@@ -42,7 +92,7 @@ namespace VMSService.Core.Repositories.StockMovements
                  .AsNoTracking() // EF won't track changes, less memory overhead
                  .AsSplitQuery()  // Runs separate queries instead of one big JOIN
                 .Include(m => m.Denominations)
-                    .ThenInclude(d => d.SerialNumberRanges)
+                    .ThenInclude(d => d.BoxNumberRanges)
                 .Include(m => m.StockMovementDiscrepancies)
                 .ToListAsync();
         }

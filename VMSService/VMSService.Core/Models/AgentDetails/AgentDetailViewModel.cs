@@ -1,12 +1,17 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System.ComponentModel.DataAnnotations;
+using VMSService.Core.Model.AgentDetailStatusHistories;
+using WorkflowService.Client.Dto;
 
 namespace VMSService.Core.Models.AgentDetails
 {
     public class AgentDetailViewModel
     {
         public int Id { get; set; }
+
+        [Display(Name = "Commercial Bank")]
+        public int CommercialBankId { get; set; }
 
         [Required(ErrorMessage = "Commercial Bank Branch is required")]
         [Display(Name = "Commercial Bank Branch")]
@@ -25,6 +30,7 @@ namespace VMSService.Core.Models.AgentDetails
         public string NIN { get; set; } //National Identification Number
 
         [Display(Name = "Phone Number")]
+        [RegularExpression(@"^\d{9}$", ErrorMessage = "Phone number must be exactly 9 digits (e.g. 712345678)")]
         public string? PhoneNumber { get; set; }
 
         [Display(Name = "Passport Photo")]
@@ -55,8 +61,16 @@ namespace VMSService.Core.Models.AgentDetails
         // Navigation property
         public string? BranchName { get; set; }
 
+        public int CurrentStatusId { get; set; }
+
+        public bool IsDeleted { get; set; }
+        public bool IsActive { get; set; } = true;
+        public string? CurrentStatusName { get; set; }
+
         // Select lists
         public List<SelectListItem> BranchList { get; set; } = new List<SelectListItem>();
         public List<SelectListItem> CommercialBankBranchList { get; set; } = new List<SelectListItem>();
+        public ICollection<WorkflowTransitionDto> AvailableTransitions { get; set; } = new List<WorkflowTransitionDto>();
+        public ICollection<AgentDetailStatusHistoryViewModel> StatusHistory { get; set; } = new List<AgentDetailStatusHistoryViewModel>();
     }
 }

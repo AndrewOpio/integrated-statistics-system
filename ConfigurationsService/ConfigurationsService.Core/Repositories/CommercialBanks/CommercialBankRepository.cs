@@ -63,6 +63,7 @@ namespace ConfigurationsService.Core.Repositories.CommercialBanks
                 return false;
 
             existing.Name = model.Name;
+            existing.CBCode = model.CBCode;
             existing.Code = model.Code;
             existing.IsDeleted = model.IsDeleted;
             existing.ModifiedBy = model.ModifiedBy;

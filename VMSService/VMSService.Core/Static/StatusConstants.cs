@@ -69,7 +69,24 @@ namespace VMSService.Core.Static
             public const string Returned = "Returned";
             public const string Authorized = "Approved by BOU";
         }
-        
+
+        public static class AgentDetail
+        {
+            public const string Draft = "Draft";
+            public const string Returned = "Returned";
+            public const string PendingInternalApproval = "Pending Internal Approval";
+            public const string PendingBouApproval = "Pending BOU Approval";
+            public const string Rejected = "Rejected";
+            public const string Approved = "Approved";
+        }
+
+        public static class Logistics
+        {
+            public const string Draft = "Draft";
+            public const string PendingApproval = "Pending Approval";
+            public const string Approved = "Approved";
+        }
+
         public static class Entity
         {
             public const string ApprovedCurrencyProcurement = "ApprovedCurrencyProcurement";
@@ -77,7 +94,11 @@ namespace VMSService.Core.Static
             public const string ReceivedStock = "ReceivedStock";
             public const string StockMovement = "StockMovement";
             public const string StockMovementDiscrepancy = "StockMovementDiscrepancy";
+            public const string Logistics = "Logistics";
             public const string WithdrawalRequest = "Withdrawal Request";
+            public const string AgentDetail = "AgentDetail";
+            public const string DepositRequest = "DepositRequest";
+            public const string DepositRequestExceptional = "DepositRequestExceptional";
         }
     }
 }
