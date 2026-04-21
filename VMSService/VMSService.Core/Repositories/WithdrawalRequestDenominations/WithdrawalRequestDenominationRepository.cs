@@ -76,5 +76,25 @@ namespace VMSService.Core.Repositories.WithdrawalRequestDenominations
             }
         }
 
+        public async Task<bool> HasBouOriginAsync(Guid requestId, CancellationToken ct = default)
+            => await _db.WithdrawalRequestDenominations
+            .AnyAsync(d => d.WithdrawalRequestId == requestId && d.Origin == WithdrawalOrigin.Bou, ct);
+
+        public async Task DeleteBouRowsWithChildrenAsync(Guid requestId, CancellationToken ct = default)
+        {
+            var bankRows = await _db.WithdrawalRequestDenominations
+                .Include(d => d.DispatchedBoxes)
+                .Where(d => d.WithdrawalRequestId == requestId && d.Origin == WithdrawalOrigin.Bou)
+                .ToListAsync(ct);
+
+            if (bankRows.Count == 0) return;
+
+            var boxes = bankRows.SelectMany(r => r.DispatchedBoxes).ToList();
+            if (boxes.Count > 0)
+                _db.WithdrawalRequestDenominationBoxes.RemoveRange(boxes);
+
+            _db.WithdrawalRequestDenominations.RemoveRange(bankRows);
+        }
+
     }
 }

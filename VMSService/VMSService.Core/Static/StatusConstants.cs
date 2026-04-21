@@ -1,4 +1,6 @@
-﻿namespace VMSService.Core.Static
+﻿using static VMSService.Core.Static.WithdrawStatuses;
+
+namespace VMSService.Core.Static
 {
     public static class StatusConstants
     {
@@ -55,16 +57,19 @@
         }
         public static class WithdrawalRequest
         {
-            public const string Draft = "Draft";
-            public const string SpecialApproval = "Special Approval";
+            public const string Draft = "Internal Draft";
+            public const string InternalReturned = "Internal Returned";
+            public const string SpecialApproval = "Exceptional Approval";
+            public const string PendingExceptionalApproval = "Pending Exceptional Approval";
             public const string PendingInternalApproval = "Pending Internal Approval";
             public const string PendingDisbursement = "Request Withdraw";
+            public const string PendingRecommendation = "Pending Recommendation";
             public const string Recommended = "Recommended";
             public const string Verified = "Verified";
             public const string Returned = "Returned";
             public const string Authorized = "Approved by BOU";
         }
-
+        
         public static class Entity
         {
             public const string ApprovedCurrencyProcurement = "ApprovedCurrencyProcurement";

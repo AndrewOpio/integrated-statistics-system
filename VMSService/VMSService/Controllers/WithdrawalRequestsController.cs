@@ -2,16 +2,19 @@
 using ConfigurationsService.Client;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using System.Text.Json;
 using VMSService.Core.Models.AgentDetails;
 using VMSService.Core.Models.CbRequests;
 using VMSService.Core.Models.CbWithdrawRequest;
 using VMSService.Core.Models.WithdrawalRequestDenominations;
 using VMSService.Core.Models.WithdrawalRequests;
 using VMSService.Core.Repositories.AgentDetails;
+using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.WithdrawalRequests;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
+using VMSService.Data.Entities;
 using WorkflowService.Client;
 using static VMSService.Core.Static.WithdrawStatuses;
 
@@ -23,6 +26,7 @@ namespace VMSService.Web.Controllers
         IWorkflowService _workflowService,
         IAgentDetailRepository _agentRepo,
         IConfigurationsServiceClient _configServiceClient,
+        IDenominationRepository _denomRepo,
         IWithdrawalUnitOfWork _uow,
         ILogger<WithdrawalRequestsController> _logger,
         IMapper _mapper) : Controller
@@ -121,7 +125,7 @@ namespace VMSService.Web.Controllers
                 TotalProcessed = totalProcessed,
                 Requests = rows,
                 BouBranches = allBouBranches,
-                
+
 
             };
 
@@ -130,10 +134,12 @@ namespace VMSService.Web.Controllers
 
         public async Task<IActionResult> Details(Guid id, CancellationToken ct)
         {
+
+
             var request = await _uow.Requests.GetWithDetailsAsync(id, ct);
             if (request is null) return NotFound();
 
-            // ── Display names from microservice ───────────────────────────────────
+
             var cb = await _configServiceClient.GetCbIdAsync(request.CbId);
             var bankBranch = await _configServiceClient.GetBouBranchByIdAsync(request.BouBranchId);
 
@@ -154,28 +160,65 @@ namespace VMSService.Web.Controllers
             var canEdit = (request.StatusTypeId == WithdrawalStatusIds.Draft
               || request.StatusTypeId == WithdrawalStatusIds.ReturnedForRevision);
 
+            var allDenoms = await _denomRepo.FindAll();
 
-            var cbLines = request.WithdrawalRequestDenominations
-                .Where(d => d.Origin == WithdrawalOrigin.Cb)
+            var denomList = allDenoms.ToList();
+
+            var denomVm = new DenomTableViewModel
+            {
+                Notes = denomList.Where(d => d.DenominationType.Name.Equals("Note")),
+                Coins = denomList.Where(d => d.DenominationType.Name.Equals("Coin")),
+            };
+
+            var displayOrigin = ResolveDisplayOrigin(request.StatusTypeName);
+
+            var displayLines = request.WithdrawalRequestDenominations
+                .Where(d => d.Origin == displayOrigin)
                 .ToList();
 
-            var notes = cbLines
+            var notes = displayLines
                 .Where(d => d.Bundles.HasValue)
+                .OrderByDescending(d => d.DenominationValue)
                 .Select(d => new DenominationLineViewModel
                 {
                     DenominationLabel = $"UGX {d.DenominationValue:N0}",
                     Bundles = d.Bundles,
                     Amount = d.Amount,
-                });
+                })
+                .ToList();
 
-            var coins = cbLines
+            var coins = displayLines
                 .Where(d => d.Boxes.HasValue)
+                .OrderByDescending(d => d.DenominationValue)
                 .Select(d => new DenominationLineViewModel
                 {
                     DenominationLabel = $"UGX {d.DenominationValue:N0}",
                     Boxes = d.Boxes,
                     Amount = d.Amount,
-                });
+                })
+                .ToList();
+
+            var canEditDispatch =
+                request.StatusTypeName == StatusConstants.WithdrawalRequest.PendingRecommendation
+                || request.StatusTypeName == StatusConstants.WithdrawalRequest.Returned;
+
+            var editableBankRows = canEditDispatch
+                ? request.WithdrawalRequestDenominations
+                    .Where(d => d.Origin == "BOU")
+                    .Select(d => new BouDenominationEditRowViewModel
+                    {
+                        Id = d.Id,
+                        DenominationId = d.DenominationId,
+                        DenominationValue = d.DenominationValue,
+                        DenominationTypeId = d.DenominationTypeId,
+                        BundleType = d.BundleType,
+                        Bundles = d.Bundles,
+                        Boxes = d.Boxes,
+                        Amount = d.Amount,
+                        BoxNumbers = d.DispatchedBoxes?.Select(b => b.BoxNo).ToList() ?? new(),
+                    })
+                    .ToList()
+                : new List<BouDenominationEditRowViewModel>();
 
             var currentStatus = await _workflowServiceClient.FindStatusById(request.StatusTypeId);
 
@@ -184,7 +227,7 @@ namespace VMSService.Web.Controllers
                            request.StatusTypeId == WithdrawalStatusIds.Approved);
 
             // ── Build ViewModel ───────────────────────────────────────────────────
-            var vm = new WithdrawalRequestDetailsViewModel
+            var vm = new BouWithdrawalRequestDetailsViewModel
             {
                 Id = request.Id,
                 TransactionRefNumber = request.TransactionRefNumber,
@@ -205,10 +248,14 @@ namespace VMSService.Web.Controllers
                 TotalCoinsAmount = request.TotalCoinsAmount,
                 TotalAmount = request.TotalAmount,
                 CurrentStatusName = currentStatus.Name,
-                CanEdit = canEdit,
+                Denoms = denomVm,
+                //CanEdit = canEdit,
                 IsLumpSum = request.IsLumpSum,
+                IsPostApprovalView = displayOrigin == WithdrawalOrigin.Bou,
                 Steps = BuildStepViewModel(request.StatusTypeId,
                            request.StatusTypeId == WithdrawalStatusIds.Approved),
+                CanEditDispatch = canEditDispatch,
+                EditableBankRows = editableBankRows,
             };
             vm.AvailableTransitions = (await _workflowService.GetAvailableTransitionsAsync(
                 StatusConstants.Entity.WithdrawalRequest,
@@ -216,7 +263,7 @@ namespace VMSService.Web.Controllers
                 GetUserRole()))
                 .Where(t => t.ActionName switch
                 {
-                    "Special Approval" => request.RequiresSpecialApproval,
+                    "Exceptional Approval" => request.RequiresSpecialApproval,
                     "Request Withdraw" => !request.RequiresSpecialApproval,
                     _ => true  // return and any others always show
                 })
@@ -225,6 +272,87 @@ namespace VMSService.Web.Controllers
 
             return View(vm);
         }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SaveBankDenominations(Guid id, string payload, string actionName, string remarks, CancellationToken ct)
+        {
+            try
+            {
+                var request = await _uow.Requests.FindById(id);
+                if (request is null)
+                {
+                    TempData["Error"] = "Withdrawal request not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                // Only editable in these statuses
+                if (request.StatusTypeName != StatusConstants.WithdrawalRequest.PendingDisbursement
+                    && request.StatusTypeName != StatusConstants.WithdrawalRequest.Returned)
+                {
+                    TempData["Error"] = "This request is not editable in its current status.";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
+
+                var rows = JsonSerializer.Deserialize<List<BouDenominationEditRowViewModel>>(
+                    payload ?? "[]",
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                    ?? new();
+
+                // Wipe + recreate Bank-origin rows
+                await _uow.Denominations.DeleteBouRowsWithChildrenAsync(id, ct);
+
+                foreach (var r in rows)
+                {
+                    var newRow = new WithdrawalRequestDenomination
+                    {
+                        WithdrawalRequestId = id,
+                        DenominationId = r.DenominationId,
+                        DenominationValue = r.DenominationValue,
+                        DenominationTypeId = r.DenominationTypeId,
+                        Bundles = r.Bundles,
+                        Boxes = r.Boxes,
+                        Amount = r.Amount,
+                        Origin = "Bank",
+                        BundleType = r.BundleType ?? BundleTypes.NotApplicable,
+                        DispatchedBoxes = r.BoxNumbers
+                            .Select(bn => new WithdrawalRequestDenominationBox { BoxNo = bn })
+                            .ToList()
+                    };
+                    await _uow.Denominations.Create(newRow);
+                }
+
+                await _uow.SaveAsync(ct);
+
+                // Now fire the workflow transition
+                var username = User.FindFirst(ClaimTypes.Name)?.Value ?? "System";
+                var userRoles = User.FindAll("appRoleId")
+                    .Where(c => c.Value.StartsWith("VMS:"))
+                    .Select(c => int.TryParse(c.Value.Split(":")[1], out var roleId) ? roleId : (int?)null)
+                    .Where(r => r.HasValue).Select(r => r!.Value).ToList();
+
+                var executed = await _workflowService.ExecuteTransition(
+                    entityType: StatusConstants.Entity.WithdrawalRequest,
+                    entityId: id,
+                    currentStatusId: request.StatusTypeId,
+                    actionName: actionName,
+                    username: username,
+                    userRoles: userRoles,
+                    remarks: remarks);
+
+                TempData[executed ? "Success" : "Error"] = executed
+                    ? "Dispatch saved successfully."
+                    : "Saved denominations, but could not transition the workflow.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving bank denominations for {Id}", id);
+                TempData["Error"] = "An error occurred while saving.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         // generic transition action
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -285,7 +413,7 @@ namespace VMSService.Web.Controllers
             WithdrawalStatusIds.ReturnedForRevision => "CbMaker",
             WithdrawalStatusIds.SubmittedToSupervisor => "CbApprover",
             WithdrawalStatusIds.PendingSpecialApproval => "BOU",
-            WithdrawalStatusIds.SubmittedToBOU => "BOU",
+            WithdrawalStatusIds.PendingRecommendation => "BOU",
             WithdrawalStatusIds.Recommended => "BOU",
             WithdrawalStatusIds.Approved => "BOU",
             WithdrawalStatusIds.Rejected => "BOU",

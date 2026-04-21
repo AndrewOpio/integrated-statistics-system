@@ -34,9 +34,11 @@
             <div class="d-flex gap-2">
                 @if (Model.CanEdit)
                 {
-                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-sm btn-primary">
-                        <i class="ti ti-edit me-1"></i> Edit Request
-                    </a>
+                    @if(Model.CollectionDate < DateOnly.FromDateTime(DateTime.Today)){
+                        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-sm btn-primary">
+                            <i class="ti ti-edit me-1"></i> Edit Request
+                        </a>
+                    }
                     <button type="button"
                             class="btn btn-sm btn-outline-danger"
                             data-bs-toggle="modal"
@@ -62,7 +64,7 @@
     <div class="col-md-8">
 
         @* Special Approval Reason *@
-        @if (Model.RequiresSpecialApproval && !string.IsNullOrEmpty(Model.SpecialApprovalReason))
+        @if (Model.RequiresSpecialApproval)
         {
             <div class="alert alert-warning d-flex align-items-start gap-3 mb-3">
                 <i class="ti ti-alert-triangle fs-4 text-warning flex-shrink-0 mt-1"></i>
@@ -434,7 +436,7 @@
             <a asp-action="Index" asp-controller="CbRequests" class="btn btn-outline-secondary">
                 <i class="ti ti-arrow-left me-1"></i> Back to List
             </a>
-            @if (Model.CanEdit)
+            @if (Model.CanEdit && Model.CollectionDate >= DateOnly.FromDateTime(DateTime.Today))
             {
                 <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">
                     <i class="ti ti-edit me-1"></i> Edit Request
@@ -609,7 +611,7 @@
                                                     class="btn btn-primary"
                                                     onclick="var sel = document.getElementById('transitionSelect');
                                                                  onTransitionClick(this, sel.value, sel.selectedOptions[0]?.dataset.requiresComments === 'true')">
-                                                <i class="ti ti-check me-1"></i> Confirm Action
+                                                <i class="ti ti-check me-1"></i> Submit
                                             </button>
                                         </div>
                                     }

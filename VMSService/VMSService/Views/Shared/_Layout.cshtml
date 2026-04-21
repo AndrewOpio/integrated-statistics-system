@@ -141,6 +141,9 @@
                             <span class="sidebar-text">Approved Procurements</span>
                         </a>
                     </li>
+                }
+                @if (isRemittancesOfficer)
+                {
                     <li class="nav-item">
                         <a asp-controller="WithdrawalRequests" asp-action="Index" class="nav-link d-flex align-items-center">
                             <span class="sidebar-icon fs-5 me-4">

@@ -35,6 +35,7 @@ namespace VMSService.Data.Configurations
         public DbSet<WithdrawalRequestAgent> WithdrawalRequestAgents { get; set; }
         public DbSet<WithdrawalRequestDenomination> WithdrawalRequestDenominations { get; set; }
         public DbSet<WithdrawalRequestStatusHistory> WithdrawalRequestStatusHistory { get; set; }
+        public DbSet<WithdrawalRequestDenominationBox> WithdrawalRequestDenominationBoxes => Set<WithdrawalRequestDenominationBox>();
 
 
 
@@ -43,7 +44,7 @@ namespace VMSService.Data.Configurations
             base.OnModelCreating(modelBuilder);
 
             // Configure StockMovementStatusHistory foreign keys to prevent cascade delete conflicts
-        
+
             modelBuilder.Entity<StockMovementStatusHistory>()
                 .HasOne(x => x.StockMovement)
                 .WithMany(x => x.StatusHistory)
@@ -69,7 +70,7 @@ namespace VMSService.Data.Configurations
             modelBuilder.Entity<WithdrawalRequest>()
                 .HasIndex(r => r.TransactionRefNumber)
                 .IsUnique()
-                .HasFilter("[TransactionRefNumber] IS NOT NULL"); 
+                .HasFilter("[TransactionRefNumber] IS NOT NULL");
 
             modelBuilder.Entity<WithdrawalRequest>().HasIndex(r => r.CbId);
             modelBuilder.Entity<WithdrawalRequest>().HasIndex(r => r.StatusTypeId);
@@ -80,6 +81,17 @@ namespace VMSService.Data.Configurations
 
             modelBuilder.Entity<WithdrawalRequestAgent>().HasIndex(c => new { c.WithdrawalRequestId, c.EnteredBy });
             modelBuilder.Entity<WithdrawalRequestStatusHistory>().HasIndex(s => s.WithdrawalRequestId);
+
+            // ── WithdrawalRequestDenomination ─────────────────────
+            modelBuilder.Entity<WithdrawalRequestDenominationBox>(e =>
+            {
+                e.HasOne(x => x.WithdrawalRequestDenomination)
+                 .WithMany(x => x.DispatchedBoxes)
+                 .HasForeignKey(x => x.WithdrawalRequestDenominationId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasIndex(x => x.BoxNo);
+            });
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

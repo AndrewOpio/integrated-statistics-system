@@ -1026,6 +1026,10 @@ namespace VMSService.Data.Migrations
                     b.Property<int?>("Boxes")
                         .HasColumnType("int");
 
+                    b.Property<string>("BundleType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int?>("Bundles")
                         .HasColumnType("int");
 
@@ -1064,6 +1068,44 @@ namespace VMSService.Data.Migrations
                     b.HasIndex("WithdrawalRequestId", "Origin");
 
                     b.ToTable("WithdrawalRequestDenominations");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.WithdrawalRequestDenominationBox", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BoxNo")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("WithdrawalRequestDenominationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BoxNo");
+
+                    b.HasIndex("WithdrawalRequestDenominationId");
+
+                    b.ToTable("WithdrawalRequestDenominationBoxes");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.WithdrawalRequestStatusHistory", b =>
@@ -1282,6 +1324,17 @@ namespace VMSService.Data.Migrations
                     b.Navigation("WithdrawalRequest");
                 });
 
+            modelBuilder.Entity("VMSService.Data.Entities.WithdrawalRequestDenominationBox", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.WithdrawalRequestDenomination", "WithdrawalRequestDenomination")
+                        .WithMany("DispatchedBoxes")
+                        .HasForeignKey("WithdrawalRequestDenominationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("WithdrawalRequestDenomination");
+                });
+
             modelBuilder.Entity("VMSService.Data.Entities.WithdrawalRequestStatusHistory", b =>
                 {
                     b.HasOne("VMSService.Data.Entities.WithdrawalRequest", "WithdrawalRequest")
@@ -1314,6 +1367,11 @@ namespace VMSService.Data.Migrations
                     b.Navigation("WithdrawalRequestDenominations");
 
                     b.Navigation("WithdrawalRequestStatusHistory");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.WithdrawalRequestDenomination", b =>
+                {
+                    b.Navigation("DispatchedBoxes");
                 });
 #pragma warning restore 612, 618
         }

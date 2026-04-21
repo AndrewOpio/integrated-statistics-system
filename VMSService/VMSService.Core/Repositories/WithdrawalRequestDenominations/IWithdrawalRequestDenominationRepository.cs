@@ -16,5 +16,7 @@ namespace VMSService.Core.Repositories.WithdrawalRequestDenominations
         void DeleteByRequest(Guid withdrawalRequestId, string origin);
 
         Task CopyToBouAsync(Guid requestId, string userId, CancellationToken ct);
+        Task<bool> HasBouOriginAsync(Guid requestId, CancellationToken ct = default);
+        Task DeleteBouRowsWithChildrenAsync(Guid requestId, CancellationToken ct = default);
     }
 }

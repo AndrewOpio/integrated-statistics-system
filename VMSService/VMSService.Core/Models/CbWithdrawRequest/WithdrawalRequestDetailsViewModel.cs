@@ -23,7 +23,7 @@ namespace VMSService.Core.Models.CbWithdrawRequest
         public string? RtgsCode { get; init; }
         public bool RequiresSpecialApproval { get; set; }
         public string? SpecialApprovalReason { get; set; }
-
+        public bool IsPostApprovalView { get; set; }
         //public string InitiatorName { get; init; } = string.Empty;
 
         public string CbCode { get; init; } = string.Empty;

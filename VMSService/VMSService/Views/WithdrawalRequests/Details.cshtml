@@ -1,13 +1,11 @@
 ﻿@using System.Security.Claims
 @using static VMSService.Core.Static.WithdrawStatuses
-@model VMSService.Core.Models.CbWithdrawRequest.WithdrawalRequestDetailsViewModel
+@model VMSService.Core.Models.WithdrawalRequests.BouWithdrawalRequestDetailsViewModel
 @{
     // Layout = "_CbLayout";
-    ViewData["Title"] = "Withdrawal Request Details";
+    ViewData["Title"] = "BOU Withdrawal Request Details";
+
 }
-
-@* @await Html.PartialAsync("~/Views/Shared/_Withdrawal/_WithdrawNavSteps.cshtml", Model.Steps) *@
-
 
 @* ── Hero Header ── *@
 <div class="rounded-2 p-4 mb-3" style="background:linear-gradient(135deg, #b03a2e 15%, #c9973a 100%);">
@@ -20,7 +18,7 @@
                 {
                     <span>Exceptional Approval &middot;</span>
                 }
-                 Cash Withdrawal Request
+                Cash Withdrawal Request
             </p>
             <h2 class="fw-medium mb-1 text-white">
                 @(string.IsNullOrEmpty(Model.TransactionRefNumber) ? "Not Generated" : Model.TransactionRefNumber)
@@ -54,7 +52,6 @@
 
     @await Html.PartialAsync("~/Views/Shared/_Withdrawal/_BouWithdrawNavSteps.cshtml", Model.Steps)
 </div>
-
 @* ── Two Column Layout ── *@
 <div class="row g-3">
 
@@ -90,7 +87,7 @@
         <div class="card mb-3 border-top-0 border-end-0 border-bottom-0 border-4 border-warning shadow-sm">
 
             <div class="card-body">
-                <p class="text-uppercase text-muted small fw-semibold mb-3">
+                <p class="text-uppercase text-muted fw-bold mb-3">
                     <i class="ti ti-replace text-muted"></i>
                     Sender & Receiver Details
                 </p>
@@ -145,7 +142,7 @@
         @* ── Agents ── *@
         <div class="card mb-3 border-top-0 border-end-0 border-bottom-0 border-4 shadow-sm" style="border-color: #D4500A">
             <div class="card-body">
-                <p class="text-uppercase text-muted small fw-semibold mb-3">
+                <p class="text-uppercase text-muted fw-bold mb-3">
                     <i class="ti ti-friends text-muted"></i>
                     Agent Details
                 </p>
@@ -237,143 +234,10 @@
             </div>
         </div>
 
-        @* ── Denominations ── <div class="card mb-3 border-top-0 border-end-0 border-bottom-0 border-4 shadow-sm" style="border-color: #b31b34">*@
-        <div class="card border-start border-top-0 border-end-0 border-bottom-0 border-4 shadow-sm rounded-start-0" style="border-color:#791F1F!important;">
-            <div class="card-body d-flex flex-column gap-3">
-                <div>
-                    <p class="text-uppercase text-muted small fw-semibold mb-2">
-                        <i class="ti ti-cash me-1"></i>Denomination Details
-                    </p>
-                    <hr class="my-2" />
-                </div>
+        @* ── Denominations ── *@
+        @await Html.PartialAsync("~/Views/Shared/_Withdrawal/_BouDenominationSection.cshtml", Model)
 
-                @if (Model.IsLumpSum)
-                {
-                    <div class="border rounded-3 overflow-hidden">
-                        <div class="px-3 py-2 border-bottom d-flex align-items-center gap-2">
-                            <span class="rounded-circle d-inline-flex align-items-center justify-content-center fw-semibold"
-                                  style="width:16px;height:16px;font-size:9px;background:#fff3e0;color:#e65100;">L</span>
-                            <span class="text-uppercase fw-semibold small" style="letter-spacing:.05em;">Lump Sum Amount</span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center px-3 py-3">
-                            <span class="text-muted small">Total Amount (UGX)</span>
-                            <span class="fw-semibold">UGX @Model.TotalAmount.ToString("N0")</span>
-                        </div>
-                    </div>
-                }
-                else
-                {
-                    @* Banknotes *@
-                    @if (Model.Notes.Any())
-                    {
-                        <div class="border rounded-3 overflow-hidden">
-                            <div class="px-3 py-2 border-bottom d-flex align-items-center gap-2">
-                                <span class="rounded-circle d-inline-flex align-items-center justify-content-center fw-semibold"
-                                      style="width:16px;height:16px;font-size:9px;background:#fff3e0;color:#e65100;">N</span>
-                                <span class="text-uppercase fw-semibold small" style="letter-spacing:.05em;">Banknotes</span>
-                            </div>
-                            <table class="table table-sm align-middle mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th class="ps-3 text-muted fw-semibold" style="font-size:10px;">DENOMINATION</th>
-                                        <th class="text-end text-muted fw-semibold" style="font-size:10px;">BUNDLES</th>
-                                        <th class="text-end pe-3 text-muted fw-semibold" style="font-size:10px;">AMOUNT</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="small">
-                                    @foreach (var note in Model.Notes)
-                                    {
-                                        <tr>
-                                            <td class="ps-3">@note.DenominationLabel</td>
-                                            <td class="text-end">@note.Bundles?.ToString("N0")</td>
-                                            <td class="text-end pe-3 text-primary">UGX @note.Amount.ToString("N0")</td>
-                                        </tr>
-                                    }
-                                </tbody>
-                                <tfoot>
-                                    <tr class="fw-semibold small">
-                                        <th class="ps-3 text-uppercase" colspan="2">Total Banknotes</th>
-                                        <th class="text-end pe-3 text-primary">UGX @Model.TotalNotesAmount.ToString("N0")</th>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                    }
 
-                    @* Coins *@
-                    @if (Model.Coins.Any())
-                    {
-                        <div class="border rounded-3 overflow-hidden">
-                            <div class="px-3 py-2 border-bottom d-flex align-items-center gap-2">
-                                <span class="rounded-circle d-inline-flex align-items-center justify-content-center fw-semibold"
-                                      style="width:16px;height:16px;font-size:9px;background:#faeeda;color:#BA7517;">C</span>
-                                <span class="text-uppercase fw-semibold small" style="letter-spacing:.05em;">Coins</span>
-                            </div>
-                            <table class="table table-sm align-middle mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th class="ps-3 text-muted fw-semibold" style="font-size:10px;">DENOMINATION</th>
-                                        <th class="text-end text-muted fw-semibold" style="font-size:10px;">BOXES</th>
-                                        <th class="text-end pe-3 text-muted fw-semibold" style="font-size:10px;">AMOUNT</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="small">
-                                    @foreach (var coin in Model.Coins)
-                                    {
-                                        <tr>
-                                            <td class="ps-3">@coin.DenominationLabel</td>
-                                            <td class="text-end">@coin.Boxes?.ToString("N0")</td>
-                                            <td class="text-end pe-3 text-warning">UGX @coin.Amount.ToString("N0")</td>
-                                        </tr>
-                                    }
-                                </tbody>
-                                <tfoot>
-                                    <tr class="fw-semibold small">
-                                        <th class="ps-3 text-uppercase" colspan="2">Total Coins</th>
-                                        <th class="text-end pe-3 text-warning">UGX @Model.TotalCoinsAmount.ToString("N0")</th>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                    }
-
-                    @* Subtotals (both exist) *@
-                    @if (Model.Notes.Any() && Model.Coins.Any())
-                    {
-                        <div class="border rounded-3 overflow-hidden">
-                            <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
-                                <div class="d-flex align-items-center gap-2 small fw-semibold text-secondary">
-                                    <span class="rounded-circle d-inline-flex align-items-center justify-content-center fw-semibold"
-                                          style="width:16px;height:16px;font-size:9px;background:#fff3e0;color:#e65100;">N</span>
-                                    Total Banknotes
-                                </div>
-                                <span class="fw-semibold text-primary small">UGX @Model.TotalNotesAmount.ToString("N0")</span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center px-3 py-2">
-                                <div class="d-flex align-items-center gap-2 small fw-semibold text-secondary">
-                                    <span class="rounded-circle d-inline-flex align-items-center justify-content-center fw-semibold"
-                                          style="width:16px;height:16px;font-size:9px;background:#faeeda;color:#BA7517;">C</span>
-                                    Total Coins
-                                </div>
-                                <span class="fw-semibold text-warning small">UGX @Model.TotalCoinsAmount.ToString("N0")</span>
-                            </div>
-                        </div>
-                    }
-                }
-
-                @* Grand Total *@
-                <div class="rounded-3 px-4 py-3" style="background:#b31b34;">
-                    <div class="d-flex justify-content-between align-items-baseline mb-1">
-                        <span class="text-uppercase small text-white opacity-75" style="letter-spacing:.07em;">Grand Total</span>
-                        <span class="fw-medium text-white" style="font-size:22px;">UGX @Model.TotalAmount.ToString("N0")</span>
-                    </div>
-                    <div class="text-end fst-italic text-white opacity-50 small" id="denom-words"></div>
-                </div>
-
-            </div>
-        </div>
-
-        
         @* ── Bottom nav ── *@
         <div class="d-flex justify-content-between mb-5">
             <a asp-action="Index" asp-controller="WithdrawalRequests" class="btn btn-outline-secondary">
@@ -449,13 +313,13 @@
                         else
                         {
                             @* Your decision context box *@
-                            <div class="rounded-3 p-3 bg-body-secondary mb-3">
+                            @*  <div class="rounded-3 p-3 bg-body-secondary mb-3">
                                 <p class="text-uppercase text-muted mb-1" style="font-size:9px;letter-spacing:.06em;">Your Decision</p>
                                 <p class="fw-medium mb-0" style="font-size:18px;">UGX @Model.TotalAmount.ToString("N0")</p>
                                 <p class="text-muted small mb-0">
                                     @Model.CbName → @Model.BouBranchName &middot; @Model.CollectionDate.ToString("dd MMM yyyy")
                                 </p>
-                            </div>
+                            </div> *@
 
                             <form method="post"
                                   asp-action="ExecuteAction"
@@ -505,7 +369,7 @@
                                         <button type="submit"
                                                 class="btn btn-primary"
                                                 onclick="var sel=document.getElementById('transitionSelect');
-                                                                     onTransitionClick(this,sel.value,sel.selectedOptions[0]?.dataset.requiresComments==='true')">
+                                                                                             onTransitionClick(this,sel.value,sel.selectedOptions[0]?.dataset.requiresComments==='true')">
                                             <i class="ti ti-check me-1"></i>Confirm Action
                                         </button>
                                     </div>
@@ -521,11 +385,26 @@
 
 </div>
 
+@* Denominations Modal *@
+
+@if (Model.CanEditDispatch)
+{
+    @await Html.PartialAsync("~/Views/Shared/_Withdrawal/_BouDenominationEditModal.cshtml", Model)
+}
+
+
 @section Scripts {
     <script src="~/js/withdrawal-form.js"></script>
     <script>
+         // Denomination catalog
+        window.denomData = {
+               notes: @Html.Raw(Json.Serialize(Model.Denoms.Notes.Select(d => new { id = d.Id, value = d.Value, label = $"UGX {d.Value:N0}", typeId = d.DenominationTypeId }))),
+               coins: @Html.Raw(Json.Serialize(Model.Denoms.Coins.Select(d => new { id = d.Id, value = d.Value, label = $"UGX {d.Value:N0}", typeId = d.DenominationTypeId })))
+           };
+
         document.getElementById('hero-words').textContent  = toWords(@Model.TotalAmount);
-        document.getElementById('denom-words').textContent = toWords(@Model.TotalAmount);
+        // document.getElementById('denom-words').textContent = toWords(@Model.TotalAmount);
+        document.getElementById('bou-denom-words').textContent = toWords(@Model.TotalAmount);
 
         function onTransitionClick(btn, actionName, requiresComments) {
             const remarks  = document.getElementById('remarksTextarea').value.trim();
@@ -542,5 +421,23 @@
             hint.textContent       = '';
             required.style.display = 'none';
         }
+
     </script>
+
+    <script src="~/js/bou-denomination-edit.js"></script>
+ @*    @if (Model.CanEditDispatch)
+    {
+        <script id="dispatchSeedData" type="application/json">
+                @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.EditableBankRows, new System.Text.Json.JsonSerializerOptions {
+                    PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+        }))
+</script> 
+        
+        window.denomData = {
+            notes: @Html.Raw(Json.Serialize(notesList.Select(d => new { id = d.Id, value = d.Value, label = $"UGX {d.Value:N0}", typeId = d.DenominationTypeId }))),
+            coins: @Html.Raw(Json.Serialize(coinsList.Select(d => new { id = d.Id, value = d.Value, label = $"UGX {d.Value:N0}", typeId = d.DenominationTypeId })))
+             };
+;*@
+
+       
 }
