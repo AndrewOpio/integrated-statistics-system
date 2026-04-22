@@ -1,0 +1,187 @@
+@model VMSService.Core.Models.DepositProcessingFees.DepositProcessingFeeViewModel
+
+@{
+    ViewData["Title"] = "Edit Deposit Processing Fee";
+}
+
+<div class="row">
+    <div class="col-12 col-lg-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header pb-4">
+                <div class="d-flex flex-column">
+                    <span class="text-muted small mb-2">Edit Deposit Processing Fee</span>
+                    <h2 class="fs-4 fw-bold mb-0">UGX @Model.StartValue.ToString("N0") - @Model.EndValue.ToString("N0")</h2>
+                </div>
+            </div>
+            <div class="card-body">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <form asp-action="Edit" method="post">
+                    <input type="hidden" asp-for="Id">
+                    <input type="number" step="0.01" class="form-control" asp-for="StartValue" required hidden>
+                    <input type="number" step="0.01" class="form-control" asp-for="EndValue" required hidden>
+                    <input type="number" step="0.01" class="form-control" asp-for="MedianValue" required hidden>
+                    <input type="number" step="0.01" class="form-control" asp-for="Charge" required hidden>
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="StartValue">Start Value <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="StartValueText" value="@Model.StartValue.ToString("N0")" required>
+                        <span asp-validation-for="StartValue" class="text-danger small d-block mt-1"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="EndValue">End Value <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="EndValueText" value="@Model.EndValue.ToString("N0")" required>
+                        <span asp-validation-for="EndValue" class="text-danger small d-block mt-1"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="MedianValue">Median Value <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="MedianValueText" value="@Model.MedianValue.ToString("N0")" required>
+                        <span asp-validation-for="MedianValue" class="text-danger small d-block mt-1"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="Rate">Rate (%) <span class="text-danger">*</span></label>
+                        <input type="number" step="0.01" class="form-control" asp-for="Rate" required>
+                        <span asp-validation-for="Rate" class="text-danger small d-block mt-1"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="Charge">Charge <span class="badge bg-info">Auto-calculated (Min: 100,000)</span></label>
+                        <input type="text" class="form-control" id="ChargeText" value="@Model.Charge.ToString("N0")" readonly>
+                        <span asp-validation-for="Charge" class="text-danger small d-block mt-1"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="DenominationTypeId">Denomination Type <span class="text-danger">*</span></label>
+                        <select class="form-select" asp-for="DenominationTypeId" asp-items="@Model.DenominationTypeList" required>
+                            <option value="">-- Select Denomination Type --</option>
+                        </select>
+                        <span asp-validation-for="DenominationTypeId" class="text-danger small d-block mt-1"></span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-check me-1"></i>Update 
+                        </button>
+                        <a asp-action="Index" class="btn btn-secondary">
+                            <i class="ti ti-arrow-left me-1"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const plainStartValue = document.getElementById("StartValue");
+    const plainEndValue = document.getElementById("EndValue");
+    const plainMedianValue = document.getElementById("MedianValue");
+    const plainCharge = document.getElementById("Charge");
+    const rateInput = document.getElementById("Rate");
+    const MINIMUM_CHARGE = 100000;
+
+    // Function to calculate charge
+    function calculateCharge() {
+        const medianValue = parseFloat(plainMedianValue.value) || 0;
+        const rate = parseFloat(rateInput.value) || 0;
+        let charge = medianValue * (rate / 100);
+        
+        // Apply minimum charge rule
+        if (charge <= MINIMUM_CHARGE) {
+            charge = MINIMUM_CHARGE;
+        }
+        
+        plainCharge.value = charge;
+        document.getElementById("ChargeText").value = charge.toLocaleString("en-US", {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2
+        });
+    }
+
+    // Format StartValue input with commas
+    document.getElementById("StartValueText").addEventListener("input", function (e) {
+        // 1. Remove everything except digits and decimal point
+        let raw = e.target.value.replace(/[^0-9.]/g, "");
+
+        // 2. Ensure only a single decimal point
+        const parts = raw.split(".");
+        if (parts.length > 2) {
+            raw = parts[0] + "." + parts.slice(1).join("");
+        }
+
+        // 3. Format with commas
+        const number = parseFloat(raw);
+        if (!isNaN(number)) {
+            e.target.value = number.toLocaleString("en-US", {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2
+            });
+        } else {
+            e.target.value = "";
+        }
+
+        plainStartValue.value = number;
+    });
+
+    // Format EndValue input with commas
+    document.getElementById("EndValueText").addEventListener("input", function (e) {
+        // 1. Remove everything except digits and decimal point
+        let raw = e.target.value.replace(/[^0-9.]/g, "");
+
+        // 2. Ensure only a single decimal point
+        const parts = raw.split(".");
+        if (parts.length > 2) {
+            raw = parts[0] + "." + parts.slice(1).join("");
+        }
+
+        // 3. Format with commas
+        const number = parseFloat(raw);
+        if (!isNaN(number)) {
+            e.target.value = number.toLocaleString("en-US", {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2
+            });
+        } else {
+            e.target.value = "";
+        }
+
+        plainEndValue.value = number;
+    });
+
+    // Format MedianValue input with commas and trigger charge calculation
+    document.getElementById("MedianValueText").addEventListener("input", function (e) {
+        // 1. Remove everything except digits and decimal point
+        let raw = e.target.value.replace(/[^0-9.]/g, "");
+
+        // 2. Ensure only a single decimal point
+        const parts = raw.split(".");
+        if (parts.length > 2) {
+            raw = parts[0] + "." + parts.slice(1).join("");
+        }
+
+        // 3. Format with commas
+        const number = parseFloat(raw);
+        if (!isNaN(number)) {
+            e.target.value = number.toLocaleString("en-US", {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2
+            });
+        } else {
+            e.target.value = "";
+        }
+
+        plainMedianValue.value = number;
+        calculateCharge();
+    });
+
+    // Trigger charge calculation when rate changes
+    rateInput.addEventListener("input", function () {
+        calculateCharge();
+    });
+
+    // Calculate charge on page load (for Edit view)
+    calculateCharge();
+</script>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

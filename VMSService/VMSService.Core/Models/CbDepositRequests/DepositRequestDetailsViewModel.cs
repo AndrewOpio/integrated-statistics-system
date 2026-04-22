@@ -30,7 +30,7 @@ namespace VMSService.Core.Models.CbDepositRequest
         public string BouBranchCode { get; init; } = string.Empty;
         public string CbBicCode { get; init; } = string.Empty;
         public string CbCode { get; init; } = string.Empty;
-
+        public int BouBranchId { get; init; } = 0;
         // ?? Collectors ????????????????????????????
         public IEnumerable<AgentDetailViewModel> DepositAgents { get; init; } = [];
 

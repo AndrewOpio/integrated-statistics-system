@@ -9,6 +9,7 @@ namespace VMSService.Core.Models.Denominations
         public string Name { get; set; }
         public decimal Value { get; set; }
         public int NumberOfPiecesInABox { get; set; }
+        public int NumberOfPiecesInABundle { get; set; }
         public int DenominationTypeId { get; set; }
         public DenominationTypeViewModel? DenominationType { get; set; }
         public int CurrencyVendorId { get; set; }

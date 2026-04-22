@@ -1,0 +1,59 @@
+@model VMSService.Core.Models.MinDepositStandards.MinDepositStandardViewModel
+
+@{
+    ViewData["Title"] = "Min Deposit Standard Details";
+}
+
+<div class="row">
+    <div class="col-12 col-lg-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header pb-4">
+                <div class="d-flex flex-column">
+                    <span class="text-muted small mb-2">Min Deposit Standard Details</span>
+                    <h2 class="fs-4 fw-bold mb-3">@Model.DenominationName</h2>
+                    @if (!string.IsNullOrEmpty(Model.BranchName))
+                    {
+                        <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
+                            <span class="badge bg-primary">
+                                <i class="ti ti-building me-1"></i>@Model.BranchName
+                            </span>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="card-body">
+                <div class="field mb-4">
+                    <span class="d-block text-muted small mb-2 text-uppercase">Denomination</span>
+                    <span class="d-block fw-normal">@Model.DenominationName</span>
+                </div>
+
+                <div class="field mb-4">
+                    <span class="d-block text-muted small mb-2 text-uppercase">Branch</span>
+                    <span class="d-block fw-normal">@Model.BranchName</span>
+                </div>
+
+                <div class="field mb-4">
+                    <span class="d-block text-muted small mb-2 text-uppercase">Minimum Bundles</span>
+                    <span class="d-block fw-normal">@Model.MinimumBundles</span>
+                </div>
+
+                <div class="field">
+                    <span class="d-block text-muted small mb-2 text-uppercase">Value</span>
+                    <span class="d-block fw-normal">@Model.Value.ToString("N0")</span>
+                </div>
+            </div>
+
+            <div class="card-footer bg-transparent border-top pt-3">
+                <div class="d-flex gap-2">
+                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">
+                        <i class="ti ti-pencil me-1"></i>Edit
+                    </a>
+                    <a asp-action="Index" class="btn btn-secondary">
+                        <i class="ti ti-arrow-left me-1"></i>Back
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

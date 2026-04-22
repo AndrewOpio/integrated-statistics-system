@@ -11,7 +11,9 @@ using VMSService.Core.Models.CbRequests;
 using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.DenominationTypes;
+using VMSService.Core.Repositories.DepositProcessingFees;
 using VMSService.Core.Repositories.DepositUnitOfWorks;
+using VMSService.Core.Repositories.MinDepositStandards;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
@@ -34,7 +36,9 @@ namespace VMSService.Web.Controllers
         IMapper _mapper,
         IDepositTransactionRefNumberGenerator _depositTransactionRefNumberGenerator,
         IWorkflowServiceClient _workflowServiceClient,
-        IDenominationTypeRepository _denominationTypeRepo) : BaseWithdrawController(authorizationService)
+        IDenominationTypeRepository _denominationTypeRepo,
+        IDepositProcessingFeeRepository _depositProcessingFeeRepo,
+        IMinDepositStandardRepository _minDepositStandardRepo) : BaseWithdrawController(authorizationService)
     {
         public async Task<IActionResult> Index(CancellationToken ct)
         {
@@ -106,7 +110,7 @@ namespace VMSService.Web.Controllers
             var bouBranches = await _configServiceClient.GetAllBouBranchesAsync();
             var cb = await _configServiceClient.GetCbIdAsync(cbId);
 
-            StatusTypeDto approvedStatus =  await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+            StatusTypeDto approvedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
             {
                 ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
                 StatusName = StatusConstants.AgentDetail.Approved,
@@ -172,9 +176,125 @@ namespace VMSService.Web.Controllers
             });
         }
 
+        // NEW: Calculate Processing Fees (AJAX)
+        [HttpPost]
+        public async Task<IActionResult> CalculateProcessingFees([FromBody] CalculateFeesRequest request)
+        {
+            try
+            {
+                var denominationTypes = await _denominationTypeRepo.FindAll();
+                var noteTypeId = denominationTypes.FirstOrDefault(x => x.Name == "Note")?.Id ?? 0;
+                var coinTypeId = denominationTypes.FirstOrDefault(x => x.Name == "Coin")?.Id ?? 0;
+
+                var processingFees = await _depositProcessingFeeRepo.FindAll();
+
+                decimal notesFee = 0;
+                decimal coinsFee = 0;
+
+                // Calculate Notes Processing Fee
+                if (request.NotesTotal > 0)
+                {
+                    var noteFeeRange = processingFees
+                        .FirstOrDefault(f => f.DenominationTypeId == noteTypeId
+                            && request.NotesTotal >= f.StartValue
+                            && request.NotesTotal <= f.EndValue);
+
+                    if (noteFeeRange != null)
+                    {
+                        notesFee = noteFeeRange.Charge;
+                    }
+                }
+
+                // Calculate Coins Processing Fee
+                if (request.CoinsTotal > 0)
+                {
+                    var coinFeeRange = processingFees
+                        .FirstOrDefault(f => f.DenominationTypeId == coinTypeId
+                            && request.CoinsTotal >= f.StartValue
+                            && request.CoinsTotal <= f.EndValue);
+
+                    if (coinFeeRange != null)
+                    {
+                        coinsFee = coinFeeRange.Charge;
+                    }
+                }
+
+                return Json(new
+                {
+                    notesFee = notesFee,
+                    coinsFee = coinsFee,
+                    totalProcessingFee = notesFee + coinsFee
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calculating processing fees");
+                return BadRequest(new { error = "Failed to calculate processing fees" });
+            }
+        }
+
+        // NEW: Check Minimum Deposit Standards (AJAX)
+        [HttpPost]
+        public async Task<IActionResult> CheckMinimumDepositStandards([FromBody] CheckMinimumStandardsRequest request)
+        {
+            try
+            {
+                //if (request.BouBranchId == 0 || request.DenominationId == 0)
+                //{
+                //    return Json(new { penaltyFee = 0m, violations = new List<object>() });
+                //}
+
+                var minStandards = await _minDepositStandardRepo.FindAll();
+                var violations = new List<object>();
+                decimal totalPenalty = 0;
+
+                foreach (var denom in request.Denominations)
+                {
+                    var standard = minStandards.FirstOrDefault(s =>
+                        s.BranchId == request.BouBranchId
+                        && s.DenominationId == denom.DenominationId
+                        && !s.IsDeleted);
+
+                    if (standard != null && denom.Bundles < standard.MinimumBundles)
+                    {
+                        var shortage = standard.MinimumBundles - denom.Bundles;
+                        decimal penalty = 100000;
+
+                        violations.Add(new
+                        {
+                            denominationId = denom.DenominationId,
+                            denominationValue = denom.DenominationValue,
+                            required = standard.MinimumBundles,
+                            actual = denom.Bundles,
+                            shortage = shortage,
+                            penalty = penalty
+                        });
+
+                        totalPenalty += penalty;
+                    }
+                }
+
+                return Json(new
+                {
+                    penaltyFee = totalPenalty,
+                    violations = violations
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking minimum deposit standards");
+                return BadRequest(new { error = "Failed to check minimum deposit standards" });
+            }
+        }
+
         // Save as Draft
+        [HttpPost]
         public async Task<IActionResult> SaveDraft([FromBody] SaveDepositRequestViewModel vm, CancellationToken ct)
         {
+            if (vm == null)
+            {
+                return BadRequest(new { errors = new[] { "Invalid request data." } });
+            }
             try
             {
                 var userId = GetUserId();
@@ -185,7 +305,8 @@ namespace VMSService.Web.Controllers
                 {
                     StatusTypeDto status = await GetStatusByNameExceptionalAsync(DepositStatuses.DepositStatusNames.Draft);
                     request.StatusTypeId = status.Id;
-                } else if (request.StatusTypeId == 0 && !request.RequiresSpecialApproval)
+                }
+                else if (request.StatusTypeId == 0 && !request.RequiresSpecialApproval)
                 {
                     StatusTypeDto status = await GetStatusByNameAsync(DepositStatuses.DepositStatusNames.Draft);
                     request.StatusTypeId = status.Id;
@@ -321,7 +442,8 @@ namespace VMSService.Web.Controllers
                         availableTransitions.AddRange(transitions);
                     }
                 }
-            } else
+            }
+            else
             {
                 foreach (var userRoleId in userRoleIds)
                 {
@@ -339,7 +461,7 @@ namespace VMSService.Web.Controllers
                         availableTransitions.AddRange(transitions);
                     }
                 }
-            } 
+            }
 
             var vm = new DepositRequestDetailsViewModel
             {
@@ -357,6 +479,7 @@ namespace VMSService.Web.Controllers
                 CbCode = cb.CBCode,
                 BouBranchName = bouBranch.Name,
                 BouBranchCode = bouBranch.BranchCode,
+                BouBranchId = bouBranch.Id,
                 FitNotes = cbDenoms
                     .Where(d => d.DenominationTypeId == noteTypeId && d.SubCategoryId == 1)
                     .Select(d => new DepositDenominationLineViewModel
@@ -366,6 +489,7 @@ namespace VMSService.Web.Controllers
                         Amount = d.Amount,
                         SubCategoryId = d.SubCategoryId,
                         SubCategoryName = "Fit",
+                        DenominationId = d.DenominationId,
                     }),
                 UnfitNotes = cbDenoms
                     .Where(d => d.DenominationTypeId == noteTypeId && d.SubCategoryId == 2)
@@ -376,6 +500,7 @@ namespace VMSService.Web.Controllers
                         Amount = d.Amount,
                         SubCategoryId = d.SubCategoryId,
                         SubCategoryName = "Unfit",
+                        DenominationId = d.DenominationId,
                     }),
                 NANotes = cbDenoms
                     .Where(d => d.DenominationTypeId == noteTypeId && d.SubCategoryId == 3)
@@ -386,6 +511,7 @@ namespace VMSService.Web.Controllers
                         Amount = d.Amount,
                         SubCategoryId = d.SubCategoryId,
                         SubCategoryName = "N/A",
+                        DenominationId = d.DenominationId,
                     }),
                 Coins = cbDenoms
                     .Where(d => d.DenominationTypeId == coinTypeId)
@@ -396,14 +522,15 @@ namespace VMSService.Web.Controllers
                         Amount = d.Amount,
                         SubCategoryId = d.SubCategoryId,
                         SubCategoryName = "N/A",
+                        DenominationId = d.DenominationId,
                     }),
                 TotalNotesAmount = request.TotalNotesAmount,
                 TotalCoinsAmount = request.TotalCoinsAmount,
                 TotalAmount = request.TotalAmount,
-                Steps = DepositStepViewModelFactory.Build(currentStepKey, 
+                Steps = DepositStepViewModelFactory.Build(currentStepKey,
                     request.StatusTypeId == approvedStatus.Id, request.RequiresSpecialApproval, User),
                 StatusHistory = statusHistoryList,
-                AvailableTransitions = availableTransitions,  
+                AvailableTransitions = availableTransitions,
                 RequiresSpecialApproval = request.RequiresSpecialApproval,
                 SpecialApprovalReason = request.SpecialApprovalReason,
             };
@@ -459,7 +586,8 @@ namespace VMSService.Web.Controllers
                     isExecuted = await _workflowService.ExecuteTransition(
                         StatusConstants.Entity.DepositRequestExceptional, id, request.StatusTypeId,
                         actionName, username, userRoles, remarks, ct);
-                } else
+                }
+                else
                 {
                     isExecuted = await _workflowService.ExecuteTransition(
                         StatusConstants.Entity.DepositRequest, id, request.StatusTypeId,
@@ -701,5 +829,26 @@ namespace VMSService.Web.Controllers
             });
         }
 
+    }
+
+    // Request models for new API endpoints
+    public class CalculateFeesRequest
+    {
+        public decimal NotesTotal { get; set; }
+        public decimal CoinsTotal { get; set; }
+    }
+
+    public class CheckMinimumStandardsRequest
+    {
+        public int BouBranchId { get; set; }
+        //public int DenominationId { get; set; }
+        public List<DenominationCheck> Denominations { get; set; } = new();
+    }
+
+    public class DenominationCheck
+    {
+        public int DenominationId { get; set; }
+        public int DenominationValue { get; set; }
+        public int Bundles { get; set; }
     }
 }

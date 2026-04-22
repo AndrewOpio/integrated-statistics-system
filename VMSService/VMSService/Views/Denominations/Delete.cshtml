@@ -41,8 +41,13 @@
                 </div>
 
                 <div class="field mb-4">
-                    <span class="d-block text-muted small mb-2 text-uppercase">Number ff Pieces in a Box</span>
-                    <span class="d-block fw-normal">@Model.NumberOfPiecesInABox.ToString()</span>
+                    <span class="d-block text-muted small mb-2 text-uppercase">Number of Pieces in a Box</span>
+                    <span class="d-block fw-normal">@Model.NumberOfPiecesInABox.ToString("N0")</span>
+                </div>
+
+                <div class="field mb-4">
+                    <span class="d-block text-muted small mb-2 text-uppercase">Number of Pieces in a Bundle</span>
+                    <span class="d-block fw-normal">@Model.NumberOfPiecesInABundle.ToString("N0")</span>
                 </div>
 
                 @if (Model.DenominationType != null && !string.IsNullOrEmpty(Model.DenominationType.Name))

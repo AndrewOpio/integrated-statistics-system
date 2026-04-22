@@ -1,31 +1,33 @@
 using AutoMapper;
+using ConfigurationsService.Dto;
+using VMSService.Core.Model.AgentDetailStatusHistories;
+using VMSService.Core.Models.AgentDetails;
 using VMSService.Core.Models.ApprovedCurrencyDenominations;
 using VMSService.Core.Models.ApprovedCurrencyProcurements;
 using VMSService.Core.Models.ApprovedCurrencyStatusHistories;
 using VMSService.Core.Models.BranchCategories;
 using VMSService.Core.Models.Branches;
 using VMSService.Core.Models.Categories;
+using VMSService.Core.Models.CbDepositRequest;
 using VMSService.Core.Models.CommercialBanks;
 using VMSService.Core.Models.CommercialBankUser;
 using VMSService.Core.Models.CounterPartyTypes;
 using VMSService.Core.Models.CurrencyVendors;
 using VMSService.Core.Models.Denominations;
 using VMSService.Core.Models.DenominationTypes;
+using VMSService.Core.Models.DepositProcessingFees;
+using VMSService.Core.Models.ExPrintMintDetails;
 using VMSService.Core.Models.ExPrintMints;
 using VMSService.Core.Models.ExPrintMintStatusHistories;
-using VMSService.Core.Models.ExPrintMintDetails;
+using VMSService.Core.Models.MinDepositStandards;
 using VMSService.Core.Models.ReceivedStocks;
 using VMSService.Core.Models.ReceivedStocksDetails;
 using VMSService.Core.Models.ReceivedStockStatusHistories;
 using VMSService.Core.Models.StockLedgers;
 using VMSService.Core.Models.VendorTypes;
+using VMSService.Core.Services.Identity.IdentityEntities;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Data.Entities;
-using VMSService.Core.Services.Identity.IdentityEntities;
-using VMSService.Core.Models.AgentDetails;
-using ConfigurationsService.Dto;
-using VMSService.Core.Model.AgentDetailStatusHistories;
-using VMSService.Core.Models.CbDepositRequest;
 
 namespace VMSService.Core.Mappings
 {
@@ -73,6 +75,8 @@ namespace VMSService.Core.Mappings
             CreateMap<AgentDetailStatusHistory, AgentDetailStatusHistoryViewModel>().ReverseMap();
             CreateMap<DepositRequest, DepositRequestDetailsViewModel>().ReverseMap();
             CreateMap<DepositRequestStatusHistory, DepositRequestStatusHistoryViewModel>().ReverseMap();
+            CreateMap<MinDepositStandard, MinDepositStandardViewModel>().ReverseMap();
+            CreateMap<DepositProcessingFee, DepositProcessingFeeViewModel>().ReverseMap();
         }
     }
 }

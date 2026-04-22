@@ -47,6 +47,7 @@ namespace StockService.Core.Repository.Denominations
             existing.Name = entity.Name;
             existing.Value = entity.Value;
             existing.NumberOfPiecesInABox = entity.NumberOfPiecesInABox;
+            existing.NumberOfPiecesInABundle = entity.NumberOfPiecesInABundle;
             existing.DenominationTypeId = entity.DenominationTypeId;
             existing.IsDeleted = entity.IsDeleted;
             existing.ModifiedDate = entity.ModifiedDate;
