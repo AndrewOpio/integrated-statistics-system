@@ -14,13 +14,17 @@ using VMSService.Core.Models.DepositRequests;
 using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.BranchCategories;
 using VMSService.Core.Repositories.Branches;
+using VMSService.Core.Repositories.Categories;
 using VMSService.Core.Repositories.CounterPartyTypes;
 using VMSService.Core.Repositories.DenominationTypes;
 using VMSService.Core.Repositories.DepositUnitOfWorks;
+using VMSService.Core.Repositories.FeeTypes;
+using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
+using VMSService.Data.Entities;
 using WorkflowService.Client;
 using WorkflowService.Client.Dto;
 
@@ -38,7 +42,10 @@ namespace VMSService.Web.Controllers
         ICounterPartyTypeRepository _counterPartyTypeRepository,
         IBranchCategoryRepository _branchCategoryRepository,
         ILogger<DepositRequestsController> _logger,
-        IMapper _mapper) : Controller
+        IMapper _mapper,
+        IStockMovementRepository _stockMovementRepository,
+        ICategoryRepository _categoryRepository,
+        IFeeTypeRepository _feeTypeRepo) : Controller
     {
         [Breadcrumb("Deposit Requests", FromController = typeof(HomeController), FromAction = nameof(Index))]
         public async Task<IActionResult> Index()
@@ -160,10 +167,12 @@ namespace VMSService.Web.Controllers
             }
 
             var approvedStatus = await GetStatusByNameAsync(DepositStatuses.DepositStatusNames.Approved);
+            var completedStatus = await GetStatusByNameAsync(DepositStatuses.DepositStatusNames.Completed);
 
             if (request.RequiresSpecialApproval)
             {
                 approvedStatus = await GetStatusByNameExceptionalAsync(DepositStatuses.DepositStatusNames.Approved);
+                completedStatus = await GetStatusByNameExceptionalAsync(DepositStatuses.DepositStatusNames.Completed);
             }
 
             //Status history
@@ -216,6 +225,33 @@ namespace VMSService.Web.Controllers
                 }
             }
 
+            // Get fees from database
+            var depositFees = await _uow.DepositFees.GetByDepositRequestId(id);
+            var processingFeeType = await _feeTypeRepo.FindByName(SystemPolicy.FeeTypes.ProcessingFees);
+            var penaltyFeeType = await _feeTypeRepo.FindByName(SystemPolicy.FeeTypes.MinDepositFees);
+
+            decimal processingFee = 0;
+            decimal penaltyFee = 0;
+
+            if (processingFeeType != null)
+            {
+                var processingFeeEntity = depositFees.FirstOrDefault(f => f.FeeTypeId == processingFeeType.Id);
+                if (processingFeeEntity != null)
+                {
+                    processingFee = processingFeeEntity.Amount;
+                }
+            }
+
+            if (penaltyFeeType != null)
+            {
+                var penaltyFeeEntity = depositFees.FirstOrDefault(f => f.FeeTypeId == penaltyFeeType.Id);
+                if (penaltyFeeEntity != null)
+                {
+                    penaltyFee = penaltyFeeEntity.Amount;
+                }
+            }
+
+
             var vm = new DepositRequestDetailsViewModel
             {
                 Id = request.Id,
@@ -234,10 +270,12 @@ namespace VMSService.Web.Controllers
                 CbCode = cb?.CBCode ?? "—",
                 BouBranchName = bouBranch?.Name ?? "—",
                 BouBranchCode = bouBranch?.BranchCode ?? "—",
+                BouBranchId = bouBranch?.Id ?? 0,
                 FitNotes = cbDenoms
                     .Where(d => d.DenominationTypeId == noteTypeId && d.SubCategoryId == 1)
                     .Select(d => new DepositDenominationLineViewModel
                     {
+                        DenominationId = d.DenominationId,
                         DenominationLabel = $"UGX {d.DenominationValue:N0}",
                         Bundles = d.Bundles,
                         Amount = d.Amount,
@@ -248,6 +286,7 @@ namespace VMSService.Web.Controllers
                     .Where(d => d.DenominationTypeId == noteTypeId && d.SubCategoryId == 2)
                     .Select(d => new DepositDenominationLineViewModel
                     {
+                        DenominationId = d.DenominationId,
                         DenominationLabel = $"UGX {d.DenominationValue:N0}",
                         Bundles = d.Bundles,
                         Amount = d.Amount,
@@ -258,6 +297,7 @@ namespace VMSService.Web.Controllers
                     .Where(d => d.DenominationTypeId == noteTypeId && d.SubCategoryId == 3)
                     .Select(d => new DepositDenominationLineViewModel
                     {
+                        DenominationId = d.DenominationId,
                         DenominationLabel = $"UGX {d.DenominationValue:N0}",
                         Bundles = d.Bundles,
                         Amount = d.Amount,
@@ -278,9 +318,14 @@ namespace VMSService.Web.Controllers
                 TotalCoinsAmount = request.TotalCoinsAmount,
                 TotalAmount = request.TotalAmount,
                 Steps = DepositStepViewModelFactory.Build(currentStepKey,
-                    request.StatusTypeId == approvedStatus.Id, request.RequiresSpecialApproval, User),
+                    (request.StatusTypeId == approvedStatus.Id || request.StatusTypeId == completedStatus.Id), 
+                    request.RequiresSpecialApproval, User),
                 StatusHistory = statusHistoryList,
                 AvailableTransitions = availableTransitions,
+                ProcessingFee = processingFee,
+                MinimumDepositPenaltyFee = penaltyFee,
+                TotalFees = processingFee + penaltyFee,
+                HasPenaltyViolations = penaltyFee > 0
             };
 
             return View(vm);
@@ -334,14 +379,49 @@ namespace VMSService.Web.Controllers
                 {
                     if (actionName.Equals("Complete"))
                     {
-                        BranchCategory store = await _branchCategoryRepository
-                                .FindByBranchAndCategoryName(request.BouBranchId, StockConstants.StoreTypes.Paids);
+                        var cbDenoms = request.DepositRequestDenominations
+                                .Where(d => d.Origin == DepositStatuses.DepositOrigin.Cb);
+                        Category paids = (await _categoryRepository.FindAll()).FirstOrDefault(c => c.Name == StockConstants.StoreTypes.Paids);
+                        //BranchDto store = await _configServiceClient
+                        //        .FindByBranchAndCategoryName(request.BouBranchId, StockConstants.StoreTypes.Paids);
                         var counterPartyType = await _counterPartyTypeRepository.FindByName(StockConstants.StockCounterPartyType.CommercialBank);
+
+                        StatusTypeDto receivedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+                        {
+                            ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                            StatusName = StatusConstants.StockMovement.Received,
+                            EntityTypeName = StatusConstants.Entity.StockMovement,
+                        });
+
+                        var movement = new StockMovement
+                        {
+                            MovementType = StockConstants.StockMovementTypes.CommBankToBranch,
+                            Date = DateTime.Now,
+                            ReferenceNumber = request.TransactionRefNumber,
+                            DispatchingBranchId = null,
+                            ReceivingBranchId = request.BouBranchId,
+                            TotalBagsBoxes = null,
+                            GrandTotalValue = request.TotalAmount,
+                            CurrentStatusId = receivedStatus.Id,
+                            CurrentStatusName = receivedStatus.Name,
+                            Denominations = [.. cbDenoms.Select(x => {
+                                return new StockMovementDenomination
+                                {
+                                    DenominationId = x.DenominationId,
+                                    NumBagsBoxes = x.Boxes,
+                                    NumBundles = x.Bundles,
+                                    CategoryId = paids?.Id,
+                                    ContainerType = x.Boxes == null ? StockConstants.ContainerTypes.Bag : StockConstants.ContainerTypes.Box,
+                                    SubTotalValue = x.Amount,
+                                    Categorization = paids?.Name
+                                };
+                            })]
+                        };
+
+                        StockMovement newStockMovement = await _stockMovementRepository.CreateAsync(movement);
 
                         List<StockLedgerDetail> stockLedgerDetails = new();
 
-                        var cbDenoms = request.DepositRequestDenominations
-                                .Where(d => d.Origin == DepositStatuses.DepositOrigin.Cb);
                         foreach (var denom in cbDenoms)
                         {
                             StockLedgerDetail stockLedgerDetail = new()
@@ -355,7 +435,8 @@ namespace VMSService.Web.Controllers
                                 NumberOfBundles = denom.Bundles,
                                 NumberOfPieces = ((denom.Bundles ?? 0) * 1000) + ((denom.Boxes ?? 0) * 1000),
                                 Value = denom.Amount,
-                                CategoryId = 2
+                                CategoryId = paids?.Id ?? 2,
+                                SubCategoryId = denom.SubCategoryId
                             };
                             stockLedgerDetails.Add(stockLedgerDetail);
                         }
@@ -364,7 +445,7 @@ namespace VMSService.Web.Controllers
                         StockLedger stockLedger = new()
                         {
                             ReferenceCode = request.TransactionRefNumber,
-                            StoreId = store.Id, //Branch - Paids
+                            StoreId = request.BouBranchId, //Branch
                             IsIn = true,
                             CounterPartyId = request.CbId,
                             CounterPartyTypeId = counterPartyType.Id, //Commercial Bank
@@ -373,15 +454,16 @@ namespace VMSService.Web.Controllers
                             CreatedDate = DateTime.Now,
                             ModifiedBy = username ?? "unknown",
                             ModifiedDate = DateTime.Now,
-                            StockLedgerDetails = stockLedgerDetails
+                            StockLedgerDetails = stockLedgerDetails,
+                            StockMovementId = newStockMovement.Id
                         };
 
-                        StockLedger createdLedgerRecord = await _stockLedgerRepository.Create(stockLedger);
-                        if (createdLedgerRecord != null)
+                        bool createdLedgerRecord = await _stockLedgerRepository.Create(stockLedger);
+                        if (!createdLedgerRecord)
                         {
                             TempData["Error"] = "Error Updating Stock Position";
                         }
-                        TempData["Success"] = "Action completed successfully. Stock position Updated";
+                        TempData["Success"] = "Deposit Confirmed successfully. Stock position Updated";
                     } else
                     {
                         TempData["Success"] = "Action completed successfully.";

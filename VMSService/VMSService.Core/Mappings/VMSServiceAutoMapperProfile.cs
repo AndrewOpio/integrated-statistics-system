@@ -28,6 +28,8 @@ using VMSService.Core.Models.VendorTypes;
 using VMSService.Core.Services.Identity.IdentityEntities;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Data.Entities;
+using VMSService.Core.Models.SubCategories;
+using VMSService.Core.Models.DepositFees;
 
 namespace VMSService.Core.Mappings
 {
@@ -77,6 +79,8 @@ namespace VMSService.Core.Mappings
             CreateMap<DepositRequestStatusHistory, DepositRequestStatusHistoryViewModel>().ReverseMap();
             CreateMap<MinDepositStandard, MinDepositStandardViewModel>().ReverseMap();
             CreateMap<DepositProcessingFee, DepositProcessingFeeViewModel>().ReverseMap();
+            CreateMap<DepositFee, DepositFeeViewModel>().ReverseMap();
+            CreateMap<SubCategory, SubCategoryViewModel>().ReverseMap();
         }
     }
 }

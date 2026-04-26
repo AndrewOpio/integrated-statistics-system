@@ -20,5 +20,6 @@ namespace StockService.Core.Models.StockLedger
         public int NumberOfBoxes { get; set; }
         public int? NumberOfBundles { get; set; }
         public decimal Value { get; set; } // Accept decimal from client
+        public int? SubCategoryId { get; set; }
     }
 }

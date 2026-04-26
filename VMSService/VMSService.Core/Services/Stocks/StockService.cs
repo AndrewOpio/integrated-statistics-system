@@ -367,7 +367,7 @@ namespace VMSService.Core.Services.Stocks
             }
         }
 
-        public async Task<StockLedger> CreateStockLedger(StockLedger stockLedger)
+        public async Task<bool> CreateStockLedger(StockLedger stockLedger)
         {
             try
             {
@@ -378,7 +378,7 @@ namespace VMSService.Core.Services.Stocks
                 if (response.IsSuccessStatusCode)
                 {
                     _logger.LogInformation("Stock ledger created successfully");
-                    return await response.Content.ReadFromJsonAsync<StockLedger>();
+                    return true;
                 }
 
                 var errorContent = await response.Content.ReadAsStringAsync();
@@ -386,12 +386,12 @@ namespace VMSService.Core.Services.Stocks
                     response.StatusCode, errorContent);
 
                 _logger.LogError("Failed to create stock ledger. Status: {StatusCode}", response.StatusCode);
-                return null;
+                return false;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating stock ledger via API");
-                return null;
+                return false;
             }
         }
 
@@ -795,6 +795,107 @@ namespace VMSService.Core.Services.Stocks
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating counter party type via API");
+                return false;
+            }
+        }
+
+        #endregion
+
+        #region SubCategory Methods
+
+        public async Task<ICollection<SubCategory>> GetAllSubCategories()
+        {
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.GetAsync($"{baseUrl}/api/subcategories/get-all");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var subCategories = await response.Content.ReadFromJsonAsync<ICollection<SubCategory>>();
+                    return subCategories ?? new List<SubCategory>();
+                }
+
+                _logger.LogError("Failed to retrieve sub categories. Status: {StatusCode}", response.StatusCode);
+                return new List<SubCategory>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving sub categories from API");
+                return new List<SubCategory>();
+            }
+        }
+
+        public async Task<SubCategory> GetSubCategoryById(int id)
+        {
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.GetAsync($"{baseUrl}/api/subcategories/get/{id}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    return await response.Content.ReadFromJsonAsync<SubCategory>();
+                }
+
+                _logger.LogWarning("Sub category with id {SubCategoryId} not found", id);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving sub category {SubCategoryId} from API", id);
+                return null;
+            }
+        }
+
+        public async Task<bool> CreateSubCategory(SubCategory subCategory)
+        {
+            subCategory.Category = null; // Ensure we don't send the nested object if not needed
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.PostAsJsonAsync($"{baseUrl}/api/subcategories/create", subCategory);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation("Sub category created successfully");
+                    return true;
+                }
+
+                _logger.LogError("Failed to create sub category. Status: {StatusCode}", response.StatusCode);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating sub category via API");
+                return false;
+            }
+        }
+
+        public async Task<bool> UpdateSubCategory(SubCategory subCategory)
+        {
+            subCategory.Category = null; // Ensure we don't send the nested object if not needed
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.PutAsJsonAsync($"{baseUrl}/api/subcategories/update/{subCategory.Id}", subCategory);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation("Sub category updated successfully");
+                    return true;
+                }
+
+                _logger.LogError("Failed to update sub category. Status: {StatusCode}", response.StatusCode);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating sub category via API");
                 return false;
             }
         }

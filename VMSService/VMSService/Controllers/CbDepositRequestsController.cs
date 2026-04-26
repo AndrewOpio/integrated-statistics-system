@@ -13,7 +13,9 @@ using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.DenominationTypes;
 using VMSService.Core.Repositories.DepositProcessingFees;
 using VMSService.Core.Repositories.DepositUnitOfWorks;
+using VMSService.Core.Repositories.FeeTypes;
 using VMSService.Core.Repositories.MinDepositStandards;
+using VMSService.Core.Repositories.SubCategories;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
@@ -38,7 +40,9 @@ namespace VMSService.Web.Controllers
         IWorkflowServiceClient _workflowServiceClient,
         IDenominationTypeRepository _denominationTypeRepo,
         IDepositProcessingFeeRepository _depositProcessingFeeRepo,
-        IMinDepositStandardRepository _minDepositStandardRepo) : BaseWithdrawController(authorizationService)
+        IMinDepositStandardRepository _minDepositStandardRepo,
+        IFeeTypeRepository _feeTypeRepo,
+        ISubCategoryRepository _subCategoryRepo) : BaseWithdrawController(authorizationService)
     {
         public async Task<IActionResult> Index(CancellationToken ct)
         {
@@ -134,12 +138,10 @@ namespace VMSService.Web.Controllers
                 },
                 Denoms = new DepositDenomTableViewModel
                 {
-                    //Notes = denoms.Where(d => d.DenominationTypeId == noteTypeId)
-                    //              .OrderByDescending(d => d.Value),
-                    //Coins = denoms.Where(d => d.DenominationTypeId == coinTypeId)
-                    //              .OrderByDescending(d => d.Value),
-                    Notes = denoms.Where(d => d.DenominationType.Name.Equals("Note")),
-                    Coins = denoms.Where(d => d.DenominationType.Name.Equals("Coin")),
+                    Notes = denoms.Where(d => d.DenominationType?.Name?.Equals("Note") ?? false),
+                    Coins = denoms.Where(d => d.DenominationType?.Name?.Equals("Coin") ?? false),
+                    SubCategories = (await _subCategoryRepo.FindAll())
+                        .Where(s => !s.IsDeleted && (s.Category?.Name == StockConstants.StoreTypes.Paids))
                 },
             };
 
@@ -194,14 +196,28 @@ namespace VMSService.Web.Controllers
                 // Calculate Notes Processing Fee
                 if (request.NotesTotal > 0)
                 {
-                    var noteFeeRange = processingFees
-                        .FirstOrDefault(f => f.DenominationTypeId == noteTypeId
-                            && request.NotesTotal >= f.StartValue
-                            && request.NotesTotal <= f.EndValue);
+                    const decimal progressiveThreshold = 1_500_000_000m;
+                    const decimal baseCharge = 1_500_000m;
+                    const decimal progressiveRate = 0.0005m; // 0.05%
 
-                    if (noteFeeRange != null)
+                    if (request.NotesTotal > progressiveThreshold)
                     {
-                        notesFee = noteFeeRange.Charge;
+                        // Progressive calculation: base charge + 0.05% of amount exceeding threshold
+                        decimal excessAmount = request.NotesTotal - progressiveThreshold;
+                        notesFee = baseCharge + (excessAmount * progressiveRate);
+                    }
+                    else
+                    {
+                        // Use standard fee range lookup for amounts <= 1,500,000,000
+                        var noteFeeRange = processingFees
+                            .FirstOrDefault(f => f.DenominationTypeId == noteTypeId
+                                && request.NotesTotal >= f.StartValue
+                                && request.NotesTotal <= f.EndValue);
+
+                        if (noteFeeRange != null)
+                        {
+                            notesFee = noteFeeRange.Charge;
+                        }
                     }
                 }
 
@@ -247,6 +263,15 @@ namespace VMSService.Web.Controllers
                 var minStandards = await _minDepositStandardRepo.FindAll();
                 var violations = new List<object>();
                 decimal totalPenalty = 0;
+
+                if (request == null)
+                {
+                    return Json(new
+                    {
+                        penaltyFee = totalPenalty,
+                        violations = violations
+                    });
+                }
 
                 foreach (var denom in request.Denominations)
                 {
@@ -330,6 +355,9 @@ namespace VMSService.Web.Controllers
                 // Save agents
                 await SaveAgentsAsync(request.Id, vm.AgentIds, userId, ct);
 
+                // Calculate and save fees
+                await CalculateAndSaveFeesAsync(request.Id, vm, userId, ct);
+
                 return Ok($"/CbDepositRequests/Details/{request.Id}");
             }
             catch (Exception ex)
@@ -404,10 +432,12 @@ namespace VMSService.Web.Controllers
             var bouBranch = await _configServiceClient.GetBouBranchByIdAsync(request.BouBranchId);
 
             // Denominatiom types
-            DenominationType noteType = (await _denominationTypeRepo.FindAll()).FirstOrDefault(x => x.Name == StockConstants.DenominationTypes.Note);
-            int noteTypeId = noteType != null ? noteType.Id : 0;
-            DenominationType coinType = (await _denominationTypeRepo.FindAll()).FirstOrDefault(x => x.Name == StockConstants.DenominationTypes.Coin);
-            int coinTypeId = coinType != null ? coinType.Id : 0;
+            DenominationType? noteType = (await _denominationTypeRepo.FindAll())
+                .FirstOrDefault(x => x.Name == StockConstants.DenominationTypes.Note);
+            int noteTypeId = noteType?.Id ?? 0;
+            DenominationType? coinType = (await _denominationTypeRepo.FindAll())
+                .FirstOrDefault(x => x.Name == StockConstants.DenominationTypes.Coin);
+            int coinTypeId = coinType?.Id ?? 0;
 
             // Comments/Status History
             var statusHistoryList = _mapper.Map<IEnumerable<DepositRequestStatusHistoryViewModel>>(request.DepositRequestStatusHistory);
@@ -462,6 +492,37 @@ namespace VMSService.Web.Controllers
                     }
                 }
             }
+
+            // Get fees from database
+            var depositFees = await _uow.DepositFees.GetByDepositRequestId(id);
+            var processingFeeType = await _feeTypeRepo.FindByName(SystemPolicy.FeeTypes.ProcessingFees);
+            var penaltyFeeType = await _feeTypeRepo.FindByName(SystemPolicy.FeeTypes.MinDepositFees);
+
+            decimal processingFee = 0;
+            decimal penaltyFee = 0;
+
+            if (processingFeeType != null)
+            {
+                var processingFeeEntity = depositFees.FirstOrDefault(f => f.FeeTypeId == processingFeeType.Id);
+                if (processingFeeEntity != null)
+                {
+                    processingFee = processingFeeEntity.Amount;
+                }
+            }
+
+            if (penaltyFeeType != null)
+            {
+                var penaltyFeeEntity = depositFees.FirstOrDefault(f => f.FeeTypeId == penaltyFeeType.Id);
+                if (penaltyFeeEntity != null)
+                {
+                    penaltyFee = penaltyFeeEntity.Amount;
+                }
+            }
+
+            StatusTypeDto draftStatus = await GetStatusByNameAsync(DepositStatuses.DepositStatusNames.Draft);
+            StatusTypeDto returnedStatus = await GetStatusByNameAsync(DepositStatuses.DepositStatusNames.ReturnedForRevision);
+            bool canEdit = (request.StatusTypeId == draftStatus.Id || request.StatusTypeId == returnedStatus.Id)
+                && userRoles.Contains(SystemPolicy.Roles.CbMaker);
 
             var vm = new DepositRequestDetailsViewModel
             {
@@ -533,6 +594,11 @@ namespace VMSService.Web.Controllers
                 AvailableTransitions = availableTransitions,
                 RequiresSpecialApproval = request.RequiresSpecialApproval,
                 SpecialApprovalReason = request.SpecialApprovalReason,
+                ProcessingFee = processingFee,
+                MinimumDepositPenaltyFee = penaltyFee,
+                TotalFees = processingFee + penaltyFee,
+                HasPenaltyViolations = penaltyFee > 0,
+                CanEdit = canEdit,
             };
 
             //var userRoles = GetUserRoles();
@@ -565,6 +631,208 @@ namespace VMSService.Web.Controllers
             DepositStatuses.DepositStatusNames.Approved => "Agents",
             _ => "none",
         };
+
+        // GET: CbDepositRequests/Edit/5
+        public async Task<IActionResult> Edit(Guid id, CancellationToken ct)
+        {
+            try
+            {
+                var request = await _uow.Requests.GetWithDetailsAsync(id, ct);
+                if (request == null)
+                {
+                    TempData["Error"] = "Deposit request not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                // Check if user owns this request
+                var cbId = GetCbIdFromClaims();
+                if (request.CbId != cbId)
+                {
+                    TempData["Error"] = "You do not have permission to edit this request.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                // Check if request is in editable status (Draft or Returned)
+                var currentStatus = await _workflowServiceClient.FindStatusById(request.StatusTypeId);
+                var editableStatuses = new[]
+                {
+            DepositStatuses.DepositStatusNames.Draft,
+            DepositStatuses.DepositStatusNames.ReturnedForRevision
+        };
+
+                if (!editableStatuses.Contains(currentStatus.Name))
+                {
+                    TempData["Error"] = $"Cannot edit request in '{currentStatus.Name}' status.";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
+
+                // Get agents
+                var agents = await _agentRepo.FindAll();
+                var denoms = await _denomRepo.FindAll();
+                var bouBranches = await _configServiceClient.GetAllBouBranchesAsync();
+                var cb = await _configServiceClient.GetCbIdAsync(cbId);
+
+                StatusTypeDto approvedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+                {
+                    ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                    StatusName = StatusConstants.AgentDetail.Approved,
+                    EntityTypeName = StatusConstants.Entity.AgentDetail,
+                });
+
+                // Get existing agent IDs for this request
+                var existingAgentIds = request.DepositRequestAgents
+                    .Where(a => a.EnteredBy == DepositStatuses.DepositEnteredBy.Cb)
+                    .Select(a => a.AgentId)
+                    .ToList();
+
+                // Get existing denominations
+                var existingDenominations = request.DepositRequestDenominations
+                    .Where(d => d.Origin == DepositStatuses.DepositOrigin.Cb)
+                    .ToList();
+
+                var vm = new EditDepositViewModel
+                {
+                    RequestId = request.Id,
+                    Steps = DepositStepViewModelFactory.Build("CbMaker", false, request.RequiresSpecialApproval, User),
+                    Branches = new FromToSelectionViewModel
+                    {
+                        BouBranches = bouBranches,
+                        Cb = cb,
+                        SelectedBouBranchId = request.BouBranchId,
+                        IsEdit = true,
+                        CollectionDate = request.DepositDate,
+                        CreatedDate = request.CreatedDate
+                    },
+                    Agents = new AgentSelectionViewModel
+                    {
+                        Agents = agents
+                            .Where(a => a.IsActive && !a.IsDeleted && a.CommercialBankId == cbId && a.CurrentStatusId == approvedStatus.Id)
+                            .Select(a => _mapper.Map<AgentDetailViewModel>(a))
+                            .ToList(),
+                        SelectedAgentIds = existingAgentIds
+                    },
+                    // In Edit action (GET) - around line 515
+                    Denoms = new DepositDenomTableViewModel
+                    {
+                        Notes = denoms.Where(d => d.DenominationType?.Name?.Equals("Note") ?? false),
+                        Coins = denoms.Where(d => d.DenominationType?.Name?.Equals("Coin") ?? false),
+                        ExistingDenominations = existingDenominations.Select(d => new ExistingDenominationViewModel
+                        {
+                            DenominationId = d.DenominationId,
+                            DenominationValue = d.DenominationValue,
+                            DenominationTypeId = d.DenominationTypeId,
+                            Bundles = d.Bundles,
+                            Boxes = d.Boxes,
+                            Amount = d.Amount,
+                            SubCategoryId = d.SubCategoryId
+                        }).ToList(),
+                        SubCategories = (await _subCategoryRepo.FindAll())
+                            .Where(s => !s.IsDeleted && (s.Category?.Name == StockConstants.StoreTypes.Paids))
+                    },
+                    DepositDate = request.DepositDate,
+                    RtgsDate = request.RtgsDate,
+                    RtgsCode = request.RtgsCode,
+                    RequiresSpecialApproval = request.RequiresSpecialApproval,
+                    SpecialApprovalReason = request.SpecialApprovalReason,
+                    TransactionRefNumber = request.TransactionRefNumber
+                };
+
+                return View(vm);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading deposit request for edit with id {RequestId}", id);
+                TempData["Error"] = "An error occurred while loading the deposit request. Please try again.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        // POST: CbDepositRequests/Edit/5
+        [HttpPost]
+        //[ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(Guid id, [FromBody] SaveDepositRequestViewModel vm, CancellationToken ct)
+        {
+            if (vm == null || id != vm.Id)
+            {
+                return BadRequest(new { errors = new[] { "Invalid request data." } });
+            }
+
+            try
+            {
+                var existingRequest = await _uow.Requests.GetWithDetailsAsync(id, ct);
+                if (existingRequest == null)
+                {
+                    return NotFound(new { errors = new[] { "Deposit request not found." } });
+                }
+
+                // Check if user owns this request
+                var cbId = GetCbIdFromClaims();
+                if (existingRequest.CbId != cbId)
+                {
+                    return Forbid();
+                }
+
+                // Check if request is in editable status
+                var currentStatus = await _workflowServiceClient.FindStatusById(existingRequest.StatusTypeId);
+                var editableStatuses = new[]
+                {
+            DepositStatuses.DepositStatusNames.Draft,
+            DepositStatuses.DepositStatusNames.ReturnedForRevision
+        };
+
+                if (!editableStatuses.Contains(currentStatus.Name))
+                {
+                    return BadRequest(new { errors = new[] { $"Cannot edit request in '{currentStatus.Name}' status." } });
+                }
+
+                var userId = GetUserId();
+
+                // Update request details
+                existingRequest.DepositDate = vm.DepositDate;
+                existingRequest.RtgsDate = vm.RtgsDate;
+                existingRequest.RtgsCode = vm.RtgsCode;
+                existingRequest.BouBranchId = vm.BouBranchId;
+                existingRequest.RequiresSpecialApproval = vm.RequiresSpecialApproval;
+                existingRequest.SpecialApprovalReason = vm.SpecialApprovalReason;
+
+                // Recalculate totals
+                // In GetOrCreateRequestAsync - around line 732
+                DenominationType? noteType = (await _denominationTypeRepo.FindAll())
+                    .FirstOrDefault(x => x.Name == StockConstants.DenominationTypes.Note);
+                int noteTypeId = noteType?.Id ?? 0;
+                DenominationType? coinType = (await _denominationTypeRepo.FindAll())
+                    .FirstOrDefault(x => x.Name == StockConstants.DenominationTypes.Coin);
+                int coinTypeId = coinType?.Id ?? 0;
+
+                existingRequest.TotalNotesAmount = vm.Denominations
+                    .Where(d => d.DenominationTypeId == noteTypeId)
+                    .Sum(d => d.Amount);
+                existingRequest.TotalCoinsAmount = vm.Denominations
+                    .Where(d => d.DenominationTypeId == coinTypeId)
+                    .Sum(d => d.Amount);
+                existingRequest.TotalAmount = existingRequest.TotalNotesAmount + existingRequest.TotalCoinsAmount;
+
+                await _uow.Requests.Update(existingRequest);
+                await _uow.SaveAsync(ct);
+
+                // Update denominations
+                await SaveDenominationsAsync(existingRequest.Id, vm.Denominations, userId, ct);
+
+                // Update agents
+                await SaveAgentsAsync(existingRequest.Id, vm.AgentIds, userId, ct);
+
+                // Recalculate and update fees
+                await CalculateAndSaveFeesAsync(existingRequest.Id, vm, userId, ct);
+
+                TempData["Success"] = "Deposit request updated successfully!";
+                return Ok($"/CbDepositRequests/Details/{existingRequest.Id}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating deposit request with id {RequestId}", id);
+                return BadRequest(new { errors = new[] { "An unexpected error occurred. Please try again." } });
+            }
+        }
 
         // Execute workflow action
         [HttpPost]
@@ -650,10 +918,13 @@ namespace VMSService.Web.Controllers
                     draftStatus = await GetStatusByNameExceptionalAsync(DepositStatuses.DepositStatusNames.Draft);
                 }
 
-                DenominationType noteType = (await _denominationTypeRepo.FindAll()).FirstOrDefault(x => x.Name == StockConstants.DenominationTypes.Note);
-                int notTypeId = noteType != null ? noteType.Id : 0;
-                DenominationType coinType = (await _denominationTypeRepo.FindAll()).FirstOrDefault(x => x.Name == StockConstants.DenominationTypes.Coin);
-                int coinTypeId = coinType != null ? coinType.Id : 0;
+                // In GetOrCreateRequestAsync - around line 732
+                DenominationType? noteType = (await _denominationTypeRepo.FindAll())
+                    .FirstOrDefault(x => x.Name == StockConstants.DenominationTypes.Note);
+                int notTypeId = noteType?.Id ?? 0;
+                DenominationType? coinType = (await _denominationTypeRepo.FindAll())
+                    .FirstOrDefault(x => x.Name == StockConstants.DenominationTypes.Coin);
+                int coinTypeId = coinType?.Id ?? 0;
 
                 request = new DepositRequest
                 {
@@ -686,7 +957,7 @@ namespace VMSService.Web.Controllers
         }
 
         private string GetUserId()
-            => User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+            => User.FindFirst(ClaimTypes.Name)?.Value ?? string.Empty;
 
         private bool ValidateSubmit(SaveDepositRequestViewModel vm, out List<string> errors)
         {
@@ -763,6 +1034,174 @@ namespace VMSService.Web.Controllers
             await _uow.SaveAsync(ct);
         }
 
+        private async Task CalculateAndSaveFeesAsync(
+            Guid requestId,
+            SaveDepositRequestViewModel vm,
+            string userId,
+            CancellationToken ct)
+        {
+            try
+            {
+                // Get denomination types
+                var denominationTypes = await _denominationTypeRepo.FindAll();
+                var noteTypeId = denominationTypes.FirstOrDefault(x => x.Name == "Note")?.Id ?? 0;
+                var coinTypeId = denominationTypes.FirstOrDefault(x => x.Name == "Coin")?.Id ?? 0;
+
+                var naTypeId = (await _subCategoryRepo.FindAll()).FirstOrDefault(s => s.Name == StockConstants.SubCategories.NA && !s.IsDeleted)?.Id ?? 0;
+
+                // Calculate totals
+                var notesTotal = vm.Denominations
+                    .Where(d => d.DenominationTypeId == noteTypeId && d.SubCategoryId == naTypeId)
+                    .Sum(d => d.Amount);
+
+                var coinsTotal = vm.Denominations
+                    .Where(d => d.DenominationTypeId == coinTypeId)
+                    .Sum(d => d.Amount);
+
+                // 1. Calculate Processing Fees
+                decimal processingFee = await CalculateProcessingFeeAsync(notesTotal, coinsTotal, noteTypeId, coinTypeId);
+
+                // 2. Calculate Minimum Deposit Penalty Fees
+                decimal penaltyFee = await CalculatePenaltyFeeAsync(vm.BouBranchId, vm.Denominations);
+
+                // Get fee type IDs
+                var processingFeeType = await _feeTypeRepo.FindByName(SystemPolicy.FeeTypes.ProcessingFees);
+                var penaltyFeeType = await _feeTypeRepo.FindByName(SystemPolicy.FeeTypes.MinDepositFees);
+
+                if (processingFeeType == null || penaltyFeeType == null)
+                {
+                    _logger.LogError("Fee types not found in database. Ensure '{ProcessingFees}' and '{MinDepositFees}' exist in FeeTypes table.",
+                        SystemPolicy.FeeTypes.ProcessingFees, SystemPolicy.FeeTypes.MinDepositFees);
+                    return;
+                }
+
+                // Delete existing fees for this deposit request
+                var existingFees = await _uow.DepositFees.GetByDepositRequestId(requestId);
+                foreach (var existingFee in existingFees)
+                {
+                    existingFee.IsDeleted = true;
+                    await _uow.DepositFees.Update(existingFee);
+                }
+
+                // Save Processing Fee
+                if (processingFee > 0)
+                {
+                    var processingFeeEntity = new DepositFee
+                    {
+                        Name = SystemPolicy.FeeTypes.ProcessingFees,
+                        Description = $"Processing fee for notes (UGX {notesTotal:N0}) and coins (UGX {coinsTotal:N0})",
+                        FeeTypeId = processingFeeType.Id,
+                        DepositRequestId = requestId,
+                        Amount = processingFee,
+                        IsWaived = false
+                    };
+
+                    processingFeeEntity.CreatedBy = userId;
+                    processingFeeEntity.ModifiedBy = userId;
+                    await _uow.DepositFees.Create(processingFeeEntity);
+                }
+
+                // Save Penalty Fee
+                if (penaltyFee > 0)
+                {
+                    var penaltyFeeEntity = new DepositFee
+                    {
+                        Name = SystemPolicy.FeeTypes.MinDepositFees,
+                        Description = "Penalty fee for not meeting minimum deposit standards",
+                        FeeTypeId = penaltyFeeType.Id,
+                        DepositRequestId = requestId,
+                        Amount = penaltyFee,
+                        IsWaived = false
+                    };
+
+                    penaltyFeeEntity.CreatedBy = userId;
+                    penaltyFeeEntity.ModifiedBy = userId;
+                    await _uow.DepositFees.Create(penaltyFeeEntity);
+                }
+
+                await _uow.SaveAsync(ct);
+
+                _logger.LogInformation("Fees calculated and saved for deposit request {RequestId}: Processing={ProcessingFee}, Penalty={PenaltyFee}",
+                    requestId, processingFee, penaltyFee);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calculating and saving fees for deposit request {RequestId}", requestId);
+                throw;
+            }
+        }
+
+        private async Task<decimal> CalculateProcessingFeeAsync(decimal notesTotal, decimal coinsTotal, int noteTypeId, int coinTypeId)
+        {
+            var processingFees = await _depositProcessingFeeRepo.FindAll();
+            decimal notesFee = 0;
+            decimal coinsFee = 0;
+
+            // Calculate Notes Processing Fee
+            if (notesTotal > 0)
+            {
+                const decimal progressiveThreshold = 1_500_000_000m;
+                const decimal baseCharge = 1_500_000m;
+                const decimal progressiveRate = 0.0005m; // 0.05%
+
+                if (notesTotal > progressiveThreshold)
+                {
+                    decimal excessAmount = notesTotal - progressiveThreshold;
+                    notesFee = baseCharge + (excessAmount * progressiveRate);
+                }
+                else
+                {
+                    var noteFeeRange = processingFees
+                        .FirstOrDefault(f => f.DenominationTypeId == noteTypeId
+                            && notesTotal >= f.StartValue
+                            && notesTotal <= f.EndValue);
+
+                    if (noteFeeRange != null)
+                    {
+                        notesFee = noteFeeRange.Charge;
+                    }
+                }
+            }
+
+            // Calculate Coins Processing Fee
+            if (coinsTotal > 0)
+            {
+                var coinFeeRange = processingFees
+                    .FirstOrDefault(f => f.DenominationTypeId == coinTypeId
+                        && coinsTotal >= f.StartValue
+                        && coinsTotal <= f.EndValue);
+
+                if (coinFeeRange != null)
+                {
+                    coinsFee = coinFeeRange.Charge;
+                }
+            }
+
+            return notesFee + coinsFee;
+        }
+
+        private async Task<decimal> CalculatePenaltyFeeAsync(int bouBranchId, List<SaveDepositDenominationLine> denominations)
+        {
+            var minStandards = await _minDepositStandardRepo.FindAll();
+            decimal totalPenalty = 0;
+
+            foreach (var denom in denominations.Where(d => d.Bundles.HasValue))
+            {
+                var standard = minStandards.FirstOrDefault(s =>
+                    s.BranchId == bouBranchId
+                    && s.DenominationId == denom.DenominationId
+                    && !s.IsDeleted);
+
+                if (standard != null && denom.Bundles < standard.MinimumBundles)
+                {
+                    decimal penalty = 100000; // Fixed penalty per violation
+                    totalPenalty += penalty;
+                }
+            }
+
+            return totalPenalty;
+        }
+
         private async Task CopyDenominationsToBankAsync(
             Guid requestId,
             string userId,
@@ -802,7 +1241,7 @@ namespace VMSService.Web.Controllers
                     .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
                     .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
                     .Where(id => id.HasValue)
-                    .Select(id => id.Value)
+                    .Select(id => id!.Value)
                     .ToList();
         }
 

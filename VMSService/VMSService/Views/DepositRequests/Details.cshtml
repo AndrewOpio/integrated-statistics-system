@@ -30,7 +30,7 @@
             </span>
             @if (Model.RequiresSpecialApproval)
             {
-                <span class="badge rounded-pill bg-secondary px-3 py-2 mt-1 ms-1 bg-opacity-50"
+                <span class="badge rounded-pill bg-secondary px-3 py-2 mt-1 ms-1 bg-opacity-75"
                       style="font-size:11px;">
                     <i class="ti ti-star me-1"></i>Exceptional Approval Required
                 </span>
@@ -46,7 +46,7 @@
     </div>
 
     @*Stepper*@
-    @await Html.PartialAsync("~/Views/Shared/_Deposit/_DepositNavSteps.cshtml", Model.Steps)
+    @await Html.PartialAsync("~/Views/Shared/_Deposit/_DepositNavStepsInternal.cshtml", Model.Steps)
 </div>
 
 @*Two Column Layout*@ 
@@ -493,10 +493,17 @@
                                         <i class="ti ti-calculator"></i>
                                         <span class="fw-semibold">Processing Fees</span>
                                     </div>
-                                    <small class="text-muted d-block ms-4">Based on notes and coins total</small>
+                                    <small class="text-muted d-block ms-4">Based on "N/A" notes and coins total</small>
                                 </td>
                                 <td class="px-4 py-2 text-end fw-bold" id="fees-processing">
-                                    <span class="text-muted">Calculating...</span>
+                                    @if (Model.ProcessingFee > 0)
+                                    {
+                                        <span>UGX @Model.ProcessingFee.ToString("N0")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">UGX 0</span>
+                                    }
                                 </td>
                             </tr>
                             <tr>
@@ -508,7 +515,14 @@
                                     <small class="text-muted d-block ms-4">For bundles below minimum standards</small>
                                 </td>
                                 <td class="px-4 py-2 text-end fw-bold" id="fees-penalty">
-                                    <span class="text-muted">Calculating...</span>
+                                    @if (Model.MinimumDepositPenaltyFee > 0)
+                                    {
+                                        <span>UGX @Model.MinimumDepositPenaltyFee.ToString("N0")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">UGX 0</span>
+                                    }
                                 </td>
                             </tr>
                             <tr class="border-top">
@@ -519,7 +533,14 @@
                                     </div>
                                 </td>
                                 <td class="px-4 py-2 text-end fw-bold text-danger fs-6" id="fees-total">
-                                    <span class="text-muted">Calculating...</span>
+                                    @if (Model.TotalFees > 0)
+                                    {
+                                        <span class="text-danger">UGX @Model.TotalFees.ToString("N0")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">UGX 0</span>
+                                    }
                                 </td>
                             </tr>
                         </tbody>
@@ -834,34 +855,9 @@
             calculateFeesForDetailsView();
         });
 
-            // Function to calculate fees for details view (read-only)
+        // Function to calculate fees for details view (read-only)
         async function calculateFeesForDetailsView() {
             try {
-                const notesTotal = @Html.Raw(Model.TotalNotesAmount);
-                const coinsTotal = @Html.Raw(Model.TotalCoinsAmount);
-                let totalProcessingFee = 0;
-
-                // Calculate processing fees
-                const processingResponse = await fetch('/CbDepositRequests/CalculateProcessingFees', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
-                    },
-                    body: JSON.stringify({
-                        notesTotal: notesTotal,
-                        coinsTotal: coinsTotal
-                    })
-                });
-
-                if (processingResponse.ok) {
-                    const processingData = await processingResponse.json();
-                    totalProcessingFee = processingData.totalProcessingFee || 0;
-                    document.getElementById('fees-processing').textContent = `UGX ${totalProcessingFee.toLocaleString()}`;
-                } else {
-                    document.getElementById('fees-processing').innerHTML = '<span class="text-muted">Unable to calculate</span>';
-                }
-
                 // Build denominations array from model data
                 const denominations = [
                     @foreach (var d in Model.FitNotes)
@@ -894,7 +890,6 @@
                 if (penaltyResponse.ok) {
                     const penaltyData = await penaltyResponse.json();
                     const totalPenaltyFee = penaltyData.penaltyFee || 0;
-                    document.getElementById('fees-penalty').textContent = `UGX ${totalPenaltyFee.toLocaleString()}`;
 
                     // Show penalty details if there are violations
                     if (penaltyData.violations && penaltyData.violations.length > 0) {
@@ -902,25 +897,18 @@
                         violationsList.innerHTML = penaltyData.violations.map(v =>
                             `<div class="small mb-1">
                                 <strong>UGX ${v.denominationValue.toLocaleString()}</strong>:
-                                Required ${v.required} bundles, submitted ${v.actual} bundles.
-                                Penalty: <strong>UGX ${v.penalty.toLocaleString()}</strong>
+                                Required ${v.required} bundles, submitted ${v.actual} bundles
+                                (shortage: ${v.shortage})
+                                - Penalty: <strong class="text-danger">UGX ${v.penalty.toLocaleString()}</strong>
                             </div>`
                         ).join('');
                         document.getElementById('penalty-details').style.display = 'block';
                     }
 
-                    // Update total fees
-                    const totalFees = totalProcessingFee + totalPenaltyFee;
-                    document.getElementById('fees-total').textContent = `UGX ${totalFees.toLocaleString()}`;
                 } else {
-                    document.getElementById('fees-penalty').innerHTML = '<span class="text-muted">Unable to calculate</span>';
-                    document.getElementById('fees-total').innerHTML = '<span class="text-muted">Unable to calculate</span>';
                 }
             } catch (error) {
-                console.error('Error calculating fees:', error);
-                document.getElementById('fees-processing').innerHTML = '<span class="text-danger">Error</span>';
-                document.getElementById('fees-penalty').innerHTML = '<span class="text-danger">Error</span>';
-                document.getElementById('fees-total').innerHTML = '<span class="text-danger">Error</span>';
+                console.error('Error calculating penalty fees:', error);
             }
         }
     </script>

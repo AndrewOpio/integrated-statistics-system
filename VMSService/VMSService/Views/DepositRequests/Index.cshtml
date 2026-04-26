@@ -25,7 +25,7 @@
     {
         <div class="position-relative pill-wrap">
             <button type="button"
-                    class="location-pill @(Model.SelectedBranch == branch.BranchCode ? "active" : "")"
+                    class="greene-location-pill @(Model.SelectedBranch == branch.BranchCode ? "active" : "")"
                     data-branch="@branch.BranchCode"
                     title="@branch.Name">
                 @branch.BranchCode
@@ -85,7 +85,20 @@
                     <i class="ti ti-lock" style="font-size:14px;"></i>
                 </div>
             </div>
-            <div class="fw-bold mb-1" style="font-size:26px;" id="stat-total">UGX @Model.TotalProcessed.ToString("N0")</div>
+            <div class="fw-bold mb-1" style="font-size:26px;" id="stat-total">
+                UGX @{
+                    var value = Model.TotalProcessed;
+                    var formatted = value switch
+                    {
+                        >= 1_000_000_000_000_000_000 => (value / 1_000_000_000_000_000_000).ToString("0.#") + "e18",
+                        >= 1_000_000_000_000_000 => (value / 1_000_000_000_000_000).ToString("0.#") + "e15",
+                        >= 1_000_000_000_000 => (value / 1_000_000_000_000).ToString("0.#") + "T",
+                        >= 1_000_000_000 => (value / 1_000_000_000).ToString("0.#") + "B",
+                        >= 1_000_000 => (value / 1_000_000).ToString("0.#") + "M",
+                        _ => value.ToString("N0")
+                    };
+                }@formatted
+            </div>
             <div class="opacity-75" style="font-size:11px;">@DateTime.Now.ToString("MMMM yyyy")</div>
         </div>
     </div>

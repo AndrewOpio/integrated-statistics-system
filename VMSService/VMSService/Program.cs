@@ -29,11 +29,13 @@ using VMSService.Core.Repositories.CounterPartyTypes;
 using VMSService.Core.Repositories.CurrencyVendors;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.DenominationTypes;
+using VMSService.Core.Repositories.DepositFees;
 using VMSService.Core.Repositories.DepositProcessingFees;
 using VMSService.Core.Repositories.DepositUnitOfWorks;
 using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ExPrintMintDetails;
 using VMSService.Core.Repositories.ExPrintMintStatusHistories;
+using VMSService.Core.Repositories.FeeTypes;
 using VMSService.Core.Repositories.Logistics;
 using VMSService.Core.Repositories.MinDepositStandards;
 using VMSService.Core.Repositories.PackingListRangeDetails;
@@ -45,6 +47,7 @@ using VMSService.Core.Repositories.StockMovementDiscrepancies;
 using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.StockMovementStatusHistories;
 using VMSService.Core.Repositories.Stocks;
+using VMSService.Core.Repositories.SubCategories;
 using VMSService.Core.Repositories.VendorTypes;
 using VMSService.Core.Repositories.WithdrawalRequestAgents;
 using VMSService.Core.Repositories.WithdrawalRequestDenominations;
@@ -238,6 +241,9 @@ builder.Services.AddScoped<IDepositRequestRepository, DepositRequestRepository>(
 builder.Services.AddScoped<IDepositRequestStatusHistoryRepository, DepositRequestStatusHistoryRepository>();
 builder.Services.AddScoped<IMinDepositStandardRepository, MinDepositStandardRepository>();
 builder.Services.AddScoped<IDepositProcessingFeeRepository, DepositProcessingFeeRepository>();
+builder.Services.AddScoped<IDepositFeeRepository, DepositFeeRepository>();
+builder.Services.AddScoped<IFeeTypeRepository, FeeTypeRepository>();
+builder.Services.AddScoped<ISubCategoryRepository, SubCategoryRepository>();
 
 // ── Resource-based ownership check ────────────────────────────
 builder.Services.AddSingleton<IAuthorizationHandler, CbOwnershipAuthorizationHandler>();

@@ -8,7 +8,7 @@
 
 
 @*Header*@
-<div class="card border-0 shadow mb-3">
+<div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
         <div class="d-flex align-items-center justify-content-between gap-3 mb-1">
             <div class="d-flex align-items-center gap-2">
@@ -32,7 +32,7 @@
             <div class="d-flex gap-2">
                 @if (Model.CanEdit)
                 {
-                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-sm btn-primary">
+                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary">
                         <i class="ti ti-edit me-1"></i> Edit Request
                     </a>
                     <button type="button"
@@ -217,7 +217,7 @@
                                         </div>
                                         <div>
                                             <p class="text-muted mb-0" style="font-size:9px;">PHONE</p>
-                                            <p class="fw-semibold small mb-0 text-primary">@(agent.PhoneNumber ?? "—")</p>
+                                            <p class="fw-bold small mb-0">@(agent.PhoneNumber ?? "—")</p>
                                         </div>
                                     </div>
                                 </div>
@@ -440,16 +440,16 @@
                 <span class="fw-bold text-danger">UGX @Model.UnfitNotes.Sum(d => d.Amount).ToString("N0")</span>
             </div> *@
                     <div class="d-flex justify-content-between align-items-center px-4 py-2 border-bottom">
-                        <span class="d-flex align-items-center gap-2 small fw-semibold text-primary">
+                        <span class="d-flex align-items-center gap-2 small fw-semibold">
                             <i class="ti ti-circle-letter-n-filled"></i> Total Banknotes
                         </span>
-                        <span class="fw-bold text-primary">UGX @Model.TotalNotesAmount.ToString("N0")</span>
+                        <span class="fw-bold">UGX @Model.TotalNotesAmount.ToString("N0")</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center px-4 py-2">
-                        <span class="d-flex align-items-center gap-2 small fw-semibold text-warning">
+                        <span class="d-flex align-items-center gap-2 small fw-semibold">
                             <i class="ti ti-circle-letter-c-filled"></i> Total Coins
                         </span>
-                        <span class="fw-bold text-warning">UGX @Model.TotalCoinsAmount.ToString("N0")</span>
+                        <span class="fw-bold">UGX @Model.TotalCoinsAmount.ToString("N0")</span>
                     </div>
                 </div>
 
@@ -496,10 +496,17 @@
                                         <i class="ti ti-calculator"></i>
                                         <span class="fw-semibold">Processing Fees</span>
                                     </div>
-                                    <small class="text-muted d-block ms-4">Based on notes and coins total</small>
+                                    <small class="text-muted d-block ms-4">Based on "N/A" notes and coins total</small>
                                 </td>
-                                <td class="px-4 py-2 text-end" id="fees-processing">
-                                    <span class="text-muted">Calculating...</span>
+                                <td class="px-4 py-2 text-end">
+                                    @if (Model.ProcessingFee > 0)
+                                    {
+                                        <span>UGX @Model.ProcessingFee.ToString("N0")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">UGX 0</span>
+                                    }
                                 </td>
                             </tr>
                             <tr>
@@ -510,8 +517,15 @@
                                     </div>
                                     <small class="text-muted d-block ms-4">For bundles below minimum standards</small>
                                 </td>
-                                <td class="px-4 py-2 text-end" id="fees-penalty">
-                                    <span class="text-muted">Calculating...</span>
+                                <td class="px-4 py-2 text-end">
+                                    @if (Model.MinimumDepositPenaltyFee > 0)
+                                    {
+                                        <span>UGX @Model.MinimumDepositPenaltyFee.ToString("N0")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">UGX 0</span>
+                                    }
                                 </td>
                             </tr>
                             <tr class="border-top">
@@ -521,8 +535,15 @@
                                         <span class="fw-bold text-uppercase">Total Fees</span>
                                     </div>
                                 </td>
-                                <td class="px-4 py-2 text-end fw-bold text-danger fs-6" id="fees-total">
-                                    <span class="text-muted">Calculating...</span>
+                                <td class="px-4 py-2 text-end fw-bold text-danger fs-6">
+                                    @if (Model.TotalFees > 0)
+                                    {
+                                        <span class="text-danger">UGX @Model.TotalFees.ToString("N0")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">UGX 0</span>
+                                    }
                                 </td>
                             </tr>
                         </tbody>
@@ -943,31 +964,6 @@
     // Function to calculate fees for details view (read-only)
     async function calculateFeesForDetailsView() {
         try {
-            const notesTotal = @Html.Raw(Model.TotalNotesAmount);
-            const coinsTotal = @Html.Raw(Model.TotalCoinsAmount);
-            let totalProcessingFee = 0;
-
-            // Calculate processing fees
-            const processingResponse = await fetch('/CbDepositRequests/CalculateProcessingFees', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
-                },
-                body: JSON.stringify({
-                    notesTotal: notesTotal,
-                    coinsTotal: coinsTotal
-                })
-            });
-
-            if (processingResponse.ok) {
-                const processingData = await processingResponse.json();
-                totalProcessingFee = processingData.totalProcessingFee || 0;
-                document.getElementById('fees-processing').textContent = `UGX ${totalProcessingFee.toLocaleString()}`;
-            } else {
-                document.getElementById('fees-processing').innerHTML = '<span class="text-muted">Unable to calculate</span>';
-            }
-
             // Build denominations array from model data
             const denominations = [
                 @foreach (var d in Model.FitNotes)
@@ -1000,7 +996,6 @@
             if (penaltyResponse.ok) {
                 const penaltyData = await penaltyResponse.json();
                 const totalPenaltyFee = penaltyData.penaltyFee || 0;
-                document.getElementById('fees-penalty').textContent = `UGX ${totalPenaltyFee.toLocaleString()}`;
 
                 // Show penalty details if there are violations
                 if (penaltyData.violations && penaltyData.violations.length > 0) {
@@ -1008,25 +1003,18 @@
                     violationsList.innerHTML = penaltyData.violations.map(v =>
                         `<div class="small mb-1">
                             <strong>UGX ${v.denominationValue.toLocaleString()}</strong>:
-                            Required ${v.required} bundles, submitted ${v.actual} bundles.
-                            Penalty: <strong>UGX ${v.penalty.toLocaleString()}</strong>
+                            Required ${v.required} bundles, submitted ${v.actual} bundles
+                            (shortage: ${v.shortage})
+                            - Penalty: <strong class="text-danger">UGX ${v.penalty.toLocaleString()}</strong>
                         </div>`
                     ).join('');
                     document.getElementById('penalty-details').style.display = 'block';
                 }
 
-                // Update total fees
-                const totalFees = totalProcessingFee + totalPenaltyFee;
-                document.getElementById('fees-total').textContent = `UGX ${totalFees.toLocaleString()}`;
             } else {
-                document.getElementById('fees-penalty').innerHTML = '<span class="text-muted">Unable to calculate</span>';
-                document.getElementById('fees-total').innerHTML = '<span class="text-muted">Unable to calculate</span>';
             }
         } catch (error) {
-            console.error('Error calculating fees:', error);
-            document.getElementById('fees-processing').innerHTML = '<span class="text-danger">Error</span>';
-            document.getElementById('fees-penalty').innerHTML = '<span class="text-danger">Error</span>';
-            document.getElementById('fees-total').innerHTML = '<span class="text-danger">Error</span>';
+            console.error('Error calculating penalty details:', error);
         }
     }
 </script>

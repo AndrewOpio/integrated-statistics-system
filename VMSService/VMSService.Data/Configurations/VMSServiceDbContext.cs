@@ -56,6 +56,8 @@ namespace VMSService.Data.Configurations
         public DbSet<DepositRequestStatusHistory> DepositRequestStatusHistory { get; set; }
         public DbSet<MinDepositStandard> MinDepositStandards { get; set; }
         public DbSet<DepositProcessingFee> DepositProcessingFees { get; set; }
+        public DbSet<FeeType> FeeTypes { get; set; }
+        public DbSet<DepositFee> DepositFees { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

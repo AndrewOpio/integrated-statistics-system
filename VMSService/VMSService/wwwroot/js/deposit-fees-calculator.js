@@ -2,6 +2,11 @@
     const fmt = n => 'UGX ' + Math.round(n).toLocaleString();
     const $ = id => document.getElementById(id);
 
+    // SubCategory constants - match those in deposit-denom-table.js
+    const SUB_FIT = 1;
+    const SUB_UNFIT = 2;
+    const SUB_NA = 3;
+
     let currentBouBranchId = 0;
     let notesTotal = 0;
     let coinsTotal = 0;
@@ -18,10 +23,20 @@
         const branchSelect = $('bouBranchSelect');
         if (branchSelect) {
             branchSelect.addEventListener('change', function() {
-                currentBouBranchId = parseInt(this.value) || 0;
+                currentBouBranchId = parseInt(this.value) || 0; 
                 recalculateFees();
             });
+            
+            // Initialize with current value (for edit mode)
+            if (branchSelect.value) {
+                currentBouBranchId = parseInt(branchSelect.value) || 0;
+            }
         }
+        
+        // Initial calculation (for edit mode with pre-populated data)
+        setTimeout(() => {
+            recalculateFees();
+        }, 500);
     }
 
     // Handle denomination change event
@@ -34,10 +49,13 @@
         Object.values(rows).forEach(r => {
             if (!r.valid || r.amount === 0) return;
             
-            if (r.type === 'notes') {
-                notesTotal += r.amount;
-            } else if (r.type === 'coins') {
-                coinsTotal += r.amount;
+            // Only include N/A subcategory for processing fees
+            if (r.subCategoryId === SUB_NA) {
+                if (r.type === 'notes') {
+                    notesTotal += r.amount;
+                } else if (r.type === 'coins') {
+                    coinsTotal += r.amount;
+                }
             }
         });
 
@@ -46,6 +64,25 @@
 
     // Recalculate all fees
     async function recalculateFees() {
+        // Recalculate totals from current rows
+        const rows = window.depDtGetRows();
+        
+        notesTotal = 0;
+        coinsTotal = 0;
+
+        Object.values(rows).forEach(r => {
+            if (!r.valid || r.amount === 0) return;
+            
+            // Only include N/A subcategory for processing fees
+            if (r.subCategoryId === SUB_NA) {
+                if (r.type === 'notes') {
+                    notesTotal += r.amount;
+                } else if (r.type === 'coins') {
+                    coinsTotal += r.amount;
+                }
+            }
+        });
+
         await calculateProcessingFees();
         await checkMinimumStandards();
         updateFeesDisplay();

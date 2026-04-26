@@ -68,19 +68,19 @@
 <!-- ── STATS ROW ── -->
 <div class="row g- mb-4">
     @foreach (var (icon, color, label, val, sub) in new[] {
-        ("bi-file-earmark-text", "primary",  "Total Requests",  "9",  "all time"),
-        ("bi-hourglass-split",   "warning",  "Pending",         "2",  "awaiting action"),
-        ("bi-x-circle",          "danger",   "Rejected",        "1",  "requires resubmission"),
+        ("ti-file-description", "primary",  "Total Requests",  "9",  "all time"),
+        ("ti-hourglass-low",   "warning",  "Pending",         "2",  "awaiting action"),
+        ("ti-xbox-x",          "danger",   "Rejected",        "1",  "requires resubmission"),
         })
     {
         <div class="col-6 col-md-4">
-            <div class="card border-0 shadow h-100">
+            <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between mb-2">
                         <span class="text-muted small">@label</span>
                         <div class="rounded-circle d-flex align-items-center justify-content-center text-@color bg-@color bg-opacity-10"
                              style="width:32px;height:32px">
-                            <i class="bi @icon"></i>
+                            <i class="ti @icon"></i>
                         </div>
                     </div>
                     <div class="fw-bold fs-4 text-@color">@val</div>
@@ -192,7 +192,7 @@
                                             @User.FindFirst("cbName")?.Value
                                         </span>
                                         <span>
-                                            <i class="ti ti-calendar me-1 text-primary"></i>
+                                            <i class="ti ti-calendar me-1"></i>
                                             <span class="text-muted">Created:</span>
                                             @r.CreationDate.ToString("dd MMM yyyy")
                                             <span class="text-muted mx-1"> | </span>

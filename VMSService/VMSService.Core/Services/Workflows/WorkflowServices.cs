@@ -616,11 +616,11 @@ namespace VMSService.Core.Services.Workflows
             // Send notifications
             if (transition.SendNotification)
             {
-                await SendTransitionNotification(
-                $"Deposit {deposit.TransactionRefNumber} (UGX {deposit.TotalAmount:N0})",
-                transition,
-                transition.ToStatus.Name,
-                username, remarks);
+                //await SendTransitionNotification(
+                //$"Deposit {deposit.TransactionRefNumber} (UGX {deposit.TotalAmount:N0})",
+                //transition,
+                //transition.ToStatus.Name,
+                //username, remarks);
             }
 
             _logger.LogInformation("Deposit {Id} transitioned from status {From} to {To} by user {Username} with action {Action}",

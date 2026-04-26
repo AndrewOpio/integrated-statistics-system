@@ -654,9 +654,9 @@ namespace VMSService.Web.Controllers
                                 StockLedgerDetails = stockLedgerDetails
                             };
 
-                            StockLedger createdLedgerRecord = await _stockLedgerRepository.Create(stockLedger);
+                            bool createdLedgerRecord = await _stockLedgerRepository.Create(stockLedger);
 
-                            if (createdLedgerRecord != null)
+                            if (createdLedgerRecord)
                             {
                                 //// Create StockLedgerDetail entries
                                 //for (int i = 0; i < receivedStock.NumberOfPieces; i++)

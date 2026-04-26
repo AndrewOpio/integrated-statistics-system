@@ -69,7 +69,7 @@
                                         <i class="ti ti-calculator"></i>
                                         <span class="fw-semibold">Processing Fees</span>
                                     </div>
-                                    <small class="text-muted d-block ms-4">Based on notes and coins total</small>
+                                    <small class="text-muted d-block ms-4">Based on "N/A" notes and coins total</small>
                                 </td>
                                 <td class="px-4 py-2 text-end" id="fees-processing">UGX 0</td>
                             </tr>
@@ -234,7 +234,8 @@
     <script>
         window.denomData = {
             notes: @Html.Raw(Json.Serialize(Model.Denoms.Notes.Select(d => new { id = d.Id, value = d.Value, label = $"UGX {d.Value:N0}", typeId = d.DenominationTypeId }))),
-            coins: @Html.Raw(Json.Serialize(Model.Denoms.Coins.Select(d => new { id = d.Id, value = d.Value, label = $"UGX {d.Value:N0}", typeId = d.DenominationTypeId })))
+            coins: @Html.Raw(Json.Serialize(Model.Denoms.Coins.Select(d => new { id = d.Id, value = d.Value, label = $"UGX {d.Value:N0}", typeId = d.DenominationTypeId }))),
+            subcategories: @Html.Raw(Json.Serialize(Model.Denoms.SubCategories.Select(s => new { id = s.Id, value = s.Id, label = s.Name, typeId = s.CategoryId }))),
         };
 
         depositFormState.cbCode = document.getElementById('cbCode')?.textContent?.trim() || null;

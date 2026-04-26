@@ -1,0 +1,308 @@
+@using System.Security.Claims
+@model VMSService.Core.Models.CbDepositRequests.EditDepositViewModel
+@{
+    Layout = "_CbLayout";
+    ViewData["Title"] = "Edit Deposit Request";
+
+    var currentRole = "requestor";
+}
+
+@await Html.PartialAsync("~/Views/Shared/_Deposit/_DepositNavSteps.cshtml", Model.Steps)
+
+@if (TempData["Errors"] is List<string> errors && errors.Any())
+{
+    <div class="alert alert-danger mb-4">
+        <ul class="mb-0">
+            @foreach (var error in errors)
+            {
+                <li>@error</li>
+            }
+        </ul>
+    </div>
+}
+
+<div class="">
+    <h4 class="fw-bold mb-1 text-success">Edit Deposit Request @Model.TransactionRefNumber - @User.FindFirst("cbName")?.Value</h4>
+    <p class="text-muted mb-3">
+        Update your deposit request details and denominations.
+    </p>
+</div>
+
+<div id="depositForm" data-edit-mode="true" data-request-id="@Model.RequestId">
+
+    @*Branch Selection*@
+    @await Html.PartialAsync("~/Views/Shared/_Deposit/_DepositBranchSelection.cshtml", Model.Branches)
+
+    <div class="role-panel @(currentRole == "requestor" ? "active" : "")" id="panel-requestor">
+
+        @*Agent Selection*@
+        @await Html.PartialAsync("~/Views/Shared/_Withdrawal/_AgentSelection.cshtml", Model.Agents)
+
+        @*Denomination Selection (with subcategories)*@
+        @await Html.PartialAsync("~/Views/Shared/_Deposit/_DepositDenomTable.cshtml", Model.Denoms)
+
+        @*Fees Table*@
+        <div class="card mb-4 border-top-0 border-end-0 border-bottom-0 border-4 border-info shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3 justify-content-between">
+                    <div class="d-flex align-items-center gap-2 fw-bolder">
+                        <i class="ti ti-receipt"></i>
+                        <span class="text-uppercase mb-0">Fees Summary</span>
+                    </div>
+                    <span class="badge bg-info bg-opacity-10 text-uppercase text-info small">
+                        Auto-calculated
+                    </span>
+                </div>
+
+                <div class="table-responsive border rounded">
+                    <table class="table mb-0">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-2 rounded-start" style="width: 60%">Fee Type</th>
+                                <th class="px-4 py-2 rounded-end text-end" style="width: 40%">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="px-4 py-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="ti ti-calculator"></i>
+                                        <span class="fw-semibold">Processing Fees</span>
+                                    </div>
+                                    <small class="text-muted d-block ms-4">Based on "N/A" notes and coins total</small>
+                                </td>
+                                <td class="px-4 py-2 text-end" id="fees-processing">UGX 0</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="ti ti-alert-triangle"></i>
+                                        <span class="fw-semibold">Minimum Deposit Penalty Fees</span>
+                                    </div>
+                                    <small class="text-muted d-block ms-4">For bundles below minimum standards</small>
+                                </td>
+                                <td class="px-4 py-2 text-end" id="fees-penalty">UGX 0</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="ti ti-sum"></i>
+                                        <span class="fw-bold text-uppercase">Total Fees</span>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-2 text-end fw-bold text-danger fs-6" id="fees-total">UGX 0</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="penalty-details" class="mt-3" style="display: none;">
+                    <div class="alert alert-warning d-flex align-items-start gap-2 py-2">
+                        <i class="ti ti-info-circle text-warning mt-1 flex-shrink-0"></i>
+                        <div class="flex-grow-1">
+                            <p class="fw-bold mb-1 small">Penalty Details</p>
+                            <div id="penalty-violations-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    @*Special Approval Modal*@
+    <div class="modal fade" id="specialApprovalModal" tabindex="-1"
+         data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header border-bottom">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="rounded-2 bg-warning bg-opacity-10 d-flex align-items-center justify-content-center"
+                             style="width:36px;height:36px;">
+                            <i class="ti ti-alert-triangle text-warning fs-5"></i>
+                        </div>
+                        <div>
+                            <h5 class="modal-title mb-0 fw-bold">Exceptional Approval Required</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning d-flex gap-2 py-2 mb-3">
+                        <i class="ti ti-info-circle flex-shrink-0 mt-1"></i>
+                        <small>
+                            Same-day submission and deposit requests require exceptional authorization.
+                            Please provide a reason — this will be reviewed before processing.
+                        </small>
+                    </div>
+                    <label class="form-label">
+                        Reason for Same-Day Submission <span class="text-danger">*</span>
+                    </label>
+                    <textarea id="specialApprovalReasonInput"
+                              class="form-control"
+                              rows="3"
+                              placeholder="type reason for same-day deposit">@Model.SpecialApprovalReason</textarea>
+                    <small id="specialApprovalReasonError"
+                           class="text-danger mt-1"
+                           style="display:none;">
+                        <i class="ti ti-alert-circle me-1"></i>
+                        Please provide a reason before continuing.
+                    </small>
+                </div>
+                <div class="modal-footer border-top">
+                    <button type="button"
+                            class="btn btn-outline-secondary"
+                            onclick="onSpecialApprovalCancelled()">
+                        <i class="ti ti-x me-1"></i> Clear Deposit Date
+                    </button>
+                    <button type="button"
+                            class="btn btn-danger"
+                            onclick="onSpecialApprovalConfirmed()">
+                        <i class="ti ti-check me-1"></i> Confirm & Continue
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @*Actions*@
+    <div class="d-flex justify-content-between gap-2 mt-4 mb-5">
+        <a asp-action="Details" asp-route-id="@Model.RequestId" class="btn btn-secondary">
+            <i class="ti ti-arrow-left me-1"></i> Cancel
+        </a>
+        <div class="d-flex gap-2">
+            <button type="button"
+                    class="btn btn-success"
+                    onclick="submitEditDepositForm()">
+                <i class="ti ti-check me-1"></i> Update Request
+            </button>
+        </div>
+    </div>
+    @Html.AntiForgeryToken()
+</div>
+
+@section Scripts {
+
+    <script src="~/js/deposit-form.js"></script>
+    <script src="~/js/deposit-branch-selection.js"></script>
+    <script src="~/js/deposit-agent-selection.js"></script>
+    <script src="~/js/deposit-denom-table.js"></script>
+    <script src="~/js/deposit-fees-calculator.js"></script>
+
+    <script>
+        window.denomData = {
+            notes: @Html.Raw(Json.Serialize(Model.Denoms.Notes.Select(d => new { id = d.Id, value = d.Value, label = $"UGX {d.Value:N0}", typeId = d.DenominationTypeId }))),
+            coins: @Html.Raw(Json.Serialize(Model.Denoms.Coins.Select(d => new { id = d.Id, value = d.Value, label = $"UGX {d.Value:N0}", typeId = d.DenominationTypeId }))),
+            subcategories: @Html.Raw(Json.Serialize(Model.Denoms.SubCategories.Select(s => new { id = s.Id, value = s.Id, label = s.Name, typeId = s.CategoryId }))),
+        };
+
+        depositFormState.cbCode = document.getElementById('cbCode')?.textContent?.trim() || null;
+        depositFormState.cbId = @Html.Raw(Model.Branches.Cb.Id);
+        depositFormState.id = '@Model.RequestId';
+
+        // Pre-populate form state for edit mode
+        depositFormState.depositDate = '@Model.DepositDate.ToString("yyyy-MM-dd")';
+        depositFormState.bouBranchId = @Model.Branches.SelectedBouBranchId;
+        depositFormState.rtgsDate = '@(Model.RtgsDate?.ToString("yyyy-MM-dd") ?? "")';
+        depositFormState.rtgsCode = '@(Model.RtgsCode ?? "")';
+        depositFormState.requiresSpecialApproval = @Model.RequiresSpecialApproval.ToString().ToLower();
+        depositFormState.specialApprovalReason = '@Html.Raw(Model.SpecialApprovalReason ?? "")';
+
+        // Pre-select BOU branch
+        document.addEventListener('DOMContentLoaded', function() {
+            const bouBranchSelect = document.getElementById('bouBranchId');
+            if (bouBranchSelect && @Model.Branches.SelectedBouBranchId > 0) {
+                bouBranchSelect.value = '@Model.Branches.SelectedBouBranchId';
+                bouBranchSelect.dispatchEvent(new Event('change'));
+            }
+
+            // Pre-populate deposit date
+            const depositDateInput = document.getElementById('depositDate');
+            if (depositDateInput && depositFormState.depositDate) {
+                depositDateInput.value = depositFormState.depositDate;
+            }
+
+            // Pre-select agents
+            const selectedAgents = @Html.Raw(Json.Serialize(Model.Agents.SelectedAgentIds));
+            selectedAgents.forEach((agentId, index) => {
+                const agentSelect = document.getElementById(`agentId-${index + 1}`);
+                if (agentSelect) {
+                    agentSelect.value = agentId;
+                    agentSelect.dispatchEvent(new Event('change'));
+                }
+            });
+
+            // Pre-populate denominations
+            const existingDenominations = @Html.Raw(Json.Serialize(Model.Denoms.ExistingDenominations));
+            existingDenominations.forEach(denom => {
+                const type = denom.denominationTypeId === window.denomData.notes[0]?.typeId ? 'notes' : 'coins';
+                depositDenomAddRow(type);
+                
+                // Find the last added row
+                const rows = document.querySelectorAll(`#dep-denom-${type}-body tr[id^="dep-denom-row-"]`);
+                const lastRow = rows[rows.length - 1];
+                if (lastRow) {
+                    const rowId = lastRow.id.replace('dep-denom-row-', '');
+                    
+                    // Set denomination
+                    const denomSelect = document.getElementById(`dep-denom-sel-${rowId}`);
+                    if (denomSelect) {
+                        denomSelect.value = denom.denominationValue;
+                        denomSelect.dispatchEvent(new Event('change'));
+                    }
+                    
+                    // Set subcategory for notes
+                    if (type === 'notes') {
+                        const subSelect = document.getElementById(`dep-sub-sel-${rowId}`);
+                        if (subSelect) {
+                            subSelect.value = denom.subCategoryId;
+                            subSelect.dispatchEvent(new Event('change'));
+                        }
+                    }
+                    
+                    // Set amount
+                    const amountInput = document.getElementById(`dep-denom-inp-${rowId}`);
+                    if (amountInput) {
+                        amountInput.value = denom.amount.toLocaleString();
+                        amountInput.dispatchEvent(new Event('input'));
+                    }
+                }
+            });
+        });
+
+        // Override submit function for edit mode
+        function submitEditDepositForm() {
+            const requestId = '@Model.RequestId';
+            const url = `/CbDepositRequests/Edit/${requestId}`;
+            
+            // Use the same deposit form submission logic but with PUT/POST to Edit endpoint
+            const formData = buildDepositFormData();
+            formData.id = requestId;
+
+                // DEBUG: Log the data being sent
+            console.log('Form data being sent:', formData);
+            console.log('Stringified:', JSON.stringify(formData));
+            
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.text();
+                }
+                throw new Error('Failed to update deposit request');
+            })
+            .then(redirectUrl => {
+                window.location.href = redirectUrl;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to update deposit request. Please try again.');
+            });
+        }
+    </script>
+}

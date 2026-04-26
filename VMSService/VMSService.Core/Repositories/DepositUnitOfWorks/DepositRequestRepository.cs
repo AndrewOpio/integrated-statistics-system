@@ -10,7 +10,7 @@ namespace VMSService.Core.Repositories.DepositUnitOfWorks
             => await _db.DepositRequests.ToListAsync();
 
         public async Task<DepositRequest> FindById(Guid id)
-            => await _db.DepositRequests.FindAsync(id)
+            => await _db.DepositRequests.Include(x => x.DepositRequestDenominations).FirstOrDefaultAsync(x => x.Id == id)
                ?? throw new KeyNotFoundException($"DepositRequest {id} not found.");
 
         public async Task<bool> Create(DepositRequest entity)

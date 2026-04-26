@@ -15,5 +15,7 @@ namespace VMSService.Core.Services.Stocks.StockEntities
         public decimal Value { get; set; } //Encrypt values here
         public int StockLedgerId { get; set; }
         public StockLedger? StockLedger { get; set; }
+        public int SubCategoryId { get; set; }
+        public SubCategory? SubCategory { get; set; }
     }
 }

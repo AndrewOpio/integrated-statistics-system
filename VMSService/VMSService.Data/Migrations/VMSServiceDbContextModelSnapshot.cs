@@ -343,6 +343,69 @@ namespace VMSService.Data.Migrations
                     b.ToTable("CurrencyVendors");
                 });
 
+            modelBuilder.Entity("VMSService.Data.Entities.DepositFee", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("DepositRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("FeeTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsWaived")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("WaivedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("WaivedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("WaiverReason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepositRequestId");
+
+                    b.HasIndex("FeeTypeId");
+
+                    b.ToTable("DepositFees");
+                });
+
             modelBuilder.Entity("VMSService.Data.Entities.DepositProcessingFee", b =>
                 {
                     b.Property<int>("Id")
@@ -794,6 +857,37 @@ namespace VMSService.Data.Migrations
                     b.HasIndex("ExPrintMintId");
 
                     b.ToTable("ExPrintMintStatusHistory");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.FeeType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("FeeTypes");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.Logistics", b =>
@@ -2059,6 +2153,25 @@ namespace VMSService.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("VendorType");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.DepositFee", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.DepositRequest", "DepositRequest")
+                        .WithMany()
+                        .HasForeignKey("DepositRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("VMSService.Data.Entities.FeeType", "FeeType")
+                        .WithMany()
+                        .HasForeignKey("FeeTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DepositRequest");
+
+                    b.Navigation("FeeType");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.DepositRequestAgent", b =>

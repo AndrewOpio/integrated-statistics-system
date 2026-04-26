@@ -36,7 +36,6 @@
             }
 
             <button class="step-pill @step.CssState"
-                    onclick="@(step.IsClickable ? $"switchTab('{step.Key}', this)" : "")"
                     @(step.IsClickable ? "" : "disabled")
                     title="@step.Label — @step.SubLabel">
 

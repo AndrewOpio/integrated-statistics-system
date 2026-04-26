@@ -52,7 +52,7 @@
                     <option value="">— Select BOU Branch —</option>
                     @foreach (var branch in Model.BouBranches)
                     {
-                        <option value="@branch.Id">@branch.Name</option>
+                        <option value="@branch.Id" selected="@(Model.SelectedBouBranchId == branch.Id ? "selected" : null)">@branch.Name</option>
                     }
                 </select>
 
@@ -92,7 +92,6 @@
                     <p class="fw-bold mb-0 @(Model.CollectionDate == DateOnly.FromDateTime(Model.CreatedDate) ? "text-danger" : "")">
                         @Model.CollectionDate.ToString("dd MMM yyyy")
                     </p>
-                    <small class="text-muted">Date the cash will be withdrawn</small>
                 }
                 else
                 {
@@ -101,8 +100,9 @@
                            class="form-control"
                            onchange="depositFormState.depositDate = this.value || null;
                             checkSpecialApproval();" />
-                    <small class="text-muted">Date the cash will be deposited</small>
+                    
                 }
+                <small class="text-muted">Date the cash will be deposited</small>
             </div><div class="col-md-6">
                 <label class="form-label text-uppercase text-muted small mb-1">
                     Create Date

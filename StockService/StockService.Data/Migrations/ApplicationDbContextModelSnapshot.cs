@@ -311,6 +311,9 @@ namespace StockService.Data.Migrations
                     b.Property<int>("StockLedgerId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("SubCategoryId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Value")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -323,7 +326,48 @@ namespace StockService.Data.Migrations
 
                     b.HasIndex("StockLedgerId");
 
+                    b.HasIndex("SubCategoryId");
+
                     b.ToTable("StockLedgerDetails");
+                });
+
+            modelBuilder.Entity("StockService.Data.Entities.SubCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.ToTable("SubCategories");
                 });
 
             modelBuilder.Entity("StockService.Data.Entities.BranchCategory", b =>
@@ -383,11 +427,28 @@ namespace StockService.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("StockService.Data.Entities.SubCategory", "SubCategory")
+                        .WithMany()
+                        .HasForeignKey("SubCategoryId");
+
                     b.Navigation("Category");
 
                     b.Navigation("Denomination");
 
                     b.Navigation("StockLedger");
+
+                    b.Navigation("SubCategory");
+                });
+
+            modelBuilder.Entity("StockService.Data.Entities.SubCategory", b =>
+                {
+                    b.HasOne("StockService.Data.Entities.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Category");
                 });
 
             modelBuilder.Entity("StockService.Data.Entities.Category", b =>

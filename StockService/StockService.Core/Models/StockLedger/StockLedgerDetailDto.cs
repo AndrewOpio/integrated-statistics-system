@@ -1,5 +1,7 @@
 using StockService.Core.Models.Categories;
 using StockService.Core.Models.Denominations;
+using StockService.Core.Models.SubCategories;
+using StockService.Data.Entities;
 
 namespace StockService.Core.Models.StockLedger
 {
@@ -14,5 +16,7 @@ namespace StockService.Core.Models.StockLedger
         public int NumberOfBoxes { get; set; }
         public int? NumberOfBundles { get; set; }
         public decimal Value { get; set; }
+        public int? SubCategoryId { get; set; }
+        public SubCategoryDto? SubCategory { get; set; }
     }
 }

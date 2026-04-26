@@ -1,7 +1,5 @@
 using VMSService.Core.Models.AgentDetails;
 using VMSService.Core.Models.CbDepositRequests;
-using VMSService.Core.Models.CbRequests;
-using VMSService.Data.Entities;
 using WorkflowService.Client.Dto;
 
 namespace VMSService.Core.Models.CbDepositRequest
@@ -13,17 +11,17 @@ namespace VMSService.Core.Models.CbDepositRequest
         public string StatusName { get; init; } = string.Empty;
         public int StatusTypeId { get; init; }
 
-        // ?? Dates ?????????????????????????????????
+        // Dates
         public DateOnly DepositDate { get; init; }
         public DateOnly? RtgsDate { get; init; }
         public string? RtgsCode { get; init; }
         public bool RequiresSpecialApproval { get; set; }
         public string? SpecialApprovalReason { get; set; }
 
-        // ?? Users ?????????????????????????????????
+        // Users
         public string InitiatorName { get; init; } = string.Empty;
 
-        // ?? Branch ????????????????????????????????
+        // Branch
         public string CbBranchName { get; init; } = string.Empty;
         public string CbName { get; init; } = string.Empty;
         public string BouBranchName { get; init; } = string.Empty;
@@ -31,10 +29,10 @@ namespace VMSService.Core.Models.CbDepositRequest
         public string CbBicCode { get; init; } = string.Empty;
         public string CbCode { get; init; } = string.Empty;
         public int BouBranchId { get; init; } = 0;
-        // ?? Collectors ????????????????????????????
+        // Collectors
         public IEnumerable<AgentDetailViewModel> DepositAgents { get; init; } = [];
 
-        // ?? Denominations (grouped by subcategory) ?
+        // Denominations (grouped by subcategory)
         public IEnumerable<DepositDenominationLineViewModel> FitNotes { get; init; } = [];
         public IEnumerable<DepositDenominationLineViewModel> UnfitNotes { get; init; } = [];
         public IEnumerable<DepositDenominationLineViewModel> NANotes { get; init; } = [];
@@ -43,16 +41,16 @@ namespace VMSService.Core.Models.CbDepositRequest
         public ICollection<WorkflowTransitionDto> AvailableTransitions { get; set; }
             = new List<WorkflowTransitionDto>();
 
-        // ?? Totals ????????????????????????????????
+        // Totals
         public decimal TotalNotesAmount { get; init; }
         public decimal TotalCoinsAmount { get; init; }
         public decimal TotalAmount { get; init; }
         public string TotalAmountInWords { get; init; } = string.Empty;
 
-        // ?? Nav Steps ?????????????????????????????
+        // Nav Steps
         public DepositStepViewModel Steps { get; init; } = null!;
 
-        // ?? Action Permissions ????????????????????
+        // Action Permissions
         public bool CanEdit { get; init; }
         public bool CanSubmitToSupervisor { get; init; }
         public bool CanApprove { get; init; }
@@ -60,5 +58,13 @@ namespace VMSService.Core.Models.CbDepositRequest
         public bool CanCancel { get; init; }
 
         public IEnumerable<DepositRequestStatusHistoryViewModel> StatusHistory { get; set; } = [];
+
+        // Fees 
+        public decimal ProcessingFee { get; set; }
+        public decimal MinimumDepositPenaltyFee { get; set; }
+        public decimal TotalFees { get; set; }
+        public bool HasPenaltyViolations { get; set; }
+        public string PenaltyDetails { get; set; } = string.Empty;
+
     }
 }
