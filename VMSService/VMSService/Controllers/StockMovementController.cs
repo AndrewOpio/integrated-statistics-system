@@ -18,6 +18,8 @@ using VMSService.Core.Services.Stocks;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
+using VMSService.Core.Repositories.NewStockMovementLogs;
+using VMSService.Core.Repositories.PackingListRangeDetails;
 using VMSService.Data.Entities;
 
 namespace VMSService.Web.Controllers
@@ -36,6 +38,8 @@ namespace VMSService.Web.Controllers
         private readonly IStockService _stockService;
         private readonly IStockPositionService _stockPositionService;
         private readonly ILogisticsRepository _logisticsRepository;
+        private readonly INewStockMovementLogRepository _newStockMovementLogRepository;
+        private readonly IPackingListDetailsRepository _packingListDetailsRepository;
 
         public StockMovementController(
             ILogger<StockMovementController> logger,
@@ -48,7 +52,9 @@ namespace VMSService.Web.Controllers
             IWorkflowService workflowService,
             IStockService stockService,
             IStockPositionService stockPositionService,
-            ILogisticsRepository logisticsRepository)
+            ILogisticsRepository logisticsRepository,
+            INewStockMovementLogRepository newStockMovementLogRepository,
+            IPackingListDetailsRepository packingListDetailsRepository)
         {
             _logger = logger;
             _httpClientFactory = httpClientFactory;
@@ -61,6 +67,8 @@ namespace VMSService.Web.Controllers
             _stockService = stockService;
             _stockPositionService = stockPositionService;
             _logisticsRepository = logisticsRepository;
+            _newStockMovementLogRepository = newStockMovementLogRepository;
+            _packingListDetailsRepository = packingListDetailsRepository;
         }
         [Breadcrumb("Stock Movement", FromController = typeof(HomeController), FromAction = nameof(Index))]
         public async Task<IActionResult> Index()
@@ -665,7 +673,7 @@ namespace VMSService.Web.Controllers
             if (!success)
                 return BadRequest(new { message = "Failed to execute action." });
 
-            // Get the updated movement with new status
+            // Get the updated movement with new status (this includes Denominations and BoxNumberRanges)
             var updatedMovement = await _stockMovementRepository.FindByIdAsync(id);
             
             // Update logistics ID if provided
@@ -673,6 +681,20 @@ namespace VMSService.Web.Controllers
             {
                 updatedMovement.LogisticsId = logisticsId.Value;
                 await _stockMovementRepository.UpdateAsync(updatedMovement);
+                
+                // Re-fetch to ensure navigation properties are intact after update
+                updatedMovement = await _stockMovementRepository.FindByIdAsync(id);
+            }
+            
+            // Populate NewStockMovementLogs when status transitions to Dispatched
+            if (updatedMovement != null && updatedMovement.CurrentStatusId.HasValue)
+            {
+                var statusName = (await _statusTypeRepository.FindById(updatedMovement.CurrentStatusId.Value))?.Name;
+                
+                if (statusName == StatusConstants.StockMovement.Dispatched)
+                {
+                    await PopulateNewStockMovementLogs(updatedMovement);
+                }
             }
             
             // Update stock position if transitioning to Dispatched or Received
@@ -690,6 +712,106 @@ namespace VMSService.Web.Controllers
             }
 
             return RedirectToAction(nameof(Details), new { id = movement.Id });
+        }
+
+        private async Task PopulateNewStockMovementLogs(StockMovement movement)
+        {
+            try
+            {
+                if (movement?.Denominations == null || !movement.Denominations.Any())
+                {
+                    _logger.LogWarning("No denominations found for movement {MovementId}", movement?.Id);
+                    return;
+                }
+
+                var newLogs = new List<NewStockMovementlog>();
+
+                // Iterate through each denomination and its box number ranges
+                foreach (var denomination in movement.Denominations)
+                {
+                    if (denomination.BoxNumberRanges == null || !denomination.BoxNumberRanges.Any())
+                    {
+                        _logger.LogDebug("No box ranges for denomination {DenominationId}", denomination.DenominationId);
+                        continue;
+                    }
+
+                    // Process each box number range
+                    foreach (var boxRange in denomination.BoxNumberRanges)
+                    {
+                        if (string.IsNullOrWhiteSpace(boxRange.Start) || string.IsNullOrWhiteSpace(boxRange.End))
+                        {
+                            _logger.LogDebug("Skipping empty box range for denomination {DenominationId}", denomination.DenominationId);
+                            continue;
+                        }
+
+                        // Parse the start and end box numbers
+                        if (!int.TryParse(boxRange.Start, out int startBox) || !int.TryParse(boxRange.End, out int endBox))
+                        {
+                            _logger.LogWarning("Failed to parse box range: {Start}-{End}", boxRange.Start, boxRange.End);
+                            continue;
+                        }
+
+                        // Iterate from start box to end box
+                        for (int boxNumber = startBox; boxNumber <= endBox; boxNumber++)
+                        {
+                            // Find the corresponding PackingListDetails record
+                            var packingDetail = await _packingListDetailsRepository.FindByCaseNumberAsync(boxNumber);
+                            
+                            if (packingDetail != null)
+                            {
+                                // Create a NewStockMovementlog entry
+                                // Note: AccountingStatusId and CaseFullStatusId are required FK fields
+                                // For now, setting to 1 as default - you may need to adjust based on actual status records
+                                var log = new NewStockMovementlog
+                                {
+                                    StockMovementId = movement.Id,
+                                    PackingListDetailId = packingDetail.Id,
+                                    SerialNoteStartNumber = packingDetail.SerialNoteStartNumber,
+                                    SerialNoteEndNumber = packingDetail.SerialNoteEndNumber,
+                                    AccountingStatusId = null,
+                                    CaseFullStatusId = null,
+                                    CreatedBy = User.Identity?.Name ?? "system",
+                                    ModifiedBy = User.Identity?.Name ?? "system",
+                                    CreatedDate = DateTime.Now,
+                                    ModifiedDate = DateTime.Now
+                                };
+
+                                newLogs.Add(log);
+                            }
+                            else
+                            {
+                                _logger.LogDebug("No PackingListDetails found for case number {CaseNumber}", boxNumber);
+                            }
+                        }
+                    }
+                }
+
+                // Batch insert all logs if any were created
+                _logger.LogInformation("Creating {LogCount} NewStockMovementLog entries for movement {MovementId}", newLogs.Count, movement.Id);
+                
+                if (newLogs.Any())
+                {
+                    try
+                    {
+                        var result = await _newStockMovementLogRepository.CreateBatchAsync(newLogs);
+                        _logger.LogInformation("Batch insert result: {Result} for {Count} logs", result, newLogs.Count);
+                    }
+                    catch (Exception batchEx)
+                    {
+                        _logger.LogError(batchEx, "Batch insert failed. Exception: {Message}", batchEx.InnerException?.Message ?? batchEx.Message);
+                        throw;
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("No logs were created for movement {MovementId}", movement.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error populating NewStockMovementLogs for movement {MovementId}", movement?.Id);
+                // Don't throw - log the error but allow the workflow to continue
+            }
         }
 
         [HttpPost]

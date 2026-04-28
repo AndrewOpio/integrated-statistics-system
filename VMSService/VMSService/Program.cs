@@ -46,6 +46,7 @@ using VMSService.Data;
 using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.PackingListRangeDetails;
 using VMSService.Core.Repositories.PackingListRanges;
+using VMSService.Core.Repositories.NewStockMovementLogs;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Services.PackingListRangeDetails;
 
@@ -205,6 +206,7 @@ builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
 builder.Services.AddScoped<IStockMovementDiscrepancyRepository, StockMovementDiscrepancyRepository>();
 builder.Services.AddScoped<ILogisticsRepository, LogisticsRepository>();
 builder.Services.AddScoped<ILogisticsStatusHistoryRepository, LogisticsStatusHistoryRepository>();
+builder.Services.AddScoped<INewStockMovementLogRepository, NewStockMovementLogRepository>();
 
 // Add this in your service registration section
 builder.Services.AddScoped<IStockService, StockService>();

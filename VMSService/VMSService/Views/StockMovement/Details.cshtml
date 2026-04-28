@@ -296,7 +296,7 @@
             <div class="card border-0 shadow mb-3">
                 <div class="card-header bg-white border-bottom no-after">
                     <h6 class="card-title mb-0">
-                        <i class="ti ti-alert-circle me-2 text-warning"></i>Discrepancy Management
+                        <i class="ti ti-alert-circle me-2 text-warning"></i>Mismatch Management
                     </h6>
                 </div>
                 <div class="card-body">
@@ -536,6 +536,7 @@
         @{
             var availableTransitions = ViewBag.AvailableTransitions as List<WorkflowTransitionDto>;
             // Hide the workflow form only for branch movements with Dispatched status until received denominations are saved
+            @* bool showWorkflowForm = !(Model.MovementType == StockConstants.StockMovementTypes.BranchToBranch && isDispatchedStatus && !hasReceivedDenominations); *@
             bool showWorkflowForm = !(Model.MovementType == StockConstants.StockMovementTypes.BranchToBranch && isDispatchedStatus && !hasReceivedDenominations);
         }
         @if (showWorkflowForm && availableTransitions != null && availableTransitions.Any())

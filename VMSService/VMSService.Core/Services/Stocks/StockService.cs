@@ -1021,5 +1021,7 @@ namespace VMSService.Core.Services.Stocks
         public string ClientId { get; set; }
         public string ClientSecret { get; set; }
         public string TokenCacheDurationMinutes { get; set; }
+    
+        
     }
 }
