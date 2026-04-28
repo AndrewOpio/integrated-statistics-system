@@ -11,9 +11,10 @@ using WorkflowService.Client;
 namespace VMSService.Web.Controllers;
 public class CbRequestsController(
     IWorkflowServiceClient _workflowServiceClient,
-    IWithdrawalUnitOfWork _uow, IDepositUnitOfWork _duow) : Controller
-    IWithdrawalRequestRepository _requestRepository,
-    IWithdrawalUnitOfWork _uow) : Controller
+    IWithdrawalUnitOfWork _uow,
+    IDepositUnitOfWork _duow,
+    IWithdrawalRequestRepository _requestRepository
+    ) : Controller
 {
     public async Task<IActionResult> Index(CancellationToken ct)
     {

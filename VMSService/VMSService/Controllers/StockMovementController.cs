@@ -68,8 +68,11 @@ namespace VMSService.Web.Controllers
         {
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
+            var userRolez = User.FindAll("appRole")
+                .ToList()
+                ;
             var userRoles = User.FindAll("appRole")
-               .Where(c => c.Value.StartsWith("VMS:"))
+               .Where(c => c.Value.StartsWith("CAS:"))
                .Select(c => c.Value.Split(":")[1])
                .ToList();
 
@@ -81,6 +84,9 @@ namespace VMSService.Web.Controllers
                 .Where(role => branchNames.ContainsKey(role))
                 .Select(role => branchNames[role])
                 .ToList();
+
+            if (userBranchIds.Any())
+                _logger.LogError("No UserBranchId found");
 
             var movements = await _stockMovementRepository.FindByIdsAsync(userBranchIds);
 

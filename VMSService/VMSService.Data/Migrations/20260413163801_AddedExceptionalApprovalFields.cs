@@ -11,20 +11,20 @@ namespace VMSService.Data.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "SpecialApprovalAt",
-                table: "WithdrawalRequests");
+            //migrationBuilder.DropColumn(
+            //    name: "SpecialApprovalAt",
+            //    table: "WithdrawalRequests");
 
-            migrationBuilder.DropColumn(
-                name: "SpecialApprovalBy",
-                table: "WithdrawalRequests");
+            //migrationBuilder.DropColumn(
+            //    name: "SpecialApprovalBy",
+            //    table: "WithdrawalRequests");
 
-            migrationBuilder.AddColumn<bool>(
-                name: "IsDeleted",
-                table: "WithdrawalRequests",
-                type: "bit",
-                nullable: false,
-                defaultValue: false);
+            //migrationBuilder.AddColumn<bool>(
+            //    name: "IsDeleted",
+            //    table: "WithdrawalRequests",
+            //    type: "bit",
+            //    nullable: false,
+            //    defaultValue: false);
 
             migrationBuilder.AddColumn<bool>(
                 name: "IsDeleted",
@@ -50,9 +50,9 @@ namespace VMSService.Data.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "IsDeleted",
-                table: "WithdrawalRequests");
+            //migrationBuilder.DropColumn(
+            //    name: "IsDeleted",
+            //    table: "WithdrawalRequests");
 
             migrationBuilder.DropColumn(
                 name: "IsDeleted",
@@ -66,17 +66,17 @@ namespace VMSService.Data.Migrations
                 name: "SpecialApprovalReason",
                 table: "DepositRequests");
 
-            migrationBuilder.AddColumn<DateTime>(
-                name: "SpecialApprovalAt",
-                table: "WithdrawalRequests",
-                type: "datetime2",
-                nullable: true);
+            //migrationBuilder.AddColumn<DateTime>(
+            //    name: "SpecialApprovalAt",
+            //    table: "WithdrawalRequests",
+            //    type: "datetime2",
+            //    nullable: true);
 
-            migrationBuilder.AddColumn<string>(
-                name: "SpecialApprovalBy",
-                table: "WithdrawalRequests",
-                type: "nvarchar(max)",
-                nullable: true);
+            //migrationBuilder.AddColumn<string>(
+            //    name: "SpecialApprovalBy",
+            //    table: "WithdrawalRequests",
+            //    type: "nvarchar(max)",
+            //    nullable: true);
         }
     }
 }

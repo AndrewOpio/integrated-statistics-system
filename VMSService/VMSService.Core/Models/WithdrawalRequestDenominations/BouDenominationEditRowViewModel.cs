@@ -14,10 +14,11 @@ namespace VMSService.Core.Models.WithdrawalRequestDenominations
         public int DenominationId { get; set; }
         public decimal DenominationValue { get; set; }
         public int DenominationTypeId { get; set; }
-        public string BundleType { get; set; } = BundleTypes.NotApplicable;
+        public string BundleType { get; set; }
         public int? Bundles { get; set; }
         public int? Boxes { get; set; }
         public decimal Amount { get; set; }
         public List<string> BoxNumbers { get; set; } = new();
+        public List<DispatchedBoxDetail> DispatchedBoxDetails { get; set; } = new();
     }
 }

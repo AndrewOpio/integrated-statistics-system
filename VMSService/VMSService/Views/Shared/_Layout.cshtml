@@ -31,6 +31,8 @@
     bool isHeadOfBackOffice = userRoles.Contains(SystemPolicy.Roles.HeadBackOffice);
     bool isBranchManager = userRoles.Contains(SystemPolicy.Roles.StockApprover);
     bool isAssistantBranchManager = userRoles.Contains(SystemPolicy.Roles.StockVerifier);
+    bool isPanelA = userRoles.Contains(SystemPolicy.Roles.PanelA);
+    bool isPanelB = userRoles.Contains(SystemPolicy.Roles.PanelB);
 
     // bool isCommercialBank = userRoles.Contains($"{SystemSettings.AppAcronym}:Commercial Bank");
     // bool isStockReceiver = userRoles.Contains($"{SystemSettings.AppAcronym}:StockReceiver");
@@ -145,7 +147,7 @@
                 }
 
 
-                @if (isRemittancesOfficer || isCurrencyApprover || isBranchManager || isAssistantBranchManager || isHeadOfBackOffice)
+                @if (isRemittancesOfficer || isCurrencyApprover || isBranchManager || isAssistantBranchManager || isHeadOfBackOffice || isPanelA || isPanelB)
                 {
                     <li class="nav-item">
                         <a asp-controller="StockMovement" asp-action="Index" class="nav-link d-flex align-items-center">

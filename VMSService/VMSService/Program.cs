@@ -58,6 +58,7 @@ using VMSService.Core.Repositories.PackingListRangeDetails;
 using VMSService.Core.Repositories.PackingListRanges;
 using VMSService.Core.Services.PackingListRangeDetails;
 using WorkflowService.Client;
+using VMSService.Core.Repositories.BoxStates;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -234,6 +235,7 @@ builder.Services.AddScoped<IDepositUnitOfWork, DepositUnitOfWork>();
 builder.Services.AddScoped<IDepositTransactionRefNumberGenerator, DepositTransactionRefNumberGenerator>();
 builder.Services.AddScoped<IDepositRequestRepository, DepositRequestRepository>();
 builder.Services.AddScoped<IDepositRequestStatusHistoryRepository, DepositRequestStatusHistoryRepository>();
+builder.Services.AddScoped<IBoxStateRepository, BoxStateRepository>();
 
 // ── Resource-based ownership check ────────────────────────────
 builder.Services.AddSingleton<IAuthorizationHandler, CbOwnershipAuthorizationHandler>();
@@ -270,7 +272,7 @@ builder.Services.AddHttpClient<ConfigurationService>()
     .ConfigureHttpClient((sp, client) =>
     {
         var configuration = sp.GetRequiredService<IConfiguration>();
-        var baseUrl = configuration["MicroServices:configurationsservice"] ?? "https://localhost:7026";
+        var baseUrl = configuration["MicroServices:configurationsservice"] ?? "https://localhost:7089";
         client.BaseAddress = new Uri(baseUrl);
         client.DefaultRequestHeaders.Add("Accept", "application/json");
     });
@@ -280,10 +282,10 @@ var workflowServiceBaseUrl = builder.Configuration["MicroServices:workflowservic
 builder.Services.AddWorkflowServiceClient(workflowServiceBaseUrl);
 
 // Register ConfigurationsServiceClient Service
-builder.Services.AddConfigurationsServiceClient(builder.Configuration["MicroServices:configurationsservice"] ?? "https://localhost:7026");
+builder.Services.AddConfigurationsServiceClient(builder.Configuration["MicroServices:configurationsservice"] ?? "https://localhost:7089");
 
 // Register Notification Service
-builder.Services.AddNotificationServiceClient(builder.Configuration["MicroServices:notificationservice"] ?? "https://localhost:7026");
+builder.Services.AddNotificationServiceClient(builder.Configuration["MicroServices:notificationservice"] ?? "https://localhost:7129");
 var rabbitMqHost = builder.Configuration["RabbitMQ:Host"] ?? "localhost";
 var rabbitMqUsername = builder.Configuration["RabbitMQ:Username"] ?? "guest";
 var rabbitMqPassword = builder.Configuration["RabbitMQ:Password"] ?? "guest";

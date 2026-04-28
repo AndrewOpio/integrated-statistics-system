@@ -856,3 +856,11 @@ input[type=number].form-control {
 .greene-card-header {
     position: relative;
 }
+
+.ts-dropdown {
+    z-index: 10000 !important;
+}
+
+.cbtable * {
+    border-style: none !important;
+}

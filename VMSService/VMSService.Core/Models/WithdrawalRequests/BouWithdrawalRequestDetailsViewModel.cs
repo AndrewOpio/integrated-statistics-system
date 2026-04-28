@@ -24,12 +24,9 @@ namespace VMSService.Core.Models.WithdrawalRequests
         public bool RequiresSpecialApproval { get; set; }
         public string? SpecialApprovalReason { get; set; }
         public bool IsPostApprovalView { get; set; }
-        //public string InitiatorName { get; init; } = string.Empty;
 
         public string CbCode { get; init; } = string.Empty;
         public string CbName { get; init; } = string.Empty;
-        //public string CbBranchLocation { get; init; } = string.Empty;
-        //public string CbBranchDistrinct { get; init; } = string.Empty;
         public string BouBranchName { get; init; } = string.Empty;
         public string BouBranchCode { get; init; } = string.Empty;
 
@@ -37,9 +34,6 @@ namespace VMSService.Core.Models.WithdrawalRequests
         public decimal TotalCoinsAmount { get; init; }
         public decimal TotalAmount { get; init; }
         public bool IsLumpSum { get; set; } = false;
-        //public bool CanEdit { get; init; }
-
-        //public WithdrawalRequestStatusHistory WithdrawalRequestStatus { get; set; }
         public string? CurrentStatusName { get; set; }
         public bool CanEditDispatch { get; set; }
 
@@ -49,7 +43,11 @@ namespace VMSService.Core.Models.WithdrawalRequests
 
         public IEnumerable<DenominationLineViewModel> Notes { get; init; } = [];
         public IEnumerable<DenominationLineViewModel> Coins { get; init; } = [];
+        public IEnumerable<WithdrawalRequestDenomination> CbDenominations { get; init; } = [];
         public List<BouDenominationEditRowViewModel> EditableBankRows { get; set; } = new();
         public ICollection<WorkflowTransitionDto> AvailableTransitions { get; set; } = new List<WorkflowTransitionDto>();
+        public List<BouDispatchCardViewModel> DispatchedNewBanknotes { get; set; } = new();
+        public List<BouDispatchSimpleViewModel> DispatchedReissueBanknotes { get; set; } = new();
+        public List<BouDispatchSimpleViewModel> DispatchedCoins { get; set; } = new();
     }
 }

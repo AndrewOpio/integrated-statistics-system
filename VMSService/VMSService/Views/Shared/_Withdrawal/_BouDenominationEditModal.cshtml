@@ -1,4 +1,347 @@
-﻿<div class="modal fade" id="editDispatchModal" tabindex="-1" aria-hidden="true">
+﻿@using VMSService.Core.Models.WithdrawalRequests
+@model VMSService.Core.Models.WithdrawalRequests.BouWithdrawalRequestDetailsViewModel
+
+<div class="modal fade" id="editDispatchModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Dispatch Denominations</h5>
+                @* <p class="text-uppercase text-muted fw-bolder mb-2">Recommend Denominations</p> *@
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body" style="overflow-y: auto;">
+                <form id="bankDispatchForm"
+                      method="post"
+                      asp-action="SaveBankDenominations"
+                      asp-route-id="@Model.Id"
+                      class="d-flex flex-column gap-3">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="payload" id="dispatchPayload" />
+                    <input type="hidden" name="actionName" value="Save Bank Draft" />
+
+                    @* ── Live Tracker ── *@
+                    <div class="border rounded-3 p-3 bg-warning" id="dispatch-tracker">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-uppercase fw-bold">
+                                Commercial Bank Total
+                            </span>
+                            <span class="fw-bold">UGX @Model.TotalAmount.ToString("N0")</span>
+                        </div>
+                        <div id="varianceIndicator" class="p-3"
+                             data-wishlist-total="@Model.TotalAmount">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-uppercase small fw-bold">Bank Total</span>
+                                <span class="fw-bold" id="bankGrandTotal">UGX 0</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-1">
+                                <span class="text-uppercase small fw-bold">Variance</span>
+                                <span class="fw-bold" id="varianceAmount">UGX 0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    @* ── Bank Dispatch Label ── *@
+
+                    <p class="text-uppercase text-muted fw-bolder mb-2">Bank Dispatch</p>
+
+                    @* ── NEW BANKNOTES ── *@
+                    <div class="border rounded-3 mb-3 overflow-hidden">
+                        <div class="bg-light border-bottom d-flex justify-content-between align-items-center px-3 py-2">
+                            <span class="text-uppercase d-flex small align-items-center gap-2 fw-bold">
+                                <span class="badge bg-secondary-subtle text-secondary rounded-1 px-2">N</span>
+                                New Banknotes
+                            </span>
+                            <span class="fw-bold" id="new-subtotal">
+                                @((Model.DispatchedNewBanknotes?.Sum(r => r.Amount) ?? 0m).ToString("N0"))
+                            </span>
+                        </div>
+
+                        <div class="p-2">
+                            <div id="new-banknotes-cards" class="d-flex flex-column gap-2"
+                                 data-request-id="@Model.Id">
+                                @foreach (var r in (Model.DispatchedNewBanknotes ?? new())
+                                                                .OrderBy(r => !r.IsFull)
+                                                                .ThenBy(r => r.Denomination)
+                                                                .ThenBy(r => r.StartBox))
+                                {
+                                    var boxCount = r.EndBox - r.StartBox + 1;
+                                    var boxLabel = r.StartBox == r.EndBox
+                                    ? r.StartBox.ToString()
+                                    : $"{r.StartBox}–{r.EndBox}";
+                                    var bundles = r.IsFull ? boxCount * 50 : (r.Bundles);
+
+                                    <div class="border rounded-3 p-2 dispatch-card"
+                                         data-row-id="@r.Id"
+                                         data-kind="@(r.IsFull ? "full" : "partial")"
+                                         data-denom-id="@r.DenominationId"
+                                         data-denom="@r.Denomination"
+                                         data-start-box="@r.StartBox"
+                                         data-end-box="@r.EndBox"
+                                         data-bundles="@bundles"
+                                         style="border-left:3px solid @(r.IsFull ? "#378ADD" : "#EF9F27") !important;">
+                                        <div class="row g-2 align-items-start">
+                                            <div class="col-auto" style="width:120px;">
+                                                <div class="@(r.IsFull ? "text-primary" : "text-warning") text-uppercase fw-bold"
+                                                     style="font-size:10px;letter-spacing:.04em;">
+                                                    @(r.IsFull ? "Full" : "Partial")
+                                                </div>
+                                                <div class="fw-bold">UGX @r.Denomination.ToString("N0")</div>
+                                            </div>
+
+                                            <div class="col">
+                                                @if (r.IsFull)
+                                                {
+                                                    <div class="d-flex align-items-center gap-2 small">
+                                                        <span style="font-family:var(--bs-font-monospace);font-weight:600;">@boxLabel</span>
+                                                        <span class="text-muted">· @boxCount box@(boxCount == 1 ? "" : "es")</span>
+                                                    </div>
+                                                    <div class="text-muted small mt-1">
+                                                        @bundles.ToString("N0") bundles · serials @r.SerialStart.ToString("N0")–@r.SerialEnd.ToString("N0")
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="small">
+                                                        <span style="font-family:var(--bs-font-monospace);font-weight:600;">@r.StartBox</span>
+                                                    </div>
+                                                    <input type="number"
+                                                           class="form-control form-control-sm text-center mt-2 partial-bundles"
+                                                           min="1" max="49"
+                                                           value="@r.Bundles"
+                                                           aria-label="Bundles taken from box @r.StartBox" />
+                                                    <div class="text-muted small mt-1 partial-detail">
+                                                        bundles · serials <span class="partial-serial">@r.SerialStart.ToString("N0")–@r.SerialEnd.ToString("N0")</span>
+                                                    </div>
+                                                }
+                                            </div>
+
+                                            <div class="col-auto text-end" style="width:160px;">
+                                                <div class="fw-bold row-amount">@r.Amount.ToString("N0")</div>
+                                            </div>
+
+                                            <div class="col-auto" style="width:24px;">
+                                                <button type="button" class="btn btn-sm btn-link text-muted p-0"
+                                                        onclick="removeDispatchCard(this)"
+                                                        aria-label="Remove entry">
+                                                    <i class="ti ti-x"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+
+                            @* Add strip *@
+                            <div class="border border-dashed rounded-3 p-2 mt-2 bg-body-tertiary">
+                                <div class="row g-2 align-items-center">
+                                    <div class="col-auto" style="width:160px;">
+                                        @* <select class="form-select form-select-sm" id="new-denom-input">
+                                                <option value="">Denomination</option>
+                                                
+                                            </select> *@
+                                        <select class="form-select form-select-sm denom-select"></select>
+
+                                    </div>
+                                    <div class="col">
+                                        <input type="text" class="form-control form-control-sm"
+                                               id="new-range-input"
+                                               placeholder="Box or range e.g. 30424 or 30424–30430" />
+                                        <small class="d-block mt-1" id="new-range-info"></small>
+                                    </div>
+                                    <div class="col-auto">
+                                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                                onclick="addNewBanknoteRange()">
+                                            <i class="ti ti-plus me-1"></i>Add
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    @* REISSUE BANKNOTES *@
+                    <div class="border rounded-3 mb-3 overflow-hidden">
+                        <div class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center bg-light">
+                            <span class="text-uppercase small d-flex align-items-center gap-2 fw-bold">
+                                <span class="badge bg-secondary-subtle text-secondary rounded-1 px-2">R</span>
+                                Reissue Banknotes
+                            </span>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="small fw-bold text-primary" id="reissueSubtotal">0</span>
+                                <button type="button" class="btn btn-sm btn-outline-primary"
+                                        onclick="addDispatchRow('reissue')">
+                                    <i class="ti ti-plus"></i> Add
+                                </button>
+                            </div>
+                        </div>
+                        <table class="table table-sm mb-0 align-middle">
+                            <thead class="small text-muted">
+                                <tr>
+                                    <th class="ps-3">DENOMINATION</th>
+                                    <th class="text-end">BUNDLES</th>
+                                    <th class="text-end">AMOUNT</th>
+                                    <th class="text-center">ACTIONS</th>
+                                </tr>
+                            </thead>
+                            @* <tbody id="reissueBanknotesBody"></tbody> *@
+                            <tbody id="reissueBanknotesBody">
+                                @foreach (var r in (Model.DispatchedReissueBanknotes ?? new())
+                                                                .OrderByDescending(r => r.Denomination))
+                                {
+                                    <tr class="dispatch-simple-row"
+                                        data-kind="reissue"
+                                        data-denom-id="@r.DenominationId"
+                                        data-denom="@r.Denomination"
+                                        data-qty="@r.Quantity">
+                                        <td class="ps-3">
+                                            <select class="form-select form-select-sm simple-denom"></select>
+                                        </td>
+                                        <td class="text-end">
+                                            <input type="number" min="1"
+                                                   class="form-control form-control-sm text-end simple-qty"
+                                                   style="width:80px;display:inline-block;"
+                                                   value="@r.Quantity" />
+                                        </td>
+                                        <td class="text-end fw-bold row-amount">@r.Amount.ToString("N0")</td>
+                                        <td class="text-center">
+                                            <button type="button" class="btn btn-sm btn-link text-muted p-0"
+                                                    onclick="removeDispatchCard(this)" aria-label="Remove">
+                                                <i class="ti ti-x"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @* COINS *@
+                    <div class="border rounded-3 mb-3 overflow-hidden">
+                        <div class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center bg-light">
+                            <span class="text-uppercase small d-flex align-items-center gap-2 fw-bold">
+                                <span class="badge bg-secondary-subtle text-secondary rounded-1 px-2">C</span>
+                                Coins
+                            </span>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="small fw-bold text-warning" id="coinSubtotal">0</span>
+                                <button type="button" class="btn btn-sm btn-outline-warning"
+                                        onclick="addDispatchRow('coin')">
+                                    <i class="ti ti-plus"></i> Add
+                                </button>
+                            </div>
+                        </div>
+                        <table class="table table-sm mb-0 align-middle">
+                            <thead class="small text-muted">
+                                <tr>
+                                    <th class="ps-3">DENOMINATION</th>
+                                    <th class="text-end">BOXES</th>
+                                    <th class="text-end">AMOUNT</th>
+                                    <th class="text-center">ACTIONS</th>
+                                </tr>
+                            </thead>
+                            @* <tbody id="coinsBody"></tbody> *@
+                            <tbody id="coinsBody">
+                                @foreach (var r in (Model.DispatchedCoins ?? new())
+                                                                .OrderByDescending(r => r.Denomination))
+                                {
+                                    <tr class="dispatch-simple-row"
+                                        data-kind="coin"
+                                        data-denom-id="@r.DenominationId"
+                                        data-denom="@r.Denomination"
+                                        data-qty="@r.Quantity">
+                                        <td class="ps-3">
+                                            <select class="form-select form-select-sm simple-denom"></select>
+                                        </td>
+                                        <td class="text-end">
+                                            <input type="number" min="1"
+                                                   class="form-control form-control-sm text-end simple-qty"
+                                                   style="width:80px;display:inline-block;"
+                                                   value="@r.Quantity" />
+                                        </td>
+                                        <td class="text-end fw-bold row-amount">@r.Amount.ToString("N0")</td>
+                                        <td class="text-center">
+                                            <button type="button" class="btn btn-sm btn-link text-muted p-0"
+                                                    onclick="removeDispatchCard(this)" aria-label="Remove">
+                                                <i class="ti ti-x"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @* ── Totals ── *@
+                    <div>
+                        <p class="text-uppercase text-muted small fw-bold mb-2">Totals</p>
+                        <div class="border rounded-3 overflow-hidden">
+                            <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                                <span class="text-uppercase small d-flex align-items-center gap-2 fw-bold">
+                                    <span class="badge bg-secondary-subtle small text-secondary rounded-1 px-2">N</span>
+                                    New Banknotes
+                                </span>
+                                <span class="fw-bold" id="sum-new">@Model.TotalNotesAmount.ToString("N0")</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                                <span class="text-uppercase small d-flex align-items-center gap-2 fw-bold">
+                                    <span class="badge bg-secondary-subtle small text-secondary rounded-1 px-2">R</span>
+                                    Reissue Banknotes
+                                </span>
+                                <span class="fw-bold" id="sum-reissue">@Model.TotalNotesAmount.ToString("N0")</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                                <span class="text-uppercase small d-flex align-items-center gap-2 fw-bold">
+                                    <span class="badge bg-secondary-subtle small text-secondary rounded-1 px-2">C</span>
+                                    Coins
+                                </span>
+                                <span class="fw-bold" id="sum-coins">@Model.TotalCoinsAmount.ToString("N0")</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center px-3 py-2 bg-light border-bottom">
+                                <span class="text-uppercase fw-bold">Bank total</span>
+                                <span class="fw-bold" id="sum-bank">@Model.TotalAmount.ToString("N0")</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center px-3 py-2">
+                                <span class="text-muted">Variance vs wishlist</span>
+                                <span class="fw-bold " id="sum-variance">
+                                    @if (Model.TotalAmount == 0)
+                                    {
+                                        <i class="ti ti-check me-1"></i>
+                                    }
+                                    <span>varianceText</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    @* ── Grand Total Banner ── *@
+                    <div class="rounded-3 px-4 py-3" style="background:#b31b34;">
+                        <div class="d-flex justify-content-between align-items-baseline">
+                            <span class="text-uppercase text-white opacity-75 small fw-bold" style="letter-spacing:.07em;">Grand Total</span>
+                            <span class="fw-bold text-white" style="font-size:22px;" id="grand-total">
+                                UGX @Model.TotalAmount.ToString("N0")
+                            </span>
+                        </div>
+                        <div class="border-top border-light border-opacity-25 mt-2 pt-2 text-end fst-italic text-white opacity-75 small"
+                             id="bou-denom-words"></div>
+                    </div>
+
+                    @* ── Actions ── *@
+                    <div class="d-flex justify-content-end gap-2">
+                        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-primary">
+                            <i class="ti ti-arrow-back me-1"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-info">
+                            <i class="ti ti-device-floppy me-1"></i>Save Draft
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* <div class="modal fade" id="editDispatchModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <form id="editDispatchForm"
@@ -16,7 +359,6 @@
 
                 <div class="modal-body" style="overflow-y: auto;">
 
-                    @* Wishlist reference strip *@
                     <div class="rounded-3 p-3 mb-3 bg-light border">
                         <div class="d-flex justify-content-between align-items-center">
                             <span class="text-uppercase fw-bold">
@@ -26,7 +368,6 @@
                         </div>
                     </div>
 
-                    @* Variance indicator *@
                     <div id="varianceIndicator" class="rounded-3 p-3 mb-3 border"
                          data-wishlist-total="@Model.TotalAmount">
                         <div class="d-flex justify-content-between align-items-center">
@@ -39,12 +380,11 @@
                         </div>
                     </div>
 
-                    @* NEW BANKNOTES *@
                     <div class="border rounded-3 mb-3 overflow-hidden">
                         <div class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center bg-light">
                             <span class="text-uppercase fw-semibold small">New Banknotes</span>
                             <div class="d-flex align-items-center gap-2">
-                                <span class="small fw-semibold text-primary" id="newSubtotal">UGX 0</span>
+                                <span class="small fw-semibold text-primary" id="newSubtotal">0</span>
                                 <button type="button" class="btn btn-sm btn-outline-primary"
                                         onclick="addDispatchRow('new')">
                                     <i class="ti ti-plus"></i> Add
@@ -54,23 +394,23 @@
                         <table class="table table-sm mb-0 align-middle">
                             <thead class="small text-muted">
                                 <tr>
-                                    <th class="ps-3">DENOMINATION</th>
-                                    <th>BOX RANGES</th>
-                                    <th class="text-end">BUNDLES</th>
-                                    <th class="text-end">AMOUNT</th>
-                                    <th class="text-center">ACTIONS</th>
+                                    <th class="ps-3" style="width:18%">DENOMINATION</th>
+                                    <th style="width:42%">BOX PICKER</th>
+                                    <th style="width:18%">QUICK ADD</th>
+                                    <th class="text-end" style="width:8%">BUNDLES</th>
+                                    <th class="text-end" style="width:10%">AMOUNT</th>
+                                    <th class="text-center" style="width:4%">ACTIONS</th>
                                 </tr>
                             </thead>
-                            <tbody id="newBanknotesBody"></tbody>
+                            <tbody id="newBanknotesBody" data-request-id="@Model.Id"></tbody>
                         </table>
                     </div>
 
-                    @* REISSUE BANKNOTES *@
                     <div class="border rounded-3 mb-3 overflow-hidden">
                         <div class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center bg-light">
                             <span class="text-uppercase fw-semibold small">Reissue Banknotes</span>
                             <div class="d-flex align-items-center gap-2">
-                                <span class="small fw-semibold text-primary" id="reissueSubtotal">UGX 0</span>
+                                <span class="small fw-semibold text-primary" id="reissueSubtotal">0</span>
                                 <button type="button" class="btn btn-sm btn-outline-primary"
                                         onclick="addDispatchRow('reissue')">
                                     <i class="ti ti-plus"></i> Add
@@ -90,12 +430,11 @@
                         </table>
                     </div>
 
-                    @* COINS *@
                     <div class="border rounded-3 mb-3 overflow-hidden">
                         <div class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center bg-light">
                             <span class="text-uppercase fw-semibold small">Coins</span>
                             <div class="d-flex align-items-center gap-2">
-                                <span class="small fw-semibold text-warning" id="coinSubtotal">UGX 0</span>
+                                <span class="small fw-semibold text-warning" id="coinSubtotal">0</span>
                                 <button type="button" class="btn btn-sm btn-outline-warning"
                                         onclick="addDispatchRow('coin')">
                                     <i class="ti ti-plus"></i> Add
@@ -130,3 +469,4 @@
         </div>
     </div>
 </div>
+ *@

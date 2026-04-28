@@ -583,12 +583,12 @@ namespace VMSService.Data.Migrations
                 table: "StockMovementDenominationBoxNumberRanges",
                 column: "StockMovementDenominationId");
 
-            migrationBuilder.AddForeignKey(
-                name: "FK_ReceivedStock_ReceivedStatusTypes_ReceivedStatusTypesId",
-                table: "ReceivedStock",
-                column: "ReceivedStatusTypesId",
-                principalTable: "ReceivedStatusTypes",
-                principalColumn: "Id");
+            //migrationBuilder.AddForeignKey(
+            //    name: "FK_ReceivedStock_ReceivedStatusTypes_ReceivedStatusTypesId",
+            //    table: "ReceivedStock",
+            //    column: "ReceivedStatusTypesId",
+            //    principalTable: "ReceivedStatusTypes",
+            //    principalColumn: "Id");
 
             migrationBuilder.AddForeignKey(
                 name: "FK_StockMovements_Logistics_LogisticsId",
@@ -601,9 +601,9 @@ namespace VMSService.Data.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_ReceivedStock_ReceivedStatusTypes_ReceivedStatusTypesId",
-                table: "ReceivedStock");
+            //migrationBuilder.DropForeignKey(
+            //    name: "FK_ReceivedStock_ReceivedStatusTypes_ReceivedStatusTypesId",
+            //    table: "ReceivedStock");
 
             migrationBuilder.DropForeignKey(
                 name: "FK_StockMovements_Logistics_LogisticsId",

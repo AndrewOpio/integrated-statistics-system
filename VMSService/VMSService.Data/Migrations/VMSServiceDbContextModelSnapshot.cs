@@ -297,6 +297,66 @@ namespace VMSService.Data.Migrations
                     b.ToTable("ApprovedCurrencyStatusHistory");
                 });
 
+            modelBuilder.Entity("VMSService.Data.Entities.BoxState", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BranchIsAtId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CaseNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("CurrentSerialCursor")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("DenominationId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsAvailable")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastDispatchedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("LastDispatchedRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("PackingListDetailsId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("RemainingBundles")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PackingListDetailsId");
+
+                    b.ToTable("BoxStates");
+                });
+
             modelBuilder.Entity("VMSService.Data.Entities.CurrencyVendor", b =>
                 {
                     b.Property<int>("Id")
@@ -1874,7 +1934,10 @@ namespace VMSService.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("BoxNo")
+                    b.Property<int>("BundlesTaken")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CaseNumber")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
@@ -1892,12 +1955,22 @@ namespace VMSService.Data.Migrations
                     b.Property<DateTime>("ModifiedDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<long>("SerialEndTaken")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SerialPrefix")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long>("SerialStartTaken")
+                        .HasColumnType("bigint");
+
                     b.Property<Guid>("WithdrawalRequestDenominationId")
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BoxNo");
+                    b.HasIndex("CaseNumber");
 
                     b.HasIndex("WithdrawalRequestDenominationId");
 
@@ -2000,6 +2073,17 @@ namespace VMSService.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("ApprovedCurrencyProcurement");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.BoxState", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.PackingListDetails", "PackingListDetails")
+                        .WithMany()
+                        .HasForeignKey("PackingListDetailsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PackingListDetails");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.CurrencyVendor", b =>

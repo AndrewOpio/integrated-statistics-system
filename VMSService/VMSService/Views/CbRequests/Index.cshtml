@@ -11,8 +11,8 @@
     string BadgeCss(string s) => s switch
     {
         StatusConstants.WithdrawalRequest.Draft => "text-bg-secondary",
-        WithdrawalStatusNames.SubmittedToBank => "text-bg-primary",
-        WithdrawalStatusNames.PendingSpecialApproval => "text-bg-info",
+        WithdrawalStatusNames.PendingDisbursement => "text-bg-primary",
+        WithdrawalStatusNames.PendingExceptionalApproval => "text-bg-info",
         WithdrawalStatusNames.Recommended => "text-bg-warning",
         WithdrawalStatusNames.Approved => "text-bg-success",
         WithdrawalStatusNames.Rejected => "text-bg-danger",

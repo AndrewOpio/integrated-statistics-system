@@ -55,7 +55,7 @@ namespace VMSService.Data.Configurations
         public DbSet<DepositRequestAgent> DepositRequestAgents { get; set; }
         public DbSet<DepositRequestDenomination> DepositRequestDenominations { get; set; }
         public DbSet<DepositRequestStatusHistory> DepositRequestStatusHistory { get; set; }
-
+        public DbSet<BoxState> BoxStates { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -139,7 +139,7 @@ namespace VMSService.Data.Configurations
                  .HasForeignKey(x => x.WithdrawalRequestDenominationId)
                  .OnDelete(DeleteBehavior.Cascade);
 
-                e.HasIndex(x => x.BoxNo);
+                e.HasIndex(x => x.CaseNumber);
             });
         }
 
