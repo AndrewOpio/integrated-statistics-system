@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-	<PackageReference Include="AutoMapper" Version="15.1.0" />
+	<PackageReference Include="AutoMapper" Version="15.1.2" />
 	<PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.9" />
 	<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.23" />
 	<PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.23" />
@@ -24,7 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
-	<ProjectReference Include="..\ConfigurationsService.Entities\ConfigurationsService.Entities.csproj" />
+	<ProjectReference Include="..\ConfigurationsService.Dto\ConfigurationsService.Dto.csproj" />
   </ItemGroup>
 
 </Project>

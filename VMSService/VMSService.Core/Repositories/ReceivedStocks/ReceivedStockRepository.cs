@@ -17,7 +17,6 @@ namespace VMSService.Core.Repositories.ReceivedStocks
             return await _db.ReceivedStock
                 .OrderByDescending(x => x.CreatedDate)
                 .Where(x => x.IsDeleted == false)
-                .Include(x => x.CurrentStatus)
                 .Include(x => x.ExPrintMint)
                 .Include(x => x.ExPrintMint.CurrencyVendor)
                 .Include(x => x.ExPrintMint.CurrencyVendor.VendorType)
@@ -28,7 +27,6 @@ namespace VMSService.Core.Repositories.ReceivedStocks
         public async Task<ReceivedStock> FindById(int id)
         {
             return await _db.ReceivedStock
-                .Include(x => x.CurrentStatus)
                 .Include(x => x.ExPrintMint)
                 .Include(x => x.ExPrintMint.CurrencyVendor)
                 .Include(x => x.ExPrintMint.CurrencyVendor.VendorType)
@@ -51,6 +49,13 @@ namespace VMSService.Core.Repositories.ReceivedStocks
         {
             _db.ReceivedStock.Update(model);
             return await Save();
+        }
+
+        public async Task<int> CreateNew(ReceivedStock model)
+        {
+            _db.ReceivedStock.Add(model);
+            await Save();
+            return model.Id;
         }
     }
 }

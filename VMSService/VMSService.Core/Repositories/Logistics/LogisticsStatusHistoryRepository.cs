@@ -22,8 +22,6 @@ namespace VMSService.Core.Repositories.Logistics
         public async Task<List<LogisticsStatusHistory>> GetByLogisticsIdAsync(int logisticsId)
         {
             return await _context.LogisticsStatusHistory
-                .Include(x => x.OldStatus)
-                .Include(x => x.NewStatus)
                 .Where(h => h.LogisticsId == logisticsId)
                 // .OrderByDescending(h => h.ChangedAt)
                 .ToListAsync();

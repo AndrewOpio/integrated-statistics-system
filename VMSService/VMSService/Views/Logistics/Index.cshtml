@@ -46,9 +46,9 @@
                                     <td>@item.ReferenceNumber</td>
                                     <td>@item.TeamLeader</td>
                                     <td>
-                                        @if (!string.IsNullOrEmpty(item.CurrentStatus?.Name))
+                                        @if (!string.IsNullOrEmpty(item.CurrentStatusName))
                                         {
-                                            <span class="badge bg-secondary" style="font-size:1em;">@item.CurrentStatus.Name</span>
+                                            <span class="badge bg-secondary" style="font-size:1em;">@item.CurrentStatusName</span>
                                         }
                                     </td>
                                     <td>
@@ -56,7 +56,7 @@
                                             <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
                                                 <i class="ti ti-eye"></i>
                                             </a>
-                                            @if (item.CurrentStatus?.Name == "Draft" || item.CurrentStatus?.Name == "Returned")
+                                            @if (item.CurrentStatusName == "Draft" || item.CurrentStatusName == "Returned")
                                             {
                                                 <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
                                                     <i class="ti ti-edit"></i>

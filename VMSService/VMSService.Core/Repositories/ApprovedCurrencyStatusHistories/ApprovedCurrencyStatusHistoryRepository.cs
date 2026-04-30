@@ -16,8 +16,6 @@ namespace VMSService.Core.Repositories.ApprovedCurrencyStatusHistories
         {
             return await _db.ApprovedCurrencyStatusHistory.Where(x => x.IsDeleted == false)
                 .Include(x => x.ApprovedCurrencyProcurement)
-                .Include(x => x.OldStatus)
-                .Include(x => x.NewStatus)
                 .ToListAsync();
         }
 
@@ -25,8 +23,6 @@ namespace VMSService.Core.Repositories.ApprovedCurrencyStatusHistories
         {
             return await _db.ApprovedCurrencyStatusHistory
                 .Include(x => x.ApprovedCurrencyProcurement)
-                .Include(x => x.OldStatus)
-                .Include(x => x.NewStatus)
                 .FirstOrDefaultAsync(x => x.Id == id);
         }
 
@@ -52,8 +48,6 @@ namespace VMSService.Core.Repositories.ApprovedCurrencyStatusHistories
             return await _db.ApprovedCurrencyStatusHistory
                 .Where(x => x.ApprovedCurrencyProcurementId == approvedCurrencyProcurementId)
                 .Where(x => !x.IsDeleted)
-                .Include(x => x.OldStatus)
-                .Include(x => x.NewStatus)
                 .ToListAsync();
         }
     }

@@ -2,6 +2,7 @@ using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartBreadcrumbs.Attributes;
+using System.Security.Claims;
 using VMSService.Controllers;
 using VMSService.Core.Models.Branches;
 using VMSService.Core.Models.Denominations;
@@ -10,7 +11,6 @@ using VMSService.Core.Models.ExPrintMintDetails;
 using VMSService.Core.Models.ReceivedStocksDetails;
 using VMSService.Core.Models.ReceivedStocks;
 using VMSService.Core.Models.ReceivedStockStatusHistories;
-using VMSService.Core.Models.WorkflowTransitions;
 using VMSService.Core.Repositories.BranchCategories;
 using VMSService.Core.Repositories.Branches;
 using VMSService.Core.Repositories.CounterPartyTypes;
@@ -20,12 +20,13 @@ using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ReceivedStocks;
 using VMSService.Core.Repositories.ReceivedStocksDetails;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
-using VMSService.Core.Repositories.StatusTypes;
 using VMSService.Core.Repositories.PackingListRanges;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
+using WorkflowService.Client;
+using WorkflowService.Client.Dto;
 using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.NewStockMovementLogs;
@@ -39,7 +40,6 @@ namespace VMSService.Web.Controllers
         IReceivedStockDetailsRepository _receivedStockDetailsRepository,
         IExPrintMintRepository _exPrintMintRepository,
         IExPrintMintDetailRepository _exPrintMintDetailRepository,
-        IStatusTypeRepository _statusTypeRepository,
         IMapper _mapper,
         ILogger<ReceivedStocksController> _logger,
         IWorkflowService _workflowService,
@@ -53,7 +53,8 @@ namespace VMSService.Web.Controllers
         IPackingListRangeRepository _packingListRangeRepository,
         IStockMovementRepository _stockMovementRepository,
         INewStockMovementLogRepository _newStockMovementLogRepository,
-        IPackingListDetailsRepository _packingListDetailsRepository) : Controller
+        IPackingListDetailsRepository _packingListDetailsRepository,
+        IWorkflowServiceClient _workflowServiceClient) : Controller
     {
         [Breadcrumb("Received Stock", FromController = typeof(HomeController), FromAction = nameof(Index))]
         // GET: ReceivedStocks
@@ -144,18 +145,25 @@ namespace VMSService.Web.Controllers
                 }
 
                 // Get available transitions for current user
-                var userRoles = User.FindAll("appRole")
-                    .Where(c => c.Value.StartsWith("VMS:"))
-                    .Select(c => c.Value.Split(":")[1])
+                var userRoles = User.FindAll("appRoleId")
+                    .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
+                    .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
+                    .Where(id => id.HasValue)
+                    .Select(id => id.Value)
                     .ToList();
 
-                var availableTransitions = new List<WorkflowTransitionViewModel>();
+                var availableTransitions = new List<WorkflowTransitionDto>();
                 foreach (var userRole in userRoles)
                 {
-                    var transitions = await _workflowService.GetAvailableTransitions(
-                        StatusConstants.Entity.ReceivedStock,
-                        receivedStock.CurrentStatusId,
-                        userRole);
+                    var requestData = new GetAvailableTransitionsRequestDto
+                    {
+                        ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                        EntityTypeName = StatusConstants.Entity.ReceivedStock,
+                        CurrentStatusId = receivedStock.CurrentStatusId,
+                        AppRole = userRole,
+                    };
+
+                    var transitions = await _workflowServiceClient.GetAvailableTransitions(requestData);
                     if (transitions != null)
                     {
                         availableTransitions.AddRange(transitions);
@@ -306,8 +314,14 @@ namespace VMSService.Web.Controllers
 
             try
             {
-                StatusType status = await _statusTypeRepository.FindByName(StatusConstants.ReceivedStock.Draft, StatusConstants.Category.ReceivedStock);
+                StatusTypeDto status = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+                {
+                    ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                    StatusName = StatusConstants.ReceivedStock.Draft,
+                    EntityTypeName = StatusConstants.Entity.ReceivedStock
+                });
                 model.CurrentStatusId = status.Id;
+                model.CurrentStatusName = status.Name;
 
                 ReceivedStock newReceivedStock = _mapper.Map<ReceivedStock>(model);
 
@@ -335,7 +349,7 @@ namespace VMSService.Web.Controllers
                 if (isCreated)
                 {
                     TempData["Success"] = "Received stock created successfully!";
-                    return RedirectToAction(nameof(Index));
+                    return RedirectToAction(nameof(Details), new { id = newReceivedStock.Id });
                 }
                 else
                 {
@@ -579,12 +593,13 @@ namespace VMSService.Web.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
-                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "System";
-                var userRoles = User.FindAll("appRole")
-                    .Where(c => c.Value.StartsWith("VMS:"))
-                    .Select(c => c.Value.Split(":")[1])
+                var userRoles = User.FindAll("appRoleId")
+                    .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
+                    .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
+                    .Where(id => id.HasValue)
+                    .Select(id => id.Value)
                     .ToList();
-                var username = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value;
+                var username = User.FindFirst(ClaimTypes.Name)?.Value ?? "System";
                 if (username == null)
                 {
                     //_logger.LogWarning("Username claim not found for user executing action {Action} on Received Stock {ReceivedStockId}", actionName, id);
@@ -597,7 +612,7 @@ namespace VMSService.Web.Controllers
                     id,
                     receivedStock.CurrentStatusId,
                     actionName,
-                    userId,
+                    username,
                     userRoles,
                     remarks);
 
@@ -669,7 +684,7 @@ namespace VMSService.Web.Controllers
                                 //    await _stockLedgerDetailRepository.Create(ledgerDetail);
                                 //}
 
-                                _logger.LogInformation("Stock position updated successfully for Received Stock {ReceivedStockId} and Notification Sent", id);
+                                _logger.LogInformation("Stock position updated successfully for Received Stock {ReceivedStockId}", id);
                             }
                             else
                             {
@@ -697,7 +712,7 @@ namespace VMSService.Web.Controllers
                         TempData["Success"] = "Stock Position Updated Successfully and Notification Sent!";
                     } else
                     {
-                        TempData["Success"] = "Review completed successfully and Notification Sent!";
+                        TempData["Success"] = "Review completed successfully!";
                     }
                 }
                 else

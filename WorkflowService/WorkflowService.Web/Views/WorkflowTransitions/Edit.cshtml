@@ -1,0 +1,296 @@
+@using WorkflowService.Core.Models.WorkflowTransitions
+@model WorkflowTransitionViewModel
+@{
+    ViewData["Title"] = "Edit Workflow Transition";
+    var applicationId = Context.Request.Query["applicationId"].ToString();
+}
+
+<div class="page-header d-print-none">
+    <div class="row align-items-center">
+        <div class="col">
+            <h4 class="page-title">
+                Edit Workflow Transition
+            </h4>
+        </div>
+    </div>
+</div>
+
+<div class="row row-deck row-cards">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="Edit" method="post" asp-route-applicationId="@applicationId" class="needs-validation" novalidate>
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        <span asp-validation-summary="All"></span>
+                    </div>
+                    <input asp-for="Id" type="hidden" />
+                    <input asp-for="EntityTypeId" type="hidden" />
+                    <input asp-for="EntityTypeName" type="hidden" />
+                    <input asp-for="FromStatusId" type="hidden" />
+                    <input asp-for="FromStatusName" type="hidden" />
+                    <input asp-for="ToStatusId" type="hidden" />
+                    <input asp-for="ToStatusName" type="hidden" />
+                    <input asp-for="ActionName" type="hidden" />
+
+                    <!-- Entity Type (Read-only) -->
+                    <div class="mb-3">
+                        <label class="form-label small text-muted text-uppercase m-0">Entity Type</label>
+                        <div>
+                            <span class="badge bg-tertiary">@Model.EntityTypeName</span>
+                        </div>
+                    </div>
+
+                    <!-- From Status (Read-only) -->
+                    <div class="mb-3">
+                        <label class="form-label small text-muted text-uppercase m-0">From Status</label>
+                        <div>
+                            <span class="badge bg-info">@Model.FromStatusName</span>
+                        </div>
+                    </div>
+
+                    <!-- To Status (Read-only) -->
+                    <div class="mb-3">
+                        <label class="form-label small text-muted text-uppercase m-0">To Status</label>
+                        <div>
+                            <span class="badge bg-success">@Model.ToStatusName</span>
+                        </div>
+                    </div>
+
+                    <!-- Action Name (Read-only) -->
+                    <div class="mb-3">
+                        <label class="form-label small text-muted text-uppercase m-0">Action Name</label>
+                        <div>
+                            <div class="btn btn-gray-200">
+                                @Model.ActionName
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Display Label -->
+                    <div class="mb-3">
+                        <label class="form-label" for="DisplayLabel">Display Label <span class="text-danger">*</span></label>
+                        <input asp-for="DisplayLabel" type="text" class="form-control" required />
+                        <span asp-validation-for="DisplayLabel" class="invalid-feedback"></span>
+                    </div>
+
+                    <!-- Required Role -->
+                    <div class="mb-3">
+                        <label class="form-label" for="RequiredRole">Required Role <span class="text-danger">*</span></label>
+                        <select asp-for="RequiredRole" id="RequiredRole" asp-items="Model.RequiredRoleList" class="form-select" required>
+                            <option value="">-- Select Role --</option>
+                        </select>
+                        <span asp-validation-for="RequiredRole" class="invalid-feedback"></span>
+                        <small class="form-hint">User role required to perform this transition</small>
+                    </div>
+
+                    <!-- Button Class -->
+                    <div class="mb-3">
+                        <label class="form-label" for="ButtonClass">Button Class <span class="text-danger">*</span></label>
+                        <select asp-for="ButtonClass" class="form-select" required>
+                            <option value="">-- Select Button Class --</option>
+                            @foreach (var buttonClass in (List<string>)ViewBag.ButtonClasses)
+                            {
+                                <option value="@buttonClass">@buttonClass</option>
+                            }
+                        </select>
+                        <span asp-validation-for="ButtonClass" class="invalid-feedback"></span>
+                    </div>
+
+                    <!-- Requires Comments -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input asp-for="RequiresComments" type="checkbox" class="form-check-input" id="RequiresComments" />
+                            <label class="form-check-label" for="RequiresComments">
+                                Requires Comments/Remarks
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Active Status -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input asp-for="IsActive" type="checkbox" class="form-check-input" id="IsActive" />
+                            <label class="form-check-label" for="IsActive">
+                                Active
+                            </label>
+                        </div>
+                        <small class="form-hint d-block mt-2">Uncheck to disable this transition</small>
+                    </div>
+
+                    <hr />
+
+                    <!-- Notification Settings -->
+                    <h6 class="mb-3"><i class="ti ti-bell me-1"></i>Notification Settings</h6>
+
+                    <!-- Send Notification -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input asp-for="SendNotification" type="checkbox" class="form-check-input" id="SendNotification" />
+                            <label class="form-check-label" for="SendNotification">
+                                Send Email Notification
+                            </label>
+                        </div>
+                        <small class="form-hint d-block mt-2">Check to send an email notification when this transition is performed</small>
+                    </div>
+
+                    <!-- Notification Recipients (shown when SendNotification is checked) -->
+                    <div id="notificationRecipientsSection" class="d-none">
+                        <!-- Notification Roles (Multi-select) -->
+                        <div class="mb-3">
+                            <label class="form-label">Notification Recipient Roles</label>
+                            <select id="NotificationRoleIds" name="SelectedNotificationRoleIds" class="form-select" multiple size="4">
+                                @foreach (var role in Model.RequiredRoleList)
+                                {
+                                    var isSelected = Model.SelectedNotificationRoleIds.Contains(int.Parse(role.Value));
+                                    <option value="@role.Value" selected="@isSelected">@role.Text</option>
+                                }
+                            </select>
+                            <small class="form-hint">Hold Ctrl/Cmd to select multiple roles that should receive the notification</small>
+                        </div>
+
+                        <!-- Notification Emails (Tag-style input) -->
+                        <div class="mb-3">
+                            <label class="form-label">Notification Email Addresses</label>
+                            <div class="border rounded p-2" id="emailTagsContainer" style="min-height: 42px; cursor: text;">
+                                <span id="emailTags"></span>
+                                <input type="email" id="emailInput" class="border-0 outline-0 flex-grow-1" style="outline: none; min-width: 200px;" placeholder="Type an email and press Enter" />
+                            </div>
+                            <input type="hidden" id="NotificationEmails" name="NotificationEmails" value="@Model.NotificationEmails" />
+                            <div id="emailValidationError" class="text-danger small d-none">Please enter a valid email address.</div>
+                            <small class="form-hint">Type an email address and press Enter or comma to add it</small>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <!-- Form Actions -->
+                    <div class="form-footer">
+                        <a href="@Url.Action("Index", "WorkflowTransitions", new { applicationId })" class="btn btn-secondary"><i class="ti ti-arrow-left me-1"></i>Cancel</a>
+                        <button type="submit" class="btn btn-primary"><i class="ti ti-check me-1"></i>Update Transition</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Card -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header ">
+                <h5 class="card-title m-0">Transition Details</h5>
+            </div>
+            <div class="card-body text-sm">
+                <p>
+                    <strong class="small text-muted text-uppercase">Entity Type:</strong><br />
+                    <span class="text-primary">@Model.EntityTypeName</span>
+                </p>
+                <p>
+                    <strong class="small text-muted text-uppercase">From Status:</strong><br />
+                    <span class="text-primary">@Model.FromStatusName</span>
+                </p>
+                <p>
+                    <strong class="small text-muted text-uppercase">To Status:</strong><br />
+                    <span class="text-primary">@Model.ToStatusName</span>
+                </p>
+                <p>
+                    <strong class="small text-muted text-uppercase">Action Name:</strong><br />
+                    <span class="text-primary">@Model.ActionName</span>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // --- Notification toggle ---
+            const sendNotificationCheckbox = document.getElementById('SendNotification');
+            const notificationSection = document.getElementById('notificationRecipientsSection');
+
+            function toggleNotificationSection() {
+                if (sendNotificationCheckbox.checked) {
+                    notificationSection.classList.remove('d-none');
+                } else {
+                    notificationSection.classList.add('d-none');
+                }
+            }
+
+            sendNotificationCheckbox.addEventListener('change', toggleNotificationSection);
+            toggleNotificationSection();
+
+            // --- Email tags input ---
+            const emailInput = document.getElementById('emailInput');
+            const emailTagsContainer = document.getElementById('emailTagsContainer');
+            const emailTagsSpan = document.getElementById('emailTags');
+            const hiddenEmailField = document.getElementById('NotificationEmails');
+            const emailValidationError = document.getElementById('emailValidationError');
+
+            // Initialize from existing value
+            const emailList = hiddenEmailField.value
+                ? hiddenEmailField.value.split(',').map(e => e.trim()).filter(e => e)
+                : [];
+
+            const emailRegex = /^[^\s@@]+@@[^\s@@]+\.[^\s@@]+$/;
+
+            function renderTags() {
+                emailTagsSpan.innerHTML = '';
+                emailList.forEach((email, index) => {
+                    const tag = document.createElement('span');
+                    tag.className = 'badge bg-primary me-1 mb-1';
+                    tag.style.fontSize = '0.85em';
+                    tag.innerHTML = email + ' <span class="ms-1" style="cursor:pointer;" data-index="' + index + '">&times;</span>';
+                    tag.querySelector('span').addEventListener('click', function () {
+                        emailList.splice(index, 1);
+                        renderTags();
+                    });
+                    emailTagsSpan.appendChild(tag);
+                });
+                hiddenEmailField.value = emailList.join(',');
+            }
+
+            function addEmail(value) {
+                const email = value.trim();
+                if (!email) return;
+                if (!emailRegex.test(email)) {
+                    emailValidationError.classList.remove('d-none');
+                    return;
+                }
+                emailValidationError.classList.add('d-none');
+                if (!emailList.includes(email)) {
+                    emailList.push(email);
+                    renderTags();
+                }
+                emailInput.value = '';
+            }
+
+            emailInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    addEmail(emailInput.value.replace(',', ''));
+                }
+                if (e.key === 'Backspace' && emailInput.value === '' && emailList.length > 0) {
+                    emailList.pop();
+                    renderTags();
+                }
+            });
+
+            emailInput.addEventListener('blur', function () {
+                if (emailInput.value.trim()) {
+                    addEmail(emailInput.value);
+                }
+            });
+
+            emailTagsContainer.addEventListener('click', function () {
+                emailInput.focus();
+            });
+
+            // Render existing tags on load
+            renderTags();
+        });
+    </script>
+}

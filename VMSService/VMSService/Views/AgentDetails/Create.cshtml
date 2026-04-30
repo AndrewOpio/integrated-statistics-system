@@ -1,20 +1,22 @@
 @model VMSService.Core.Models.AgentDetails.AgentDetailViewModel
 
 @{
+    Layout = "_CbLayoutOther";
     ViewData["Title"] = "Create Agent";
 }
 
 <div class="row">
     <div class="col-12 col-lg-12">
-        <div class="card border-0 shadow mb-4">
-            <div class="card-header">
-                <h2 class="fs-5 fw-bold mb-0">Create New Agent</h2>
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white p-3">
+                <h2 class="fs-5 fw-bold mb-0">Register New Agent</h2>
             </div>
             <div class="card-body">
                 <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible fade show" role="alert">
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
                 <form asp-action="Create" method="post" enctype="multipart/form-data">
+                    <input type="text" class="form-control" asp-for="CommercialBankId" required hidden />
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
@@ -30,7 +32,14 @@
                             </div>
                             <div class="mb-3">
                                 <label class="form-label" asp-for="PhoneNumber">Phone Number</label>
-                                <input type="tel" class="form-control" asp-for="PhoneNumber" placeholder="Enter phone number">
+                                <div class="input-group">
+                                    <span class="input-group-text fw-semibold">+256</span>
+                                    <input type="tel" class="form-control" id="PhoneNumberInput" asp-for="PhoneNumber"
+                                           placeholder="712345678" maxlength="9"
+                                           pattern="\d{9}" title="Enter 9 digits after +256">
+                                </div>
+                                <input type="hidden" id="PhoneNumberHidden" asp-for="PhoneNumber">
+                                <small class="text-muted">Enter the 9 digits after the country code</small>
                                 <span asp-validation-for="PhoneNumber" class="text-danger small d-block mt-1"></span>
                             </div>
                             <div class="mb-3">
@@ -40,6 +49,13 @@
                                 </select>
                                 <small class="text-muted">The BOU branch they will be transacting at</small>
                                 <span asp-validation-for="BranchId" class="text-danger small d-block mt-1"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" asp-for="CommercialBankBranchId">Commercial Bank Branch <span class="text-danger">*</span></label>
+                                <select class="form-select" asp-for="CommercialBankBranchId" asp-items="@Model.CommercialBankBranchList" required>
+                                    <option value="">-- Select Branch --</option>
+                                </select>
+                                <span asp-validation-for="CommercialBankBranchId" class="text-danger small d-block mt-1"></span>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -59,17 +75,17 @@
                                 <span asp-validation-for="SignatureScanFile" class="text-danger small d-block mt-1"></span>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label" asp-for="ApprovalAttachmentFile">Signature Scan <span class="text-danger">*</span></label>
+                                <label class="form-label" asp-for="ApprovalAttachmentFile">MD Approval Attachment <span class="text-danger">*</span></label>
                                 <input type="file" class="form-control" asp-for="ApprovalAttachmentFile" accept="image/*,.pdf" required>
-                                <span asp-validation-for="ApprovalAttachment" class="text-danger small d-block mt-1"></span>
+                                <span asp-validation-for="ApprovalAttachmentFile" class="text-danger small d-block mt-1"></span>
                             </div>
                         </div>
                     </div>
                     <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-brown">
                             <i class="ti ti-check me-1"></i>Save
                         </button>
-                        <a asp-action="Index" class="btn btn-secondary">
+                        <a asp-action="Index" class="btn btn-yellow">
                             <i class="ti ti-arrow-left me-1"></i>Cancel
                         </a>
                     </div>
@@ -83,4 +99,34 @@
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const phoneInput = document.getElementById('PhoneNumberInput');
+            const phoneHidden = document.getElementById('PhoneNumberHidden');
+
+            // Only allow digits
+            phoneInput.addEventListener('input', function () {
+                this.value = this.value.replace(/\D/g, '').substring(0, 9);
+                syncHiddenField();
+            });
+
+            // Sync hidden field on any change
+            phoneInput.addEventListener('change', function () {
+                syncHiddenField();
+            });
+
+            function syncHiddenField() {
+                const digits = phoneInput.value.replace(/\D/g, '');
+                phoneHidden.value = digits;
+            }
+
+            // Sync on page load (for Edit with existing value)
+            syncHiddenField();
+
+            // Intercept form submission to ensure sync
+            phoneInput.closest('form').addEventListener('submit', function () {
+                syncHiddenField();
+            });
+        });
+    </script>
 }

@@ -7,7 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-	<PackageReference Include="AutoMapper" Version="15.1.0" />
 	<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.23" />
 	<PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.23" />
 	<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.23">
@@ -19,7 +18,7 @@
 	  <PrivateAssets>all</PrivateAssets>
 	  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 	</PackageReference>
-	<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
+	<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
 	<PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="8.10.0" />
 	<PackageReference Include="Microsoft.Extensions.ServiceDiscovery" Version="9.3.0" />
 	<PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.15.0" />
@@ -41,6 +40,7 @@
   <ItemGroup>
 	<ProjectReference Include="..\ConfigurationsService.Core\ConfigurationsService.Core.csproj" />
 	<ProjectReference Include="..\ConfigurationsService.Data\ConfigurationsService.Data.csproj" />
+	  <ProjectReference Include="..\ConfigurationsService.Dto\ConfigurationsService.Dto.csproj" />
   </ItemGroup>
 	
 </Project>

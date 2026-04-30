@@ -3,7 +3,6 @@ using VMSService.Data.Entities;
 using VMSService.Core.Repositories.PackingListRanges;
 using VMSService.Core.Repositories.PackingListRangeDetails;
 using VMSService.Core.Repositories.ExpectedCurrencies;
-using VMSService.Core.Repositories.StatusTypes;
 using Microsoft.EntityFrameworkCore;
 using VMSService.Models;
 using VMSService.Core.Static;
@@ -13,6 +12,8 @@ using VMSService.Core.Services.PackingListRangeDetails;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.ExPrintMintDetails;
 using VMSService.Core.Models.ExPrintMintDetails;
+using WorkflowService.Client.Dto;
+using WorkflowService.Client;
 
 namespace VMSService.Controllers
 {
@@ -21,30 +22,30 @@ namespace VMSService.Controllers
         private readonly IPackingListRangeRepository _packingListRangeRepository;
         private readonly IPackingListDetailsRepository _packingListDetailsRepository;
         private readonly IExPrintMintRepository _exPrintMintRepository;
-        private readonly IStatusTypeRepository _statusTypeRepository;
         private readonly IPackingListDetailService _packingListDetailService;
         private readonly IExPrintMintDetailRepository _exPrintMintDetailRepository;
         private readonly IDenominationRepository _denominationRepository;
         private readonly ILogger<PackingListRangesController> _logger;
+        private readonly IWorkflowServiceClient _workflowServiceClient;
 
         public PackingListRangesController(
             IPackingListRangeRepository packingListRangeRepository,
             IPackingListDetailsRepository packingListDetailsRepository,
             IExPrintMintRepository exPrintMintRepository,
-            IStatusTypeRepository statusTypeRepository,
             IPackingListDetailService packingListDetailService,
             IExPrintMintDetailRepository exPrintMintDetailRepository,
             IDenominationRepository denominationRepository,
-            ILogger<PackingListRangesController> logger)
+            ILogger<PackingListRangesController> logger,
+            IWorkflowServiceClient workflowServiceClient)
         {
             _packingListRangeRepository = packingListRangeRepository;
             _packingListDetailsRepository = packingListDetailsRepository;
             _exPrintMintRepository = exPrintMintRepository;
-            _statusTypeRepository = statusTypeRepository;
             _packingListDetailService = packingListDetailService;
             _exPrintMintDetailRepository = exPrintMintDetailRepository;
             _denominationRepository = denominationRepository;
             _logger = logger;
+            _workflowServiceClient = workflowServiceClient;
         }
 
         // GET: PackingListRanges
@@ -84,9 +85,25 @@ namespace VMSService.Controllers
             bool isVerified = false;
             if (exPrintMint != null)
             {
-                var draftStatus = await _statusTypeRepository.FindByName(StatusConstants.ExPrintMint.Draft, StatusConstants.Category.ExPrintMint);
-                var returnedStatus = await _statusTypeRepository.FindByName(StatusConstants.ExPrintMint.Returned, StatusConstants.Category.ExPrintMint);
-                var verifiedStatus = await _statusTypeRepository.FindByName(StatusConstants.ExPrintMint.Verified, StatusConstants.Category.ExPrintMint);
+                StatusTypeDto draftStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+                {
+                    ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                    StatusName = StatusConstants.ExPrintMint.Draft,
+                    EntityTypeName = StatusConstants.Entity.ExPrintMint
+                });
+
+                var returnedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+                {
+                    ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                    StatusName = StatusConstants.ExPrintMint.Returned,
+                    EntityTypeName = StatusConstants.Entity.ExPrintMint
+                });
+                var verifiedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+                {
+                    ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                    StatusName = StatusConstants.ExPrintMint.Verified,
+                    EntityTypeName = StatusConstants.Entity.ExPrintMint
+                });
 
                 canEdit = (draftStatus != null && exPrintMint.CurrentStatusId == draftStatus.Id) || 
                           (returnedStatus != null && exPrintMint.CurrentStatusId == returnedStatus.Id);
@@ -109,8 +126,18 @@ namespace VMSService.Controllers
                 return NotFound();
             }
 
-            var draftStatus = await _statusTypeRepository.FindByName(StatusConstants.ExPrintMint.Draft, StatusConstants.Category.ExPrintMint);
-            var returnedStatus = await _statusTypeRepository.FindByName(StatusConstants.ExPrintMint.Returned, StatusConstants.Category.ExPrintMint);
+            var draftStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                StatusName = StatusConstants.ExPrintMint.Draft,
+                EntityTypeName = StatusConstants.Entity.ExPrintMint
+            });
+            var returnedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                StatusName = StatusConstants.ExPrintMint.Returned,
+                EntityTypeName = StatusConstants.Entity.ExPrintMint
+            });
 
             // Check if status is Draft or Returned
             if ((draftStatus == null || exPrintMint.CurrentStatusId != draftStatus.Id) && 
@@ -155,8 +182,18 @@ namespace VMSService.Controllers
                 return NotFound();
             }
 
-            var draftStatus = await _statusTypeRepository.FindByName(StatusConstants.ExPrintMint.Draft, StatusConstants.Category.ExPrintMint);
-            var returnedStatus = await _statusTypeRepository.FindByName(StatusConstants.ExPrintMint.Returned, StatusConstants.Category.ExPrintMint);
+            var draftStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                StatusName = StatusConstants.ExPrintMint.Draft,
+                EntityTypeName = StatusConstants.Entity.ExPrintMint
+            });
+            var returnedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                StatusName = StatusConstants.ExPrintMint.Returned,
+                EntityTypeName = StatusConstants.Entity.ExPrintMint
+            });
 
             // Check if status is Draft or Returned
             if ((draftStatus == null || exPrintMint.CurrentStatusId != draftStatus.Id) && 
@@ -227,8 +264,18 @@ namespace VMSService.Controllers
                 return NotFound();
             }
 
-            var draftStatus = await _statusTypeRepository.FindByName(StatusConstants.ExPrintMint.Draft, StatusConstants.Category.ExPrintMint);
-            var returnedStatus = await _statusTypeRepository.FindByName(StatusConstants.ExPrintMint.Returned, StatusConstants.Category.ExPrintMint);
+            var draftStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                StatusName = StatusConstants.ExPrintMint.Draft,
+                EntityTypeName = StatusConstants.Entity.ExPrintMint
+            });
+            var returnedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                StatusName = StatusConstants.ExPrintMint.Returned,
+                EntityTypeName = StatusConstants.Entity.ExPrintMint
+            });
 
             // Check if status is Draft or Returned
             if ((draftStatus == null || exPrintMint.CurrentStatusId != draftStatus.Id) && 
@@ -265,8 +312,18 @@ namespace VMSService.Controllers
                 return NotFound();
             }
 
-            var draftStatus = await _statusTypeRepository.FindByName(StatusConstants.ExPrintMint.Draft, StatusConstants.Category.ExPrintMint);
-            var returnedStatus = await _statusTypeRepository.FindByName(StatusConstants.ExPrintMint.Returned, StatusConstants.Category.ExPrintMint);
+            var draftStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                StatusName = StatusConstants.ExPrintMint.Draft,
+                EntityTypeName = StatusConstants.Entity.ExPrintMint
+            });
+            var returnedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                StatusName = StatusConstants.ExPrintMint.Returned,
+                EntityTypeName = StatusConstants.Entity.ExPrintMint
+            });
 
             // Check if status is Draft or Returned
             if ((draftStatus == null || exPrintMint.CurrentStatusId != draftStatus.Id) && 

@@ -13,7 +13,6 @@ namespace StockService.Core.Repository.StockLedgers
                 .AsNoTracking()
                 .AsSplitQuery()
                 .Include(sl => sl.CounterPartyType)
-                .Include(sl => sl.Store)
                 .Include(sl => sl.StockLedgerDetails)
                     .ThenInclude(sld => sld.Category)
                 .Include(sl => sl.StockLedgerDetails)
@@ -38,7 +37,6 @@ namespace StockService.Core.Repository.StockLedgers
         {
             var ledger = await _db.StockLedger
                 .Include(cpt => cpt.CounterPartyType)
-                .Include(st => st.Store)
                 .Include(sl => sl.StockLedgerDetails)
                     .ThenInclude(sld => sld.Denomination)
                 .FirstOrDefaultAsync(sl => sl.Id == id);

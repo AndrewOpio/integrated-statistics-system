@@ -6,7 +6,7 @@
     var categories = ViewBag.Categories;
     var denominations = ViewBag.Denominations;
     var stockMatrix = ViewBag.StockMatrix;
-    var userRoles = string.Join(", ", User.FindAll("appRole").Where(c => c.Value.StartsWith("VMS:")).Select(c => c.Value.Split(":")[1]).ToList());
+    var userRoles = string.Join(", ", User.FindAll("appRole").Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:")).Select(c => c.Value.Split(":")[1]).ToList());
 }
 
 @if (userRoles.Contains(SystemPolicy.Roles.ContractManager) || userRoles.Contains(SystemPolicy.Roles.CurrencyApprover) ||
@@ -50,15 +50,15 @@
                                     {
                                         <!-- Determine status badge color -->
                                         string badgeClass = "bg-secondary";
-                                        if (delivery.CurrentStatus?.Name.Contains("Draft") ?? false)
+                                        if (delivery.CurrentStatusName.Contains("Draft"))
                                         {
                                             badgeClass = "bg-warning";
                                         }
-                                        else if (delivery.CurrentStatus?.Name.Contains("Submitted") ?? false)
+                                        else if (delivery.CurrentStatusName.Contains("Submitted"))
                                         {
                                             badgeClass = "bg-info";
                                         }
-                                        else if (delivery.CurrentStatus?.Name.Contains("Approved") ?? false)
+                                        else if (delivery.CurrentStatusName.Contains("Approved"))
                                         {
                                             badgeClass = "bg-success";
                                         }
@@ -70,7 +70,7 @@
                                                 @if (delivery.Branch != null)
                                                 {
                                                     <span class="badge bg-primary">
-                                                        <i class="ti ti-building me-1"></i>@delivery.Branch.Name
+                                                        <i class="ti ti-building-bank me-1"></i>@delivery.Branch.Name
                                                     </span>
                                                 }
                                                 else
@@ -113,7 +113,7 @@
                                                     @if (delivery.CurrentStatusId > 0)
                                                     {
                                                         <span class="badge @badgeClass">
-                                                            <i class="ti ti-badge me-1"></i>@delivery.CurrentStatus?.Name
+                                                            <i class="ti ti-badge me-1"></i>@delivery.CurrentStatusName
                                                         </span>
                                                     }
                                                     else

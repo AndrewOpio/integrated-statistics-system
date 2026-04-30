@@ -12,8 +12,17 @@
             public const string Director = "Director";
             public const string FinanceAndBudgetingOfficer = "Finance and Budgeting Officer";
             public const string BranchManager = "Branch Manager";
+            public const string RemittancesOfficer = "Remittance Officer";
+
+            public const string CbMaker = "CB Maker";
+            public const string CbApprover = "CB Approver";
+            public const string BouChecker = "Bou Checker";
+            public const string PanelA = "Panel A";
+            public const string PanelB = "Panel B";
+
+            public const string Admin = "Admin";
+            public const string HeadBackOffice = "Head of Back Office";
             public const string AssistantBranchManager = "Assistant Branch Manager";
-            public const string RemittancesOfficer = "Remittances and Control Officer";
             public const string HeadOfBackOffice = "Head of Back Office";
         }
 
@@ -23,14 +32,20 @@
             public const string AppPermission = "Permission";
         }
 
+        public static class SystemSettings
+        {
+            public const string AppAcronym = "CAS";
+        }
+
         public static class Claims
         {
-            public const string ContractManager = "VMS:Contract Manager";
-            public const string VerificationOfficer = "VMS:Verification Officer";
-            public const string StockVerifier = "VMS:Stock Verifier";
-            public const string StockApprover = "VMS:Stock Approver";
-            public const string CurrencyApprover = "VMS:Currency Approver";
-            public const string Director = "VMS:Director";
+            public const string ContractManager = $"{SystemSettings.AppAcronym}:Contract Manager";
+            public const string VerificationOfficer = $"{SystemSettings.AppAcronym}:Verification Officer";
+            public const string StockVerifier = $"{SystemSettings.AppAcronym}:Stock Verifier";
+            public const string StockApprover = $"{SystemSettings.AppAcronym}:Stock Approver";
+            public const string CurrencyApprover = $"{SystemSettings.AppAcronym}:Currency Approver";
+            public const string Director = $"{SystemSettings.AppAcronym}:Director";
+            public const string CbId = "cbId";
         }
     }
 }

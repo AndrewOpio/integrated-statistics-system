@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IdentityService.Data", "Ide
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IdentityService.Core", "IdentityService.Core\IdentityService.Core.csproj", "{7DE91B49-1F3F-477B-BF93-CEE1666E20C3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IdentityService.Dto", "IdentityService.Dto\IdentityService.Dto.csproj", "{7853020C-282C-4F8E-A70C-B8D0F074E480}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{7DE91B49-1F3F-477B-BF93-CEE1666E20C3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7DE91B49-1F3F-477B-BF93-CEE1666E20C3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7DE91B49-1F3F-477B-BF93-CEE1666E20C3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7853020C-282C-4F8E-A70C-B8D0F074E480}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7853020C-282C-4F8E-A70C-B8D0F074E480}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7853020C-282C-4F8E-A70C-B8D0F074E480}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7853020C-282C-4F8E-A70C-B8D0F074E480}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -21,7 +21,6 @@ namespace VMSService.Core.Repositories.StockMovementDiscrepancies
             try
             {
                 return await _context.StockMovementDiscrepancies
-                    .Include(d => d.CurrentStatus)
                     .Where(d => d.StockMovementId == stockMovementId)
                     .ToListAsync();
             }
@@ -51,7 +50,6 @@ namespace VMSService.Core.Repositories.StockMovementDiscrepancies
             try
             {
                 return await _context.StockMovementDiscrepancies
-                    .Include(d => d.CurrentStatus)
                     .Include(d => d.StockMovement)
                         .ThenInclude(m => m.Denominations)
                     .FirstOrDefaultAsync(d => d.Id == id);

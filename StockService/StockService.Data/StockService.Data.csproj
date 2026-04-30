@@ -27,6 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="ConfigurationsService.Dto" Version="1.0.0" />
     <PackageReference Include="ErikEJ.EntityFrameworkCore.DgmlBuilder" Version="6.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="6.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="6.0.0">

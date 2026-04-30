@@ -9,7 +9,6 @@ namespace StockService.Core.Repository.BranchCategories
         public async Task<ICollection<BranchCategory>> FindAllAsync()
         {
             return await _db.BranchCategories.Where(bc => !bc.IsDeleted)
-                .Include(bc => bc.Branch)
                 .Include(bc => bc.Category)
                 .ToListAsync();
         }
@@ -17,7 +16,6 @@ namespace StockService.Core.Repository.BranchCategories
         public async Task<BranchCategory> FindByIdAsync(int id)
         {
             return await _db.BranchCategories.Where(bc => !bc.IsDeleted)
-                    .Include(bc => bc.Branch)
                     .Include(bc => bc.Category)
                     .FirstOrDefaultAsync(bc => bc.Id == id);
         }

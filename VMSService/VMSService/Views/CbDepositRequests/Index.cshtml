@@ -1,0 +1,287 @@
+@using System.Security.Claims
+@using VMSService.Core.Authorization
+@using static VMSService.Core.Static.DepositStatuses
+@model VMSService.Core.Models.CbDepositRequests.DepositRequestIndexViewModel
+
+@{
+    Layout = "_CbLayout";
+    ViewData["Title"] = "Deposit Requests";
+
+    string BadgeCss(string s) => s switch
+    {
+        DepositStatusNames.Draft => "text-bg-secondary",
+        DepositStatusNames.SubmittedToSupervisor => "text-bg-warning",
+        DepositStatusNames.ReturnedForRevision => "text-bg-danger",
+        DepositStatusNames.SubmittedToBank => "text-bg-primary",
+        DepositStatusNames.PendingSpecialApproval => "text-bg-info",
+        DepositStatusNames.Recommended => "text-bg-warning",
+        DepositStatusNames.Approved => "text-bg-success",
+        DepositStatusNames.Rejected => "text-bg-danger",
+        DepositStatusNames.Cancelled => "text-bg-secondary",
+        _ => "text-bg-secondary"
+    };
+
+    // string BadgeIcon(string s) => s switch
+    // {
+    //     DepositStatusNames.Draft => "ti-pencil",
+    //     DepositStatusNames.SubmittedToSupervisor => "ti-hourglass",
+    //     DepositStatusNames.ReturnedForRevision => "ti-arrow-back",
+    //     DepositStatusNames.SubmittedToBank => "ti-building-bank",
+    //     DepositStatusNames.PendingSpecialApproval => "ti-shield-check",
+    //     DepositStatusNames.Recommended => "ti-thumb-up",
+    //     DepositStatusNames.Approved => "ti-check",
+    //     DepositStatusNames.Rejected => "ti-x",
+    //     DepositStatusNames.Cancelled => "ti-ban",
+    //     _ => "ti-circle"
+    // };
+
+    // var userRole = User.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty;
+    // var userRoles = User.FindAll("appRole").Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:")).Select(c => c.Value.Split(":")[1]).ToList();
+    // var isBouUser = false;
+    // foreach (var role in userRoles)
+    // {
+    //     isBouUser = RolePolicy.BouRoles.Contains(role);
+    // }
+
+    string BadgeLbl(string s) => s switch
+    {
+        "pending_supervisor" => "Pending Supervisor",
+        "with_bank" => "With Bank",
+        "bank_review" => "Bank Review",
+        "pending_manager" => "Pending Manager",
+        "completed" => "Completed",
+        "rejected" => "Rejected",
+        _ => s
+    };
+    string BadgeIcon(string s) => s switch
+    {
+        "pending_supervisor" => "bi-hourglass-split",
+        "with_bank" => "bi-bank",
+        "bank_review" => "bi-search",
+        "pending_manager" => "bi-shield-check",
+        "completed" => "bi-check-circle-fill",
+        "rejected" => "bi-x-circle-fill",
+        _ => "bi-circle"
+    };
+}
+
+<div class="dash-hero mb-4">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+            <h4 class="fw-bold mb-1">Deposit Requests</h4>
+            @* <p class="text-muted mb-0">
+                @if (isBouUser)
+                {
+                    <span>All deposit requests from commercial banks</span>
+                }
+                else
+                {
+                    <span>Your deposit requests to Bank of Uganda</span>
+                }
+            </p> *@
+        </div>
+        <div class="d-flex gap-2">
+            @* @if (!isBouUser)
+            {
+                <a asp-action="Create" class="btn btn-light btn-sm fw-semibold d-flex align-items-center gap-1">
+                    <i class="ti ti-circle-arrow-down-left-filled text-success"></i> New Deposit
+                </a>
+            } *@
+        </div>
+    </div>
+</div>
+
+<!--STATS ROW-->
+@{
+    var totalCount = Model.Deposits.Count();
+    var pendingCount = Model.Deposits.Count(d =>
+        d.StatusTypeName == DepositStatusNames.SubmittedToSupervisor ||
+        d.StatusTypeName == DepositStatusNames.SubmittedToBank ||
+        d.StatusTypeName == DepositStatusNames.PendingSpecialApproval ||
+        d.StatusTypeName == DepositStatusNames.Recommended);
+    var approvedCount = Model.Deposits.Count(d => d.StatusTypeName == DepositStatusNames.Approved);
+    var rejectedCount = Model.Deposits.Count(d =>
+        d.StatusTypeName == DepositStatusNames.Rejected ||
+        d.StatusTypeName == DepositStatusNames.ReturnedForRevision);
+}
+<div class="row g-3 mb-4">
+    @foreach (var (icon, color, label, val, sub) in new[]
+    {
+        ("ti-file-text", "primary", "Total Deposits", totalCount.ToString(), "all time"),
+        ("ti-hourglass", "warning", "Pending", pendingCount.ToString(), "awaiting action"),
+        ("ti-check", "success", "Approved", approvedCount.ToString(), "completed"),
+        ("ti-x", "danger", "Returned / Rejected", rejectedCount.ToString(), "requires attention"),
+    })
+    {
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="text-muted small">@label</span>
+                        <div class="rounded-circle d-flex align-items-center justify-content-center text-@color bg-@color bg-opacity-10"
+                             style="width:32px;height:32px">
+                            <i class="ti @icon"></i>
+                        </div>
+                    </div>
+                    <div class="fw-bold fs-4 text-@color">@val</div>
+                    <div class="text-muted" style="font-size:11px">@sub</div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!--DEPOSIT LIST-->
+<div class="">
+    <div class="">
+        @if (Model.Deposits.Any())
+        {
+            <div class="d-flex flex-column gap-2">
+                @foreach (var r in Model.Deposits)
+                {
+                    <a href="@($"/Cb{(r.Type == "Withdrawal" ? "Withdraw" : "Deposit")}Requests/Details/{r.Id}")" class="req-row-link">
+                        <div class="card border shadow-sm mb-2 request-card">
+                            <div class="card-body py-3">
+                                <div class="d-flex align-items-center gap-3">
+
+                                    @*Type icon*@
+                                    <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0
+                                        @(r.Type == "Withdrawal" ? "bg-danger" : "bg-success") bg-opacity-10"
+                                         style="width:44px;height:44px">
+                                        <i class="ti @(r.Type == "Withdrawal" ? "ti-circle-arrow-up-right-filled text-danger" : "ti-circle-arrow-down-left-filled text-success") fs-5"></i>
+                                    </div>
+
+                                    @*Info*@
+                                    <div class="flex-grow-1 overflow-hidden">
+
+                                        @* Top row — ref + badges *@
+                                        <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                                            <span class="fw-bold small">
+                                                @(string.IsNullOrEmpty(r.TransactionRefNumber) ? "-" : r.TransactionRefNumber)
+                                            </span>
+                                            <span class="tx-pill @(r.Type == "Withdrawal" ? "tx-wd" : "tx-dep")">
+                                                <i class="ti @(r.Type == "Withdrawal" ? "ti-arrow-up-right-circle" : "ti-arrow-down-left-circle") me-1"></i>
+                                                @r.Type
+                                            </span>
+                                            @if (r.RequiresSpecialApproval)
+                                            {
+                                                <span class="badge rounded-pill bg-warning text-brown bg-opacity-10">
+                                                    <i class="ti ti-star me-1"></i>Exceptional Approval Required
+                                                </span>
+                                            }
+                                            @* @if (r.CollectionDate == DateOnly.FromDateTime(r.CreationDate))
+                                        {
+                                            <span class="badge rounded-pill bg-danger-subtle text-warning bg-warning bg-opacity-10">
+                                                <i class="ti ti-calendar-exclamation me-1"></i>Same Day
+                                            </span>
+                                        } *@
+                                        </div>
+
+                                        @* Dates + bank *@
+                                        <div class="text-muted small d-flex flex-wrap gap-2">
+                                            <span>
+                                                <i class="ti ti-building me-1"></i>
+                                                @User.FindFirst("cbName")?.Value
+                                            </span>
+                                            <span>
+                                                <i class="ti ti-calendar me-1 text-primary"></i>
+                                                <span class="text-muted">Created:</span>
+                                                @r.CreationDate.ToString("dd MMM yyyy")
+                                                <span class="text-muted mx-1"> | </span>
+                                                <span class="text-muted">@(r.Type == "Withdrawal" ? "Collection Date:" : "Deposit Date:")</span>
+                                                <span class="@(r.CollectionDate == DateOnly.FromDateTime(r.CreationDate) ? "text-dark fw-semibold" : "")">
+                                                    @r.CollectionDate.ToString("dd MMM yyyy")
+                                                </span>
+                                                <span class="text-muted mx-1"> | </span>
+                                                <span class="text-muted">Approved:</span>
+                                                ---
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    @*Amount + status*@
+                                    <div class="text-end flex-shrink-0">
+                                        <div class="fw-bold mb-1 @(r.Type == "Withdrawal" ? "text-danger" : "text-success")">
+                                            UGX @r.Amount.ToString("N0")
+                                        </div>
+                                        <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill">
+                                            <i class="ti @BadgeIcon(r.StatusTypeName) me-1"></i>@BadgeLbl(r.StatusTypeName)
+                                        </span>
+                                    </div>
+
+                                </div>
+
+                                @*Special approval warning strip*@
+                                @* @if (r.RequiresSpecialApproval)
+                            {
+                                <div class="d-flex align-items-center gap-2 mt-2 pt-2 border-top border-warning">
+                                    <i class="ti ti-alert-triangle text-warning flex-shrink-0"></i>
+                                    <small class="text-warning fw-semibold">
+                                        This request will require special approval before processing.
+                                    </small>
+                                </div>
+                            } *@
+                            </div>
+                        </div>
+                    </a>
+                }
+                @* @foreach (var r in Model.Deposits)
+                {
+                    <a asp-action="Details" asp-route-id="@r.Id" class="req-row-link text-decoration-none">
+                        <div class="card border shadow-sm">
+                            <div class="card-body py-3 d-flex align-items-center gap-3">
+
+                                <!-- Type icon -->
+                                <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 bg-success bg-opacity-10"
+                                     style="width:40px;height:40px">
+                                    <i class="ti ti-circle-arrow-down-left-filled text-success fs-5"></i>
+                                </div>
+
+                                <!-- Info -->
+                                <div class="flex-grow-1 overflow-hidden">
+                                    <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                                        <span class="fw-semibold" style="font-size:14px">@(r.TransactionRefNumber)</span>
+                                        <span class="tx-pill tx-dep">
+                                            <i class="ti ti-arrow-down-left-circle"></i>
+                                            Deposit
+                                        </span>
+                                    </div>
+                                    <div class="text-muted d-flex gap-3 flex-wrap" style="font-size:12px">
+                                        @if (Model.IsBouUser)
+                                        {
+                                            <span><i class="ti ti-building me-1"></i>@r.CbName</span>
+                                        }
+                                        <span><i class="ti ti-map-pin me-1"></i>@r.BouBranchName</span>
+                                        <span><i class="ti ti-calendar me-1"></i>@r.DepositDate.ToString("dd MMM yyyy")</span>
+                                    </div>
+                                </div>
+
+                                <!-- Amount + status -->
+                                <div class="text-end flex-shrink-0">
+                                    <div class="fw-bold mb-1">UGX @r.TotalAmount.ToString("N0")</div>
+                                    <span class="badge @BadgeCss(r.StatusName) rounded-pill">
+                                        <i class="ti @BadgeIcon(r.StatusName) me-1"></i>@r.StatusName
+                                    </span>
+                                </div>
+
+                            </div>
+                        </div>
+                    </a>
+                } *@
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="ti ti-inbox text-muted" style="font-size:48px"></i>
+                <p class="text-muted mt-3 mb-0">No deposit requests found.</p>
+                @if (!Model.IsBouUser)
+                {
+                    <a asp-action="Create" class="btn btn-primary btn-sm mt-3">
+                        <i class="ti ti-plus me-1"></i> Create your first deposit
+                    </a>
+                }
+            </div>
+        }
+    </div>
+</div>

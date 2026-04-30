@@ -58,5 +58,15 @@ namespace IdentityService.Core.Repository.ApplicationRoles
             _db.ApplicationRoles.Update(model);
             return await Save();
         }
+
+        public async Task<List<ApplicationRole>> FindByApplicationId(int applicationId)
+        {
+            var model = await _db.ApplicationRoles
+                .Include(x => x.Application)
+                .Include(x => x.Role)
+                .Where(x => x.ApplicationId == applicationId)
+                .ToListAsync();
+            return model;
+        }
     }
 }

@@ -46,6 +46,7 @@
   <ItemGroup>
 	<ProjectReference Include="..\IdentityService.Data\IdentityService.Data.csproj" />
 	<ProjectReference Include="..\IdentityService.Core\IdentityService.Core.csproj" />
+	<ProjectReference Include="..\IdentityService.Dto\IdentityService.Dto.csproj" />
   </ItemGroup>
 
 </Project>

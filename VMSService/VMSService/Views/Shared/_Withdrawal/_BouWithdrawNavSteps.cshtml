@@ -1,0 +1,69 @@
+﻿@model VMSService.Core.Models.CbRequests.WithdrawalStepViewModel
+
+@{
+    var visibleSteps = Model.Steps.Where(s => s.IsVisible).ToList();
+}
+
+@* ── Status banner ── *@
+@if (Model.IsInProgress)
+{
+    <div class="d-flex align-items-center gap-2 text-warning mb-3" style="font-size:13px;">
+        <i class="ti ti-clock-hour-4"></i>
+        <span>Your request has been submitted and is currently being processed by the Bank.</span>
+    </div>
+}
+@if (Model.IsApproved)
+{
+    <div class="d-flex align-items-center gap-2 text-success mb-3" style="font-size:13px;">
+        <i class="ti ti-circle-check"></i>
+        <span>Your request has been approved.</span>
+    </div>
+}
+
+@* ── Stepper ── *@
+<div class="bank-stepper">
+    @for (int i = 0; i < visibleSteps.Count; i++)
+    {
+        var step     = visibleSteps[i];
+        var isLast   = i == visibleSteps.Count - 1;
+        var isDone   = step.ShowCheckIcon;                      @* State == Done *@
+        var isActive = step.CssState == "active";               @* State == Active *@
+
+        var dotClass = isDone   ? "bs-dot bs-done"
+                     : isActive ? "bs-dot bs-active"
+                     :            "bs-dot bs-pending";
+
+        var lblClass = isDone   ? "bs-label bs-label-done"
+                     : isActive ? "bs-label bs-label-active"
+                     :            "bs-label bs-label-pending";
+
+        <div class="bs-step @(isLast ? "bs-step-last" : "")">
+
+            <div class="bs-track">
+                <div class="@dotClass">
+                    @if (isDone)
+                    {
+                        <i class="ti ti-check" style="font-size:12px;color:#fff;"></i>
+                    }
+                    else if (isActive)
+                    {
+                        <div class="bs-dot-inner"></div>
+                    }
+                </div>
+                @if (!isLast)
+                {
+                    <div class="bs-line @(step.IsConnectorDone ? "bs-line-done" : "bs-line-pending")"></div>
+                }
+            </div>
+
+            <div class="@lblClass">
+                <div class="bs-label-main">@step.Label</div>
+                @if (!string.IsNullOrEmpty(step.SubLabel))
+                {
+                    <div class="bs-label-sub">@step.SubLabel</div>
+                }
+            </div>
+
+        </div>
+    }
+</div>

@@ -1,30 +1,30 @@
 using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using SmartBreadcrumbs.Attributes;
 using VMSService.Controllers;
 using VMSService.Core.Models.ApprovedCurrencyProcurements;
+using VMSService.Core.Models.Branches;
 using VMSService.Core.Models.CurrencyVendors;
 using VMSService.Core.Models.Denominations;
-using VMSService.Core.Models.ExPrintMintStatusHistories;
+using VMSService.Core.Models.DenominationTypes;
 using VMSService.Core.Models.ExPrintMints;
-using VMSService.Core.Models.WorkflowTransitions;
+using VMSService.Core.Models.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
+using VMSService.Core.Repositories.Branches;
 using VMSService.Core.Repositories.CurrencyVendors;
 using VMSService.Core.Repositories.Denominations;
+using VMSService.Core.Repositories.DenominationTypes;
 using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ExPrintMintStatusHistories;
-using VMSService.Core.Repositories.StatusTypes;
 using VMSService.Core.Repositories.VendorTypes;
+using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
-using Microsoft.AspNetCore.Authorization;
-using VMSService.Core.Services.Stocks.StockEntities;
-using VMSService.Core.Models.DenominationTypes;
-using VMSService.Core.Models.Branches;
-using VMSService.Core.Repositories.Branches;
-using VMSService.Core.Repositories.DenominationTypes;
+using WorkflowService.Client;
+using WorkflowService.Client.Dto;
 
 using VMSService.Core.Repositories.ExPrintMintDetails;
 using VMSService.Core.Models.ExPrintMintDetails;
@@ -37,7 +37,6 @@ namespace VMSService.Web.Controllers
     public class ExPrintMintsController(
         IExPrintMintRepository _exPrintMintRepository,
         IExPrintMintDetailRepository _exPrintMintDetailRepository,
-        IStatusTypeRepository _statusTypeRepository,
         IMapper _mapper,
         ILogger<ExPrintMintsController> _logger,
         ICurrencyVendorRepository _currencyVendorRepository,
@@ -48,7 +47,8 @@ namespace VMSService.Web.Controllers
         IExPrintMintStatusHistoryRepository _statusHistoryRepository,
         IBranchRepository _branchRepository,
         IDenominationTypeRepository _denominationTypeRepository,
-        IPackingListRangeRepository _packingListRangeRepository) : Controller
+        IPackingListRangeRepository _packingListRangeRepository,
+        IWorkflowServiceClient _workflowServiceClient) : Controller
     {
         [Breadcrumb("Expected Stock", FromController = typeof(HomeController), FromAction = nameof(Index))]
         // GET: ExPrintMints
@@ -101,18 +101,25 @@ namespace VMSService.Web.Controllers
                 ExPrintMintViewModel model = _mapper.Map<ExPrintMintViewModel>(exPrintMint);
 
                 // Get available transitions for current user
-                var userRoles = User.FindAll("appRole")
-                    .Where(c => c.Value.StartsWith("VMS:"))
-                    .Select(c => c.Value.Split(":")[1])
+                var userRoles = User.FindAll("appRoleId")
+                    .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
+                    .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
+                    .Where(id => id.HasValue)
+                    .Select(id => id.Value)
                     .ToList();
 
-                var availableTransitions = new List<WorkflowTransitionViewModel>();
+                var availableTransitions = new List<WorkflowTransitionDto>();
                 foreach (var userRole in userRoles)
                 {
-                    var transitions = await _workflowService.GetAvailableTransitions(
-                        StatusConstants.Entity.ExPrintMint,
-                        exPrintMint.CurrentStatusId,
-                        userRole);
+                    var requestData = new GetAvailableTransitionsRequestDto
+                    {
+                        ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                        EntityTypeName = StatusConstants.Entity.ExPrintMint,
+                        CurrentStatusId = exPrintMint.CurrentStatusId,
+                        AppRole = userRole,
+                    };
+
+                    var transitions = await _workflowServiceClient.GetAvailableTransitions(requestData);
                     if (transitions != null)
                     {
                         availableTransitions.AddRange(transitions);
@@ -239,7 +246,12 @@ namespace VMSService.Web.Controllers
                     attachmentPath = filePath;
                 }
 
-                StatusType draftStatus = await _statusTypeRepository.FindByName(StatusConstants.ExPrintMint.Draft, StatusConstants.Category.ExPrintMint);
+                StatusTypeDto draftStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+                {
+                    ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                    StatusName = StatusConstants.ReceivedStock.Draft,
+                    EntityTypeName = StatusConstants.Entity.ExPrintMint
+                });
 
                 // Create the parent ExPrintMint record (the batch)
                 var exPrintMint = new ExPrintMint
@@ -256,7 +268,7 @@ namespace VMSService.Web.Controllers
                 };
 
                 bool isParentCreated = await _exPrintMintRepository.Create(exPrintMint);
-                
+
                 if (!isParentCreated)
                 {
                     _logger.LogError("Error creating parent Expected Stock");
@@ -624,10 +636,12 @@ namespace VMSService.Web.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
-                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "System";
-                var userRoles = User.FindAll("appRole")
-                    .Where(c => c.Value.StartsWith("VMS:"))
-                    .Select(c => c.Value.Split(":")[1])
+                var username = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? "System";
+                var userRoles = User.FindAll("appRoleId")
+                    .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
+                    .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
+                    .Where(id => id.HasValue)
+                    .Select(id => id.Value)
                     .ToList();
 
                 bool isExecuted = await _workflowService.ExecuteTransition(
@@ -635,13 +649,13 @@ namespace VMSService.Web.Controllers
                     id,
                     exPrintMint.CurrentStatusId,
                     actionName,
-                    userId,
+                    username,
                     userRoles,
                     remarks);
 
                 if (isExecuted)
                 {
-                    TempData["Success"] = $"Review completed successfully and Notification Sent!";
+                    TempData["Success"] = $"Review completed successfully!";
                 }
                 else
                 {

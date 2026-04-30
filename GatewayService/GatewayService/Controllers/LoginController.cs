@@ -152,19 +152,23 @@ namespace GatewayService.Controllers
             {
                 var result = await response.Content.ReadFromJsonAsync<LogoutResponse>();
 
-                Response.Cookies.Delete("AuthToken");
-                Response.Cookies.Delete("Username");
+                //Response.Cookies.Delete("AuthToken");
+                //Response.Cookies.Delete("Username");
                 string message = result?.Message ?? $"{username} logged out successfully";
                 _logger.LogInformation(message);
 
-                return RedirectToAction("Index");
+                //return RedirectToAction("Index");
             }
 
-            string errorMessage = await response.Content.ReadAsStringAsync();
-            ViewBag.Error = $"{response.ReasonPhrase} - {errorMessage}";
-            _logger.LogError($"{response.ReasonPhrase} - {errorMessage}");
+            Response.Cookies.Delete("AuthToken");
+            Response.Cookies.Delete("Username");
 
-            return RedirectToAction("Index", "Home");
+            //string errorMessage = await response.Content.ReadAsStringAsync();
+            //ViewBag.Error = $"{response.ReasonPhrase} - {errorMessage}";
+            //_logger.LogError($"{response.ReasonPhrase} - {errorMessage}");
+
+            //return RedirectToAction("Index", "Home");
+            return RedirectToAction("Index");
         }
     }
 

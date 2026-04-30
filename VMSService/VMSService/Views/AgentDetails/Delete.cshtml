@@ -1,38 +1,51 @@
 @model VMSService.Core.Models.AgentDetails.AgentDetailViewModel
 
 @{
+    Layout = "_CbLayoutOther";
     ViewData["Title"] = "Delete Agent";
 }
 
 <div class="row">
     <div class="col-12 col-lg-12">
-        <div class="card border-0 shadow mb-4 border-danger border-2">
-            <div class="card-header pb-4 bg-light">
-                <div class="d-flex flex-column">
-                    <span class="text-danger small mb-2">
-                        <i class="ti ti-alert-triangle me-1"></i>Delete Agent
-                    </span>
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                        @if (!string.IsNullOrEmpty(Model.PassportPhoto))
-                        {
-                            <img src="@Model.PassportPhoto" alt="Passport Photo" class="rounded-circle" style="width: 60px; height: 60px; object-fit: cover;">
-                        }
-                        else
-                        {
-                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-                                <i class="ti ti-user text-white fs-4"></i>
+        <div class="card border-0 shadow-sm mb-4 border-danger border-2">
+            <div class="card-header pb-4 bg-white">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <span class="text-danger small mb-2">
+                            <i class="ti ti-alert-triangle me-1"></i>Delete Agent
+                        </span>
+                        <div class="d-flex align-items-center gap-3 mb-3 mt-2">
+                            @if (!string.IsNullOrEmpty(Model.PassportPhoto))
+                            {
+                                <img src="@Model.PassportPhoto" alt="Passport Photo" class="rounded-circle" style="width: 60px; height: 60px; object-fit: cover;">
+                            }
+                            else
+                            {
+                                <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                    <i class="ti ti-user text-white fs-4"></i>
+                                </div>
+                            }
+                            <div>
+                                <h2 class="fs-4 fw-bold mb-0">@Model.AgentNames</h2>
+                                @if (!string.IsNullOrEmpty(Model.BranchName))
+                                {
+                                    <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
+                                        <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill">
+                                            <i class="ti ti-building-bank me-1"></i>@Model.BranchName
+                                        </span>
+                                    </div>
+                                }
+                                <span class="badge bg-purple text-purple bg-opacity-10 rounded-pill">
+                                    <i class="ti ti-badge me-1"></i>@Model.CurrentStatusName
+                                </span>
                             </div>
-                        }
-                        <h2 class="fs-4 fw-bold mb-0">@Model.AgentNames</h2>
-                    </div>
-                    @if (!string.IsNullOrEmpty(Model.BranchName))
-                    {
-                        <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
-                            <span class="badge bg-danger">
-                                <i class="ti ti-building me-1"></i>@Model.BranchName
-                            </span>
                         </div>
-                    }
+                    </div>
+                    <div>
+                        <a asp-action="Index" class="btn btn-sm btn-yellow">
+                            <i class="ti ti-arrow-left me-1"></i>Back
+                        </a>
+                    </div>
                 </div>
             </div>
 

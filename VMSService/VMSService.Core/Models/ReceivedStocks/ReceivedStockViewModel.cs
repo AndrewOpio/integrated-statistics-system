@@ -2,8 +2,7 @@
 using VMSService.Core.Models.ExPrintMints;
 using VMSService.Core.Models.ReceivedStocksDetails;
 using VMSService.Core.Models.ReceivedStockStatusHistories;
-using VMSService.Core.Models.StatusTypes;
-using VMSService.Core.Models.WorkflowTransitions;
+using WorkflowService.Client.Dto;
 
 namespace VMSService.Core.Models.ReceivedStocks
 {
@@ -20,13 +19,13 @@ namespace VMSService.Core.Models.ReceivedStocks
         public decimal HandlingCharges { get; set; }
         public decimal ClearingFees { get; set; }
         public int CurrentStatusId { get; set; }
-        public StatusTypeViewModel? CurrentStatus { get; set; }
+        public string? CurrentStatusName { get; set; }
         public bool IsDeleted { get; set; }
         public bool IsPartial { get; set; }
 
         public ExPrintMintViewModel? ExPrintMint { get; set; }
         public ICollection<ReceivedStockStatusHistoryViewModel>? StatusHistory { get; set; } = new List<ReceivedStockStatusHistoryViewModel>();
+        public ICollection<WorkflowTransitionDto>? AvailableTransitions { get; set; } = new List<WorkflowTransitionDto>();
         public ICollection<ReceivedStockDetailViewModel>? Details { get; set; } = new List<ReceivedStockDetailViewModel>();
-        public ICollection<WorkflowTransitionViewModel>? AvailableTransitions { get; set; } = new List<WorkflowTransitionViewModel>();
     }
 }

@@ -20,7 +20,6 @@ namespace VMSService.Core.Repositories.Logistics
         {
             return await _context.Logistics
                 .AsNoTracking()
-                .Include(x => x.CurrentStatus)
                 .OrderByDescending(f => f.CreatedDate)
                 .ToListAsync();
         }
@@ -28,7 +27,6 @@ namespace VMSService.Core.Repositories.Logistics
         public async Task<Data.Entities.Logistics?> GetByIdAsync(int id)
         {
             return await _context.Logistics
-                .Include(f => f.CurrentStatus)
                 .Include(f => f.Categories.OrderBy(c => c.SortOrder))
                     .ThenInclude(c => c.Details.OrderBy(d => d.SortOrder))
                 .FirstOrDefaultAsync(f => f.Id == id);

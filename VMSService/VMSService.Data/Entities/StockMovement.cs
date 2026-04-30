@@ -13,7 +13,7 @@ namespace VMSService.Data.Entities
 
         // Status
         public int? CurrentStatusId { get; set; }
-        public StatusType CurrentStatus { get; set; }
+        public string CurrentStatusName { get; set; }
 
         // Branch to Branch
         public int? DispatchingBranchId { get; set; }

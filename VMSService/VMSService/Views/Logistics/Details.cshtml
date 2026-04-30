@@ -11,9 +11,9 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center gap-3">
                     <h2 class="fs-5 fw-bold mb-0">Logistics Details</h2>
-                    @if (Model.CurrentStatus != null)
+                    @if (Model.CurrentStatusId != 0)
                     {
-                        <span class="badge bg-secondary" style="font-size:1rem;">@Model.CurrentStatus.Name</span>
+                        <span class="badge bg-secondary" style="font-size:1rem;">@ViewBag.CurrentStatusName</span>
                     }
                 </div>
                 <div class="d-flex gap-2">
@@ -223,9 +223,9 @@
                                             <div class="timeline-marker"><i class="ti ti-circle-check text-success"></i></div>
                                             <div>
                                                 <h6 class="mb-1 small">
-                                                    <strong>@history.OldStatus.Name</strong>
+                                                    <strong>@history.OldStatusName</strong>
                                                     <i class="ti ti-arrow-right text-muted"></i>
-                                                    <strong>@history.NewStatus.Name</strong>
+                                                    <strong>@history.NewStatusName</strong>
                                                 </h6>
                                                 <small class="text-muted">By: <strong>@history.ChangedBy</strong></small>
                                                 <br />

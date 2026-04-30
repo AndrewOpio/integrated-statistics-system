@@ -5,71 +5,71 @@
 }
 
 <div class="row">
-	<div class="col-12">
-		<!-- Header Section -->
-		<div class="card border-0 shadow mb-3">
-			<div class="card-header bg-gradient">
-				<div class="row align-items-center">
-					<div class="col">
-						<h2 class="fs-5 fw-bold mb-0 text-primary">
-							<i class="ti ti-package me-2"></i>Expected Stock Details
-						</h2>
-					</div>
-					<div class="col text-end">
-						<div>
-							@{
-								bool isEditable = Model.CurrentStatus?.Name == StatusConstants.ExPrintMint.Draft || Model.CurrentStatus?.Name == StatusConstants.ExPrintMint.Returned;
-							}
-							@if (isEditable)
-							{
-								<a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary btn-sm">
-									<i class="ti ti-edit me-1"></i>Edit
-								</a>
-								<a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger btn-sm">
-									<i class="ti ti-trash me-1"></i>Delete
-								</a>
-							}
-							<a asp-action="Index" class="btn btn-secondary btn-sm">
-								<i class="ti ti-arrow-left me-1"></i>Back to List
-							</a>
-						</div>
-					</div>
-				</div>
-			</div>
-			<div class="card-body bg-light">
-				<div class="row align-items-center">
-					<div class="col-md-8">
-						<h5 class="mb-1">@Model.ExPrintMintReference - @Model.Branch?.Name</h5>
-						<p class="text-muted mb-0">
-							<i class="ti ti-calendar me-1"></i>
-							Expected Delivery Date: <strong>@Model.DeliveryDate.ToString("dddd, MMMM dd, yyyy")</strong>
-						</p>
-					</div>
-					<div class="col-md-4 text-end">
-						@if (Model.CurrencyVendor?.VendorType?.Name == "Printer")
-						{
-							<span class="badge bg-primary me-2">
-								<i class="ti ti-tag me-1"></i>ExPrint
-							</span>
-						}
-						else
-						{
-							<span class="badge bg-primary me-2">
-								<i class="ti ti-tag me-1"></i>ExMint
-							</span>
-						}
-						@if (Model.CurrentStatus != null)
-						{
-							<div class="d-inline-flex align-items-center gap-2">
-								<span class="badge bg-info">
-									<i class="ti ti-badge me-1"></i>@Model.CurrentStatus.Name
-								</span>
-							</div>
-						}
-					</div>
-				</div>
-			</div>
-		</div>
+    <div class="col-12">
+        <!-- Header Section -->
+        <div class="card border-0 shadow mb-3">
+            <div class="card-header bg-gradient">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h2 class="fs-5 fw-bold mb-0 text-primary">
+                            <i class="ti ti-package me-2"></i>Expected Stock Details
+                        </h2>
+                    </div>
+                    <div class="col text-end">
+                        <div>
+                            @{
+                                bool isEditable = Model.CurrentStatusName == StatusConstants.ExPrintMint.Draft || Model.CurrentStatusName == StatusConstants.ExPrintMint.Returned;
+                            }
+                            @if (isEditable)
+                            {
+                                <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary btn-sm">
+                                    <i class="ti ti-edit me-1"></i>Edit
+                                </a>
+                                <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger btn-sm">
+                                    <i class="ti ti-trash me-1"></i>Delete
+                                </a>
+                            }
+                            <a asp-action="Index" class="btn btn-secondary btn-sm">
+                                <i class="ti ti-arrow-left me-1"></i>Back to List
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body bg-light">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h5 class="mb-1">@Model.ExPrintMintReference - @Model.Branch?.Name</h5>
+                        <p class="text-muted mb-0">
+                            <i class="ti ti-calendar me-1"></i>
+                            Expected Delivery Date: <strong>@Model.DeliveryDate.ToString("dddd, MMMM dd, yyyy")</strong>
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        @if (Model.CurrencyVendor?.VendorType?.Name == "Printer")
+                        {
+                            <span class="badge bg-primary me-2">
+                                <i class="ti ti-tag me-1"></i>ExPrint
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-primary me-2">
+                                <i class="ti ti-tag me-1"></i>ExMint
+                            </span>
+                        }
+                        @if (Model.CurrentStatusName != null)
+                        {
+                            <div class="d-inline-flex align-items-center gap-2">
+                                <span class="badge bg-info">
+                                    <i class="ti ti-badge me-1"></i>@Model.CurrentStatusName
+                                </span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
 
 		<div class="row">
 			<!-- Left Column -->
@@ -216,47 +216,47 @@
 </div>
 
 <div class="row">
-	<div class="col-12">
-		<!-- Status History Section -->
-		<div class="card border-0 shadow mb-3">
-			<div class="card-header bg-white border-bottom no-after">
-				<h6 class="card-title mb-0">
-					<i class="ti ti-message me-2 text-secondary"></i>Comments
-				</h6>
-			</div>
-			<div class="card-body">
-				@if (Model.StatusHistory != null && Model.StatusHistory.Any())
-				{
-					<div class="timeline">
-						@foreach (var history in Model.StatusHistory.OrderBy(x => x.ChangedAt))
-						{
-							<div class="timeline-item mb-4">
-								<div class="d-flex gap-3">
-									<div class="timeline-marker">
-										<i class="ti ti-circle-check text-success"></i>
-									</div>
-									<div class="flex-grow-1">
-										<div class="d-flex justify-content-between align-items-start">
-											<div>
-												<h6 class="mb-1 small">
-													<strong>@history.OldStatus?.Name</strong>
-													<i class="ti ti-arrow-right text-muted"></i>
-													<strong>@history.NewStatus?.Name</strong>
-												</h6>
-												<small class="text-muted">
-													By: <strong>@history.ChangedBy</strong>
-												</small>
-											</div>
-											<small class="text-muted">
-												@history.ChangedAt.ToString("dd/MMM/yyyy HH:mm:ss")
-											</small>
-										</div>
-										@if (!string.IsNullOrEmpty(history.Remarks))
-										{
-											<div class="mt-2 p-2 bg-white rounded border">
-												<span class="d-block">@history.Remarks</span>
-											</div>
-										}
+    <div class="col-12">
+        <!-- Status History Section -->
+        <div class="card border-0 shadow mb-3">
+            <div class="card-header bg-white border-bottom no-after">
+                <h6 class="card-title mb-0">
+                    <i class="ti ti-message me-2 text-secondary"></i>Comments
+                </h6>
+            </div>
+            <div class="card-body">
+                @if (Model.StatusHistory != null && Model.StatusHistory.Any())
+                {
+                    <div class="timeline">
+                        @foreach (var history in Model.StatusHistory.OrderBy(x => x.ChangedAt))
+                        {
+                            <div class="timeline-item mb-4">
+                                <div class="d-flex gap-3">
+                                    <div class="timeline-marker">
+                                        <i class="ti ti-circle-check text-success"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h6 class="mb-1 small">
+                                                    <strong>@history.OldStatusName</strong>
+                                                    <i class="ti ti-arrow-right text-muted"></i>
+                                                    <strong>@history.NewStatusName</strong>
+                                                </h6>
+                                                <small class="text-muted">
+                                                    By: <strong>@history.ChangedBy</strong>
+                                                </small>
+                                            </div>
+                                            <small class="text-muted">
+                                                @history.ChangedAt.ToString("dd/MMM/yyyy HH:mm:ss")
+                                            </small>
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(history.Remarks))
+                                        {
+                                            <div class="mt-2 p-2 bg-white rounded border">
+                                                <span class="d-block">@history.Remarks</span>
+                                            </div>
+                                        }
 
 									</div>
 								</div>

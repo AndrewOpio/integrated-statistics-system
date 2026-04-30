@@ -1,0 +1,60 @@
+@model ConfigurationsService.Core.Models.CommercialBanks.CommercialBankViewModel
+
+@{
+    ViewData["Title"] = "Create Commercial Bank";
+    Layout = "_Layout";
+}
+
+<div class="d-flex justify-content-end align-items-center mb-4 mt-4">
+    <a asp-action="Index" class="btn btn-outline-secondary">
+        <i class="ti ti-arrow-left me-1"></i> Back to List
+    </a>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h2>Create Commercial Bank</h2>
+                    <h6 class="card-subtitle my-1 text-body-secondary">
+                        <span>Add a new commercial bank to the system.</span>
+                    </h6>
+                </div>
+            </div>
+
+            <form asp-action="Create" method="post">
+                <div class="card-body">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                    
+                    <div class="form-floating mb-3">
+                        <input type="text" asp-for="Name" class="form-control" placeholder="Bank Name" required>
+                        <label asp-for="Name">Bank Name</label>
+                        <span asp-validation-for="Name" class="text-danger small d-block mt-1"></span>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="text" asp-for="CBCode" class="form-control" placeholder="Bank Code" required>
+                        <label asp-for="CBCode">Commercial Bank Code</label>
+                        <span asp-validation-for="CBCode" class="text-danger small d-block mt-1"></span>
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        <input type="text" asp-for="Code" class="form-control" placeholder="RTGS Bank Code" required>
+                        <label asp-for="Code">RTGS Bank Code</label>
+                        <span asp-validation-for="Code" class="text-danger small d-block mt-1"></span>
+                    </div>
+                </div>
+
+                <div class="card-footer d-flex justify-content-between">
+                    <button type="submit" class="btn btn-success">
+                        <i class="ti ti-check me-1"></i>Save Bank
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

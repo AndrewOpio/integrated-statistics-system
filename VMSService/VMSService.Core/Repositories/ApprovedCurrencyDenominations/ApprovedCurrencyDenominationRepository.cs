@@ -14,12 +14,16 @@ namespace VMSService.Core.Repositories.ApprovedCurrencyDenominations
 
         public async Task<ICollection<ApprovedCurrencyDenomination>> FindAll()
         {
-            return await _db.ApprovedCurrencyDenominations.Where(x => x.IsDeleted == false).ToListAsync();
+            return await _db.ApprovedCurrencyDenominations
+                .Include(x => x.CurrencyVendor)
+                .Where(x => x.IsDeleted == false)
+                .OrderByDescending(x => x.CreatedDate).ToListAsync();
         }
 
         public async Task<ApprovedCurrencyDenomination> FindById(int id)
         {
             return await _db.ApprovedCurrencyDenominations
+                .Include(x => x.CurrencyVendor)
                 .FirstOrDefaultAsync(x => x.Id == id);
         }
 
@@ -44,6 +48,7 @@ namespace VMSService.Core.Repositories.ApprovedCurrencyDenominations
         {
             return await _db.ApprovedCurrencyDenominations.Where(x => x.ApprovedCurrencyId == approvedCurrencyProcurementId)
                 .Where(x => !x.IsDeleted)
+                .Include(x => x.CurrencyVendor)
                 .ToListAsync();
         }
     }

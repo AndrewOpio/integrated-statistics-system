@@ -5,5 +5,6 @@ namespace VMSService.Core.Repositories.ReceivedStocks
 {
     public interface IReceivedStockRepository : IRepositoryBase<ReceivedStock, int>
     {
+        Task<int> CreateNew(ReceivedStock model);
     }
 }

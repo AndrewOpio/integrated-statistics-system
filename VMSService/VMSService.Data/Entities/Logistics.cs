@@ -15,7 +15,7 @@ namespace VMSService.Data.Entities
 
         // Workflow status tracking
         public int CurrentStatusId { get; set; }
-        public virtual StatusType CurrentStatus { get; set; } = null!;
+        public virtual string CurrentStatusName { get; set; } = null!;
 
         public virtual ICollection<LogisticsCategory> Categories { get; set; } = new List<LogisticsCategory>();
         public virtual ICollection<LogisticsStatusHistory> StatusHistory { get; set; } = new List<LogisticsStatusHistory>();

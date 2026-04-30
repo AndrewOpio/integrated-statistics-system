@@ -8,5 +8,6 @@ namespace IdentityService.Core.Repository.UserApplicationRoles
         Task<bool> Delete(int id);
         Task<ICollection<UserApplicationRole>> FindByUserId(string userId);
         Task<ICollection<UserApplicationRole>> FindByUserName(string username);
+        Task<ICollection<UserApplicationRole>> GetUsersByRoleIds(List<int> appRoleIds);
     }
 }

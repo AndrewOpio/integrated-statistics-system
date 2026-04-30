@@ -2,7 +2,7 @@
 
 @{
     ViewData["Title"] = "Expected Stock";
-    var userRoles = string.Join(", ", User.FindAll("appRole").Where(c => c.Value.StartsWith("VMS:")).Select(c => c.Value.Split(":")[1]).ToList());
+    var userRoles = string.Join(", ", User.FindAll("appRole").Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:")).Select(c => c.Value.Split(":")[1]).ToList());
 }
 
 <div class="row">
@@ -100,7 +100,7 @@
                                             @if (item.CurrentStatusId > 0)
                                             {
                                                 <span class="badge bg-info">
-                                                    <i class="ti ti-badge me-1"></i>@item.CurrentStatus?.Name
+                                                    <i class="ti ti-badge me-1"></i>@item.CurrentStatusName
                                                 </span>
                                             }
                                             else
@@ -130,7 +130,7 @@
                                                 <i class="ti ti-package"></i>
                                             </a>
                                             @{
-                                                bool isEditable = item.CurrentStatus?.Name == StatusConstants.ExPrintMint.Draft || item.CurrentStatus?.Name == StatusConstants.ExPrintMint.Returned;
+                                                bool isEditable = item.CurrentStatusName == StatusConstants.ExPrintMint.Draft || item.CurrentStatusName == StatusConstants.ExPrintMint.Returned;
                                             }
                                             @if (isEditable)
                                             {

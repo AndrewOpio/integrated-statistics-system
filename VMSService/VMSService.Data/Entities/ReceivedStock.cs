@@ -17,10 +17,10 @@ namespace VMSService.Data.Entities
         public int CurrentStatusId { get; set; }
         public bool IsDeleted { get; set; }
         public bool? IsPartial { get; set; }
-
-        public StatusType CurrentStatus { get; set; }
         // public ReceivedStatusTypes ReceivedStatusType { get; set; }
         public ExPrintMint ExPrintMint { get; set; }
         public ICollection<ReceivedStockDetails> ReceivedStockDetails { get; set; }
+        public string CurrentStatusName { get; set; }
+        public int NumberOfBoxes { get; set; }
     }
 }

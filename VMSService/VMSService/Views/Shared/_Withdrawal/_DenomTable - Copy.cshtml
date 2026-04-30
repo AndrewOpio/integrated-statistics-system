@@ -1,0 +1,293 @@
+﻿
+<div class="card mb-4 border-top-0 border-end-0 border-bottom-0 border-4 shadow-sm" style="border-color: #b31b34">
+    <div class="card-body">
+
+        @* ── Card Header ── *@
+        <div class="d-flex align-items-center mb-3 justify-content-between">
+            <div class="d-flex align-items-center gap-2 fw-bolder">
+                <i class="ti ti-cash"></i>
+                <span class="text-uppercase mb-0">Denomination Details</span>
+            </div>
+            <div class="d-flex gap-2" id="denom-add-buttons">
+                <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1"
+                        onclick="denomAddRow('notes')">
+                    <i class="ti ti-circle-letter-n-filled"></i>Add Banknote
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-warning d-inline-flex align-items-center gap-1"
+                        onclick="denomAddRow('coins')">
+                    <i class="ti ti-circle-letter-c-filled"></i>Add Coin
+                </button>
+            </div>
+        </div>
+
+        @* ── Mode Selection ── *@
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <label class="denom-mode-label w-100" for="mode-radio-breakdown">
+                    <input type="radio" name="denomMode" id="mode-radio-breakdown"
+                           value="breakdown" checked
+                           onchange="setDenomMode('breakdown')"
+                           class="denom-mode-input">
+                    <div class="denom-mode-card">
+                        <div class="denom-mode-dot"></div>
+                        <div>
+                            <p class="fw-semibold mb-0 small">By denomination</p>
+                            <p class="text-muted mb-0" style="font-size:11px">Specify notes and coins breakdown</p>
+                        </div>
+                    </div>
+                </label>
+            </div>
+            <div class="col-md-6">
+                <label class="denom-mode-label w-100" for="mode-radio-lumpsum">
+                    <input type="radio" name="denomMode" id="mode-radio-lumpsum"
+                           value="lumpsum"
+                           onchange="setDenomMode('lumpsum')"
+                           class="denom-mode-input">
+                    <div class="denom-mode-card">
+                        <div class="denom-mode-dot"></div>
+                        <div>
+                            <p class="fw-semibold mb-0 small">Lump sum</p>
+                            <p class="text-muted mb-0" style="font-size:11px">Enter a total amount only</p>
+                        </div>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        @* ── Lump Sum Input ── *@
+        <div id="denom-lumpsum-section" style="display:none">
+            <div class="mb-3">
+                <label class="form-label text-uppercase text-muted small fw-semibold">
+                    Total Amount (UGX) <span class="text-danger">*</span>
+                </label>
+                <input type="number"
+                       id="lumpSumInput"
+                       class="form-control"
+                       placeholder="e.g. 50000000"
+                       min="0"
+                       step="1"
+                       oninput="onLumpSumInput(this.value)" />
+                <small id="lumpSumHint" class="text-muted mt-1 d-block">
+                    Amount must be an exact multiple of 1,000 (one bundle).
+                </small>
+                <small id="lumpSumError" class="text-danger mt-1 d-block" style="display:none !important">
+                    <i class="ti ti-alert-circle me-1"></i>
+                    Amount must be a whole bundle — no partial amounts allowed.
+                </small>
+            </div>
+        </div>
+
+        @* ── Denomination Breakdown Section ── *@
+        <div id="denom-breakdown-section">
+
+            @* ── Banknotes ── *@
+            <div class="denom-sec">
+                <div class="d-flex align-items-center justify-content-between px-4 py-2 bg-light">
+                    <div class="d-flex align-items-center gap-2 text-uppercase fw-bold">
+                        <i class="ti ti-circle-letter-n-filled text-primary"></i>Banknotes
+                    </div>
+                    <span class="denom-amt-note fw-bold small text-primary" id="denom-note-sub">UGX 0</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <colgroup>
+                            <col style="width:30%">
+                            <col style="width:25%">
+                            <col style="width:30%">
+                            <col style="width:15%">
+                        </colgroup>
+                        <thead class="small text-muted">
+                            <tr>
+                                <th class="px-4 py-2">DENOMINATIONS</th>
+                                <th class="px-4 py-2 text-end">NO. OF BUNDLES</th>
+                                <th class="px-4 py-2 text-end">AMOUNT</th>
+                                <th class="text-center">ACTIONS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="denom-notes-body">
+                            <tr class="denom-empty-row">
+                                <td colspan="4" class="text-center py-3 text-muted small">No banknotes added</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            @* ── Coins ── *@
+            <div class="denom-sec">
+                <div class="d-flex align-items-center justify-content-between mt-3 px-4 py-2 bg-light">
+                    <div class="d-flex align-items-center gap-2 text-uppercase fw-bold">
+                        <i class="ti ti-circle-letter-c-filled text-warning"></i> Coins
+                    </div>
+                    <span class="denom-amt-coin fw-bold small text-warning" id="denom-coin-sub">UGX 0</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <colgroup>
+                            <col style="width:30%">
+                            <col style="width:25%">
+                            <col style="width:30%">
+                            <col style="width:15%">
+                        </colgroup>
+                        <thead class="small text-secondary">
+                            <tr>
+                                <th class="px-4 py-2">DENOMINATION</th>
+                                <th class="px-4 py-2 text-end">NO. OF BOXES</th>
+                                <th class="px-4 py-2 text-end">AMOUNT</th>
+                                <th class="text-center">ACTIONS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="denom-coins-body">
+                            <tr class="denom-empty-row">
+                                <td colspan="4" class="text-center py-3 text-muted small">No coins added</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            @* ── Totals ── *@
+            <div class="mt-5">
+                <div class="d-flex justify-content-between align-items-center px-4 py-2 border-bottom">
+                    <span class="d-flex align-items-center gap-2 small fw-semibold text-primary">
+                        <i class="ti ti-circle-letter-n-filled"></i> Total Banknotes
+                    </span>
+                    <span class="denom-amt-note fw-bold text-primary" id="denom-t-notes">UGX 0</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center px-4 py-2">
+                    <span class="d-flex align-items-center gap-2 small fw-semibold text-warning">
+                        <i class="ti ti-circle-letter-c-filled"></i> Total Coins
+                    </span>
+                    <span class="denom-amt-coin fw-bold text-warning" id="denom-t-coins">UGX 0</span>
+                </div>
+            </div>
+        </div>
+
+        @* ── Grand Total ── *@
+        <div class="denom-grand rounded px-4 py-3">
+            <div class="d-flex justify-content-between align-items-baseline mb-2">
+                <span class="text-uppercase fw-bold text-white fs-6 opacity-75"
+                      style="letter-spacing:.07em;">Grand Total</span>
+                <span class="fw-bold text-white" style="font-size:20px;" id="denom-g-val">UGX 0</span>
+            </div>
+            <div class="border-top pt-2 fs-6 fst-italic text-end text-white opacity-75"
+                 style="border-color:rgba(255,255,255,.2)!important;">
+                <span id="denom-g-words">Zero shillings only</span>
+            </div>
+        </div>
+
+    </div>
+</div>
+@* 
+<div class="card mb-4 border-top-0 border-end-0 border-bottom-0 border-4 shadow-sm" style="border-color: #b31b34">
+
+    <div class="card-body">
+        <div class="d-flex align-items-center mb-3 justify-content-between">
+            <div class="d-flex align-items-center gap-2 fw-bolder">
+                <i class="ti ti-cash"></i>
+                <span class="text-uppercase mb-0">Denomination Details</span>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1"
+                        onclick="denomAddRow('notes')">
+                    <i class="ti ti-circle-letter-n-filled"></i>Add Banknote
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-warning d-inline-flex align-items-center gap-1"
+                        onclick="denomAddRow('coins')">
+                    <i class="ti ti-circle-letter-c-filled"></i>Add Coin
+                </button>
+
+            </div>
+        </div>
+
+        <div class="denom-sec">
+            <div class="d-flex align-items-center justify-content-between px-4 py-2 bg-light">
+                <div class="d-flex align-items-center gap-2 text-uppercase fw-bold">
+                    <i class="ti ti-circle-letter-n-filled text-primary"></i>Banknotes
+                </div>
+                <span class="denom-amt-note fw-bold small text-primary" id="denom-note-sub">UGX 0</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table mb-0">
+                    <colgroup>
+                        <col style="width:30%">
+                        <col style="width:25%">
+                        <col style="width:30%">
+                        <col style="width:15%">
+                    </colgroup>
+                    <thead class="small text-muted">
+                        <tr>
+                            <th class="px-4 py-2">DENOMINATIONS</th>
+                            <th class="px-4 py-2 text-end">NO. OF BUNDLES</th>
+                            <th class="px-4 py-2 text-end">AMOUNT</th>
+                            <th class="text-center">ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="denom-notes-body">
+                        <tr class="denom-empty-row">
+                            <td colspan="4" class="text-center py-3 text-muted small">No banknotes added</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="denom-sec">
+            <div class="d-flex align-items-center justify-content-between mt-3 px-4 py-2 bg-light">
+                <div class="d-flex align-items-center gap-2 text-uppercase fw-bold">
+                    <i class="ti ti-circle-letter-c-filled text-warning"></i> Coins
+                </div>
+                <span class="denom-amt-coin fw-bold small text-warning" id="denom-coin-sub">UGX 0</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table mb-0">
+                    <colgroup>
+                        <col style="width:30%">
+                        <col style="width:25%">
+                        <col style="width:30%">
+                        <col style="width:15%">
+                    </colgroup>
+                    <thead class="small text-secondary">
+                        <tr>
+                            <th class="px-4 py-2">DENOMINATION</th>
+                            <th class="px-4 py-2 text-end">NO. OF BOXES</th>
+                            <th class="px-4 py-2 text-end">AMOUNT</th>
+                            <th class="text-center">ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="denom-coins-body">
+                        <tr class="denom-empty-row">
+                            <td colspan="4" class="text-center py-3 text-muted small">No coins added</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="mt-5">
+            <div class="d-flex justify-content-between align-items-center px-4 py-2 border-bottom">
+                <span class="d-flex align-items-center gap-2 small fw-semibold text-primary">
+                    <i class="ti ti-circle-letter-n-filled"></i> Total Banknotes
+                </span>
+                <span class="denom-amt-note fw-bold text-primary" id="denom-t-notes">UGX 0</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center px-4 py-2">
+                <span class="d-flex align-items-center gap-2 small fw-semibold text-warning">
+                    <i class="ti ti-circle-letter-c-filled"></i> Total Coins
+                </span>
+                <span class="denom-amt-coin fw-bold text-warning" id="denom-t-coins">UGX 0</span>
+            </div>
+        </div>
+        <div class="denom-grand rounded px-4 py-3">
+            <div class="d-flex justify-content-between align-items-baseline mb-2">
+                <span class="text-uppercase fw-bold text-white fs-6 opacity-75 "
+                      style="letter-spacing:.07em;">Grand Total</span>
+                <span class="fw-bold text-white" style="font-size:20px;" id="denom-g-val">UGX 0</span>
+            </div>
+            <div class="border-top pt-2 fs-6 fst-italic text-end text-white opacity-75" style="border-color:rgba(255,255,255,.2)!important;">
+                <span id="denom-g-words">Zero shillings only</span>
+            </div>
+        </div>
+
+    </div>
+</div> *@

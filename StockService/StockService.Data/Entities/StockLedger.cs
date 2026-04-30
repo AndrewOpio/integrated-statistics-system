@@ -1,4 +1,5 @@
-﻿using StockService.Data.AuditColumns;
+﻿using ConfigurationsService.Dto;
+using StockService.Data.AuditColumns;
 
 namespace StockService.Data.Entities
 {
@@ -11,8 +12,8 @@ namespace StockService.Data.Entities
         public int CounterPartyTypeId { get; set; }
         public CounterPartyType? CounterPartyType { get; set; }
         public int CounterPartyId { get; set; }
-        public int StoreId { get; set; }
-        public Branch? Store { get; set; }
+        public int StoreId { get; set; } // BranchId
+        //public BranchDto? Store { get; set; }
         public string Notes { get; set; }
         public ICollection<StockLedgerDetail> StockLedgerDetails { get; set; }
     }

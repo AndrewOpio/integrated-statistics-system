@@ -21,11 +21,9 @@ namespace VMSService.Data.Configurations
         public DbSet<ExPrintMintDetail> ExPrintMintDetails { get; set; }
         public DbSet<ApprovedCurrencyDenomination> ApprovedCurrencyDenominations { get; set; }
         //public DbSet<DenominationType> DenominationTypes { get; set; }
-        public DbSet<StatusType> StatusTypes { get; set; }
         public DbSet<ApprovedCurrencyStatusHistory> ApprovedCurrencyStatusHistory { get; set; }
         public DbSet<ExPrintMintStatusHistory> ExPrintMintStatusHistory { get; set; }
         public DbSet<ReceivedStock> ReceivedStock { get; set; }
-        public DbSet<WorkflowTransition> WorkflowTransitions { get; set; }
         public DbSet<ReceivedStockStatusHistory> ReceivedStockStatusHistory { get; set; }
         public DbSet<StockMovement> StockMovements { get; set; }
         public DbSet<StockMovementDenomination> StockMovementDenominations { get; set; }
@@ -35,8 +33,12 @@ namespace VMSService.Data.Configurations
         public DbSet<Logistics> Logistics { get; set; }
         public DbSet<LogisticsCategory> LogisticsCategories { get; set; }
         public DbSet<LogisticsDetail> LogisticsDetails { get; set; }
-        public DbSet<CommercialBankUser> CommercialBankUsers { get; set; }
         public DbSet<AgentDetail> AgentDetails { get; set; }
+        public DbSet<WithdrawalRequest> WithdrawalRequests { get; set; }
+        public DbSet<WithdrawalRequestAgent> WithdrawalRequestAgents { get; set; }
+        public DbSet<WithdrawalRequestDenomination> WithdrawalRequestDenominations { get; set; }
+        public DbSet<WithdrawalRequestStatusHistory> WithdrawalRequestStatusHistory { get; set; }
+        public DbSet<AgentDetailStatusHistory> AgentDetailStatusHistory { get; set; }
 
         public DbSet<LogisticsStatusHistory> LogisticsStatusHistory { get; set; }
         public DbSet<ReceivedStatusTypes> ReceivedStatusTypes { get; set; }
@@ -47,6 +49,11 @@ namespace VMSService.Data.Configurations
         public DbSet<ReceivedStockDetails> ReceivedStockDetails { get; set; }
         public DbSet<NewStockAccountingStatus> NewStockAccountingStatuses { get; set; }
 
+                // Deposit
+        public DbSet<DepositRequest> DepositRequests { get; set; }
+        public DbSet<DepositRequestAgent> DepositRequestAgents { get; set; }
+        public DbSet<DepositRequestDenomination> DepositRequestDenominations { get; set; }
+        public DbSet<DepositRequestStatusHistory> DepositRequestStatusHistory { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -73,17 +80,6 @@ namespace VMSService.Data.Configurations
                 .OnDelete(DeleteBehavior.NoAction);
 
             // Configure StockMovementStatusHistory foreign keys to prevent cascade delete conflicts
-            modelBuilder.Entity<StockMovementStatusHistory>()
-                .HasOne(x => x.OldStatus)
-                .WithMany()
-                .HasForeignKey(x => x.OldStatusId)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            modelBuilder.Entity<StockMovementStatusHistory>()
-                .HasOne(x => x.NewStatus)
-                .WithMany()
-                .HasForeignKey(x => x.NewStatusId)
-                .OnDelete(DeleteBehavior.NoAction);
         
             modelBuilder.Entity<StockMovementStatusHistory>()
                 .HasOne(x => x.StockMovement)
@@ -91,17 +87,48 @@ namespace VMSService.Data.Configurations
                 .HasForeignKey(x => x.StockMovementId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<LogisticsStatusHistory>()
-                .HasOne(l => l.OldStatus)
-                .WithMany()
-                .HasForeignKey(l => l.OldStatusId)
-                .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity<LogisticsStatusHistory>()
-                .HasOne(l => l.NewStatus)
-                .WithMany()
-                .HasForeignKey(l => l.NewStatusId)
-                .OnDelete(DeleteBehavior.Restrict);
+            // ── WithdrawalRequest ─────────────────────
+
+            modelBuilder.Entity<WithdrawalRequest>()
+                .HasMany(r => r.WithdrawalRequestAgents)
+                .WithOne(c => c.WithdrawalRequest)
+                .HasForeignKey(c => c.WithdrawalRequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<WithdrawalRequest>()
+                .HasMany(r => r.WithdrawalRequestStatusHistory)
+                .WithOne(s => s.WithdrawalRequest)
+                .HasForeignKey(s => s.WithdrawalRequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // ── Indexes ───────────────────────────
+            modelBuilder.Entity<WithdrawalRequest>()
+                .HasIndex(r => r.TransactionRefNumber)
+                .IsUnique()
+                .HasFilter("[TransactionRefNumber] IS NOT NULL"); 
+
+            modelBuilder.Entity<WithdrawalRequest>().HasIndex(r => r.CbId);
+            modelBuilder.Entity<WithdrawalRequest>().HasIndex(r => r.StatusTypeId);
+            modelBuilder.Entity<WithdrawalRequest>().HasIndex(r => r.CollectionDate);
+            modelBuilder.Entity<WithdrawalRequest>().HasIndex(r => new { r.CbId, r.BouBranchId, r.CollectionDate });
+
+            modelBuilder.Entity<WithdrawalRequestDenomination>().HasIndex(d => new { d.WithdrawalRequestId, d.Origin });
+
+            modelBuilder.Entity<WithdrawalRequestAgent>().HasIndex(c => new { c.WithdrawalRequestId, c.EnteredBy });
+            modelBuilder.Entity<WithdrawalRequestStatusHistory>().HasIndex(s => s.WithdrawalRequestId);
+
+            //modelBuilder.Entity<LogisticsStatusHistory>()
+            //    .HasOne(l => l.OldStatus)
+            //    .WithMany()
+            //    .HasForeignKey(l => l.OldStatusId)
+            //    .OnDelete(DeleteBehavior.Restrict);
+
+            //modelBuilder.Entity<LogisticsStatusHistory>()
+            //    .HasOne(l => l.NewStatus)
+            //    .WithMany()
+            //    .HasForeignKey(l => l.NewStatusId)
+            //    .OnDelete(DeleteBehavior.Restrict);
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

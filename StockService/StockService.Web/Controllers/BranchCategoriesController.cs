@@ -3,7 +3,6 @@ using StockService.Data.Entities;
 using StockService.Core.Repository.BranchCategories;
 using Microsoft.AspNetCore.Authorization;
 using StockService.Core.Models.BranchCategories;
-using StockService.Core.Models.Branches;
 using StockService.Core.Models.Categories;
 
 namespace StockService.Web.Controllers
@@ -23,19 +22,15 @@ namespace StockService.Web.Controllers
             {
                 Id = bc.Id,
                 IsDeleted = bc.IsDeleted,
-                Branch =  new BranchDto
-                {
-                    Id = bc.Branch.Id,
-                    Name = bc.Branch.Name,
-                    IsDeleted = bc.Branch.IsDeleted
-                },
+                BranchId = bc.BranchId,
                 Category = bc.Category == null ? null : new CategoryDto
                 {
                     Id = bc.Category.Id,
                     Name = bc.Category.Name,
                     Classification = bc.Category.Classification,
                     IsDeleted = bc.Category.IsDeleted
-                }
+                },
+                CategoryId = bc.CategoryId,
             }).ToList();
 
             return Ok(result);
@@ -53,19 +48,15 @@ namespace StockService.Web.Controllers
             {
                 Id = item.Id,
                 IsDeleted = item.IsDeleted,
-                Branch = item.Branch == null ? null : new BranchDto
-                {
-                    Id = item.Branch.Id,
-                    Name = item.Branch.Name,
-                    IsDeleted = item.Branch.IsDeleted
-                },
+                BranchId = item.BranchId,
                 Category = item.Category == null ? null : new CategoryDto
                 {
                     Id = item.Category.Id,
                     Name = item.Category.Name,
                     Classification = item.Category.Classification,
                     IsDeleted = item.Category.IsDeleted
-                }
+                },
+                CategoryId = item.CategoryId,
             };
             return Ok(result);
         }

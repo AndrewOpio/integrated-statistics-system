@@ -1,22 +1,21 @@
-using VMSService.Core.Models.WorkflowTransitions;
+using WorkflowService.Client.Dto;
 
 namespace VMSService.Core.Services.Workflows
 {
     public interface IWorkflowService
     {
         /// <summary>
-        /// Get available transitions for current user and status
-        /// </summary>
-        Task<ICollection<WorkflowTransitionViewModel>> GetAvailableTransitions(string entityType, int currentStatusId, string userRole);
-        
-        /// <summary>
         /// Execute a workflow transition
         /// </summary>
-        Task<bool> ExecuteTransition(string entityType, int entityId, int currentStatusId, string actionName, string userId, List<string> userRoles, string remarks);
+        Task<bool> ExecuteTransition(
+            string entityType, int entityId, int currentStatusId,
+            string actionName, string username, List<int> userRoles, string remarks);
 
         /// <summary>
         /// Execute a discrepancy transition with stock position update
         /// </summary>
-        Task<bool> ExecuteDiscrepancyTransition(int discrepancyId, int currentStatusId, int newStatusId, string userId, string remarks);
+        Task<bool> ExecuteDiscrepancyTransition(int discrepancyId, int currentStatusId, string currentStatusName, int newStatusId, string newStatusName, string userId, string remarks);
+        Task<bool> ExecuteTransition(string entityType, Guid entityId, int currentStatusId,string actionName, string username, List<int> userRoles, string remarks, CancellationToken ct);
+        Task<List<WorkflowTransitionDto>> GetAvailableTransitionsAsync(string entityType, int statusId, int userRole);
     }
 }

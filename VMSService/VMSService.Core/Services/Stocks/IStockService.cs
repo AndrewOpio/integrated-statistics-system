@@ -23,10 +23,10 @@ namespace VMSService.Core.Services.Stocks
         Task<bool> UpdateCounterPartyType(CounterPartyType counterPartyType);
 
         // Branch methods
-        Task<ICollection<Branch>> GetAllBranches();
-        Task<Branch> GetBranchById(int id);
-        Task<bool> CreateBranch(Branch branch);
-        Task<bool> UpdateBranch(Branch branch);
+        //Task<ICollection<Branch>> GetAllBranches();
+        //Task<Branch> GetBranchById(int id);
+        //Task<bool> CreateBranch(Branch branch);
+        //Task<bool> UpdateBranch(Branch branch);
 
         // Category methods
         Task<ICollection<Category>> GetAllCategories();
@@ -41,10 +41,10 @@ namespace VMSService.Core.Services.Stocks
         Task<bool> UpdateBranchCategory(BranchCategory branchCategory);
 
         // CommercialBank methods
-        Task<ICollection<CommercialBank>> GetAllCommercialBanks();
-        Task<CommercialBank> GetCommercialBankById(int id);
-        Task<bool> CreateCommercialBank(CommercialBank commercialBank);
-        Task<bool> UpdateCommercialBank(CommercialBank commercialBank);
+        //Task<ICollection<CommercialBank>> GetAllCommercialBanks();
+        //Task<CommercialBank> GetCommercialBankById(int id);
+        //Task<bool> CreateCommercialBank(CommercialBank commercialBank);
+        //Task<bool> UpdateCommercialBank(CommercialBank commercialBank);
 
         // StockLedger methods
         Task<ICollection<StockLedger>> GetAllStockLedgers();

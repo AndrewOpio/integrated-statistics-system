@@ -16,7 +16,7 @@
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-dark bg-dark border-bottom box-shadow mb-3">
             <div class="container-fluid">
                 <img class="img-fluid me-2" src="/img/bou.png" alt="" width="30" height="30">
                 <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">Aswam Configurations</a>
@@ -27,10 +27,19 @@
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Branches" asp-action="Index">Branches</a>
+                            <a class="nav-link" asp-area="" asp-controller="Branches" asp-action="Index">BOU Branches</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="Districts" asp-action="Index">Districts</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="CommercialBanks" asp-action="Index">Commercial Banks</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="CommercialBankBranches" asp-action="Index">Commercial Bank Branches</a>
                         </li>
                     </ul>
                     <ul class="navbar-nav">
@@ -51,17 +60,17 @@
             </div>
         </nav>
     </header>
-    <div class="container">
+    @* <div class="container">
         <main role="main" class="pb-3">
             @RenderBody()
         </main>
-    </div>
+    </div> *@
 
-    <footer class="border-top footer text-muted">
+    @* <footer class="border-top footer text-muted">
         <div class="container">
             &copy; 2026 - ConfigurationsService.Web - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
         </div>
-    </footer>
+    </footer> *@
     <main role="main" class="pb-3">
         @if (TempData["Success"] != null)
         {

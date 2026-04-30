@@ -1,4 +1,4 @@
-@model ConfigurationsService.Core.Models.Branches.BranchDto
+@model ConfigurationsService.Core.Models.Branches.BranchViewModel
 
 @{
     ViewData["Title"] = "Edit Branch";
@@ -32,6 +32,11 @@
                         <input type="text" asp-for="Name" class="form-control" placeholder="Branch Name" required>
                         <label asp-for="Name">Branch Name</label>
                         <span asp-validation-for="Name" class="text-danger small d-block mt-1"></span>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="text" asp-for="BranchCode" class="form-control" placeholder="Branch Code" required>
+                        <label asp-for="BranchCode">Branch Code</label>
+                        <span asp-validation-for="BranchCode" class="text-danger small d-block mt-1"></span>
                     </div>
                 </div>
 

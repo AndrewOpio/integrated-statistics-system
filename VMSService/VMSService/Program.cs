@@ -1,54 +1,65 @@
-using Microsoft.AspNetCore.Authentication.Cookies;
+﻿using ConfigurationsService.Client;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
+using NotificationService.Client;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using SmartBreadcrumbs.Extensions;
 using System.Reflection;
 using System.Text;
+using VMSService.Core.Authorization;
 using VMSService.Core.Mappings;
 using VMSService.Core.Models.Authentication;
+using VMSService.Core.Repositories.AgentDetails;
+using VMSService.Core.Repositories.AgentDetailStatusHistories;
 using VMSService.Core.Repositories.ApprovedCurrencyDenominations;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
 using VMSService.Core.Repositories.BranchCategories;
 using VMSService.Core.Repositories.Branches;
 using VMSService.Core.Repositories.Categories;
+using VMSService.Core.Repositories.CommercialBankBranches;
 using VMSService.Core.Repositories.CommercialBanks;
 using VMSService.Core.Repositories.CommercialBankUsers;
 using VMSService.Core.Repositories.CounterPartyTypes;
 using VMSService.Core.Repositories.CurrencyVendors;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.DenominationTypes;
+using VMSService.Core.Repositories.DepositUnitOfWorks;
 using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.ExPrintMintDetails;
 using VMSService.Core.Repositories.ReceivedStocks;
 using VMSService.Core.Repositories.ReceivedStocksDetails;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
-using VMSService.Core.Repositories.StatusTypes;
+using VMSService.Core.Repositories.StockMovementDiscrepancies;
 using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.StockMovementStatusHistories;
-using VMSService.Core.Repositories.StockMovementDiscrepancies;
 using VMSService.Core.Repositories.Logistics;
 using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Repositories.VendorTypes;
-using VMSService.Core.Repositories.WorkflowTransitions;
-using VMSService.Core.Services.Stocks;
+using VMSService.Core.Repositories.WithdrawalRequestAgents;
+using VMSService.Core.Repositories.WithdrawalRequestDenominations;
+using VMSService.Core.Repositories.WithdrawalRequests;
+using VMSService.Core.Repositories.WithdrawalRequestStatusHistories;
+using VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators;
+using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
+using VMSService.Core.Services.Configurations;
 using VMSService.Core.Services.Identity;
 using VMSService.Core.Services.StockPositions;
+using VMSService.Core.Services.Stocks;
+using VMSService.Core.Services.Workflows;
 using VMSService.Data;
-using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.PackingListRangeDetails;
 using VMSService.Core.Repositories.PackingListRanges;
 using VMSService.Core.Repositories.NewStockMovementLogs;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Services.PackingListRangeDetails;
+using WorkflowService.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -117,6 +128,17 @@ var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["SecretKey"];
 var authenticationSettings = builder.Configuration.GetSection("Authentication").Get<AuthenticationSettings>();
 
+
+
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(RolePolicy.CbOnly, policy =>
+        policy.RequireAuthenticatedUser()
+              .RequireRole(RolePolicy.CbMaker, RolePolicy.CbApprover))
+    .AddPolicy(RolePolicy.BouOnly, policy =>
+        policy.RequireAuthenticatedUser()
+              .RequireRole(RolePolicy.BouChecker, RolePolicy.PanelA, RolePolicy.PanelB));
+
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -174,7 +196,6 @@ var configuration = new ConfigurationBuilder()
 
 // Register Repositories
 builder.Services.AddScoped<IVendorTypeRepository, VendorTypeRepository>();
-builder.Services.AddScoped<IStatusTypeRepository, StatusTypeRepository>();
 builder.Services.AddScoped<IExPrintMintStatusHistoryRepository, ExPrintMintStatusHistoryRepository>();
 builder.Services.AddScoped<IApprovedCurrencyStatusHistoryRepository, ApprovedCurrencyStatusHistoryRepository>();
 builder.Services.AddScoped<IDenominationRepository, DenominationRepository>();
@@ -186,9 +207,8 @@ builder.Services.AddScoped<IApprovedCurrencyDenominationRepository, ApprovedCurr
 builder.Services.AddScoped<ICurrencyVendorRepository, CurrencyVendorRepository>();
 builder.Services.AddScoped<IReceivedStockRepository, ReceivedStockRepository>();
 builder.Services.AddScoped<IReceivedStockDetailsRepository, ReceivedStockDetailsRepository>();
-builder.Services.AddScoped<IWorkflowTransitionRepository, WorkflowTransitionRepository>();
-builder.Services.AddScoped<IWorkflowService, WorkflowService>();
 builder.Services.AddScoped<IPackingListDetailService, PackingListDetailService>();
+builder.Services.AddScoped<IWorkflowService, WorkflowServices>();
 builder.Services.AddScoped<IReceivedStockStatusHistoryRepository, ReceivedStockStatusHistoryRepository>();
 builder.Services.AddScoped<IStockMovementStatusHistoryRepository, StockMovementStatusHistoryRepository>();
 builder.Services.AddScoped<IStockLedgerRepository, StockLedgerRepository>();
@@ -199,19 +219,34 @@ builder.Services.AddScoped<ICommercialBankRepository, CommercialBankRepository>(
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IBranchCategoryRepository, BranchCategoryRepository>();
 builder.Services.AddScoped<IBranchRepository, BranchRepository>();
+builder.Services.AddScoped<ICommercialBankBranchRepository, CommercialBankBranchRepository>();
 builder.Services.AddScoped<ICounterPartyTypeRepository, CounterPartyTypeRepository>();
 builder.Services.AddScoped<ICommercialBankUserRepository, CommercialBankUserRepository>();
 builder.Services.AddScoped<IAgentDetailRepository, AgentDetailRepository>();
 builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
 builder.Services.AddScoped<IStockMovementDiscrepancyRepository, StockMovementDiscrepancyRepository>();
+builder.Services.AddScoped<IWithdrawalRequestRepository, WithdrawalRequestRepository>();
+builder.Services.AddScoped<IWithdrawalRequestAgentRepository, WithdrawalRequestAgentRepository>();
+builder.Services.AddScoped<IWithdrawalRequestDenominationRepository, WithdrawalRequestDenominationRepository>();
+builder.Services.AddScoped<IWithdrawalRequestStatusHistoryRepository, WithdrawalRequestStatusHistoryRepository>();
+builder.Services.AddScoped<IWithdrawalTransactionRefNumberGenerator, WithdrawalTransactionRefNumberGenerator>();
+builder.Services.AddScoped<IWithdrawalUnitOfWork, WithdrawalUnitOfWork>();
+builder.Services.AddScoped<IAgentDetailStatusHistoryRepository, AgentDetailStatusHistoryRepository>();
+builder.Services.AddScoped<IDepositUnitOfWork, DepositUnitOfWork>();
+builder.Services.AddScoped<IDepositTransactionRefNumberGenerator, DepositTransactionRefNumberGenerator>();
+builder.Services.AddScoped<IDepositRequestRepository, DepositRequestRepository>();
+builder.Services.AddScoped<IDepositRequestStatusHistoryRepository, DepositRequestStatusHistoryRepository>();
+
+// ── Resource-based ownership check ────────────────────────────
+builder.Services.AddSingleton<IAuthorizationHandler, CbOwnershipAuthorizationHandler>();
 builder.Services.AddScoped<ILogisticsRepository, LogisticsRepository>();
 builder.Services.AddScoped<ILogisticsStatusHistoryRepository, LogisticsStatusHistoryRepository>();
 builder.Services.AddScoped<INewStockMovementLogRepository, NewStockMovementLogRepository>();
 
 // Add this in your service registration section
-builder.Services.AddScoped<IStockService, StockService>();
+builder.Services.AddScoped<IStockService, VMSService.Core.Services.Stocks.StockService>();
 builder.Services.AddScoped<IStockPositionService, StockPositionService>();
-builder.Services.AddHttpClient<StockService>()
+builder.Services.AddHttpClient<VMSService.Core.Services.Stocks.StockService>()
     .ConfigureHttpClient((sp, client) =>
     {
         var configuration = sp.GetRequiredService<IConfiguration>();
@@ -230,6 +265,32 @@ builder.Services.AddHttpClient<IdentityService>()
         client.BaseAddress = new Uri(baseUrl);
         client.DefaultRequestHeaders.Add("Accept", "application/json");
     });
+
+// Register Configurations Service
+builder.Services.AddScoped<IConfigurationService, ConfigurationService>();
+
+builder.Services.AddHttpClient<ConfigurationService>()
+    .ConfigureHttpClient((sp, client) =>
+    {
+        var configuration = sp.GetRequiredService<IConfiguration>();
+        var baseUrl = configuration["MicroServices:configurationsservice"] ?? "https://localhost:7026";
+        client.BaseAddress = new Uri(baseUrl);
+        client.DefaultRequestHeaders.Add("Accept", "application/json");
+    });
+
+// Register Workflow Service
+var workflowServiceBaseUrl = builder.Configuration["MicroServices:workflowservice"] ?? "https://localhost:7288";
+builder.Services.AddWorkflowServiceClient(workflowServiceBaseUrl);
+
+// Register ConfigurationsServiceClient Service
+builder.Services.AddConfigurationsServiceClient(builder.Configuration["MicroServices:configurationsservice"] ?? "https://localhost:7026");
+
+// Register Notification Service
+builder.Services.AddNotificationServiceClient(builder.Configuration["MicroServices:notificationservice"] ?? "https://localhost:7026");
+var rabbitMqHost = builder.Configuration["RabbitMQ:Host"] ?? "localhost";
+var rabbitMqUsername = builder.Configuration["RabbitMQ:Username"] ?? "guest";
+var rabbitMqPassword = builder.Configuration["RabbitMQ:Password"] ?? "guest";
+builder.Services.AddNotificationEventPublisher(rabbitMqHost, rabbitMqUsername, rabbitMqPassword);
 
 // Configure LDAP settings
 builder.Services.Configure<StockAPISettings>(

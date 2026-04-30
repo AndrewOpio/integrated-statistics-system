@@ -9,10 +9,8 @@ public class ApplicationDbContext : DbContext
         : base(options)
     {
     }
-    public DbSet<Branch> Branches { get; set; }
     public DbSet<BranchCategory> BranchCategories { get; set; }
     public DbSet<Category> Categories { get; set; }
-    public DbSet<CommercialBank> CommercialBanks { get; set; }
     public DbSet<CounterPartyType> CounterPartyTypes { get; set; }
     public DbSet<Denomination> Denominations { get; set; }
     public DbSet<DenominationType> DenominationTypes { get; set; }

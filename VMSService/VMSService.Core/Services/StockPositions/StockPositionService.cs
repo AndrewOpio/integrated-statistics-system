@@ -411,7 +411,7 @@ namespace VMSService.Core.Services.StockPositions
                 // Now get all branch categories and find the one with matching branch and category
                 var branchCategories = await _stockService.GetAllBranchCategories();
                 var inTransitBranchCategory = branchCategories.FirstOrDefault(bc =>
-                    bc.Branch?.Id == branchId &&
+                    bc.BranchId == branchId &&
                     bc.Category?.Id == inTransitCategory.Id);
 
                 if (inTransitBranchCategory != null)

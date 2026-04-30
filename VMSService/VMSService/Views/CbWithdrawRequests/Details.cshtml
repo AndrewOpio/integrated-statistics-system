@@ -1,0 +1,655 @@
+﻿@using System.Security.Claims
+@using static VMSService.Core.Static.WithdrawStatuses
+@model VMSService.Core.Models.CbWithdrawRequest.WithdrawalRequestDetailsViewModel
+@{
+    Layout = "_CbLayout";
+    ViewData["Title"] = "Withdrawal Request Details";
+}
+
+@await Html.PartialAsync("~/Views/Shared/_Withdrawal/_WithdrawNavSteps.cshtml", Model.Steps)
+
+
+@* ── Header ── *@
+<div class="card border-0 shadow mb-3">
+    <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between gap-3 mb-1">
+            <div class="d-flex align-items-center gap-2">
+                <div class="rounded-2 bg-danger bg-opacity-10 d-flex align-items-center justify-content-center flex-shrink-0"
+                     style="width:46px;height:46px">
+                    <i class="ti ti-circle-arrow-up-right-filled text-danger fs-4"></i>
+                </div>
+                <h5 class="fw-bold mb-0 text-danger">
+                    @(string.IsNullOrEmpty(Model.TransactionRefNumber) ? "Not Generated" : Model.TransactionRefNumber)
+                </h5>
+                <span class="badge bg-info more-rounded px-3 py-2">
+                    @Model.CurrentStatusName
+                </span>
+                @if (Model.RequiresSpecialApproval)
+                {
+                    <span class="badge bg-danger-lt text-danger more-rounded border border-danger px-3 py-2">
+                        <i class="ti ti-star me-1"></i>Special Approval Required
+                    </span>
+                }
+            </div>
+            <div class="d-flex gap-2">
+                @if (Model.CanEdit)
+                {
+                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-sm btn-primary">
+                        <i class="ti ti-edit me-1"></i> Edit Request
+                    </a>
+                    <button type="button"
+                            class="btn btn-sm btn-outline-danger"
+                            data-bs-toggle="modal"
+                            data-bs-target="#deleteModal">
+                        <i class="ti ti-trash me-1"></i> Delete
+                    </button>
+                }
+                <button onclick="window.print()" class="btn btn-sm btn-outline-secondary">
+                    <i class="ti ti-printer me-1"></i> Print
+                </button>
+            </div>
+        </div>
+        <p class="text-muted small mb-0 ps-1">
+            Withdrawal Request &middot; @Model.CbName
+        </p>
+    </div>
+</div>
+
+@* ── Two Column Layout ── *@
+<div class="row g-3">
+
+    @* ── Left Column ── *@
+    <div class="col-md-8">
+
+        @* Special Approval Reason *@
+        @if (Model.RequiresSpecialApproval && !string.IsNullOrEmpty(Model.SpecialApprovalReason))
+        {
+            <div class="alert alert-warning d-flex align-items-start gap-3 mb-3">
+                <i class="ti ti-alert-triangle fs-4 text-warning flex-shrink-0 mt-1"></i>
+                <div>
+                    <p class="fw-bold mb-1">Special Approval Required</p>
+                    <p class="mb-0 text-muted" style="font-size:9px;">REASON PROVIDED</p>
+                    <p class="mb-0 fw-semibold">@Model.SpecialApprovalReason</p>
+                </div>
+            </div>
+        }
+
+        @* ── Sender & Receiver ── *@
+
+        <div class="card mb-3 border-top-0 border-end-0 border-bottom-0 border-4 border-warning shadow-sm">
+
+            <div class="card-body">
+                <p class="text-uppercase text-muted small fw-semibold mb-3">
+                    <i class="ti ti-replace text-muted"></i>
+                    Sender & Receiver Details
+                </p>
+                <hr />
+                <div class="row g-3 align-items-center">
+                    <div class="col">
+                        <div class="rounded-3 p-3 bg-warning bg-opacity-10 border">
+                            <p class="text-muted mb-1" style="font-size:9px;">FROM</p>
+                            <p class="fw-bold mb-1">@Model.CbName</p>
+                            <span class="badge bg-warning text-white">Sender</span>
+                        </div>
+                    </div>
+                    <div class="col-auto text-muted">
+                        <i class="ti ti-arrow-right fs-4"></i>
+                    </div>
+                    <div class="col">
+                        <div class="rounded-3 p-3 bg-success bg-opacity-10 border">
+                            <p class="text-muted mb-1" style="font-size:9px;">TO</p>
+                            <p class="fw-bold mb-1">
+                                @Model.BouBranchName
+                                <span class="text-muted fw-normal small mb-0 mt-1">- @Model.BouBranchCode</span>
+                            </p>
+                            <span class="badge bg-success text-white">Receiver</span>
+                        </div>
+                    </div>
+                </div>
+
+                @* Collection Details *@
+                <div class="row g-3 mt-2 pt-2 border-top">
+                    <div class="col-md-4">
+                        <p class="text-muted mb-0" style="font-size:9px;">COLLECTION DATE</p>
+                        <p class="fw-semibold small mb-0">
+                            @Model.CollectionDate.ToString("dd MMM yyyy")
+                        </p>
+                    </div>
+                    <div class="col-md-4">
+                        <p class="text-muted mb-0" style="font-size:9px;">RTGS DATE</p>
+                        <p class="fw-semibold small mb-0">
+                            @(Model.RtgsDate.HasValue? Model.RtgsDate.Value.ToString("dd MMM yyyy") : "—")
+                        </p>
+                    </div>
+                    <div class="col-md-4">
+                        <p class="text-muted mb-0" style="font-size:9px;">RTGS CODE</p>
+                        <p class="fw-semibold small mb-0">
+                            @(string.IsNullOrEmpty(Model.RtgsCode) ? "—" : Model.RtgsCode)
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* ── Agents ── *@
+        <div class="card mb-3 border-top-0 border-end-0 border-bottom-0 border-4 shadow-sm" style="border-color: #D4500A">
+            <div class="card-body">
+                <p class="text-uppercase text-muted small fw-semibold mb-3">
+                    <i class="ti ti-friends text-muted"></i>
+                    Agent Details
+                </p>
+                <hr />
+                <div class="row g-4">
+                    @foreach (var (agent, index) in Model.WithdrawAgents.Select((a, i) => (a, i + 1)))
+                    {
+                        <div class="col-md-6">
+                            <div class="border rounded-3 p-3">
+                                <div class="d-flex align-items-center gap-2 mb-3">
+                                    <span class="rounded-circle bg-secondary text-white d-inline-flex align-items-center justify-content-center fw-bold"
+                                          style="width:24px;height:24px;font-size:11px;">@index</span>
+                                    <span class="text-uppercase text-muted small fw-semibold">Collector @index</span>
+                                </div>
+
+                                @* Photo + Details *@
+                                <div class="d-flex gap-3 mb-3">
+                                    <div class="flex-shrink-0">
+                                        @if (!string.IsNullOrEmpty(agent.PassportPhoto))
+                                        {
+                                            <img src="@agent.PassportPhoto" alt="Photo"
+                                                 class="rounded-2 border"
+                                                 style="width:80px;height:100px;object-fit:cover;" />
+                                        }
+                                        else
+                                        {
+                                            <div class="border rounded-2 bg-light d-flex align-items-center justify-content-center"
+                                                 style="width:80px;height:100px;">
+                                                <i class="ti ti-user text-muted fs-2"></i>
+                                            </div>
+                                        }
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <p class="fw-bold mb-2">@agent.AgentNames</p>
+                                        <div class="mb-1">
+                                            <p class="text-muted mb-0" style="font-size:9px;">SECURITY NO.</p>
+                                            <p class="fw-semibold small mb-0">@agent.NIN</p>
+                                        </div>
+                                        <div class="mb-1">
+                                            <p class="text-muted mb-0" style="font-size:9px;">WORK ID</p>
+                                            <p class="fw-semibold small mb-0">@agent.WorkIdScan</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-muted mb-0" style="font-size:9px;">PHONE</p>
+                                            <p class="fw-semibold small mb-0 text-primary">@agent.PhoneNumber</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                @* Work ID Scan *@
+                                <div class="mb-2">
+                                    <p class="text-muted mb-1" style="font-size:9px;">WORK ID SCAN</p>
+                                    @if (!string.IsNullOrEmpty(agent.WorkIdScan))
+                                    {
+                                        <img src="@agent.WorkIdScan" alt="Work ID"
+                                             class="rounded-2 border w-100"
+                                             style="max-height:120px;object-fit:contain;" />
+                                    }
+                                    else
+                                    {
+                                        <div class="border rounded-2 bg-light d-flex align-items-center justify-content-center"
+                                             style="height:70px;">
+                                            <span class="text-muted small">No scan uploaded</span>
+                                        </div>
+                                    }
+                                </div>
+
+                                @* Signature *@
+                                <div>
+                                    <p class="text-muted mb-1" style="font-size:9px;">SIGNATURE</p>
+                                    @if (!string.IsNullOrEmpty(agent.SignatureScan))
+                                    {
+                                        <img src="@agent.SignatureScan" alt="Signature"
+                                             class="rounded-2 border w-100"
+                                             style="max-height:56px;object-fit:contain;" />
+                                    }
+                                    else
+                                    {
+                                        <div class="border rounded-2 bg-light d-flex align-items-center justify-content-center"
+                                             style="height:56px;">
+                                            <span class="text-muted small">No signature uploaded</span>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @* ── Denominations ── *@
+        <div class="card mb-3 border-top-0 border-end-0 border-bottom-0 border-4 shadow-sm" style="border-color: #b31b34">
+            <div class="card-body d-flex flex-column gap-3">
+
+                <div>
+                    <p class="text-uppercase text-muted small fw-semibold mb-3">
+                        <i class="ti ti-cash text-muted"></i>
+                        Denomination Details
+                    </p>
+                    <hr />
+                </div>
+
+                @if (Model.IsLumpSum)
+                {
+                    @* ── Lump Sum Display ── *@
+                    <div class="overflow-hidden">
+                        <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
+                            <div class="d-flex align-items-center gap-2 text-uppercase fw-bold small">
+                                <span class="rounded-circle d-inline-flex align-items-center justify-content-center fw-bold"
+                                      style="width:18px;height:18px;font-size:9px;background:#fff3e0;color:#e65100;">L</span>
+                                Lump Sum Amount
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center px-3 py-3">
+                            <span class="fs-6 text-muted">Total Amount (UGX)</span>
+                            <span class="fw-bold fs-6">UGX @Model.TotalAmount.ToString("N0")</span>
+                        </div>
+                    </div>
+                    @* <div class="border rounded-3 overflow-hidden">
+                        <div class="d-flex align-items-center gap-2 px-3 py-2 border-bottom">
+                            <i class="ti ti-sum text-muted"></i>
+                            <span class="text-uppercase fw-bold small">Lump Sum Amount</span>
+                        </div>
+                    </div> *@
+                }
+                else
+                {
+                    @* ── Banknotes ── *@
+                    @if (Model.Notes.Any())
+                    {
+                        <div class="border rounded-3 overflow-hidden">
+                            <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
+                                <div class="d-flex align-items-center gap-2 text-uppercase fw-bold small">
+                                    <span class="rounded-circle d-inline-flex align-items-center justify-content-center fw-bold"
+                                          style="width:18px;height:18px;font-size:9px;background:#fff3e0;color:#e65100;">N</span>
+                                    Banknotes
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table align-middle mb-0">
+                                    <thead>
+                                        <tr style="background:#fafafa;">
+                                            <th class="ps-3 text-muted fw-semibold" style="font-size:10px;letter-spacing:.05em;">DENOMINATION</th>
+                                            <th class="text-end text-muted fw-semibold" style="font-size:10px;letter-spacing:.05em;">BUNDLES</th>
+                                            <th class="text-end pe-3 text-muted fw-semibold" style="font-size:10px;letter-spacing:.05em;">AMOUNT</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="small">
+                                        @foreach (var note in Model.Notes)
+                                        {
+                                            <tr class="border-bottom">
+                                                <td class="ps-3">@note.DenominationLabel</td>
+                                                <td class="text-end">@note.Bundles?.ToString("N0")</td>
+                                                <td class="text-end pe-3 text-primary">UGX @note.Amount.ToString("N0")</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="fw-bold small">
+                                            <th class="ps-3 text-uppercase" colspan="2">Total Banknotes</th>
+                                            <th class="text-end pe-3 text-primary">UGX @Model.TotalNotesAmount.ToString("N0")</th>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    }
+
+                    @* ── Coins ── *@
+                    @if (Model.Coins.Any())
+                    {
+                        <div class="border rounded-3 overflow-hidden">
+                            <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
+                                <div class="d-flex align-items-center gap-2 text-uppercase fw-bold small">
+                                    <span class="rounded-circle d-inline-flex align-items-center justify-content-center fw-bold"
+                                          style="width:18px;height:18px;font-size:9px;background:#faeeda;color:#BA7517;">C</span>
+                                    Coins
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table align-middle mb-0">
+                                    <thead>
+                                        <tr style="background:#fafafa;">
+                                            <th class="ps-3 text-muted fw-semibold" style="font-size:10px;letter-spacing:.05em;">DENOMINATION</th>
+                                            <th class="text-end text-muted fw-semibold" style="font-size:10px;letter-spacing:.05em;">BOXES</th>
+                                            <th class="text-end pe-3 text-muted fw-semibold" style="font-size:10px;letter-spacing:.05em;">AMOUNT</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="small">
+                                        @foreach (var coin in Model.Coins)
+                                        {
+                                            <tr class="border-bottom">
+                                                <td class="ps-3">@coin.DenominationLabel</td>
+                                                <td class="text-end">@coin.Boxes?.ToString("N0")</td>
+                                                <td class="text-end pe-3 text-warning">UGX @coin.Amount.ToString("N0")</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="fw-bold small">
+                                            <th class="ps-3 text-uppercase" colspan="2">Total Coins</th>
+                                            <th class="text-end pe-3 text-warning">UGX @Model.TotalCoinsAmount.ToString("N0")</th>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    }
+
+                    @* ── Notes + Coins subtotals (only shown when both exist) ── *@
+                    @if (Model.Notes.Any() && Model.Coins.Any())
+                    {
+                        <div class="border rounded-3 overflow-hidden">
+                            <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                                <div class="d-flex align-items-center gap-2 small fw-semibold text-secondary">
+                                    <span class="rounded-circle d-inline-flex align-items-center justify-content-center fw-bold"
+                                          style="width:18px;height:18px;font-size:9px;background:#fff3e0;color:#e65100;">N</span>
+                                    Total Banknotes
+                                </div>
+                                <span class="fw-bold text-primary">UGX @Model.TotalNotesAmount.ToString("N0")</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center px-3 py-2">
+                                <div class="d-flex align-items-center gap-2 small fw-semibold text-secondary">
+                                    <span class="rounded-circle d-inline-flex align-items-center justify-content-center fw-bold"
+                                          style="width:18px;height:18px;font-size:9px;background:#faeeda;color:#BA7517;">C</span>
+                                    Total Coins
+                                </div>
+                                <span class="fw-bold text-warning">UGX @Model.TotalCoinsAmount.ToString("N0")</span>
+                            </div>
+                        </div>
+                    }
+                }
+
+                @* ── Grand Total — always shown ── *@
+                <div class="denom-grand rounded px-4 py-3">
+                    <div class="d-flex justify-content-between align-items-baseline mb-2">
+                        <span class="text-uppercase fw-bold text-white fs-6 opacity-75"
+                              style="letter-spacing:.07em;">Grand Total</span>
+                        <span class="fw-bold text-white" style="font-size:18px;">UGX @Model.TotalAmount.ToString("N0")</span>
+                    </div>
+                    <div class="border-top pt-2 fs-6 fst-italic text-end text-white opacity-75"
+                         style="border-color:rgba(255,255,255,.2)!important;">
+                        <span id="denom-g-words"></span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        @* ── Delete Confirmation Modal ── *@
+        <div class="modal fade" id="deleteModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header border-bottom">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="rounded-2 bg-danger bg-opacity-10 d-flex align-items-center justify-content-center"
+                                 style="width:36px;height:36px;">
+                                <i class="ti ti-trash text-danger fs-5"></i>
+                            </div>
+                            <div>
+                                <h5 class="modal-title mb-0 fw-bold">Delete Request</h5>
+                                <p class="text-muted small mb-0">This action cannot be undone</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-danger d-flex gap-2 py-2 mb-0">
+                            <i class="ti ti-info-circle flex-shrink-0 mt-1"></i>
+                            <small>
+                                Are you sure you want to delete this withdrawal request?
+                                It will be permanently removed from the system.
+                            </small>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top">
+                        <button type="button"
+                                class="btn btn-outline-secondary"
+                                data-bs-dismiss="modal">
+                            <i class="ti ti-x me-1"></i> Cancel
+                        </button>
+                        <form method="post"
+                              asp-action="Delete"
+                              asp-route-id="@Model.Id">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-danger">
+                                <i class="ti ti-trash me-1"></i> Yes, Delete
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @* ── Bottom Actions ── *@
+        <div class="d-flex justify-content-between mb-5">
+            <a asp-action="Index" asp-controller="CbRequests" class="btn btn-outline-secondary">
+                <i class="ti ti-arrow-left me-1"></i> Back to List
+            </a>
+            @if (Model.CanEdit)
+            {
+                <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">
+                    <i class="ti ti-edit me-1"></i> Edit Request
+                </a>
+            }
+        </div>
+
+    </div>
+
+    @* ── Right Column — Sticky Action Panel ── *@
+    <div class="col-md-4">
+        <div class="sticky-top" style="top:80px;">
+
+            @* Summary Card *@
+            <div class="card mb-3 border-danger">
+                <div class="card-header text-white d-flex align-items-center gap-2"
+                     style="background:#b71c1c;">
+                    <i class="ti ti-circle-arrow-up-right-filled fs-4"></i>
+                    <div>
+                        <p class="fw-bold small mb-0 text-uppercase">
+                            @(Model.AvailableTransitions.Any() ? "Action Required" : "Withdrawal Request Summary")
+                        </p>
+                        <p class="mb-0 text-white-50" style="font-size:11px;">
+                            @(Model.AvailableTransitions.Any() ? "Review the request and take action" : "Overview of Withdrawal request")
+                        </p>
+                    </div>
+                </div>
+                <div class="card-body">
+
+                    @* Summary rows *@
+                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                        <span class="text-muted small">Request ID</span>
+                        <span class="fw-semibold small">
+                            @(string.IsNullOrEmpty(Model.TransactionRefNumber) ? "Not Generated" : Model.TransactionRefNumber)
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                        <span class="text-muted small">Amount</span>
+                        <span class="fw-bold text-danger">UGX @Model.TotalAmount.ToString("N0")</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                        <span class="text-muted small">From</span>
+                        <span class="fw-semibold small">@Model.CbName</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                        <span class="text-muted small">To</span>
+                        <span class="fw-semibold small">@Model.BouBranchName</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                        <span class="text-muted small">Collection</span>
+                        <span class="fw-semibold small">@Model.CollectionDate.ToString("dd MMM yyyy")</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center py-2">
+                        <span class="text-muted small">Status</span>
+                        <span class="badge bg-info p-2 more-rounded">@Model.CurrentStatusName</span>
+                    </div>
+
+                    @* Workflow Actions *@
+                    @* @if (Model.AvailableTransitions.Any())
+                    {
+                        @if (string.IsNullOrEmpty(Model.RtgsCode) || !Model.RtgsDate.HasValue)
+                        {
+                            <div class="border-top pt-3">
+                                <div class="alert alert-warning py-2 mb-0">
+                                    <i class="ti ti-alert-triangle me-1"></i>
+                                    <span class="small">Please provide the RTGS code and date before proceeding.</span>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="border-top mt-2 pt-3">
+                                <form method="post"
+                                      asp-action="ExecuteAction"
+                                      asp-route-id="@Model.Id"
+                                      id="workflowForm">
+                                    @Html.AntiForgeryToken()
+                                    <div class="mb-3">
+                                        <label class="form-label small text-uppercase text-muted fw-semibold">
+                                            Comment <span id="commentRequired" class="text-danger" style="display:none;">*</span>
+                                        </label>
+                                        <textarea id="remarksTextarea"
+                                          class="form-control form-control-sm"
+                                          name="remarks"
+                                          rows="5"
+                                          style="min-height: 150px;"
+                                          placeholder="Add a comment ... "></textarea>
+                                        <small id="commentHint" class="text-muted d-block mt-1"></small>
+                                    </div>
+                                    <input type="hidden" id="selectedAction" name="actionName" value="" />
+                                    <div class="d-grid gap-2">
+                                        @foreach (var transition in Model.AvailableTransitions)
+                                        {
+                                            <button type="submit"
+                                                    class="btn @transition.ButtonClass text-white"
+                                                    onclick="onTransitionClick(this, '@transition.ActionName', @transition.RequiresComments.ToString().ToLower())">
+                                                <i class="ti ti-check me-1"></i>@transition.DisplayLabel
+                                            </button>
+                                        }
+                                    </div>
+                                </form>
+                            </div>
+                        }
+                    } *@
+                    @if (Model.AvailableTransitions.Any())
+                    {
+                        @if (string.IsNullOrEmpty(Model.RtgsCode) || !Model.RtgsDate.HasValue)
+                        {
+                            <div class="border-top pt-3">
+                                <div class="alert alert-warning py-2 mb-0">
+                                    <i class="ti ti-alert-triangle me-1"></i>
+                                    <span class="small">Please provide the RTGS code and date before proceeding.</span>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="border-top mt-2 pt-3">
+                                <form method="post"
+                                      asp-action="ExecuteAction"
+                                      asp-route-id="@Model.Id"
+                                      id="workflowForm">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" id="selectedAction" name="actionName" value="" />
+
+                                    <div class="mb-3">
+                                        <label class="form-label small text-uppercase text-muted fw-semibold">
+                                            Comment <span id="commentRequired" class="text-danger" style="display:none;">*</span>
+                                        </label>
+                                        <textarea id="remarksTextarea"
+                                          class="form-control form-control-sm"
+                                          name="remarks"
+                                          rows="5"
+                                          style="min-height: 150px;"
+                                          placeholder="Add a comment ..."></textarea>
+                                        <small id="commentHint" class="text-muted d-block mt-1"></small>
+                                    </div>
+
+                                    @if (Model.AvailableTransitions.Count == 1)
+                                    {
+                                        @* ── Single transition — show button directly ── *@
+                                        var t = Model.AvailableTransitions.First();
+                                        <div class="d-grid gap-2">
+                                            <button type="submit"
+                                                    class="btn @t.ButtonClass text-white"
+                                                    onclick="onTransitionClick(this, '@t.ActionName', @t.RequiresComments.ToString().ToLower())">
+                                                <i class="ti ti-check me-1"></i>
+                                                @t.DisplayLabel
+                                            </button>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        @* ── Multiple transitions — dropdown + confirm ── *@
+                                        <div class="mb-3">
+                                            <label class="form-label small text-uppercase text-muted fw-semibold">
+                                                Select Action <span class="text-danger">*</span>
+                                            </label>
+                                            <select id="transitionSelect" class="form-select form-select-sm">
+                                                <option value="">— Choose an action —</option>
+                                                @foreach (var transition in Model.AvailableTransitions)
+                                                {
+                                                    <option value="@transition.ActionName"
+                                                            data-requires-comments="@transition.RequiresComments.ToString().ToLower()">
+                                                        @transition.DisplayLabel
+                                                    </option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="d-grid">
+                                            <button type="submit"
+                                                    class="btn btn-primary"
+                                                    onclick="var sel = document.getElementById('transitionSelect');
+                                                                 onTransitionClick(this, sel.value, sel.selectedOptions[0]?.dataset.requiresComments === 'true')">
+                                                <i class="ti ti-check me-1"></i> Confirm Action
+                                            </button>
+                                        </div>
+                                    }
+
+                                </form>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+
+    <script src="~/js/withdrawal-form.js"></script>
+
+    <script>
+        document.getElementById('denom-g-words').textContent = toWords(@Model.TotalAmount);
+
+        function onTransitionClick(btn, actionName, requiresComments) {
+            const remarks  = document.getElementById('remarksTextarea').value.trim();
+            const hint     = document.getElementById('commentHint');
+            const required = document.getElementById('commentRequired');
+
+            if (requiresComments && !remarks) {
+                hint.textContent       = 'Comments are required for this action.';
+                hint.className         = 'text-danger d-block mt-1';
+                required.style.display = 'inline';
+                event.preventDefault();
+                return;
+            }
+
+            document.getElementById('selectedAction').value = actionName;
+            hint.textContent       = '';
+            required.style.display = 'none';
+
+        }
+    </script>
+}

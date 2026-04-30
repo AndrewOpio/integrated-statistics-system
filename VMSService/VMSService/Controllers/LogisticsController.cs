@@ -4,7 +4,10 @@ using SmartBreadcrumbs.Attributes;
 using System.Security.Claims;
 using VMSService.Controllers;
 using VMSService.Core.Repositories.Logistics;
+using VMSService.Core.Static;
 using VMSService.Data.Entities;
+using WorkflowService.Client;
+using WorkflowService.Client.Dto;
 
 namespace VMSService.Web.Controllers
 {
@@ -13,31 +16,32 @@ namespace VMSService.Web.Controllers
     {
         private readonly ILogisticsRepository _logisticsRepository;
         private readonly ILogger<LogisticsController> _logger;
-        private readonly VMSService.Core.Repositories.StatusTypes.IStatusTypeRepository _statusTypeRepository;
-        private readonly VMSService.Core.Repositories.WorkflowTransitions.IWorkflowTransitionRepository _workflowTransitionRepository;
         private readonly VMSService.Core.Services.Workflows.IWorkflowService _workflowService;
         private readonly ILogisticsStatusHistoryRepository _statusHistoryRepository;
+        private readonly IWorkflowServiceClient _workflowServiceClient;
 
         public LogisticsController(
             ILogisticsRepository logisticsRepository,
             ILogger<LogisticsController> logger,
-            VMSService.Core.Repositories.StatusTypes.IStatusTypeRepository statusTypeRepository,
-            VMSService.Core.Repositories.WorkflowTransitions.IWorkflowTransitionRepository workflowTransitionRepository,
             VMSService.Core.Services.Workflows.IWorkflowService workflowService,
-            ILogisticsStatusHistoryRepository statusHistoryRepository)
+            ILogisticsStatusHistoryRepository statusHistoryRepository,
+            IWorkflowServiceClient workflowServiceClient)
         {
             _logisticsRepository = logisticsRepository;
             _logger = logger;
-            _statusTypeRepository = statusTypeRepository;
-            _workflowTransitionRepository = workflowTransitionRepository;
             _workflowService = workflowService;
             _statusHistoryRepository = statusHistoryRepository;
+            _workflowServiceClient = workflowServiceClient;
         }
 
         [Breadcrumb("Logistics", FromController = typeof(HomeController), FromAction = nameof(HomeController.Index))]
         public async Task<IActionResult> Index()
         {
             var records = await _logisticsRepository.GetAllAsync();
+            foreach (var record in records)
+            {
+                record.CurrentStatusName = (await _workflowServiceClient.FindStatusById(record.CurrentStatusId)).Name;
+            }
             return View(records);
         }
 
@@ -61,10 +65,12 @@ namespace VMSService.Web.Controllers
 
 
             // Fetch the Draft status for Logistics
-            var draftStatus = await _statusTypeRepository.FindByName(
-                VMSService.Core.Static.StatusConstants.StockMovement.Draft, // "Draft"
-                "Logistics" // Category name for Logistics
-            );
+            var draftStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                StatusName = StatusConstants.Logistics.Draft,
+                EntityTypeName = StatusConstants.Entity.Logistics
+            });
 
             var logistics = new Data.Entities.Logistics
             {
@@ -109,28 +115,47 @@ namespace VMSService.Web.Controllers
                 return NotFound();
 
             // Fetch available workflow transitions for this logistics record using user roles (controller logic, not service)
-            var userRoles = User.FindAll("appRole")
-                .Where(c => c.Value.StartsWith("VMS:"))
-                .Select(c => c.Value.Split(":")[1])
-                .ToList();
-            var transitions = await _workflowTransitionRepository.FindByEntityTypeAndStatus(
-                VMSService.Core.Static.StatusConstants.Entity.Logistics,
-                logistics.CurrentStatusId
-            );
-            var availableTransitions = transitions
-                .Where(t => userRoles.Contains(t.RequiredRole))
-                .Select(t => new VMSService.Core.Models.Logistics.WorkflowTransitionDto
+            var userRoles = User.FindAll("appRoleId")
+                    .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
+                    .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
+                    .Where(id => id.HasValue)
+                    .Select(id => id.Value)
+                    .ToList();
+
+            var availableTransitions = new List<Core.Models.Logistics.WorkflowTransitionDto>();
+
+            foreach (var userRole in userRoles)
+            {
+                var transitions = await _workflowServiceClient.GetAvailableTransitionsAsync(
+                    StatusConstants.Entity.Logistics, 
+                    logistics.CurrentStatusId,
+                    userRole);
+
+                if (transitions != null)
                 {
-                    ActionName = t.ActionName,
-                    DisplayLabel = t.DisplayLabel,
-                    RequiresComments = t.RequiresComments,
-                    ButtonClass = t.ButtonClass
-                }).ToList();
+                    availableTransitions.AddRange(transitions.Select(t => new Core.Models.Logistics.WorkflowTransitionDto
+                    {
+                        ActionName = t.ActionName,
+                        DisplayLabel = t.DisplayLabel,
+                        RequiresComments = t.RequiresComments,
+                        ButtonClass = t.ButtonClass
+                    }));
+                }
+            }
+
             ViewBag.AvailableTransitions = availableTransitions;
 
             // Fetch status history via repository (not navigation property)
             var statusHistory = await _statusHistoryRepository.GetByLogisticsIdAsync(id);
+            foreach (var history in statusHistory)
+            {
+                history.OldStatusName = (await _workflowServiceClient.FindStatusById(history.OldStatusId)).Name;
+                history.NewStatusName = (await _workflowServiceClient.FindStatusById(history.NewStatusId)).Name;
+            }
+
             ViewBag.StatusHistory = statusHistory ?? new List<VMSService.Data.Entities.LogisticsStatusHistory>();
+
+            ViewBag.CurrentStatusName = (await _workflowServiceClient.FindStatusById(logistics.CurrentStatusId)).Name;
 
             return View(logistics);
         }
@@ -144,10 +169,12 @@ namespace VMSService.Web.Controllers
                 if (logistics == null)
                     return NotFound(new { success = false, message = $"Logistics record not found (ID: {id})." });
 
-                var userRoles = User.FindAll("appRole")
-                    .Where(c => c.Value.StartsWith("VMS:"))
-                    .Select(c => c.Value.Split(":")[1])
-                    .ToList();
+                var userRoles = User.FindAll("appRoleId")
+                   .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
+                   .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
+                   .Where(id => id.HasValue)
+                   .Select(id => id.Value)
+                   .ToList();
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "System";
 
                 var success = await _workflowService.ExecuteTransition(
@@ -165,7 +192,9 @@ namespace VMSService.Web.Controllers
 
                 // Get updated logistics for new status
                 var updatedLogistics = await _logisticsRepository.GetByIdAsync(id);
-                return Json(new { success = true, message = "Workflow action completed.", newStatus = updatedLogistics?.CurrentStatus?.Name });
+
+                StatusTypeDto currentStatus = await _workflowServiceClient.FindStatusById(updatedLogistics.CurrentStatusId);
+                return Json(new { success = true, message = "Workflow action completed.", newStatus = currentStatus.Name });
             }
             catch (Exception ex)
             {
@@ -182,8 +211,10 @@ namespace VMSService.Web.Controllers
             if (logistics == null)
                 return NotFound();
 
+            StatusTypeDto currentStatus = await _workflowServiceClient.FindStatusById(logistics.CurrentStatusId);
+
             // Only allow editing if the record is in Draft or Returned status
-            if (logistics.CurrentStatus?.Name != "Draft" && logistics.CurrentStatus?.Name != "Returned")
+            if (currentStatus.Name != "Draft" && currentStatus.Name != "Returned")
             {
                 TempData["Error"] = "Only draft or returned logistics records can be edited.";
                 return RedirectToAction("Details", new { id });
@@ -203,8 +234,10 @@ namespace VMSService.Web.Controllers
             if (existingLogistics == null)
                 return NotFound(new { message = "Logistics record not found." });
 
+            StatusTypeDto currentStatus = await _workflowServiceClient.FindStatusById(existingLogistics.CurrentStatusId);
+
             // Only allow editing if the record is in Draft or Returned status
-            if (existingLogistics.CurrentStatus?.Name != "Draft" && existingLogistics.CurrentStatus?.Name != "Returned")
+            if (currentStatus.Name != "Draft" && currentStatus.Name != "Returned")
             {
                 return BadRequest(new { message = "Only draft or returned logistics records can be edited." });
             }

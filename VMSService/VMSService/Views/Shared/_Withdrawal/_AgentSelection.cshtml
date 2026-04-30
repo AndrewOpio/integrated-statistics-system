@@ -1,0 +1,119 @@
+﻿@model VMSService.Core.Models.CbRequests.AgentSelectionViewModel
+
+
+<div class="card mb-4 border-top-0 border-end-0 border-bottom-0 border-4 shadow-sm" style="border-color: #D4500A">
+    <div class="card-body">
+        <div class="d-flex align-items-center mb-3 justify-content-between">
+            <div class="d-flex align-items-center gap-2 fw-bolder">
+                <i class="ti ti-friends"></i>
+                <span class="text-uppercase mb-0">Agent Details</span>
+            </div>
+            <div class="d-flex gap-2">
+                <span class="badge text-bg-danger-lt text-danger border border-danger-subtle small">
+                    * Both Required
+                </span>
+            </div>
+        </div>
+        <div class="row g-4">
+            @for (int i = 1; i <= 2; i++)
+            {
+                <div class="col-md-6">
+                    <div class="border bg-light rounded-3 p-3">
+
+                        @* Header *@
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge rounded-pill bg-secondary text-white justify-content-center"
+                                      style="width:24px;height:24px;display:inline-flex;align-items:center;font-size:11px;">
+                                    @i
+                                </span>
+                                <span class="text-uppercase text-muted small fw-semibold">
+                                    Agent @i <span class="text-danger">*</span>
+                                </span>
+                            </div>
+                        </div>
+
+                        <select id="agentSelect@(i)"
+                                name="agentIds[@(i - 1)]"
+                                class="form-select mb-3"
+                                onchange="loadAgentDetails(@i, this.value)">
+                            <option value="">— Select collector —</option>
+                            @foreach (var c in Model.Agents)
+                            {
+                                var selectedId = i <= Model.SelectedAgentIds.Count
+                                ? Model.SelectedAgentIds[i - 1]
+                                : 0;
+                                <option value="@c.Id" selected="@(c.Id == selectedId)">
+                                    @c.AgentNames
+                                </option>
+                            }
+                        </select>
+
+                        @* Agent Card *@
+                        <div id="agentCard@(i)" style="display:none;">
+
+                            @* Photo + Details side by side *@
+                            <div class="d-flex gap-3 mb-3">
+                                @* Photo *@
+                                <div class="flex-shrink-0">
+                                    @* <div id="agentPhotoPlaceholder@(i)"
+                                         class="border rounded-2 bg-light d-flex align-items-center justify-content-center"
+                                         style="width:100px;height:120px;">
+                                        <i class="ti ti-user text-muted fs-1"></i>
+                                    </div> *@
+                                    <img id="agentPhoto@(i)" src="" alt="Photo"
+                                        class="rounded-2 border"
+                                        style="width:100px;height:120px;object-fit:cover;display:none;" />
+                                </div>
+
+                                @* Name + details *@
+                                <div class="flex-grow-1">
+                                    <p class="fw-bold mb-1" id="agentNames@(i)"></p>
+                                    @* <div class="mb-1">
+                                        <p class="text-muted mb-0" style="font-size:9px;">WORK ID</p>
+                                        <p class="fw-semibold small mb-0" id="agentWorkId@(i)"></p>
+                                    </div> *@
+                                    <div class="mb-1">
+                                        <p class="text-muted mb-0" style="font-size:9px;">NIN</p>
+                                        <p class="fw-semibold small mb-0" id="agentNin@(i)"></p>
+                                    </div>
+                                    <div>
+                                        <p class="text-muted mb-0" style="font-size:9px;">PHONE</p>
+                                        <p class="fw-semibold small mb-0 text-primary" id="agentPhone@(i)"></p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            @* Work ID Scan — full width *@
+                            <div class="mb-2">
+                                <p class="text-muted mb-1" style="font-size:9px;">WORK ID SCAN</p>
+                                @* <div id="agentScanPlaceholder@(i)"
+                                     class="border rounded-2 d-flex flex-column align-items-center justify-content-center bg-light w-100"
+                                     style="height:100px;">
+                                    <i class="ti ti-photo text-muted fs-3"></i>
+                                    <span class="text-muted small">No scan uploaded</span>
+                                </div> *@
+                                <img id="agentWorkIdScanImg@(i)" src="" alt="Work ID Scan"
+                                    class="rounded-2 border w-100"
+                                    style="display:none;max-height:150px;object-fit:contain;" />
+                            </div>
+
+                            <div>
+                                <p class="text-muted mb-1" style="font-size:9px;">SIGNATURE</p>
+                                @* <div id="agentSigPlaceholder@(i)"
+                                     class="border rounded-2 d-flex align-items-center justify-content-center bg-light w-100"
+                                     style="height:70px;">
+                                    <i class="ti ti-pencil text-muted fs-3"></i>
+                                </div> *@
+                                <img id="agentSignatureScan@(i)" src="" alt="Signature"
+                                    class="rounded-2 border w-100"
+                                    style="display:none;max-height:70px;object-fit:contain;" />
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>

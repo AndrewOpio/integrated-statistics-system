@@ -2,7 +2,44 @@
     ViewData["Title"] = "Home Page";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="container mt-5">
+    <h2>Configurations Dashboard</h2>
+    <div class="row mt-4">
+        <div class="col-md-4 p-2">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">BOU Branches</h5>
+                    <p class="card-text">Manage BOU Branches list.</p>
+                    <a asp-controller="Branches" asp-action="Index" class="btn btn-crimson">Manage BOU Branches</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 p-2">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Districts</h5>
+                    <p class="card-text">Manage District list.</p>
+                    <a asp-controller="Districts" asp-action="Index" class="btn btn-crimson">Manage Districts</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 p-2">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Commercial Banks</h5>
+                    <p class="card-text">Manage Commercial Banks list.</p>
+                    <a asp-controller="CommercialBanks" asp-action="Index" class="btn btn-crimson">Manage Commercial Banks</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 p-2">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Commercial Bank Branches</h5>
+                    <p class="card-text">Manage Commercial Bank Branches list.</p>
+                    <a asp-controller="CommercialBankBranches" asp-action="Index" class="btn btn-crimson">Manage Commercial Bank Branches</a>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>

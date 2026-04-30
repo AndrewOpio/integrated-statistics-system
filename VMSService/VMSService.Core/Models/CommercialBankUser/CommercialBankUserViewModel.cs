@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc.Rendering;
+﻿using ConfigurationsService.Dto;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using VMSService.Core.Services.Stocks.StockEntities;
 
 namespace VMSService.Core.Models.CommercialBankUser
@@ -13,7 +14,7 @@ namespace VMSService.Core.Models.CommercialBankUser
         // Display properties
         public string? UserName { get; set; }
         public string? UserFullName { get; set; }
-        public CommercialBank? CommercialBank { get; set; }
+        public CommercialBankDto? CommercialBank { get; set; }
 
         // Dropdown lists
         public IEnumerable<SelectListItem>? CommercialBankList { get; set; }

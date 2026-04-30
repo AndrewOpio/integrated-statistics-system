@@ -13,7 +13,7 @@ namespace VMSService.Data.Entities
         public DateTime ChangedAt { get; set; }
         public string? Remarks { get; set; }
         public virtual Logistics Logistics { get; set; } = null!;
-        public virtual StatusType OldStatus { get; set; } = null!;
-        public virtual StatusType NewStatus { get; set; } = null!;
+        public virtual string OldStatusName { get; set; } = null!;
+        public virtual string NewStatusName { get; set; } = null!;
     }
 }

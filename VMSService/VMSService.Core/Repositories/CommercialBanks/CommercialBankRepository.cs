@@ -1,47 +1,37 @@
+using ConfigurationsService.Dto;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using VMSService.Core.Services.Stocks;
-using VMSService.Core.Services.Stocks.StockEntities;
+using VMSService.Core.Repository.Common;
+using VMSService.Core.Services.Configurations;
 
 namespace VMSService.Core.Repositories.CommercialBanks
 {
-    public class CommercialBankRepository(IStockService _stockService, ILogger<CommercialBankRepository> _logger,
+    public class CommercialBankRepository(IConfigurationService _configService, ILogger<CommercialBankRepository> _logger,
         IHttpContextAccessor _httpContextAccessor) : ICommercialBankRepository
     {
-        public async Task<bool> Create(CommercialBank model)
+        public Task<bool> Create(CommercialBankDto entity)
         {
-            try
-            {
-                var user = _httpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "unknown";
-                model.CreatedBy = user;
-                model.ModifiedBy = user;
-                return await _stockService.CreateCommercialBank(model);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating commercial bank");
-                return false;
-            }
+            throw new NotImplementedException();
         }
 
-        public async Task<ICollection<CommercialBank>> FindAll()
+        public async Task<ICollection<CommercialBankDto>> FindAll()
         {
             try
             {
-                return await _stockService.GetAllCommercialBanks();
+                return await _configService.GetAllCommercialBanks();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving all commercial banks");
-                return new List<CommercialBank>();
+                return new List<CommercialBankDto>();
             }
         }
 
-        public async Task<CommercialBank> FindById(int id)
+        public async Task<CommercialBankDto> FindById(int id)
         {
             try
             {
-                var commercialBank = await _stockService.GetCommercialBankById(id);
+                var commercialBank = await _configService.GetCommercialBankById(id);
                 if (commercialBank == null)
                     return null;
 
@@ -59,7 +49,7 @@ namespace VMSService.Core.Repositories.CommercialBanks
             try
             {
                 var commercialBank = await FindById(id);
-                return commercialBank != null && !commercialBank.IsDeleted;
+                return commercialBank != null;
             }
             catch (Exception ex)
             {
@@ -73,21 +63,9 @@ namespace VMSService.Core.Repositories.CommercialBanks
             return true;
         }
 
-        public async Task<bool> Update(CommercialBank model)
+        public Task<bool> Update(CommercialBankDto entity)
         {
-            try
-            {
-                var user = _httpContextAccessor?.HttpContext?.User?.Identity?.Name ?? "unknown";
-                var now = DateTime.Now;
-                model.ModifiedBy = user;
-                model.ModifiedDate = now;
-                return await _stockService.UpdateCommercialBank(model);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating commercial bank");
-                return false;
-            }
+            throw new NotImplementedException();
         }
     }
 }

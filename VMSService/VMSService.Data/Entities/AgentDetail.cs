@@ -5,6 +5,7 @@ namespace VMSService.Data.Entities
     public class AgentDetail : AuditableEntity
     {
         public int Id { get; set; }
+        public int CommercialBankId { get; set; }
         public int CommercialBankBranchId { get; set; }
         public int BranchId { get; set; } // The BOU Branch they will be transacting at
         public string AgentNames { get; set; } //Exactly as they appear in their work-issued identity cards
@@ -15,5 +16,7 @@ namespace VMSService.Data.Entities
         public string SignatureScan { get; set; }
         public string ApprovalAttachment { get; set; }
         public bool IsDeleted { get; set; }
+        public int CurrentStatusId { get; set; }
+        public bool IsActive { get; set; } = true;
     }
 }

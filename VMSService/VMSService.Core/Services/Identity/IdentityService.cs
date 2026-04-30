@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using NotificationService.Client.Dtos;
 using System.Net.Http.Json;
 using VMSService.Core.Services.Identity.IdentityEntities;
 
@@ -37,6 +38,33 @@ namespace VMSService.Core.Services.Identity
             {
                 _logger.LogError(ex, "Error retrieving non-staff users from Identity API");
                 return new List<NonStaffUser>();
+            }
+        }
+
+        public async Task<ICollection<RecipientDto>> GetRecipients(string? notificationEmails, string? notificationRoleIds)
+        {
+            var requestData = new
+            {
+                NotificationEmails = notificationEmails,
+                NotificationRoleIds = notificationRoleIds
+            };
+            try
+            {
+                var response = await _httpClient.PostAsJsonAsync($"{_baseUrl}/api/User/get-recipients", requestData);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var users = await response.Content.ReadFromJsonAsync<ICollection<RecipientDto>>();
+                    return users ?? new List<RecipientDto>();
+                }
+
+                _logger.LogError("Failed to retrieve recipients. Status: {StatusCode}", response.StatusCode);
+                return new List<RecipientDto>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving recipients from Identity API");
+                return new List<RecipientDto>();
             }
         }
     }

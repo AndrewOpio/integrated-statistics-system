@@ -1,19 +1,21 @@
 @model List<VMSService.Core.Models.AgentDetails.AgentDetailViewModel>
 
 @{
+    Layout = "_CbLayoutOther";
     ViewData["Title"] = "Agent Details";
+    var userRoles = string.Join(", ", User.FindAll("appRole").Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:")).Select(c => c.Value.Split(":")[1]).ToList());
 }
 
 <div class="row">
     <div class="col-12">
-        <div class="card border-0 shadow mb-4">
-            <div class="card-header">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white p-3">
                 <div class="row align-items-center">
                     <div class="col">
                         <h2 class="fs-5 fw-bold mb-0">Agent Details</h2>
                     </div>
                     <div class="col text-end">
-                        <a asp-action="Create" class="btn btn-sm btn-primary">
+                        <a asp-action="Create" class="btn btn-sm btn-brown">
                             <i class="ti ti-plus me-1"></i>Add Agent
                         </a>
                     </div>
@@ -21,16 +23,17 @@
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-centered table-nowrap mb-0 rounded">
+                    <table class="table table-centered table-nowrap mb-0 rounded datatable" id="agentDetailsTable">
                         <thead class="thead-light">
                             <tr>
-                                <th class="border-0 rounded-start">#</th>
-                                <th class="border-0">Photo</th>
-                                <th class="border-0">Agent Names</th>
-                                <th class="border-0">NIN</th>
-                                <th class="border-0">Phone Number</th>
-                                <th class="border-0">BOU Branch</th>
-                                <th class="border-0 rounded-end">Actions</th>
+                                <th class="border-0 bg-light rounded-start">#</th>
+                                <th class="border-0 bg-light">Photo</th>
+                                <th class="border-0 bg-light">Agent Names</th>
+                                <th class="border-0 bg-light">NIN</th>
+                                <th class="border-0 bg-light">Phone Number</th>
+                                <th class="border-0 bg-light">BOU Branch</th>
+                                <th class="border-0 bg-light">Status</th>
+                                <th class="border-0 bg-light rounded-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -41,7 +44,7 @@
                             @foreach (var item in Model)
                             {
                                 <tr>
-                                    <td><span class="text-primary fw-bold">@rowNumber</span></td>
+                                    <td><span>@rowNumber</span></td>
                                     <td>
                                         @if (!string.IsNullOrEmpty(item.PassportPhoto))
                                         {
@@ -68,22 +71,38 @@
                                     </td>
                                     <td>
                                         <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
-                                            <span class="badge bg-primary">
-                                                <i class="ti ti-building me-1"></i>@item.BranchName
+                                            <span class="badge bg-brown text-brown bg-opacity-10 rounded-pill">
+                                                <i class="ti ti-building-bank me-1"></i>@item.BranchName
                                             </span>
                                         </div>
                                     </td>
                                     <td>
+                                        <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
+                                            <span class="badge bg-purple text-purple bg-opacity-10 rounded-pill">
+                                                <i class="ti ti-badge me-1"></i>@item.CurrentStatusName
+                                            </span>
+                                            @if (item.CurrentStatusName == StatusConstants.AgentDetail.Approved)
+                                            {
+                                                <span class="badge rounded-pill @(item.IsActive ? "bg-active" : "bg-inactive")">
+                                                    <i class="ti @(item.IsActive ? "ti-check" : "ti-x") me-1"></i>@(item.IsActive ? "Active" : "Inactive")
+                                                </span>
+                                            }
+                                        </div>
+                                    </td>
+                                    <td>
                                         <div class="btn-group" role="group">
-                                            <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
-                                                <i class="ti ti-edit"></i>
-                                            </a>
-                                            <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
+                                            <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-brown" title="View Details">
                                                 <i class="ti ti-eye"></i>
                                             </a>
-                                            <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger" title="Delete">
-                                                <i class="ti ti-trash"></i>
-                                            </a>
+                                            @if (item.CurrentStatusName == StatusConstants.AgentDetail.Draft && userRoles.Contains(SystemPolicy.Roles.CbMaker))
+                                            {
+                                                <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-brown" title="Edit">
+                                                    <i class="ti ti-edit"></i>
+                                                </a>
+                                                <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-brown" title="Delete">
+                                                    <i class="ti ti-trash"></i>
+                                                </a>
+                                            }
                                         </div>
                                     </td>
                                     @{
