@@ -48,10 +48,10 @@
 
         public static class StockMovementDiscrepancy
         {
-            public const string PendingDiscrepancy = "Pending Discrepancy";
-            public const string DiscrepancyPendingVerification = "Discrepancy Pending Verification";
-            public const string DiscrepancyPendingResolution = "Discrepancy Pending Resolution";
-            public const string DiscrepancyResolved = "Discrepancy Resolved";
+            public const string PendingDiscrepancy = "Pending Mismatch";
+            public const string DiscrepancyPendingVerification = "Mismatch Pending Verification";
+            public const string DiscrepancyPendingResolution = "Mismatch Pending Resolution";
+            public const string DiscrepancyResolved = "Mismatch Resolved";
         }
 
         public static class Logistics
