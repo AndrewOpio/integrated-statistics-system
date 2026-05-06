@@ -761,7 +761,7 @@ namespace VMSService.Web.Controllers
             // Populate NewStockMovementLogs when status transitions to Dispatched
             if (updatedMovement != null && updatedMovement.CurrentStatusId.HasValue)
             {
-                var statusName = (await _statusTypeRepository.FindById(updatedMovement.CurrentStatusId.Value))?.Name;
+                var statusName = (await _workflowServiceClient.FindStatusById(updatedMovement.CurrentStatusId.Value))?.Name;
                 
                 if (statusName == StatusConstants.StockMovement.Dispatched)
                 {

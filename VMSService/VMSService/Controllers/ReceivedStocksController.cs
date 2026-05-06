@@ -752,7 +752,15 @@ namespace VMSService.Web.Controllers
                 }
 
                 // Get the Received status directly by name (more efficient than loading all)
-                var receivedStatus = await _statusTypeRepository.FindByName("Received", "ReceivedStock");
+                //var receivedStatus = await _workflowServiceClient.FindStatusByName("Received", "ReceivedStock");
+
+                StatusTypeDto receivedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+                {
+                    ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                    StatusName = StatusConstants.StockMovement.Received,
+                    EntityTypeName = StatusConstants.Entity.StockMovement,
+                });
+
                 int statusId = receivedStatus?.Id ?? 1;
 
                 // Create StockMovement

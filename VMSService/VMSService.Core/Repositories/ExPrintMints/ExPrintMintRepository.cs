@@ -2,10 +2,12 @@ using Microsoft.EntityFrameworkCore;
 using VMSService.Core.Static;
 using VMSService.Data.Configurations;
 using VMSService.Data.Entities;
+using WorkflowService.Client;
+using WorkflowService.Client.Dto;
 
 namespace VMSService.Core.Repositories.ExpectedCurrencies
 {
-    public class ExPrintMintRepository(VMSServiceDbContext _db) : IExPrintMintRepository
+    public class ExPrintMintRepository(VMSServiceDbContext _db, IWorkflowServiceClient _workflowServiceClient) : IExPrintMintRepository
     {
         public async Task<bool> Create(ExPrintMint model)
         {
@@ -53,7 +55,20 @@ namespace VMSService.Core.Repositories.ExpectedCurrencies
 
         public async Task<ICollection<ExPrintMint>> FindPendingDeliveries()
         {
-            return await _db.ExPrintMints.Where(x => x.CurrentStatusName == StatusConstants.ExPrintMint.Verified)
+            var verifiedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                StatusName = StatusConstants.ExPrintMint.Verified,
+                EntityTypeName = StatusConstants.Entity.ExPrintMint
+            });
+
+            if (verifiedStatus == null)
+            {
+                return new List<ExPrintMint>();
+            }
+
+            int verifiedStatusId = verifiedStatus.Id;
+            return await _db.ExPrintMints.Where(x => x.CurrentStatusId == verifiedStatusId)
                 .Where(x => !x.IsDeleted)
                 .Include(x => x.CurrencyVendor)
                 .Include(x => x.CurrencyVendor.VendorType)
