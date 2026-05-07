@@ -221,6 +221,10 @@ namespace VMSService.Core.Services.Stocks
                 var baseUrl = _stockAPISettings.BaseUrl;
                 var response = await _httpClient.GetAsync($"{baseUrl}/api/denominations/get-all");
 
+                //var errorContent = await response.Content.ReadAsStringAsync();
+                //_logger.LogError("Failed Status: {StatusCode}, Response: {ErrorContent}",
+                //    response.StatusCode, errorContent);
+
                 if (response.IsSuccessStatusCode)
                 {
                     var denominations = await response.Content.ReadFromJsonAsync<ICollection<Denomination>>();

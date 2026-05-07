@@ -129,6 +129,14 @@ namespace VMSService.Data.Configurations
             //    .WithMany()
             //    .HasForeignKey(l => l.NewStatusId)
             //    .OnDelete(DeleteBehavior.Restrict);
+
+            // ✅ ADD THIS AT THE END — catches all remaining FKs not explicitly configured above
+            foreach (var relationship in modelBuilder.Model.GetEntityTypes()
+                .SelectMany(e => e.GetForeignKeys())
+                .Where(fk => !fk.IsOwnership && fk.DeleteBehavior == DeleteBehavior.Cascade))
+            {
+                relationship.DeleteBehavior = DeleteBehavior.Restrict;
+            }
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace VMSService.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class updatedTables : Migration
+    public partial class InitialMigration : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -249,7 +249,7 @@ namespace VMSService.Data.Migrations
                         column: x => x.AgentDetailId,
                         principalTable: "AgentDetails",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -280,7 +280,7 @@ namespace VMSService.Data.Migrations
                         column: x => x.ApprovedCurrencyProcurementId,
                         principalTable: "ApprovedCurrencyProcurements",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -308,7 +308,7 @@ namespace VMSService.Data.Migrations
                         column: x => x.DepositRequestId,
                         principalTable: "DepositRequests",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -338,7 +338,7 @@ namespace VMSService.Data.Migrations
                         column: x => x.DepositRequestId,
                         principalTable: "DepositRequests",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -366,7 +366,7 @@ namespace VMSService.Data.Migrations
                         column: x => x.DepositRequestId,
                         principalTable: "DepositRequests",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -391,7 +391,7 @@ namespace VMSService.Data.Migrations
                         column: x => x.LogisticsId,
                         principalTable: "Logistics",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -421,7 +421,7 @@ namespace VMSService.Data.Migrations
                         column: x => x.LogisticsId,
                         principalTable: "Logistics",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -480,7 +480,7 @@ namespace VMSService.Data.Migrations
                         column: x => x.VendorTypeId,
                         principalTable: "VendorTypes",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -508,7 +508,7 @@ namespace VMSService.Data.Migrations
                         column: x => x.WithdrawalRequestId,
                         principalTable: "WithdrawalRequests",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -537,7 +537,7 @@ namespace VMSService.Data.Migrations
                         column: x => x.WithdrawalRequestId,
                         principalTable: "WithdrawalRequests",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -567,7 +567,7 @@ namespace VMSService.Data.Migrations
                         column: x => x.WithdrawalRequestId,
                         principalTable: "WithdrawalRequests",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -598,7 +598,7 @@ namespace VMSService.Data.Migrations
                         column: x => x.LogisticsCategoryId,
                         principalTable: "LogisticsCategories",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -625,7 +625,7 @@ namespace VMSService.Data.Migrations
                         column: x => x.StockMovementId,
                         principalTable: "StockMovements",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -650,7 +650,7 @@ namespace VMSService.Data.Migrations
                         column: x => x.StockMovementId,
                         principalTable: "StockMovements",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -681,7 +681,7 @@ namespace VMSService.Data.Migrations
                         column: x => x.StockMovementId,
                         principalTable: "StockMovements",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -709,13 +709,13 @@ namespace VMSService.Data.Migrations
                         column: x => x.ApprovedCurrencyId,
                         principalTable: "ApprovedCurrencyProcurements",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_ApprovedCurrencyDenominations_CurrencyVendors_CurrencyVendorId",
                         column: x => x.CurrencyVendorId,
                         principalTable: "CurrencyVendors",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -747,13 +747,13 @@ namespace VMSService.Data.Migrations
                         column: x => x.ApprovedCurrencyProcurementId,
                         principalTable: "ApprovedCurrencyProcurements",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_ExPrintMints_CurrencyVendors_CurrencyVendorId",
                         column: x => x.CurrencyVendorId,
                         principalTable: "CurrencyVendors",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -775,7 +775,7 @@ namespace VMSService.Data.Migrations
                         column: x => x.StockMovementDenominationId,
                         principalTable: "StockMovementDenominations",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -803,7 +803,7 @@ namespace VMSService.Data.Migrations
                         column: x => x.ExPrintMintId,
                         principalTable: "ExPrintMints",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -834,7 +834,7 @@ namespace VMSService.Data.Migrations
                         column: x => x.ExPrintMintId,
                         principalTable: "ExPrintMints",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -870,7 +870,7 @@ namespace VMSService.Data.Migrations
                         column: x => x.ExPrintMintId,
                         principalTable: "ExPrintMints",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_ReceivedStock_ReceivedStatusTypes_ReceivedStatusTypesId",
                         column: x => x.ReceivedStatusTypesId,
@@ -905,13 +905,13 @@ namespace VMSService.Data.Migrations
                         column: x => x.ExPrintMintDetailId,
                         principalTable: "ExPrintMintDetails",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_PackingListRanges_ExPrintMints_ExpectedStockId",
                         column: x => x.ExpectedStockId,
                         principalTable: "ExPrintMints",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -942,7 +942,7 @@ namespace VMSService.Data.Migrations
                         column: x => x.ReceivedStockId,
                         principalTable: "ReceivedStock",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -1036,13 +1036,13 @@ namespace VMSService.Data.Migrations
                         column: x => x.PackingListDetailId,
                         principalTable: "PackingListDetails",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_NewStockMovementLogs_StockMovements_StockMovementId",
                         column: x => x.StockMovementId,
                         principalTable: "StockMovements",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateIndex(

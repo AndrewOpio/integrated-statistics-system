@@ -50,6 +50,19 @@ namespace VMSService.Web.Controllers
             allStatuses = [.. allStatuses.Where(x => x.EntityType.Name == StatusConstants.Entity.DepositRequest || x.EntityType.Name == StatusConstants.Entity.DepositRequestExceptional)];
 
             var statusMap = allStatuses.ToDictionary(s => s.Id, s => s.Name);
+
+            try
+            {
+                var result = await _configServiceClient.GetAllCommercialBankAsync();
+                Console.WriteLine($"Result: {result}");
+                // or use _logger.LogInformation(...)
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                Console.WriteLine($"Stack: {ex.StackTrace}");
+            }
+
             var allCbs = await _configServiceClient.GetAllCommercialBankAsync();
             var cbMap = allCbs.ToDictionary(s => s.Id, s => s.Name);
             var allBouBranches = await _configServiceClient.GetAllBouBranchesAsync();

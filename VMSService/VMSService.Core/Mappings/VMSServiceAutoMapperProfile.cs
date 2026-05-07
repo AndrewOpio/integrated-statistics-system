@@ -23,9 +23,10 @@ using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Data.Entities;
 using VMSService.Core.Services.Identity.IdentityEntities;
 using VMSService.Core.Models.AgentDetails;
-using ConfigurationsService.Dto;
+//using ConfigurationsService.Dto;
 using VMSService.Core.Model.AgentDetailStatusHistories;
 using VMSService.Core.Models.CbDepositRequest;
+using ConfigurationsService.Client;
 
 namespace VMSService.Core.Mappings
 {
@@ -65,6 +66,8 @@ namespace VMSService.Core.Mappings
                 .ReverseMap();
 
             CreateMap<BranchDto, BranchViewModel>()
+                .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
+                .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.Name))
                 .ReverseMap();
 
             CreateMap<CommercialBankDto, CommercialBankViewModel>().ReverseMap();

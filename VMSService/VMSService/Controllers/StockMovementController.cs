@@ -194,6 +194,7 @@ namespace VMSService.Web.Controllers
                     TotalBagsBoxes = model.BranchTotalBagsBoxes,
                     GrandTotalValue = model.BranchGrandTotalValue,
                     CurrentStatusId = draftStatus.Id,
+                    CurrentStatusName = draftStatus.Name,
                     Denominations = filteredDenoms.Select(x => {
                         return new StockMovementDenomination
                         {
@@ -219,7 +220,14 @@ namespace VMSService.Web.Controllers
                     }).ToList()
                 };
 
-                await _stockMovementRepository.CreateAsync(movement);
+                try
+                {
+                    await _stockMovementRepository.CreateAsync(movement);
+                }
+                catch (Exception ex)
+                {
+
+                }
                 return Json(new { redirectUrl = Url.Action("Index") });
             }
             else if (model.MovementType == StockConstants.StockMovementTypes.BufferToOperational ||
