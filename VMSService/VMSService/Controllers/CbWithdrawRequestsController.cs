@@ -87,7 +87,7 @@ namespace VMSService.Web.Controllers
             };
             return View(new CreateWithdrawViewModel
             {
-                Steps = BuildStepViewModel(WithdrawalStatusIds.Draft, false),
+                Steps = BuildStepViewModel(WithdrawalStatusIds.Draft, false, false),
                 Branches = branchVm,
                 Agents = agentVm,
                 Denoms = denomVm,
@@ -155,7 +155,7 @@ namespace VMSService.Web.Controllers
             return View(new EditWithdrawViewModel
             {
                 Request = request,
-                Steps = BuildStepViewModel(request.StatusTypeId, false),
+                Steps = BuildStepViewModel(request.StatusTypeId, false, request.RequiresSpecialApproval),
                 Branches = branchVm,
                 Agents = agentVm,
                 Denoms = denomVm,
@@ -219,10 +219,10 @@ namespace VMSService.Web.Controllers
 
             WithdrawalRequest request;
 
-            if (vm.CollectionDate < DateOnly.FromDateTime(DateTime.Today))
-            {
-                return BadRequest(new { errors = new[] { "Collection date cannot be in the past." } });
-            }
+            //if (vm.CollectionDate < DateOnly.FromDateTime(DateTime.Today))
+            //{
+            //    return BadRequest(new { errors = new[] { "Collection date cannot be in the past." } });
+            //}
 
             // Guard: lump sum must be a whole bundle (multiple of 1,000)
             if (vm.IsLumpSum)
@@ -412,7 +412,7 @@ namespace VMSService.Web.Controllers
                 CanEdit = canEdit,
                 IsLumpSum = request.IsLumpSum,
                 Steps = BuildStepViewModel(request.StatusTypeId,
-                           request.StatusTypeId == WithdrawalStatusIds.Approved),
+                           request.StatusTypeId == WithdrawalStatusIds.Approved, request.RequiresSpecialApproval),
             };
             vm.AvailableTransitions = (await _workflowService.GetAvailableTransitionsAsync(
                 StatusConstants.Entity.WithdrawalRequest,
@@ -596,10 +596,11 @@ namespace VMSService.Web.Controllers
             WithdrawalStatusIds.Rejected => "PanelB",
             _ => "CbMaker",
         };
-        private WithdrawalStepViewModel BuildStepViewModel(int statusId, bool isApproved)
+        private WithdrawalStepViewModel BuildStepViewModel(int statusId, bool isApproved, bool requiresSpecialApproval)
             => WithdrawalStepViewModelFactory.Build(
                 currentStepKey: GetCurrentStepKey(statusId),
                 isRequestApproved: isApproved,
+                requiresSpecialApproval: requiresSpecialApproval,
                 user: User);
 
         private string GetUserId()

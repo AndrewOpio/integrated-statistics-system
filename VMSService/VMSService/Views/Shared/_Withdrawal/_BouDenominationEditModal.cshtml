@@ -21,7 +21,7 @@
                     <input type="hidden" name="actionName" value="Save Bank Draft" />
 
                     @* ── Live Tracker ── *@
-                    <div class="border rounded-3 p-3 bg-warning" id="dispatch-tracker">
+                    @* <div class="border rounded-3 p-3 bg-warning" id="dispatch-tracker">
                         <div class="d-flex justify-content-between align-items-center">
                             <span class="text-uppercase fw-bold">
                                 Commercial Bank Total
@@ -39,11 +39,91 @@
                                 <span class="fw-bold" id="varianceAmount">UGX 0</span>
                             </div>
                         </div>
+                    </div> *@
+
+                    <div>
+                        <p class="text-uppercase text-muted small fw-bold mb-2">Summary</p>
+
+                        <div id="varianceIndicator" data-wishlist-total="@Model.TotalAmount">
+
+                            @* Top: wishlist + bank total side by side *@
+                            <div class="row g-2 mb-2">
+                                <div class="col-6">
+                                    <div class="card border-0 bg-light h-100">
+                                        <div class="card-body py-2 px-3">
+                                            <div class="text-uppercase text-muted small fw-bold">Commercial Bank Request Total</div>
+                                            <div class="fw-bold" style="font-size:1.1rem;">
+                                                UGX @Model.TotalAmount.ToString("N0")
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="card border-0 h-100" style="background:#b31b34;">
+                                        <div class="card-body py-2 px-3">
+                                            <div class="text-uppercase text-white-50 small fw-bold">Bank Dispatch</div>
+                                            <div class="fw-bold text-white" style="font-size:1.1rem;" id="sum-bank">0</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            @* Middle: breakdown of bank dispatch — three small tiles *@
+                            <div class="row g-2 mb-2">
+                                <div class="col-4">
+                                    <div class="card border h-100">
+                                        <div class="card-body py-2 px-3">
+                                            <div class="d-flex align-items-center gap-1 mb-1">
+                                                <span class="badge bg-primary-subtle text-primary rounded-1 px-2">N</span>
+                                                <span class="text-uppercase text-muted small fw-bold">New</span>
+                                            </div>
+                                            <div class="fw-bold" id="sum-new">0</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="card border h-100">
+                                        <div class="card-body py-2 px-3">
+                                            <div class="d-flex align-items-center gap-1 mb-1">
+                                                <span class="badge bg-info-subtle text-info rounded-1 px-2">R</span>
+                                                <span class="text-uppercase text-muted small fw-bold">Reissue</span>
+                                            </div>
+                                            <div class="fw-bold" id="sum-reissue">0</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="card border h-100">
+                                        <div class="card-body py-2 px-3">
+                                            <div class="d-flex align-items-center gap-1 mb-1">
+                                                <span class="badge rounded-1 px-2" style="background:#faeeda;color:#BA7517;">C</span>
+                                                <span class="text-uppercase text-muted small fw-bold">Coins</span>
+                                            </div>
+                                            <div class="fw-bold" id="sum-coins">0</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            @* Bottom: variance — its own banded card, JS color-codes the value *@
+                            @* <div class="card border-0 bg-body-tertiary">
+                                <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center">
+                                    <span class="text-uppercase text-muted small fw-bold">Variance vs wishlist</span>
+                                    <span class="fw-bold" id="sum-variance">—</span>
+                                </div>
+                            </div> *@
+                            <div class="card border-0 bg-body-tertiary">
+                                <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center">
+                                    <span class="text-uppercase fw-bold small">Variance</span>
+                                    <span class="fw-bold" id="sum-variance">—</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     @* ── Bank Dispatch Label ── *@
 
-                    <p class="text-uppercase text-muted fw-bolder mb-2">Bank Dispatch</p>
+                    <p class="text-uppercase text-muted fw-bolder mb-2 mt-3">Bank Dispatch</p>
 
                     @* ── NEW BANKNOTES ── *@
                     <div class="border rounded-3 mb-3 overflow-hidden">
@@ -272,7 +352,7 @@
                         </table>
                     </div>
 
-                    @* ── Totals ── *@
+                    @* ── Totals ── *@@* 
                     <div>
                         <p class="text-uppercase text-muted small fw-bold mb-2">Totals</p>
                         <div class="border rounded-3 overflow-hidden">
@@ -312,10 +392,10 @@
                                 </span>
                             </div>
                         </div>
-                    </div>
+                    </div> *@
 
                     @* ── Grand Total Banner ── *@
-                    <div class="rounded-3 px-4 py-3" style="background:#b31b34;">
+                    @* <div class="rounded-3 px-4 py-3" style="background:#b31b34;">
                         <div class="d-flex justify-content-between align-items-baseline">
                             <span class="text-uppercase text-white opacity-75 small fw-bold" style="letter-spacing:.07em;">Grand Total</span>
                             <span class="fw-bold text-white" style="font-size:22px;" id="grand-total">
@@ -324,8 +404,8 @@
                         </div>
                         <div class="border-top border-light border-opacity-25 mt-2 pt-2 text-end fst-italic text-white opacity-75 small"
                              id="bou-denom-words"></div>
-                    </div>
-
+                    </div> *@
+                    <hr />
                     @* ── Actions ── *@
                     <div class="d-flex justify-content-end gap-2">
                         <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-primary">

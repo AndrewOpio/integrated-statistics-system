@@ -282,6 +282,24 @@
             info.textContent = msg;
             return;
         }
+        console.log('DEBUG addable:', addable, 'availableByNum keys:', Object.keys(availableByNum));
+
+        if (addable.length === 1) {
+            const b = addable[0];
+            const boxData = availableByNum[b];
+
+            console.log('DEBUG boxData for', b, ':', boxData, 'remainingBundles:', boxData?.remainingBundles);
+
+            if (boxData && boxData.remainingBundles < 50) {
+                appendPartialCard({ denom, boxNumber: b, boxData });
+                info.classList.add('text-success');
+                info.textContent =
+                    `Added box ${b} as partial (${boxData.remainingBundles} bundles available).`;
+                rangeInput.value = '';
+                recomputeTotals();
+                return;
+            }
+        }
 
         // Collapse contiguous addable boxes into ranges
         const segments = [];
@@ -379,6 +397,61 @@
 
         insertCardSorted(card);
     }
+    function appendPartialCard({ denom, boxNumber, boxData }) {
+        const remainingBundles = boxData.remainingBundles ?? 1;
+        const cursorStart = boxData.serialStart ?? '';
+        const defaultBundles = 1;
+        const range = serialRangeForBundles(cursorStart, defaultBundles);
+        const amount = defaultBundles * BUNDLE_SIZE * denom.value;
+
+        const card = document.createElement('div');
+        card.className = 'border rounded-3 p-2 dispatch-card';
+        card.dataset.rowId = `new-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        card.dataset.kind = 'partial';
+        card.dataset.denomId = denom.id;
+        card.dataset.denom = denom.value;
+        card.dataset.startBox = boxNumber;
+        card.dataset.endBox = boxNumber;
+        card.dataset.bundles = defaultBundles;
+        card.dataset.serialStart = cursorStart;
+        card.dataset.serialEnd = range.end;
+        card.dataset.remainingBundles = remainingBundles;
+        card.style.borderLeft = `3px solid ${PARTIAL_BORDER}`;
+
+        card.innerHTML = `
+        <div class="row g-2 align-items-start">
+            <div class="col-auto" style="width:120px;">
+                <div class="text-warning text-uppercase fw-bold" style="font-size:10px;letter-spacing:.04em;">Partial</div>
+                <div class="fw-bold">${denom.label}</div>
+            </div>
+            <div class="col">
+                <div class="small">
+                    <span style="font-family:var(--bs-font-monospace);font-weight:600;">${boxNumber}</span>
+                    <span class="text-muted ms-2">· ${remainingBundles} bundle${remainingBundles === 1 ? '' : 's'} available</span>
+                </div>
+                <input type="number"
+                       class="form-control form-control-sm text-center mt-2 partial-bundles"
+                       min="1" max="${Math.min(remainingBundles, 49)}"
+                       value="${defaultBundles}"
+                       aria-label="Bundles taken from box ${boxNumber}" />
+                <div class="text-muted small mt-1">
+                    bundles · serials <span class="partial-serial">${range.start}–${range.end}</span>
+                </div>
+            </div>
+            <div class="col-auto text-end" style="width:160px;">
+                <div class="fw-bold row-amount">${fmt(amount)}</div>
+            </div>
+            <div class="col-auto" style="width:24px;">
+                <button type="button" class="btn btn-sm btn-link text-muted p-0"
+                        onclick="removeDispatchCard(this)" aria-label="Remove entry">
+                    <i class="ti ti-x"></i>
+                </button>
+            </div>
+        </div>`;
+
+        insertCardSorted(card);
+    }
+
 
     // ── Insert a card into the cards list in sorted order ─────
     function insertCardSorted(newCard) {
@@ -417,7 +490,8 @@
         const startBox = parseInt(card.dataset.startBox, 10);
         const cursorStart = card.dataset.serialStart;
         const remainingBundles = parseInt(card.dataset.remainingBundles, 10) || BOX_BUNDLES;
-        const defaultBundles = Math.min(BOX_BUNDLES, remainingBundles);
+        //const defaultBundles = Math.min(BOX_BUNDLES, remainingBundles);
+        const defaultBundles = 1;
         const range = serialRangeForBundles(cursorStart, defaultBundles);
         const amount = defaultBundles * BUNDLE_SIZE * denom.value;
 
@@ -627,16 +701,42 @@
             varEl.className = 'fw-bold ' + (variance === 0 ? 'text-success' : variance < 0 ? 'text-warning' : 'text-danger');
         }
 
+        //const sumVarEl = document.getElementById('sum-variance');
+        //if (sumVarEl) {
+        //    let text, cls;
+        //    if (variance === 0) { text = `0 · matches ${fmt(wishlist)}`; cls = 'text-success'; }
+        //    else if (variance < 0) { text = `${fmt(variance)} · short`; cls = 'text-warning'; }
+        //    else { text = `+${fmt(variance)} · over`; cls = 'text-danger'; }
+        //    sumVarEl.textContent = text;
+        //    sumVarEl.className = 'fw-bold ' + cls;
+        //}
         const sumVarEl = document.getElementById('sum-variance');
         if (sumVarEl) {
-            let text, cls;
-            if (variance === 0) { text = `0 · matches ${fmt(wishlist)}`; cls = 'text-success'; }
-            else if (variance < 0) { text = `${fmt(variance)} · short`; cls = 'text-warning'; }
-            else { text = `+${fmt(variance)} · over`; cls = 'text-danger'; }
+            let text, cls, bg;
+            if (variance === 0) {
+                text = `0 · matches`;
+                cls = 'text-success';
+                bg = 'alert-success';
+            } else if (variance < 0) {
+                text = `${fmt(variance)} · short`;
+                cls = 'text-danger';
+                bg = 'alert-danger';
+            } else {
+                text = `+${fmt(variance)} · over`;
+                cls = 'text-danger';
+                bg = 'alert-danger';
+            }
+
             sumVarEl.textContent = text;
             sumVarEl.className = 'fw-bold ' + cls;
-        }
 
+            // Color the parent card
+            const card = sumVarEl.closest('.card');
+            if (card) {
+                card.classList.remove('alert-success', 'alert-danger', 'bg-body-tertiary', 'border-0');
+                card.classList.add(bg, 'border-0');
+            }
+        }
         // Update amount-in-words if helper available
         if (typeof toWords === 'function') {
             const wordsEl = document.getElementById('bank-denom-words');

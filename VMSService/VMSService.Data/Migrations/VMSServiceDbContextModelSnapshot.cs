@@ -310,7 +310,7 @@ namespace VMSService.Data.Migrations
 
                     b.Property<string>("CaseNumber")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
@@ -353,6 +353,10 @@ namespace VMSService.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("PackingListDetailsId");
+
+                    b.HasIndex("CaseNumber", "DenominationId", "BranchIsAtId")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_BoxState_Box_Denom_Branch");
 
                     b.ToTable("BoxStates");
                 });

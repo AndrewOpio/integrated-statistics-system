@@ -43,13 +43,13 @@
                 </div>
             </div>
         }
-        else if (Model.CbDenominations.Any())
+        @if (Model.CbDenominations.Any())
         {
             @* ─────────────────────────────────────────────────────────────
                Table 1: Company Request (CB wishlist)
                ───────────────────────────────────────────────────────────── *@
             <div>
-                <p class="text-uppercase text-muted fw-bolder mb-2">Company Request</p>
+                <p class="text-uppercase text-muted fw-bolder mb-2">Commercial Bank Request</p>
                 <div class="border rounded-3 overflow-hidden">
                     <table class="cbtable table table-sm align-middle mb-0 rounded">
                         <thead class="thead-light" style="border-style: none !important;">
@@ -83,7 +83,7 @@
                                 <tr class="fw-bold text-info" style="background: #e5e7eb;">
                                     <td class="ps-3 text-uppercase">
                                         <span class="rounded-circle d-inline-flex align-items-center justify-content-center fw-bold"
-                                              style="width:16px;height:16px;font-size:9px;background:#fff3e0;color:#e65100;">N</span>
+                                              style="width:16px;height:16px;font-size:9px;background:#fff3e0;color:#2361ce;">N</span>
                                         Total BankNotes
                                     </td>
                                     <td></td>
@@ -214,8 +214,9 @@
                                             
                                         } *@
                                         else
-                                        { 
-                                            <span class="badge bg-warning-subtle text-warning">N · Partial</span>
+                                        {
+                                            <span class="badge" style="background:#faeeda;color:#2361ce;">N</span>
+                                            <span class="badge bg-warning-subtle text-warning">· Partial</span>
                                             <span style="font-family:var(--bs-font-monospace);font-weight:600;">
                                                 Box @r.StartBox
                                             </span>
@@ -239,7 +240,8 @@
                                         
                                     </td> *@
                                     <td>@r.Denomination.ToString("N0")</td>
-                                    <td><span class="badge bg-secondary-subtle text-secondary">R</span>
+                                    <td>
+                                        <span class="badge" style="background:#faeeda;color:#2361ce;">R</span>
                                         <span class="text-muted">Reissue</span>
                                         </td>
                                     <td class="text-end">@r.Quantity.ToString("N0") bundles</td>
@@ -257,7 +259,7 @@
                                     </td> *@
                                     <td>@r.Denomination.ToString("N0")</td>
                                     <td><span class="badge" style="background:#faeeda;color:#BA7517;">C</span>
-                                        <span class="text-muted">Coin box</span>
+                                        <span class="text-muted">Coins</span>
                                         </td>
                                     <td class="text-end">@r.Quantity.ToString("N0") boxes</td>
                                     <td class="text-end pe-3">@r.Amount.ToString("N0")</td>
@@ -270,7 +272,7 @@
                                 <tr class="fw-bold text-info" style="background: #e5e7eb;">
                                     <td colspan="3" class="ps-3 text-uppercase" style="font-size: 12px;">
                                         <span class="rounded-circle d-inline-flex align-items-center justify-content-center fw-bold"
-                                              style="width:16px;height:16px;font-size:9px;background:#fff3e0;color:#e65100;">N</span>
+                                              style="width:16px;height:16px;font-size:9px;background:#fff3e0;color:#2361ce;">N</span>
                                         Total New Banknotes
                                     </td>
                                     <td class="text-end pe-3">@dispatchNewTotal.ToString("N0")</td>
@@ -281,7 +283,7 @@
                                 <tr class="fw-bold text-info" style="background: #e5e7eb;">
                                     <td colspan="3" class="ps-3 text-uppercase" style="font-size: 12px;">
                                         <span class="rounded-circle d-inline-flex align-items-center justify-content-center fw-bold"
-                                              style="width:16px;height:16px;font-size:9px;background:#dbeafe;color:#e65100;">R</span>
+                                              style="width:16px;height:16px;font-size:9px;background:#fff3e0;color:#2361ce;">R</span>
                                         Total Reissue Banknotes
                                     </td>
                                     <td class="text-end pe-3">@dispatchReissueTotal.ToString("N0")</td>

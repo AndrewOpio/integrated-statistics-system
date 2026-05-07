@@ -158,11 +158,11 @@ namespace VMSService.Web.Controllers
                 .Where(d => d.Origin == WithdrawalOrigin.Cb)
                 .ToList();
 
-            var displayLines = request.WithdrawalRequestDenominations
-                .Where(d => d.Origin == WithdrawalOrigin.Bou)
-                .ToList();
+            //var displayLines = request.WithdrawalRequestDenominations
+            //    .Where(d => d.Origin == WithdrawalOrigin.Bou)
+            //    .ToList();
 
-            var notes = displayLines
+            var notes = cbDisplayLines
                 .Where(d => d.Bundles.HasValue)
                 .OrderByDescending(d => d.DenominationValue)
                 .Select(d => new DenominationLineViewModel
@@ -173,7 +173,7 @@ namespace VMSService.Web.Controllers
                 })
                 .ToList();
 
-            var coins = displayLines
+            var coins = cbDisplayLines
                 .Where(d => d.Boxes.HasValue)
                 .OrderByDescending(d => d.DenominationValue)
                 .Select(d => new DenominationLineViewModel
@@ -383,7 +383,7 @@ namespace VMSService.Web.Controllers
 
 
             var Steps = BuildStepViewModel(request.StatusTypeId,
-                           request.StatusTypeId == WithdrawalStatusIds.Approved);
+                           request.StatusTypeId == WithdrawalStatusIds.Approved, request.RequiresSpecialApproval);
 
             // ── Build ViewModel ───────────────────────────────────────────────────
             var vm = new BouWithdrawalRequestDetailsViewModel
@@ -413,7 +413,7 @@ namespace VMSService.Web.Controllers
                 IsLumpSum = request.IsLumpSum,
                 IsPostApprovalView = displayOrigin == WithdrawalOrigin.Bou,
                 Steps = BuildStepViewModel(request.StatusTypeId,
-                           request.StatusTypeId == WithdrawalStatusIds.Approved),
+                           request.StatusTypeId == WithdrawalStatusIds.Approved, request.RequiresSpecialApproval),
                 CanEditDispatch = canEditDispatch,
                 EditableBankRows = editableBankRows,
                 DispatchedNewBanknotes = dispatchedNewBanknotes,
@@ -790,19 +790,27 @@ namespace VMSService.Web.Controllers
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        private WithdrawalStepViewModel BuildStepViewModel(int statusId, bool isApproved)
+        //private WithdrawalStepViewModel BuildStepViewModel(int statusId, bool isApproved)
+        //    => WithdrawalStepViewModelFactory.Build(
+        //        currentStepKey: GetCurrentStepKey(statusId),
+        //        isRequestApproved: isApproved,
+        //        user: User);
+        private WithdrawalStepViewModel BuildStepViewModel(int statusId, bool isApproved, bool requiresSpecialApproval)
             => WithdrawalStepViewModelFactory.Build(
                 currentStepKey: GetCurrentStepKey(statusId),
                 isRequestApproved: isApproved,
+                requiresSpecialApproval: requiresSpecialApproval,
                 user: User);
+
+
         private static string GetCurrentStepKey(int statusId) => statusId switch
         {
             WithdrawalStatusIds.Draft => "CbMaker",
             WithdrawalStatusIds.ReturnedForRevision => "CbMaker",
             WithdrawalStatusIds.SubmittedToSupervisor => "CbApprover",
-            WithdrawalStatusIds.PendingSpecialApproval => "BOU",
-            WithdrawalStatusIds.PendingRecommendation => "BOU",
-            WithdrawalStatusIds.Recommended => "BOU",
+            WithdrawalStatusIds.PendingSpecialApproval => "Remittance",
+            WithdrawalStatusIds.PendingRecommendation => "PanelA",
+            WithdrawalStatusIds.Recommended => "PanelB",
             WithdrawalStatusIds.Approved => "BOU",
             WithdrawalStatusIds.Rejected => "BOU",
             _ => "CbMaker",

@@ -109,6 +109,11 @@ namespace VMSService.Data.Configurations
                 .IsUnique()
                 .HasFilter("[TransactionRefNumber] IS NOT NULL");
 
+            modelBuilder.Entity<BoxState>()
+                .HasIndex(bs => new { bs.CaseNumber, bs.DenominationId, bs.BranchIsAtId })
+                .IsUnique()
+                .HasDatabaseName("UQ_BoxState_Box_Denom_Branch");
+
             modelBuilder.Entity<WithdrawalRequest>().HasIndex(r => r.CbId);
             modelBuilder.Entity<WithdrawalRequest>().HasIndex(r => r.StatusTypeId);
             modelBuilder.Entity<WithdrawalRequest>().HasIndex(r => r.CollectionDate);
