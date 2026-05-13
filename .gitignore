@@ -53,8 +53,10 @@ secrets.json
 ############################
 wwwroot/lib/
 wwwroot/dist/
+wwwroot/uploads/
 node_m_
 
 ProductService/
 OrderService/
 PublishProfiles/
+

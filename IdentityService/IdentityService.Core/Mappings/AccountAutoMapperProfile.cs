@@ -10,6 +10,7 @@ namespace IdentityService.Mappings
         public AccountAutoMapperProfile()
         {
             CreateMap<User, UserViewModel>().ReverseMap();
+            CreateMap<User, UserDto>().ReverseMap();
             CreateMap<Application, ApplicationViewModel>().ReverseMap();
             CreateMap<Role, RoleViewModel>().ReverseMap();
             CreateMap<ApplicationRole, ApplicationRoleViewModel>().ReverseMap();
