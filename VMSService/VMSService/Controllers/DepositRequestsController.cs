@@ -48,10 +48,9 @@ namespace VMSService.Web.Controllers
         IFeeTypeRepository _feeTypeRepo) : Controller
     {
         [Breadcrumb("Deposit Requests", FromController = typeof(HomeController), FromAction = nameof(Index))]
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string? branchCode = null)
         {
-            var allRequests = await _uow.Requests.FindAll();
-            allRequests = allRequests.Where(x => !x.IsDeleted).ToList();
+            ICollection<DepositRequest> visibleRequests = Array.Empty<DepositRequest>();
 
             var allStatuses = await _workflowServiceClient.FindAllStatuses();
             allStatuses = [.. allStatuses.Where(x => x.EntityType.Name == StatusConstants.Entity.DepositRequest || x.EntityType.Name == StatusConstants.Entity.DepositRequestExceptional)];
@@ -61,25 +60,72 @@ namespace VMSService.Web.Controllers
             var cbMap = allCbs.ToDictionary(s => s.Id, s => s.Name);
             var allBouBranches = await _configServiceClient.GetAllBouBranchesAsync();
 
-            //Counts
-            var pendingCb = allRequests.Count(r =>
+            // Get user roles
+            var userRoles = User.FindAll("appRole")
+                .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
+                .Select(c => c.Value.Split(":")[1])
+                .ToList();
+
+            // Determine if user can view all locations
+            bool canViewAllLocations = userRoles.Contains(SystemPolicy.Roles.RemittancesOfficer);
+
+            // Filter branches based on user roles
+            var userBranches = new List<BranchDto>();
+            var draftStatus = await GetStatusByNameAsync(DepositStatuses.DepositStatusNames.Draft);
+            var draftStatusSpecial = await GetStatusByNameExceptionalAsync(DepositStatuses.DepositStatusNames.Draft);
+
+            if (canViewAllLocations)
+            {
+                // Remittances Officer can see all branches
+                userBranches = allBouBranches.ToList();
+                visibleRequests = (await _uow.Requests.FindAll()).Where(r => r.StatusTypeId != draftStatus.Id && r.StatusTypeId != draftStatusSpecial.Id).ToList();
+            }
+            else
+            {
+                // Filter branches based on role names matching branch names
+                userBranches = allBouBranches
+                    .Where(branch => userRoles.Any(role => role.Contains(branch.Name)))
+                    .ToList();
+            }
+
+            // Filter requests by selected branch if provided
+            if (!string.IsNullOrEmpty(branchCode))
+            {
+                var selectedBranch = allBouBranches.FirstOrDefault(b => b.BranchCode == branchCode);
+                if (selectedBranch != null)
+                {
+                    visibleRequests = (await _uow.Requests.FindByBouBranchId(selectedBranch.Id)).Where(r => r.StatusTypeId != draftStatus.Id && r.StatusTypeId != draftStatusSpecial.Id).ToList();
+                }
+            }
+            else if (!canViewAllLocations && userBranches.Any())
+            {
+                // If no branch selected and user is not RemittancesOfficer, show only their branches
+                List<int> userBranchIds = userBranches.Select(b => b.Id).ToList();
+                visibleRequests = (await _uow.Requests.FindByBouBranchIds(userBranchIds)).Where(r => r.StatusTypeId != draftStatus.Id && r.StatusTypeId != draftStatusSpecial.Id).ToList();
+            }
+
+            // Counts based on filtered requests
+            var pendingCb = visibleRequests.Count(r =>
                 statusMap.GetValueOrDefault(r.StatusTypeId) == DepositStatuses.DepositStatusNames.SubmittedToSupervisor);
 
-            var specialApproval = allRequests.Count(r => r.RequiresSpecialApproval);
+            var specialApproval = visibleRequests.Count(r => r.RequiresSpecialApproval);
 
-            var underBouProcessing = allRequests.Count(r =>
-            {
-                var name = statusMap.GetValueOrDefault(r.StatusTypeId);
-                return name == DepositStatuses.DepositStatusNames.SubmittedToBank
-                    || name == DepositStatuses.DepositStatusNames.Recommended;
-            });
-
-            var totalProcessed = allRequests
+            var approvedRequests = visibleRequests
                 .Where(r => statusMap.GetValueOrDefault(r.StatusTypeId) == DepositStatuses.DepositStatusNames.Approved)
-                .Sum(r => r.TotalAmount);
+                .ToList();
 
-            //Requests table
-            var rows = await Task.WhenAll(allRequests.Select(async r => new RecentRequestRowViewModel
+            var approvedCount = approvedRequests.Count;
+
+            var totalProcessed = approvedRequests.Sum(r => r.TotalAmount);
+
+            // Calculate approved count difference from last month
+            var lastMonth = DateTime.Now.AddMonths(-1);
+            var lastMonthApproved = approvedRequests.Count(r => r.CreatedDate.Month == lastMonth.Month && r.CreatedDate.Year == lastMonth.Year);
+            var thisMonthApproved = approvedRequests.Count(r => r.CreatedDate.Month == DateTime.Now.Month && r.CreatedDate.Year == DateTime.Now.Year);
+            var approvedCountDiff = thisMonthApproved - lastMonthApproved;
+
+            // Requests table
+            var rows = await Task.WhenAll(visibleRequests.Select(async r => new RecentRequestRowViewModel
             {
                 Id = r.Id,
                 TransactionRefNumber = r.TransactionRefNumber ?? "Not Generated",
@@ -97,10 +143,13 @@ namespace VMSService.Web.Controllers
             {
                 PendingCbCount = pendingCb,
                 SpecialApprovalCount = specialApproval,
-                UnderBouProcessing = underBouProcessing,
+                ApprovedCount = approvedCount,
+                ApprovedCountDiff = approvedCountDiff,
                 TotalProcessed = totalProcessed,
                 Requests = rows,
-                BouBranches = allBouBranches,
+                BouBranches = userBranches,
+                SelectedBranch = branchCode,
+                CanViewAllLocations = canViewAllLocations
             };
 
             return View(vm);
@@ -534,6 +583,74 @@ namespace VMSService.Web.Controllers
                 ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
                 StatusName = statusName,
                 EntityTypeName = StatusConstants.Entity.DepositRequestExceptional,
+            });
+        }
+
+        // Add new action for AJAX stats updates
+        [HttpGet]
+        public async Task<IActionResult> Stats(string? branchCode = null)
+        {
+            var allRequests = await _uow.Requests.FindAll();
+            allRequests = allRequests.Where(x => !x.IsDeleted).ToList();
+
+            var allStatuses = await _workflowServiceClient.FindAllStatuses();
+            allStatuses = [.. allStatuses.Where(x => x.EntityType.Name == StatusConstants.Entity.DepositRequest || x.EntityType.Name == StatusConstants.Entity.DepositRequestExceptional)];
+
+            var statusMap = allStatuses.ToDictionary(s => s.Id, s => s.Name);
+            var allBouBranches = await _configServiceClient.GetAllBouBranchesAsync();
+
+            // Get user roles
+            var userRoles = User.FindAll("appRole")
+                .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
+                .Select(c => c.Value.Split(":")[1])
+                .ToList();
+
+            bool canViewAllLocations = userRoles.Contains(SystemPolicy.Roles.RemittancesOfficer);
+
+            // Filter by branch if provided
+            if (!string.IsNullOrEmpty(branchCode))
+            {
+                var selectedBranch = allBouBranches.FirstOrDefault(b => b.BranchCode == branchCode);
+                if (selectedBranch != null)
+                {
+                    allRequests = allRequests.Where(r => r.BouBranchId == selectedBranch.Id).ToList();
+                }
+            }
+            else if (!canViewAllLocations)
+            {
+                // Filter by user's branches
+                var userBranches = allBouBranches
+                    .Where(branch => userRoles.Any(role => role.Contains(branch.BranchCode)))
+                    .ToList();
+                var userBranchIds = userBranches.Select(b => b.Id).ToList();
+                allRequests = allRequests.Where(r => userBranchIds.Contains(r.BouBranchId)).ToList();
+            }
+
+            // Calculate stats
+            var pendingCb = allRequests.Count(r =>
+                statusMap.GetValueOrDefault(r.StatusTypeId) == DepositStatuses.DepositStatusNames.SubmittedToSupervisor);
+
+            var specialApproval = allRequests.Count(r => r.RequiresSpecialApproval);
+
+            var approvedRequests = allRequests
+                .Where(r => statusMap.GetValueOrDefault(r.StatusTypeId) == DepositStatuses.DepositStatusNames.Approved)
+                .ToList();
+
+            var approvedCount = approvedRequests.Count;
+            var totalProcessed = approvedRequests.Sum(r => r.TotalAmount);
+
+            var lastMonth = DateTime.Now.AddMonths(-1);
+            var lastMonthApproved = approvedRequests.Count(r => r.CreatedDate.Month == lastMonth.Month && r.CreatedDate.Year == lastMonth.Year);
+            var thisMonthApproved = approvedRequests.Count(r => r.CreatedDate.Month == DateTime.Now.Month && r.CreatedDate.Year == DateTime.Now.Year);
+            var approvedCountDiff = thisMonthApproved - lastMonthApproved;
+
+            return Json(new
+            {
+                pendingCbCount = pendingCb,
+                specialApprovalCount = specialApproval,
+                approvedCount = approvedCount,
+                approvedCountDiff = approvedCountDiff,
+                totalProcessed = totalProcessed
             });
         }
     }

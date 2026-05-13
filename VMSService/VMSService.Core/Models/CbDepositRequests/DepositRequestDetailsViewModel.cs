@@ -66,5 +66,8 @@ namespace VMSService.Core.Models.CbDepositRequest
         public bool HasPenaltyViolations { get; set; }
         public string PenaltyDetails { get; set; } = string.Empty;
 
+        // Panelists
+        public string PanelAName { get; set; } = string.Empty;
+        public string PanelBName { get; set; } = string.Empty;
     }
 }
