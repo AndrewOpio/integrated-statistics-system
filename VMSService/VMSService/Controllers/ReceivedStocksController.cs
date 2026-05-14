@@ -31,6 +31,7 @@ using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.NewStockMovementLogs;
 using VMSService.Core.Repositories.PackingListRangeDetails;
+using ConfigurationsService.Client;
 
 namespace VMSService.Web.Controllers
 {
@@ -54,6 +55,7 @@ namespace VMSService.Web.Controllers
         IStockMovementRepository _stockMovementRepository,
         INewStockMovementLogRepository _newStockMovementLogRepository,
         IPackingListDetailsRepository _packingListDetailsRepository,
+        IConfigurationsServiceClient _configServiceClient,
         IWorkflowServiceClient _workflowServiceClient) : Controller
     {
         [Breadcrumb("Received Stock", FromController = typeof(HomeController), FromAction = nameof(Index))]
@@ -74,7 +76,8 @@ namespace VMSService.Web.Controllers
                         // Add Branch information through ExPrintMint
                         if (receivedStock.ExPrintMint.BranchId > 0)
                         {
-                            var branch = await _branchRepository.FindById(receivedStock.ExPrintMint.BranchId);
+                            var branch = await _configServiceClient.GetBouBranchByIdAsync(receivedStock.ExPrintMint.BranchId);
+
                             if (branch != null)
                             {
                                 receivedStock.ExPrintMint.Branch = _mapper.Map<BranchViewModel>(branch);
@@ -636,9 +639,10 @@ namespace VMSService.Web.Controllers
                                 CreatedBy = username ?? "unknown",
                                 ModifiedBy = username ?? "unknown",
                                 DenominationId = receivedStock.ExPrintMint.DenominationId,
-                                //NumberOfPieces = receivedStock.NumberOfPieces,
-                                //NumberOfBoxes = receivedStock.NumberOfBoxes,
-                                //Value = receivedStock.Value
+                                NumberOfPieces = receivedStock.NumberOfBoxes * 50000,
+                                NumberOfBoxes = receivedStock.NumberOfBoxes,
+                                NumberOfBundles = receivedStock.NumberOfBoxes,
+                                //Value = receivedStock.ExPrintMint.
                             };
 
                             List<StockLedgerDetail> stockLedgerDetails = new();
@@ -650,8 +654,8 @@ namespace VMSService.Web.Controllers
                                 ReferenceCode = receivedStock.ExPrintMint.ExPrintMintReference,
                                 //StoreId = store.Id, //Branch - New
                                 IsIn = true,
-                                //CounterPartyId = receivedStock.ExPrintMint.CurrencyVendorId,
-                                //CounterPartyTypeId = counterPartyType.Id, //Vendor
+                                CounterPartyId = receivedStock.ExPrintMint.CurrencyVendorId,
+                                CounterPartyTypeId = counterPartyType.Id, //Vendor
                                 Notes = remarks,
                                 CreatedBy = username ?? "unknown",
                                 CreatedDate = DateTime.Now,
@@ -766,11 +770,11 @@ namespace VMSService.Web.Controllers
                 // Create StockMovement
                 var stockMovement = new StockMovement
                 {
-                    MovementType = "InboundReceived",
+                    MovementType = "ReceivedStock",
                     Date = DateTime.Now,
                     ReferenceNumber = $"REC-{receivedStock.Id}-{DateTime.Now:yyyyMMddHHmmss}",
                     CurrentStatusId = statusId,
-                    DispatchingBranchId = receivedStock.ExPrintMint.BranchId,
+                    DispatchingBranchId = 0,
                     ReceivingBranchId = receivedStock.ExPrintMint.BranchId,
                     CreatedBy = username ?? "system",
                     ModifiedBy = username ?? "system",

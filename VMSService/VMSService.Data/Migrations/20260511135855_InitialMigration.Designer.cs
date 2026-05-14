@@ -12,7 +12,7 @@ using VMSService.Data.Configurations;
 namespace VMSService.Data.Migrations
 {
     [DbContext(typeof(VMSServiceDbContext))]
-    [Migration("20260506160955_InitialMigration")]
+    [Migration("20260511135855_InitialMigration")]
     partial class InitialMigration
     {
         /// <inheritdoc />
@@ -1225,6 +1225,10 @@ namespace VMSService.Data.Migrations
                     b.Property<decimal>("ClearingFees")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("ClearingFeesCurrency")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("CreatedBy")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -1252,8 +1256,16 @@ namespace VMSService.Data.Migrations
                     b.Property<decimal>("HandlingCharges")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("HandlingChargesCurrency")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<decimal>("InsuranceFees")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("InsuranceFeesCurrency")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
@@ -1277,8 +1289,16 @@ namespace VMSService.Data.Migrations
                     b.Property<decimal>("ShippingFees")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("ShippingFeesCurrency")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<decimal>("TestingFees")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("TestingFeesCurrency")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
