@@ -62,6 +62,7 @@ using VMSService.Core.Services.StockPositions;
 using VMSService.Core.Services.Stocks;
 using VMSService.Core.Services.Workflows;
 using VMSService.Data;
+using VMSService.Core.Repositories.NewStockMovementLogs;
 using WorkflowService.Client;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -249,6 +250,7 @@ builder.Services.AddScoped<ISubCategoryRepository, SubCategoryRepository>();
 builder.Services.AddSingleton<IAuthorizationHandler, CbOwnershipAuthorizationHandler>();
 builder.Services.AddScoped<ILogisticsRepository, LogisticsRepository>();
 builder.Services.AddScoped<ILogisticsStatusHistoryRepository, LogisticsStatusHistoryRepository>();
+builder.Services.AddScoped<INewStockMovementLogRepository, NewStockMovementLogRepository>();
 
 // Add this in your service registration section
 builder.Services.AddScoped<IStockService, VMSService.Core.Services.Stocks.StockService>();

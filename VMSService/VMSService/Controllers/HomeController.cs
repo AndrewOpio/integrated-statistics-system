@@ -16,6 +16,7 @@ using VMSService.Core.Services.StockPositions;
 using VMSService.Core.Static;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Models;
+using ConfigurationsService.Client;
 
 namespace VMSService.Controllers
 {
@@ -32,6 +33,7 @@ namespace VMSService.Controllers
         private readonly IStockPositionService _stockPositionService;
         private readonly IMapper _mapper;
         private readonly IConfiguration _configuration;
+        private readonly IConfigurationsServiceClient _configServiceClient;
 
         public HomeController(
             ILogger<HomeController> logger,
@@ -42,6 +44,7 @@ namespace VMSService.Controllers
             IStockLedgerRepository stockLedgerRepository,
             IStockPositionService stockPositionService,
             IMapper mapper,
+            IConfigurationsServiceClient configServiceClient,
             IConfiguration configuration)
         {
             _logger = logger;
@@ -51,6 +54,7 @@ namespace VMSService.Controllers
             _categoryRepository = categoryRepository;
             _stockLedgerRepository = stockLedgerRepository;
             _stockPositionService = stockPositionService;
+            _configServiceClient = configServiceClient;
             _mapper = mapper;
             _configuration = configuration;
         }
@@ -91,7 +95,7 @@ namespace VMSService.Controllers
                     // Map Branch
                     if (delivery.BranchId > 0)
                     {
-                        var branch = await _branchRepository.FindById(delivery.BranchId);
+                        var branch = await _configServiceClient.GetBouBranchByIdAsync(delivery.BranchId);
                         if (branch != null)
                         {
                             delivery.Branch = _mapper.Map<BranchViewModel>(branch);
@@ -100,14 +104,14 @@ namespace VMSService.Controllers
                 }
 
                 // Get all branches for dropdown
-                var allBranches = await _branchRepository.FindAll();
+                var allBranches = await _configServiceClient.GetAllBouBranchesAsync();
                 ViewBag.AllBranches = allBranches;
 
                 // Determine which branch to display (use branchId param or default to Kampala)
                 BranchViewModel selectedBranch = null;
                 if (branchId.HasValue)
                 {
-                    var branch = await _branchRepository.FindById(branchId.Value);
+                    var branch = await _configServiceClient.GetBouBranchByIdAsync(branchId.Value);
                     if (branch != null)
                     {
                         selectedBranch = _mapper.Map<BranchViewModel>(branch);
@@ -117,7 +121,8 @@ namespace VMSService.Controllers
                 // Fallback to Kampala if no valid branchId provided
                 if (selectedBranch == null)
                 {
-                    var kampalaBranch = await _branchRepository.FindByName("Kampala Branch");
+                    var kampalaBranch = allBranches.FirstOrDefault(b => b.Name == "Kampala Branch");
+
                     if (kampalaBranch != null)
                     {
                         selectedBranch = _mapper.Map<BranchViewModel>(kampalaBranch);

@@ -28,6 +28,9 @@ using VMSService.Data.Entities;
 using WorkflowService.Client;
 using WorkflowService.Client.Dto;
 using VMSService.Core.Repositories.Stocks;
+using VMSService.Core.Repositories.StockMovements;
+using VMSService.Core.Repositories.NewStockMovementLogs;
+using VMSService.Core.Repositories.PackingListRangeDetails;
 
 namespace VMSService.Web.Controllers
 {
@@ -48,6 +51,9 @@ namespace VMSService.Web.Controllers
         ICounterPartyTypeRepository _counterPartyTypeRepository,
         IBranchCategoryRepository _branchCategoryRepository,
         IPackingListRangeRepository _packingListRangeRepository,
+        IStockMovementRepository _stockMovementRepository,
+        INewStockMovementLogRepository _newStockMovementLogRepository,
+        IPackingListDetailsRepository _packingListDetailsRepository,
         IWorkflowServiceClient _workflowServiceClient) : Controller
     {
         [Breadcrumb("Received Stock", FromController = typeof(HomeController), FromAction = nameof(Index))]
@@ -690,7 +696,20 @@ namespace VMSService.Web.Controllers
                             _logger.LogError(ex, "Error updating stock position for Received Stock {ReceivedStockId}", id);
                             TempData["Warning"] = "Action confirmed but stock position update encountered an error. Please verify stock levels.";
                         }
-                        TempData["Success"] = "Stock Position Updated Successfully!";
+
+                        // Create StockMovement from received stock and populate logs
+                        try
+                        {
+                            var updatedReceivedStock = await _receivedStockRepository.FindById(id);
+                            await CreateStockMovementFromReceivedStock(updatedReceivedStock, username);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error creating stock movement from received stock {ReceivedStockId}", id);
+                            TempData["Warning"] = "Stock movement creation encountered an error. Please verify manually.";  
+                        }
+
+                        TempData["Success"] = "Stock Position Updated Successfully and Notification Sent!";
                     } else
                     {
                         TempData["Success"] = "Review completed successfully!";
@@ -708,6 +727,191 @@ namespace VMSService.Web.Controllers
             }
 
             return RedirectToAction(nameof(Details), new { id });
+        }
+
+        private async Task CreateStockMovementFromReceivedStock(ReceivedStock receivedStock, string username)
+        {
+            if (receivedStock?.ReceivedStockDetails == null || !receivedStock.ReceivedStockDetails.Any())
+            {
+                _logger.LogWarning("No received stock details found for received stock {ReceivedStockId}", receivedStock?.Id);
+                return;
+            }
+
+            try
+            {
+                // Get the denomination from the ExPrintMint
+                if (receivedStock.ExPrintMint == null)
+                {
+                    receivedStock.ExPrintMint = await _exPrintMintRepository.FindById(receivedStock.ExPrintMintId);
+                }
+
+                if (receivedStock.ExPrintMint?.DenominationId == null || receivedStock.ExPrintMint.DenominationId == 0)
+                {
+                    _logger.LogWarning("Invalid denomination for received stock {ReceivedStockId}", receivedStock.Id);
+                    return;
+                }
+
+                // Get the Received status directly by name (more efficient than loading all)
+                //var receivedStatus = await _workflowServiceClient.FindStatusByName("Received", "ReceivedStock");
+
+                StatusTypeDto receivedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+                {
+                    ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                    StatusName = StatusConstants.StockMovement.Received,
+                    EntityTypeName = StatusConstants.Entity.StockMovement,
+                });
+
+                int statusId = receivedStatus?.Id ?? 1;
+
+                // Create StockMovement
+                var stockMovement = new StockMovement
+                {
+                    MovementType = "InboundReceived",
+                    Date = DateTime.Now,
+                    ReferenceNumber = $"REC-{receivedStock.Id}-{DateTime.Now:yyyyMMddHHmmss}",
+                    CurrentStatusId = statusId,
+                    DispatchingBranchId = receivedStock.ExPrintMint.BranchId,
+                    ReceivingBranchId = receivedStock.ExPrintMint.BranchId,
+                    CreatedBy = username ?? "system",
+                    ModifiedBy = username ?? "system",
+                    CreatedDate = DateTime.Now,
+                    ModifiedDate = DateTime.Now,
+                    Denominations = new List<StockMovementDenomination>()
+                };
+
+                // Create denomination entry with box ranges
+                var denomination = new StockMovementDenomination
+                {
+                    DenominationId = receivedStock.ExPrintMint.DenominationId,
+                    BoxNumberRanges = new List<StockMovementDenominationBoxNumberRange>()
+                };
+
+                // Add all the box ranges from received stock details
+                foreach (var detail in receivedStock.ReceivedStockDetails)
+                {
+                    denomination.BoxNumberRanges.Add(new StockMovementDenominationBoxNumberRange
+                    {
+                        Start = detail.ReceivedStartCaseNumber.ToString(),
+                        End = detail.ReceivedEndCaseNumber.ToString()
+                    });
+                }
+
+                stockMovement.Denominations.Add(denomination);
+
+                // Save the stock movement
+                var createdMovement = await _stockMovementRepository.CreateAsync(stockMovement);
+
+                if (createdMovement != null)
+                {
+                    _logger.LogInformation("Stock movement created for received stock {ReceivedStockId}, Movement ID: {MovementId}", receivedStock.Id, createdMovement.Id);
+                    
+                    // Populate NewStockMovementLogs
+                    await PopulateNewStockMovementLogs(createdMovement);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception in CreateStockMovementFromReceivedStock for received stock {ReceivedStockId}", receivedStock.Id);
+                throw;
+            }
+        }
+
+        private async Task PopulateNewStockMovementLogs(StockMovement movement)
+        {
+            try
+            {
+                if (movement?.Denominations == null || !movement.Denominations.Any())
+                {
+                    _logger.LogWarning("No denominations found for movement {MovementId}", movement?.Id);
+                    return;
+                }
+
+                var newLogs = new List<NewStockMovementlog>();
+
+                // Iterate through each denomination and its box number ranges
+                foreach (var denomination in movement.Denominations)
+                {
+                    if (denomination.BoxNumberRanges == null || !denomination.BoxNumberRanges.Any())
+                    {
+                        _logger.LogDebug("No box ranges for denomination {DenominationId}", denomination.DenominationId);
+                        continue;
+                    }
+
+                    // Process each box number range
+                    foreach (var boxRange in denomination.BoxNumberRanges)
+                    {
+                        if (string.IsNullOrWhiteSpace(boxRange.Start) || string.IsNullOrWhiteSpace(boxRange.End))
+                        {
+                            _logger.LogDebug("Skipping empty box range for denomination {DenominationId}", denomination.DenominationId);
+                            continue;
+                        }
+
+                        // Parse the start and end box numbers
+                        if (!int.TryParse(boxRange.Start, out int startBox) || !int.TryParse(boxRange.End, out int endBox))
+                        {
+                            _logger.LogWarning("Failed to parse box range: {Start}-{End}", boxRange.Start, boxRange.End);
+                            continue;
+                        }
+
+                        // Iterate from start box to end box
+                        for (int boxNumber = startBox; boxNumber <= endBox; boxNumber++)
+                        {
+                            // Find the corresponding PackingListDetails record
+                            var packingDetail = await _packingListDetailsRepository.FindByCaseNumberAsync(boxNumber);
+                            
+                            if (packingDetail != null)
+                            {
+                                // Create a NewStockMovementlog entry
+                                var log = new NewStockMovementlog
+                                {
+                                    StockMovementId = movement.Id,
+                                    PackingListDetailId = packingDetail.Id,
+                                    SerialNoteStartNumber = packingDetail.SerialNoteStartNumber,
+                                    SerialNoteEndNumber = packingDetail.SerialNoteEndNumber,
+                                    AccountingStatusId = null,
+                                    CaseFullStatusId = null,
+                                    CreatedBy = User.Identity?.Name ?? "system",
+                                    ModifiedBy = User.Identity?.Name ?? "system",
+                                    CreatedDate = DateTime.Now,
+                                    ModifiedDate = DateTime.Now
+                                };
+
+                                newLogs.Add(log);
+                            }
+                            else
+                            {
+                                _logger.LogDebug("No PackingListDetails found for case number {CaseNumber}", boxNumber);
+                            }
+                        }
+                    }
+                }
+
+                // Batch insert all logs if any were created
+                _logger.LogInformation("Creating {LogCount} NewStockMovementLog entries for movement {MovementId}", newLogs.Count, movement.Id);
+                
+                if (newLogs.Any())
+                {
+                    try
+                    {
+                        var result = await _newStockMovementLogRepository.CreateBatchAsync(newLogs);
+                        _logger.LogInformation("Batch insert result: {Result} for {Count} logs", result, newLogs.Count);
+                    }
+                    catch (Exception batchEx)
+                    {
+                        _logger.LogError(batchEx, "Batch insert failed. Exception: {Message}", batchEx.InnerException?.Message ?? batchEx.Message);
+                        throw;
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("No logs were created for movement {MovementId}", movement.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error populating NewStockMovementLogs for movement {MovementId}", movement?.Id);
+                throw;
+            }
         }
     }
 }

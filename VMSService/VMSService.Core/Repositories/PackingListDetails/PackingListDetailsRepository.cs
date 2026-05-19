@@ -22,6 +22,12 @@ namespace VMSService.Core.Repositories.PackingListRangeDetails
                 .FirstOrDefaultAsync(p => p.Id == id);
         }
 
+        public async Task<PackingListDetails> FindByCaseNumberAsync(int caseNumber)
+        {
+            return await _db.PackingListDetails
+                .FirstOrDefaultAsync(p => p.CaseNumber == caseNumber);
+        }
+
         public async Task<PackingListDetails> CreateAsync(PackingListDetails entity)
         {
             await _db.PackingListDetails.AddAsync(entity);

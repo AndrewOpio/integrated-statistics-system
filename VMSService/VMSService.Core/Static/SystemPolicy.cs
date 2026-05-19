@@ -10,6 +10,7 @@
             public const string StockApprover = "Stock Approver"; 
             public const string CurrencyApprover = "Currency Approver";
             public const string Director = "Director";
+            public const string FinanceAndBudgetingOfficer = "Finance and Budgeting Officer";
 
             public const string BranchManager = "Panel B";
             public const string RemittancesOfficer = "Remittance Officer";

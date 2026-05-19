@@ -1217,10 +1217,10 @@ namespace VMSService.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("AccountingStatusId")
+                    b.Property<int?>("AccountingStatusId")
                         .HasColumnType("int");
 
-                    b.Property<int>("CaseFullStatusId")
+                    b.Property<int?>("CaseFullStatusId")
                         .HasColumnType("int");
 
                     b.Property<string>("CreatedBy")
@@ -1236,12 +1236,6 @@ namespace VMSService.Data.Migrations
 
                     b.Property<DateTime>("ModifiedDate")
                         .HasColumnType("datetime2");
-
-                    b.Property<int>("NewCaseFullStatus")
-                        .HasColumnType("int");
-
-                    b.Property<int>("NewStockAccountingStatus")
-                        .HasColumnType("int");
 
                     b.Property<long>("PackingListDetailId")
                         .HasColumnType("bigint");
@@ -2108,7 +2102,7 @@ namespace VMSService.Data.Migrations
                     b.HasOne("VMSService.Data.Entities.AgentDetail", "AgentDetail")
                         .WithMany()
                         .HasForeignKey("AgentDetailId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("AgentDetail");
@@ -2119,13 +2113,13 @@ namespace VMSService.Data.Migrations
                     b.HasOne("VMSService.Data.Entities.ApprovedCurrencyProcurement", "ApprovedCurrency")
                         .WithMany()
                         .HasForeignKey("ApprovedCurrencyId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("VMSService.Data.Entities.CurrencyVendor", "CurrencyVendor")
                         .WithMany()
                         .HasForeignKey("CurrencyVendorId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("ApprovedCurrency");
@@ -2138,7 +2132,7 @@ namespace VMSService.Data.Migrations
                     b.HasOne("VMSService.Data.Entities.ApprovedCurrencyProcurement", "ApprovedCurrencyProcurement")
                         .WithMany()
                         .HasForeignKey("ApprovedCurrencyProcurementId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("ApprovedCurrencyProcurement");
@@ -2149,7 +2143,7 @@ namespace VMSService.Data.Migrations
                     b.HasOne("VMSService.Data.Entities.VendorType", "VendorType")
                         .WithMany()
                         .HasForeignKey("VendorTypeId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("VendorType");
@@ -2179,7 +2173,7 @@ namespace VMSService.Data.Migrations
                     b.HasOne("VMSService.Data.Entities.DepositRequest", "DepositRequest")
                         .WithMany("DepositRequestAgents")
                         .HasForeignKey("DepositRequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("DepositRequest");
@@ -2190,7 +2184,7 @@ namespace VMSService.Data.Migrations
                     b.HasOne("VMSService.Data.Entities.DepositRequest", "DepositRequest")
                         .WithMany("DepositRequestDenominations")
                         .HasForeignKey("DepositRequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("DepositRequest");
@@ -2201,7 +2195,7 @@ namespace VMSService.Data.Migrations
                     b.HasOne("VMSService.Data.Entities.DepositRequest", "DepositRequest")
                         .WithMany("DepositRequestStatusHistory")
                         .HasForeignKey("DepositRequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("DepositRequest");
@@ -2212,13 +2206,13 @@ namespace VMSService.Data.Migrations
                     b.HasOne("VMSService.Data.Entities.ApprovedCurrencyProcurement", "ApprovedCurrencyProcurement")
                         .WithMany()
                         .HasForeignKey("ApprovedCurrencyProcurementId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("VMSService.Data.Entities.CurrencyVendor", "CurrencyVendor")
                         .WithMany()
                         .HasForeignKey("CurrencyVendorId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("ApprovedCurrencyProcurement");
@@ -2231,7 +2225,7 @@ namespace VMSService.Data.Migrations
                     b.HasOne("VMSService.Data.Entities.ExPrintMint", "ExPrintMint")
                         .WithMany("Details")
                         .HasForeignKey("ExPrintMintId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("ExPrintMint");
@@ -2242,7 +2236,7 @@ namespace VMSService.Data.Migrations
                     b.HasOne("VMSService.Data.Entities.ExPrintMint", "ExPrintMint")
                         .WithMany()
                         .HasForeignKey("ExPrintMintId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("ExPrintMint");
@@ -2253,7 +2247,7 @@ namespace VMSService.Data.Migrations
                     b.HasOne("VMSService.Data.Entities.Logistics", "Logistics")
                         .WithMany("Categories")
                         .HasForeignKey("LogisticsId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Logistics");
@@ -2264,7 +2258,7 @@ namespace VMSService.Data.Migrations
                     b.HasOne("VMSService.Data.Entities.LogisticsCategory", "Category")
                         .WithMany("Details")
                         .HasForeignKey("LogisticsCategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Category");
@@ -2275,7 +2269,7 @@ namespace VMSService.Data.Migrations
                     b.HasOne("VMSService.Data.Entities.Logistics", "Logistics")
                         .WithMany("StatusHistory")
                         .HasForeignKey("LogisticsId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Logistics");
@@ -2285,26 +2279,22 @@ namespace VMSService.Data.Migrations
                 {
                     b.HasOne("VMSService.Data.Entities.NewStockAccountingStatus", "AccountingStatus")
                         .WithMany("NewStockMovementLogs")
-                        .HasForeignKey("AccountingStatusId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("AccountingStatusId");
 
                     b.HasOne("VMSService.Data.Entities.NewCaseFullStatusTypes", "CaseFullStatus")
                         .WithMany("NewStockMovementLogs")
-                        .HasForeignKey("CaseFullStatusId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("CaseFullStatusId");
 
                     b.HasOne("VMSService.Data.Entities.PackingListDetails", "PackingListDetail")
                         .WithMany("NewStockMovementLogs")
                         .HasForeignKey("PackingListDetailId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("VMSService.Data.Entities.StockMovement", "StockMovement")
                         .WithMany()
                         .HasForeignKey("StockMovementId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("AccountingStatus");
@@ -2332,13 +2322,13 @@ namespace VMSService.Data.Migrations
                     b.HasOne("VMSService.Data.Entities.ExPrintMintDetail", "ExPrintMintDetail")
                         .WithMany("PackingListRanges")
                         .HasForeignKey("ExPrintMintDetailId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("VMSService.Data.Entities.ExPrintMint", "ExpectedStock")
                         .WithMany()
                         .HasForeignKey("ExpectedStockId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("ExPrintMintDetail");
@@ -2351,7 +2341,7 @@ namespace VMSService.Data.Migrations
                     b.HasOne("VMSService.Data.Entities.ExPrintMint", "ExPrintMint")
                         .WithMany("ReceivedStock")
                         .HasForeignKey("ExPrintMintId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("VMSService.Data.Entities.ReceivedStatusTypes", null)
@@ -2385,7 +2375,7 @@ namespace VMSService.Data.Migrations
                     b.HasOne("VMSService.Data.Entities.ReceivedStock", "ReceivedStock")
                         .WithMany()
                         .HasForeignKey("ReceivedStockId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("ReceivedStock");
@@ -2405,7 +2395,7 @@ namespace VMSService.Data.Migrations
                     b.HasOne("VMSService.Data.Entities.StockMovement", "StockMovement")
                         .WithMany("Denominations")
                         .HasForeignKey("StockMovementId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("StockMovement");
@@ -2416,7 +2406,7 @@ namespace VMSService.Data.Migrations
                     b.HasOne("VMSService.Data.Entities.StockMovementDenomination", "StockMovementDenomination")
                         .WithMany("BoxNumberRanges")
                         .HasForeignKey("StockMovementDenominationId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("StockMovementDenomination");
@@ -2427,7 +2417,7 @@ namespace VMSService.Data.Migrations
                     b.HasOne("VMSService.Data.Entities.StockMovement", "StockMovement")
                         .WithMany("StockMovementDiscrepancies")
                         .HasForeignKey("StockMovementId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("StockMovement");
@@ -2438,7 +2428,7 @@ namespace VMSService.Data.Migrations
                     b.HasOne("VMSService.Data.Entities.StockMovement", "StockMovement")
                         .WithMany("StatusHistory")
                         .HasForeignKey("StockMovementId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("StockMovement");
@@ -2449,7 +2439,7 @@ namespace VMSService.Data.Migrations
                     b.HasOne("VMSService.Data.Entities.WithdrawalRequest", "WithdrawalRequest")
                         .WithMany("WithdrawalRequestAgents")
                         .HasForeignKey("WithdrawalRequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("WithdrawalRequest");
@@ -2460,7 +2450,7 @@ namespace VMSService.Data.Migrations
                     b.HasOne("VMSService.Data.Entities.WithdrawalRequest", "WithdrawalRequest")
                         .WithMany("WithdrawalRequestDenominations")
                         .HasForeignKey("WithdrawalRequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("WithdrawalRequest");
@@ -2471,7 +2461,7 @@ namespace VMSService.Data.Migrations
                     b.HasOne("VMSService.Data.Entities.WithdrawalRequest", "WithdrawalRequest")
                         .WithMany("WithdrawalRequestStatusHistory")
                         .HasForeignKey("WithdrawalRequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("WithdrawalRequest");

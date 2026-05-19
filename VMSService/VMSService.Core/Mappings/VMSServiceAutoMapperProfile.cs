@@ -1,5 +1,4 @@
 using AutoMapper;
-using ConfigurationsService.Dto;
 using VMSService.Core.Model.AgentDetailStatusHistories;
 using VMSService.Core.Models.AgentDetails;
 using VMSService.Core.Models.ApprovedCurrencyDenominations;
@@ -30,6 +29,7 @@ using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Data.Entities;
 using VMSService.Core.Models.SubCategories;
 using VMSService.Core.Models.DepositFees;
+using ConfigurationsService.Client;
 
 namespace VMSService.Core.Mappings
 {

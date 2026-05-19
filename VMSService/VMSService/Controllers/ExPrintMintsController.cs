@@ -30,6 +30,7 @@ using VMSService.Core.Repositories.ExPrintMintDetails;
 using VMSService.Core.Models.ExPrintMintDetails;
 using VMSService.Core.Repositories.PackingListRanges;
 using VMSService.Data.Entities;
+using ConfigurationsService.Client;
 
 namespace VMSService.Web.Controllers
 {
@@ -48,6 +49,7 @@ namespace VMSService.Web.Controllers
         IBranchRepository _branchRepository,
         IDenominationTypeRepository _denominationTypeRepository,
         IPackingListRangeRepository _packingListRangeRepository,
+        IConfigurationsServiceClient _configServiceClient,
         IWorkflowServiceClient _workflowServiceClient) : Controller
     {
         [Breadcrumb("Expected Stock", FromController = typeof(HomeController), FromAction = nameof(Index))]
@@ -173,7 +175,9 @@ namespace VMSService.Web.Controllers
                 ViewBag.Denominations = _mapper.Map<List<DenominationViewModel>>(await _denominationRepository.FindAll());
                 ViewBag.VendorTypes = _mapper.Map<List<VendorType>>(await _vendorTypeRepository.FindAll());
                 ViewBag.ApprovedCurrencyProcurements = _mapper.Map<List<ApprovedCurrencyProcurementsViewModel>>(await _approvedCurrencyProcurementRepo.FindVerified());
-                ViewBag.BranchList = _mapper.Map<List<BranchViewModel>>(await _branchRepository.FindAll());
+                ViewBag.BranchList = _mapper.Map<List<BranchDto>>(await _configServiceClient.GetAllBouBranchesAsync());
+
+                //ViewBag.BranchList = _mapper.Map<List<BranchViewModel>>(await _branchRepository.FindAll());
                 return View(new ExPrintMintBatchCreateViewModel());
             }
             catch (Exception ex)
@@ -263,6 +267,7 @@ namespace VMSService.Web.Controllers
                     Attachment = attachmentPath,
                     ApprovedCurrencyProcurementId = model.ApprovedCurrencyProcurementId,
                     CurrentStatusId = draftStatus.Id,
+                    CurrentStatusName = draftStatus.Name,
                     BranchId = model.BranchId,
                     IsDeleted = false
                 };
