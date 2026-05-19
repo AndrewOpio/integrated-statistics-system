@@ -294,10 +294,6 @@ builder.Services.AddConfigurationsServiceClient(builder.Configuration["MicroServ
 
 // Register Notification Service
 builder.Services.AddNotificationServiceClient(builder.Configuration["MicroServices:notificationservice"] ?? "https://localhost:7026");
-var rabbitMqHost = builder.Configuration["RabbitMQ:Host"] ?? "localhost";
-var rabbitMqUsername = builder.Configuration["RabbitMQ:Username"] ?? "guest";
-var rabbitMqPassword = builder.Configuration["RabbitMQ:Password"] ?? "guest";
-builder.Services.AddNotificationEventPublisher(rabbitMqHost, rabbitMqUsername, rabbitMqPassword);
 
 // Configure LDAP settings
 builder.Services.Configure<StockAPISettings>(

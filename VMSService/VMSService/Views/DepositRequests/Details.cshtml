@@ -42,6 +42,11 @@
                 UGX @Model.TotalAmount.ToString("N0")
             </h3>
             <p style="font-size:12px;color:#e8e8f0;" id="hero-words"></p>
+            @* Add Print Button Here *@
+            <button onclick="window.open('@Url.Action("PrintRequest", "CbDepositRequests", new { id = Model.Id })', '_blank')"
+                    class="btn btn-sm btn-secondary mt-2 text-white">
+                <i class="ti ti-printer me-1"></i> Print
+            </button>
         </div>
     </div>
 
