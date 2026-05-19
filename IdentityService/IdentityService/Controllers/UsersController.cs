@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using ConfigurationsService.Client;
 using IdentityService.Core.Models;
 using IdentityService.Core.Repository.ApplicationRoles;
 using IdentityService.Core.Repository.UserApplicationRoles;
@@ -8,12 +9,17 @@ using IdentityService.Core.Services.LDAPAuthentication;
 using IdentityService.Data.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using System.Data;
+using IdentityService.Core.Repository.CommercialBankUsers;
 
 namespace IdentityService.Web.Controllers
 {
     [Authorize]
-    public class UsersController(IUserRepository _userRepo, IApplicationRoleRepository _appRoleRepo, IUserApplicationRoleRepository _userAppRoleRepo, IMapper _mapper, ILogger<UsersController> _logger, ILdapAuthenticationService _adAuthService) : Controller
+    public class UsersController(IUserRepository _userRepo, IApplicationRoleRepository _appRoleRepo, 
+        IUserApplicationRoleRepository _userAppRoleRepo, IMapper _mapper, ILogger<UsersController> _logger, 
+        ILdapAuthenticationService _adAuthService, IConfigurationsServiceClient _configurationsServiceClient,
+        ICommercialBankUserRepository _commercialBankUserRepo) : Controller
     {
         public async Task<IActionResult> Index()
         {
@@ -21,9 +27,10 @@ namespace IdentityService.Web.Controllers
             return View(model);
         }
 
-        public IActionResult Create()
+        public async Task<IActionResult> Create()
         {
             var model = new UserViewModel();
+            await PopulateCommercialBankDropdowns(model);
 
             return View(model);
         }
@@ -58,12 +65,14 @@ namespace IdentityService.Web.Controllers
                 if (string.IsNullOrWhiteSpace(model.Password))
                 {
                     ModelState.AddModelError("Password", "Password is required for non-staff users.");
+                    await PopulateCommercialBankDropdowns(model);
                     return View(model);
                 }
 
                 if (model.Password != model.ConfirmPassword)
                 {
                     ModelState.AddModelError("ConfirmPassword", "The password and confirmation password do not match.");
+                    await PopulateCommercialBankDropdowns(model);
                     return View(model);
                 }
 
@@ -71,18 +80,21 @@ namespace IdentityService.Web.Controllers
                 if (string.IsNullOrWhiteSpace(model.FirstName))
                 {
                     ModelState.AddModelError("FirstName", "First Name is required for non-staff users.");
+                    await PopulateCommercialBankDropdowns(model);
                     return View(model);
                 }
 
                 if (string.IsNullOrWhiteSpace(model.LastName))
                 {
                     ModelState.AddModelError("LastName", "Last Name is required for non-staff users.");
+                    await PopulateCommercialBankDropdowns(model);
                     return View(model);
                 }
 
                 if (string.IsNullOrWhiteSpace(model.Email))
                 {
                     ModelState.AddModelError("Email", "Email is required for non-staff users.");
+                    await PopulateCommercialBankDropdowns(model);
                     return View(model);
                 }
             }
@@ -108,6 +120,7 @@ namespace IdentityService.Web.Controllers
                         break;
                 }
 
+                await PopulateCommercialBankDropdowns(model);
                 return View(model);
             }
 
@@ -116,6 +129,7 @@ namespace IdentityService.Web.Controllers
             if (existingUser != null)
             {
                 ModelState.AddModelError("UserName", "A user with this username already exists in the system.");
+                await PopulateCommercialBankDropdowns(model);
                 return View(model);
             }
 
@@ -123,6 +137,25 @@ namespace IdentityService.Web.Controllers
 
             if (result.Succeeded)
             {
+                // Save Commercial Bank relationship if provided
+                if (model.CommercialBankId.HasValue)
+                {
+                    var commercialBankUser = new CommercialBankUser
+                    {
+                        UserId = adUserResult.AppUser.Id,
+                        CommercialBankId = model.CommercialBankId.Value,
+                        CommercialBankBranchId = model.CommercialBankBranchId,
+                        IsDeleted = false
+                    };
+
+                    var cbUserCreated = await _commercialBankUserRepo.Create(commercialBankUser);
+                    if (!cbUserCreated)
+                    {
+                        _logger.LogWarning("User {Username} was created but failed to associate with Commercial Bank {CommercialBankId}.", 
+                            model.UserName, model.CommercialBankId);
+                    }
+                }
+
                 TempData["Success"] = $"User {model.UserName} was created successfully.";
                 _logger.LogInformation("User {Username} was created successfully.", model.UserName);
                 return RedirectToAction("Index");
@@ -134,6 +167,7 @@ namespace IdentityService.Web.Controllers
                     ModelState.AddModelError("", error.Description);
                     _logger.LogError("Error creating user {Username}: {Error}", model.UserName, error.Description);
                 }
+                await PopulateCommercialBankDropdowns(model);
                 return View(model);
             }
         }
@@ -143,6 +177,16 @@ namespace IdentityService.Web.Controllers
             var result = await _userRepo.FindById(userId);
 
             var model = _mapper.Map<UserViewModel>(result);
+
+            // Load existing commercial bank relationship
+            var commercialBankUser = await _commercialBankUserRepo.FindByUserId(userId);
+            if (commercialBankUser != null)
+            {
+                model.CommercialBankId = commercialBankUser.CommercialBankId;
+                model.CommercialBankBranchId = commercialBankUser.CommercialBankBranchId;
+            }
+
+            await PopulateCommercialBankDropdowns(model);
 
             return View("Create", model);
         }
@@ -168,6 +212,39 @@ namespace IdentityService.Web.Controllers
 
             if (result)
             {
+                // Handle Commercial Bank relationship
+                var existingCommercialBankUser = await _commercialBankUserRepo.FindByUserId(model.Id);
+
+                if (model.CommercialBankId.HasValue)
+                {
+                    if (existingCommercialBankUser != null)
+                    {
+                        // Update existing relationship
+                        existingCommercialBankUser.CommercialBankId = model.CommercialBankId.Value;
+                        existingCommercialBankUser.CommercialBankBranchId = model.CommercialBankBranchId;
+                        existingCommercialBankUser.IsDeleted = false;
+                        await _commercialBankUserRepo.Update(existingCommercialBankUser);
+                    }
+                    else
+                    {
+                        // Create new relationship
+                        var commercialBankUser = new CommercialBankUser
+                        {
+                            UserId = model.Id,
+                            CommercialBankId = model.CommercialBankId.Value,
+                            CommercialBankBranchId = model.CommercialBankBranchId,
+                            IsDeleted = false
+                        };
+                        await _commercialBankUserRepo.Create(commercialBankUser);
+                    }
+                }
+                else if (existingCommercialBankUser != null)
+                {
+                    // Remove relationship (soft delete)
+                    existingCommercialBankUser.IsDeleted = true;
+                    await _commercialBankUserRepo.Update(existingCommercialBankUser);
+                }
+
                 TempData["Success"] = $"User {model.UserName} was updated successfully.";
 
                 if (model.IsActive)
@@ -324,55 +401,124 @@ namespace IdentityService.Web.Controllers
 
             try
             {
-                // Remove applicationRoles that are no longer selected
-                foreach (var userApplicationRole in userApplicationRoles)
+                // Get all selected application role IDs from the model
+                var selectedApplicationRoleIds = model.ApplicationRolesByApplications.Values
+                    .SelectMany(roles => roles.Where(r => r.IsSelected).Select(r => r.ApplicationRoleId))
+                    .ToHashSet();
+
+                // Get current user's application role IDs
+                var currentApplicationRoleIds = userApplicationRoles.Select(uar => uar.ApplicationRoleId).ToHashSet();
+
+                // Remove roles that are no longer selected
+                var rolesToRemove = userApplicationRoles.Where(uar => !selectedApplicationRoleIds.Contains(uar.ApplicationRoleId)).ToList();
+                
+                foreach (var userApplicationRole in rolesToRemove)
                 {
-                    foreach (var applicationRoleList in model.ApplicationRolesByApplications.Values)
+                    bool isDeleted = await _userAppRoleRepo.Delete(userApplicationRole.Id);
+                    if (!isDeleted)
                     {
-                        if (!applicationRoleList.Any(r => r.IsSelected && r.RoleName == userApplicationRole.ApplicationRole.Role.Name))
-                        {
-                            bool isDeleted = await _userAppRoleRepo.Delete(userApplicationRole.Id);
-                            if (!isDeleted)
-                            {
-                                _logger.LogError($"Failed to remove role {userApplicationRole.ApplicationRole.Role.Name} from user {user.UserName}.");
-                                TempData["Error"] = $"Failed to remove role {userApplicationRole.ApplicationRole.Role.Name} from user {user.UserName}. Please try again";
-                            }
-                        }
+                        _logger.LogError("Failed to remove role {RoleId} from user {Username}.", 
+                            userApplicationRole.ApplicationRoleId, user.UserName);
+                        TempData["Error"] = $"Failed to remove some roles from user {user.UserName}. Please try again";
                     }
                 }
 
-                foreach (var applicationRoleList in model.ApplicationRolesByApplications.Values)
+                // Add new roles that are selected but not currently assigned
+                var rolesToAdd = model.ApplicationRolesByApplications.Values
+                    .SelectMany(roles => roles.Where(r => r.IsSelected && !currentApplicationRoleIds.Contains(r.ApplicationRoleId)))
+                    .ToList();
+
+                foreach (var applicationRole in rolesToAdd)
                 {
-                    foreach (var applicationRole in applicationRoleList.Where(r => r.IsSelected))
+                    UserApplicationRole newUserApplicationRole = new UserApplicationRole
                     {
-                        //var roleName = (await _roleRepo.FindById(role.RoleId)).Name;
-                        if (!userApplicationRoles.Select(r => r.ApplicationRole.Id).ToList().Contains(applicationRole.ApplicationRoleId))
-                        {
-                            //await _accountRepo.AddApplicationUserFromRole(user, roleName);
-                            UserApplicationRole newUserApplicationRole = new UserApplicationRole
-                            {
-                                UserId = user.Id,
-                                ApplicationRoleId = applicationRole.ApplicationRoleId
-                            };
-                            bool isCreated = await _userAppRoleRepo.Create(newUserApplicationRole);
-                            if (!isCreated)
-                            {
-                                _logger.LogError($"Failed to assign role {applicationRole.RoleName} to user {user.UserName}.");
-                                TempData["Error"] = $"Failed to assign role {applicationRole.RoleName} to user {user.UserName}. Please try again";
-                            }
-                        }
+                        UserId = user.Id,
+                        ApplicationRoleId = applicationRole.ApplicationRoleId
+                    };
+                    
+                    bool isCreated = await _userAppRoleRepo.Create(newUserApplicationRole);
+                    if (!isCreated)
+                    {
+                        _logger.LogError("Failed to assign role {RoleName} to user {Username}.", 
+                            applicationRole.RoleName, user.UserName);
+                        TempData["Error"] = $"Failed to assign role {applicationRole.RoleName} to user {user.UserName}. Please try again";
                     }
                 }
-            } catch (Exception ex)
+
+                TempData["Success"] = $"Roles for user {user.UserName} have been updated successfully.";
+                _logger.LogInformation("Roles updated for user {Username}. Added: {AddedCount}, Removed: {RemovedCount}", 
+                    user.UserName, rolesToAdd.Count, rolesToRemove.Count);
+            } 
+            catch (Exception ex)
             {
-                _logger.LogError(ex, $"An error occurred while managing roles for user {user.UserName}. {ex.Message}");
+                _logger.LogError(ex, "An error occurred while managing roles for user {Username}. {Message}", 
+                    user.UserName, ex.Message);
                 TempData["Error"] = $"An unexpected error occurred while updating roles for user {user.UserName}. Please try again.";
+                
+                // Reload the model data to display the view again
+                var allApplicationRoles = await _appRoleRepo.FindAll();
+                var userAppRoles = await _userAppRoleRepo.FindByUserId(model.UserId);
+                var userAppRoleIds = userAppRoles.Select(uar => uar.ApplicationRoleId).ToHashSet();
+                List<Application> applications = allApplicationRoles.Select(ar => ar.Application).Distinct().ToList();
+
+                Dictionary<string, List<ApplicationRoleSelectViewModel>> applicationRolesByApplications = new();
+
+                foreach (var application in applications)
+                {
+                    applicationRolesByApplications[application.Name] = allApplicationRoles
+                        .Where(ar => ar.ApplicationId == application.Id)
+                        .Select(ar => new ApplicationRoleSelectViewModel
+                        {
+                            ApplicationRoleId = ar.Id,
+                            RoleName = ar.Role.Name ?? string.Empty,
+                            IsSelected = userAppRoleIds.Contains(ar.Id)
+                        })
+                        .ToList();
+                }
+
+                model.ApplicationRolesByApplications = applicationRolesByApplications;
                 return View(model);
             }
 
-            TempData["Success"] = $"Roles for user {user.UserName} have been updated successfully.";
-
             return View(model);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetCommercialBankBranches(int commercialBankId)
+        {
+            var branches = await _configurationsServiceClient.GetCbBranchesByCbIdAsync(commercialBankId);
+
+            return Json(branches);
+        }
+
+        private async Task PopulateCommercialBankDropdowns(UserViewModel model, int? selectedCommercialBankId = null)
+        {
+            IEnumerable<CommercialBankDto> commercialBanks;
+            commercialBanks = await _configurationsServiceClient.GetAllCommercialBankAsync();
+            commercialBanks = commercialBanks.OrderBy(cb => cb.Name);
+            
+            model.CommercialBankList = commercialBanks.Select(cb => new SelectListItem
+            {
+                Value = cb.Id.ToString(),
+                Text = cb.Name
+            });
+
+            // Load branches for the selected commercial bank
+            int cbId = selectedCommercialBankId ?? model.CommercialBankId ?? commercialBanks.FirstOrDefault()?.Id ?? 0;
+            
+            if (cbId > 0)
+            {
+                var commercialBankBranches = await _configurationsServiceClient.GetCbBranchesByCbIdAsync(cbId);
+                model.CommercialBankBranchList = commercialBankBranches.Select(cb => new SelectListItem
+                {
+                    Value = cb.Id.ToString(),
+                    Text = cb.Name
+                });
+            }
+            else
+            {
+                model.CommercialBankBranchList = Enumerable.Empty<SelectListItem>();
+            }
         }
     }
 }

@@ -1,7 +1,9 @@
+using ConfigurationsService.Client;
 using IdentityService.Core.Models;
 using IdentityService.Core.Repository.ApplicationPermissions;
 using IdentityService.Core.Repository.ApplicationRoles;
 using IdentityService.Core.Repository.Applications;
+using IdentityService.Core.Repository.CommercialBankUsers;
 using IdentityService.Core.Repository.Roles;
 using IdentityService.Core.Repository.UserApplicationRoles;
 using IdentityService.Core.Repository.Users;
@@ -94,6 +96,7 @@ builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<IApplicationRoleRepository, ApplicationRoleRepository>();
 builder.Services.AddScoped<IUserApplicationRoleRepository, UserApplicationRoleRepository>();
 builder.Services.AddScoped<IApplicationPermissionRepository, ApplicationPermissionRepository>();
+builder.Services.AddScoped<ICommercialBankUserRepository, CommercialBankUserRepository>();
 
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
@@ -147,6 +150,9 @@ builder.Services.AddAuthentication(options =>
         }
     };
 });
+
+// Register ConfigurationsServiceClient Service
+builder.Services.AddConfigurationsServiceClient(builder.Configuration["MicroServices:configurationsservice"] ?? "https://localhost:7026");
 
 // Custom Policies
 builder.Services.AddAuthorization(options =>
