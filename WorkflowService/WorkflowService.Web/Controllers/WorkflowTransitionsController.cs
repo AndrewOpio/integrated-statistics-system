@@ -9,6 +9,7 @@ using WorkflowService.Core.Repositories.StatusTypes;
 using WorkflowService.Core.Repositories.WorkflowTransitions;
 using WorkflowService.Core.Services.Identity;
 using WorkflowService.Data.Entities;
+using System.Text.Json;
 
 namespace WorkflowService.Web.Controllers
 {
@@ -181,7 +182,7 @@ namespace WorkflowService.Web.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Breadcrumb("Create Transition", FromController = typeof(WorkflowTransitionsController), FromAction = nameof(Index))]
-        public async Task<IActionResult> Create(int applicationId, WorkflowTransitionViewModel model)
+        public async Task<IActionResult> Create(int applicationId, WorkflowTransitionViewModel model, string attachmentsJson)
         {
             // Set custom breadcrumb with query parameters
             ViewBag.BreadcrumbItems = new List<(string Text, string Url)>
@@ -191,6 +192,7 @@ namespace WorkflowService.Web.Controllers
                 ("Create Transition", Url.Action("Create", "WorkflowTransitions", new { applicationId }))
             };
             ViewBag.ApplicationId = applicationId;
+            
             if (!ModelState.IsValid)
             {
                 var errors = ModelState.Values.SelectMany(v => v.Errors);
@@ -231,9 +233,39 @@ namespace WorkflowService.Web.Controllers
                     SendNotification = model.SendNotification,
                     NotificationRoleIds = notificationRoleIds,
                     NotificationEmails = model.NotificationEmails,
+                    RequiresAttachments = model.RequiresAttachments,
                     IsActive = true,
                     IsDeleted = false
                 };
+
+                // Parse and add attachment requirements
+                if (model.RequiresAttachments && !string.IsNullOrWhiteSpace(attachmentsJson))
+                {
+                    try
+                    {
+                        var attachments = JsonSerializer.Deserialize<List<AttachmentRequirementViewModel>>(attachmentsJson);
+                        if (attachments != null && attachments.Any())
+                        {
+                            foreach (var attachment in attachments.OrderBy(a => a.DisplayOrder))
+                            {
+                                workflowTransition.AttachmentRequirements.Add(new TransitionAttachmentRequirement
+                                {
+                                    AttachmentName = attachment.AttachmentName,
+                                    AllowedFormats = attachment.AllowedFormats,
+                                    DisplayOrder = attachment.DisplayOrder,
+                                    IsRequired = attachment.IsRequired
+                                });
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error parsing attachments JSON");
+                        ModelState.AddModelError("", "Invalid attachment data provided.");
+                        await PopulateDropdowns(model, applicationId);
+                        return View(model);
+                    }
+                }
 
                 bool isCreated = await _workflowTransitionRepository.Create(workflowTransition);
 
@@ -309,7 +341,7 @@ namespace WorkflowService.Web.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Breadcrumb("Edit Transition", FromController = typeof(WorkflowTransitionsController), FromAction = nameof(Index))]
-        public async Task<IActionResult> Edit(int id, int applicationId, WorkflowTransitionViewModel model)
+        public async Task<IActionResult> Edit(int id, int applicationId, WorkflowTransitionViewModel model, string attachmentsJson)
         {
             // Set custom breadcrumb with query parameters
             ViewBag.BreadcrumbItems = new List<(string Text, string Url)>
@@ -370,6 +402,40 @@ namespace WorkflowService.Web.Controllers
                 transition.SendNotification = model.SendNotification;
                 transition.NotificationRoleIds = notificationRoleIds;
                 transition.NotificationEmails = model.NotificationEmails;
+                transition.RequiresAttachments = model.RequiresAttachments;
+
+                // Update attachment requirements
+                // Clear existing attachments
+                transition.AttachmentRequirements.Clear();
+
+                // Add new attachments if enabled
+                if (model.RequiresAttachments && !string.IsNullOrWhiteSpace(attachmentsJson))
+                {
+                    try
+                    {
+                        var attachments = JsonSerializer.Deserialize<List<AttachmentRequirementViewModel>>(attachmentsJson);
+                        if (attachments != null && attachments.Any())
+                        {
+                            foreach (var attachment in attachments.OrderBy(a => a.DisplayOrder))
+                            {
+                                transition.AttachmentRequirements.Add(new TransitionAttachmentRequirement
+                                {
+                                    AttachmentName = attachment.AttachmentName,
+                                    AllowedFormats = attachment.AllowedFormats,
+                                    DisplayOrder = attachment.DisplayOrder,
+                                    IsRequired = attachment.IsRequired
+                                });
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error parsing attachments JSON");
+                        ModelState.AddModelError("", "Invalid attachment data provided.");
+                        await PopulateDropdowns(model, applicationId);
+                        return View(model);
+                    }
+                }
 
                 bool isUpdated = await _workflowTransitionRepository.Update(transition);
 

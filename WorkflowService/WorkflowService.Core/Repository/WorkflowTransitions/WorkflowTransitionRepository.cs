@@ -8,6 +8,8 @@ namespace WorkflowService.Core.Repositories.WorkflowTransitions
     {
         public async Task<bool> Create(WorkflowTransition model)
         {
+            // Add the WorkflowTransition along with its AttachmentRequirements
+            // EF Core will automatically insert the related AttachmentRequirements
             _db.WorkflowTransitions.Add(model);
             return await Save();
         }
@@ -19,6 +21,7 @@ namespace WorkflowService.Core.Repositories.WorkflowTransitions
                 .Include(x => x.EntityType)
                 .Include(x => x.FromStatus)
                 .Include(x => x.ToStatus)
+                .Include(x => x.AttachmentRequirements.Where(a => !a.IsDeleted))
                 .ToListAsync();
         }
 
@@ -28,6 +31,7 @@ namespace WorkflowService.Core.Repositories.WorkflowTransitions
                 .Include(x => x.EntityType)
                 .Include(x => x.FromStatus)
                 .Include(x => x.ToStatus)
+                .Include(x => x.AttachmentRequirements.Where(a => !a.IsDeleted))
                 .FirstOrDefaultAsync(x => x.Id == id && x.IsDeleted == false);
         }
 
@@ -44,7 +48,49 @@ namespace WorkflowService.Core.Repositories.WorkflowTransitions
 
         public async Task<bool> Update(WorkflowTransition model)
         {
-            _db.WorkflowTransitions.Update(model);
+            // Load the existing transition with its attachments
+            var existingTransition = await _db.WorkflowTransitions
+                .Include(t => t.AttachmentRequirements)
+                .FirstOrDefaultAsync(t => t.Id == model.Id);
+
+            if (existingTransition == null)
+            {
+                return false;
+            }
+
+            // Update scalar properties
+            _db.Entry(existingTransition).CurrentValues.SetValues(model);
+
+            // Handle AttachmentRequirements collection
+            // Remove attachments that are no longer in the model
+            var attachmentsToRemove = existingTransition.AttachmentRequirements
+                .Where(existing => !model.AttachmentRequirements.Any(m => m.Id == existing.Id && existing.Id != 0))
+                .ToList();
+
+            foreach (var attachment in attachmentsToRemove)
+            {
+                _db.TransitionAttachmentRequirements.Remove(attachment);
+            }
+
+            // Update or add attachments
+            foreach (var modelAttachment in model.AttachmentRequirements)
+            {
+                var existingAttachment = existingTransition.AttachmentRequirements
+                    .FirstOrDefault(a => a.Id == modelAttachment.Id && modelAttachment.Id != 0);
+
+                if (existingAttachment != null)
+                {
+                    // Update existing attachment
+                    _db.Entry(existingAttachment).CurrentValues.SetValues(modelAttachment);
+                }
+                else
+                {
+                    // Add new attachment
+                    modelAttachment.WorkflowTransitionId = existingTransition.Id;
+                    existingTransition.AttachmentRequirements.Add(modelAttachment);
+                }
+            }
+
             return await Save();
         }
 
@@ -58,6 +104,7 @@ namespace WorkflowService.Core.Repositories.WorkflowTransitions
                 .Include(x => x.EntityType)
                 .Include(x => x.FromStatus)
                 .Include(x => x.ToStatus)
+                .Include(x => x.AttachmentRequirements.Where(a => !a.IsDeleted))
                 .ToListAsync();
         }
 
@@ -72,6 +119,7 @@ namespace WorkflowService.Core.Repositories.WorkflowTransitions
                 .Include(x => x.EntityType)
                 .Include(x => x.FromStatus)
                 .Include(x => x.ToStatus)
+                .Include(x => x.AttachmentRequirements.Where(a => !a.IsDeleted))
                 .FirstOrDefaultAsync();
         }
 
@@ -81,6 +129,7 @@ namespace WorkflowService.Core.Repositories.WorkflowTransitions
                 .Include(x => x.EntityType)
                 .Include(x => x.FromStatus)
                 .Include(x => x.ToStatus)
+                .Include(x => x.AttachmentRequirements.Where(a => !a.IsDeleted))
                 .Where(x => x.EntityType.ApplicationId == applicationId && x.IsDeleted == false)
                 .ToListAsync();
         }
@@ -96,6 +145,7 @@ namespace WorkflowService.Core.Repositories.WorkflowTransitions
                 .Include(x => x.EntityType)
                 .Include(x => x.FromStatus)
                 .Include(x => x.ToStatus)
+                .Include(x => x.AttachmentRequirements.Where(a => !a.IsDeleted))
                 .ToListAsync();
         }
     }
