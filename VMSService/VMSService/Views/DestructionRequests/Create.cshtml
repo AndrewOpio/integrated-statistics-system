@@ -1,0 +1,118 @@
+@model VMSService.Models.DestructionRequestCreateViewModel
+@{
+    ViewData["Title"] = "Create Destruction Request";
+}
+<h2>@ViewData["Title"]</h2>
+<form asp-action="Create" method="post">
+    <div class="form-group">
+        <label asp-for="Date"></label>
+        <input asp-for="Date" class="form-control" type="date" />
+    </div>
+    <div class="form-group">
+        <label asp-for="ReferenceNumber"></label>
+        <input asp-for="ReferenceNumber" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label asp-for="PanelA"></label>
+        <input asp-for="PanelA" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label asp-for="PanelB"></label>
+        <input asp-for="PanelB" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label asp-for="VerificationOfficer"></label>
+        <input asp-for="VerificationOfficer" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label asp-for="OtherMembers"></label>
+        <input asp-for="OtherMembers" class="form-control" />
+    </div>
+
+    <h4>Denominations</h4>
+    <div id="denominations-list">
+        @for (int i = 0; i < Model.Denominations.Count; i++)
+        {
+            <div class="denomination-item border p-2 mb-2">
+                <div class="form-row">
+                    <div class="form-group col-md-4">
+                        <label>DenominationId</label>
+                        <input name="Denominations[@i].DenominationId" class="form-control" value="@Model.Denominations[i].DenominationId" />
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label>Number Of Bags</label>
+                        <input name="Denominations[@i].NumberOfBags" class="form-control" value="@Model.Denominations[i].NumberOfBags" />
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label>Amount</label>
+                        <input name="Denominations[@i].Amount" class="form-control" value="@Model.Denominations[i].Amount" />
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+    <button type="button" class="btn btn-secondary mb-3" onclick="addDenomination()">Add Denomination</button>
+
+    <h4>Witnesses</h4>
+    <div id="witnesses-list">
+        @for (int i = 0; i < Model.Witnesses.Count; i++)
+        {
+            <div class="witness-item border p-2 mb-2">
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label>ID Number</label>
+                        <input name="Witnesses[@i].IDNumber" class="form-control" value="@Model.Witnesses[i].IDNumber" />
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label>Full Name</label>
+                        <input name="Witnesses[@i].FullName" class="form-control" value="@Model.Witnesses[i].FullName" />
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+    <button type="button" class="btn btn-secondary mb-3" onclick="addWitness()">Add Witness</button>
+
+    <button type="submit" class="btn btn-primary">Submit</button>
+</form>
+
+<script>
+    function addDenomination() {
+        var list = document.getElementById('denominations-list');
+        var count = list.children.length;
+        var html = `<div class="denomination-item border p-2 mb-2">
+            <div class="form-row">
+                <div class="form-group col-md-4">
+                    <label>DenominationId</label>
+                    <input name="Denominations[${count}].DenominationId" class="form-control" />
+                </div>
+                <div class="form-group col-md-4">
+                    <label>Number Of Bags</label>
+                    <input name="Denominations[${count}].NumberOfBags" class="form-control" />
+                </div>
+                <div class="form-group col-md-4">
+                    <label>Amount</label>
+                    <input name="Denominations[${count}].Amount" class="form-control" />
+                </div>
+            </div>
+        </div>`;
+        list.insertAdjacentHTML('beforeend', html);
+    }
+    function addWitness() {
+        var list = document.getElementById('witnesses-list');
+        var count = list.children.length;
+        var html = `<div class="witness-item border p-2 mb-2">
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <label>ID Number</label>
+                    <input name="Witnesses[${count}].IDNumber" class="form-control" />
+                </div>
+                <div class="form-group col-md-6">
+                    <label>Full Name</label>
+                    <input name="Witnesses[${count}].FullName" class="form-control" />
+                </div>
+            </div>
+        </div>`;
+        list.insertAdjacentHTML('beforeend', html);
+    }
+</script>

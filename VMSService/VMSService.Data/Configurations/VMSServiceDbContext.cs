@@ -49,11 +49,17 @@ namespace VMSService.Data.Configurations
         public DbSet<ReceivedStockDetails> ReceivedStockDetails { get; set; }
         public DbSet<NewStockAccountingStatus> NewStockAccountingStatuses { get; set; }
 
-                // Deposit
+        // Deposit
         public DbSet<DepositRequest> DepositRequests { get; set; }
         public DbSet<DepositRequestAgent> DepositRequestAgents { get; set; }
         public DbSet<DepositRequestDenomination> DepositRequestDenominations { get; set; }
         public DbSet<DepositRequestStatusHistory> DepositRequestStatusHistory { get; set; }
+
+        // Destruction
+        public DbSet<DestructionRequest> DestructionRequests { get; set; }  
+        public DbSet<DestructionRequestDenomination> DestructionRequestDenominations { get; set; }
+        public DbSet<DestructionRequestWitness> DestructionRequestWitnesses { get; set; }
+        public DbSet<DestructionRequestMember> DestructionRequestMembers { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
