@@ -1,6 +1,6 @@
 namespace WorkflowService.Core.Models.WorkflowTransitions
 {
-    public class AttachmentRequirementViewModel
+    public class TransitionAttachmentRequirementViewModel
     {
         public int Id { get; set; }
         public int WorkflowTransitionId { get; set; }

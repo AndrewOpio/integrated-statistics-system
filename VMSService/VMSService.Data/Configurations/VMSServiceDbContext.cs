@@ -58,6 +58,17 @@ namespace VMSService.Data.Configurations
         public DbSet<DepositProcessingFee> DepositProcessingFees { get; set; }
         public DbSet<FeeType> FeeTypes { get; set; }
         public DbSet<DepositFee> DepositFees { get; set; }
+        public DbSet<Attachment> Attachments { get; set; }
+
+        // Processing
+        public DbSet<ProcessingBoard> ProcessingBoards { get; set; }
+        public DbSet<BPSMachine> BPSMachines { get; set; }
+        public DbSet<StockProcessingPlan> StockProcessingPlans { get; set; }
+        public DbSet<StockProcessingPlanStatusHistory> StockProcessingPlanStatusHistory { get; set; }
+        public DbSet<StockProcessingResult> StockProcessingResults { get; set; }
+        public DbSet<StockProcessingSession> StockProcessingSessions { get; set; }
+        public DbSet<StockProcessingSessionStatusHistory> StockProcessingSessionStatusHistory { get; set; }
+        public DbSet<Bag> Bags { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

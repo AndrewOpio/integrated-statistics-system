@@ -243,7 +243,7 @@ namespace WorkflowService.Web.Controllers
                 {
                     try
                     {
-                        var attachments = JsonSerializer.Deserialize<List<AttachmentRequirementViewModel>>(attachmentsJson);
+                        var attachments = JsonSerializer.Deserialize<List<TransitionAttachmentRequirementViewModel>>(attachmentsJson);
                         if (attachments != null && attachments.Any())
                         {
                             foreach (var attachment in attachments.OrderBy(a => a.DisplayOrder))
@@ -413,7 +413,7 @@ namespace WorkflowService.Web.Controllers
                 {
                     try
                     {
-                        var attachments = JsonSerializer.Deserialize<List<AttachmentRequirementViewModel>>(attachmentsJson);
+                        var attachments = JsonSerializer.Deserialize<List<TransitionAttachmentRequirementViewModel>>(attachmentsJson);
                         if (attachments != null && attachments.Any())
                         {
                             foreach (var attachment in attachments.OrderBy(a => a.DisplayOrder))

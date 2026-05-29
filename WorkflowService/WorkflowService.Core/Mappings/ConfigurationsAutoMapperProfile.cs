@@ -17,6 +17,8 @@ namespace WorkflowService.Core.Mappings
             CreateMap<StatusType, StatusTypeDto>().ReverseMap();
             CreateMap<EntityType, EntityTypeDto>().ReverseMap();
             CreateMap<WorkflowTransition, WorkflowTransitionDto>().ReverseMap();
+            CreateMap<TransitionAttachmentRequirement, TransitionAttachmentRequirementViewModel>().ReverseMap();
+            CreateMap<TransitionAttachmentRequirement, TransitionAttachmentRequirementDto>().ReverseMap();
         }
     }
 }

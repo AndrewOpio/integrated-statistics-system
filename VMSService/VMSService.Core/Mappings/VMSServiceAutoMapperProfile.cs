@@ -30,6 +30,7 @@ using VMSService.Data.Entities;
 using VMSService.Core.Models.SubCategories;
 using VMSService.Core.Models.DepositFees;
 using ConfigurationsService.Client;
+using VMSService.Core.Models.CbDepositRequests;
 
 namespace VMSService.Core.Mappings
 {

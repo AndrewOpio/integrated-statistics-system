@@ -19,6 +19,7 @@ using VMSService.Core.Repositories.AgentDetailStatusHistories;
 using VMSService.Core.Repositories.ApprovedCurrencyDenominations;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
+using VMSService.Core.Repositories.Attachments;
 using VMSService.Core.Repositories.BranchCategories;
 using VMSService.Core.Repositories.Branches;
 using VMSService.Core.Repositories.Categories;
@@ -38,6 +39,7 @@ using VMSService.Core.Repositories.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.FeeTypes;
 using VMSService.Core.Repositories.Logistics;
 using VMSService.Core.Repositories.MinDepositStandards;
+using VMSService.Core.Repositories.NewStockMovementLogs;
 using VMSService.Core.Repositories.PackingListRangeDetails;
 using VMSService.Core.Repositories.PackingListRanges;
 using VMSService.Core.Repositories.ReceivedStocks;
@@ -62,7 +64,6 @@ using VMSService.Core.Services.StockPositions;
 using VMSService.Core.Services.Stocks;
 using VMSService.Core.Services.Workflows;
 using VMSService.Data;
-using VMSService.Core.Repositories.NewStockMovementLogs;
 using WorkflowService.Client;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -255,6 +256,9 @@ builder.Services.AddScoped<INewStockMovementLogRepository, NewStockMovementLogRe
 // Add this in your service registration section
 builder.Services.AddScoped<IStockService, VMSService.Core.Services.Stocks.StockService>();
 builder.Services.AddScoped<IStockPositionService, StockPositionService>();
+
+builder.Services.AddScoped<IAttachmentRepository, AttachmentRepository>();
+
 builder.Services.AddHttpClient<VMSService.Core.Services.Stocks.StockService>()
     .ConfigureHttpClient((sp, client) =>
     {

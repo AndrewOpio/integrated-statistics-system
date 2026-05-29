@@ -57,7 +57,7 @@ namespace WorkflowService.Core.Models.WorkflowTransitions
         /// <summary>
         /// Collection of attachment requirements
         /// </summary>
-        public List<AttachmentRequirementViewModel> AttachmentRequirements { get; set; } = new List<AttachmentRequirementViewModel>();
+        public List<TransitionAttachmentRequirementViewModel> AttachmentRequirements { get; set; } = new List<TransitionAttachmentRequirementViewModel>();
 
         // Dropdown lists
         public List<SelectListItem> EntityTypesList { get; set; } = new List<SelectListItem>();

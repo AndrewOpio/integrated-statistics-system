@@ -104,7 +104,16 @@ namespace VMSService.Core.Services.Workflows
                 return false;
             }
         }
-        public async Task<bool> ExecuteTransition(string entityType, Guid entityId, int currentStatusId, string actionName, string username, List<int> userRoles, string remarks, CancellationToken ct)
+        public async Task<bool> ExecuteTransition(
+            string entityType, 
+            Guid entityId, 
+            int currentStatusId, 
+            string actionName, 
+            string username, 
+            List<int> userRoles, 
+            string remarks, 
+            CancellationToken ct,
+            List<long>? attachmentIds = null) // Add this parameter
         {
             var requestData = new GetTransitionByKeyRequestDto
             {
@@ -144,12 +153,12 @@ namespace VMSService.Core.Services.Workflows
                     StatusConstants.Entity.DepositRequest =>
                             await HandleDepositTransitions(
                             entityId, currentStatusId, actionName,
-                            username, remarks, transition, ct),
+                            username, remarks, transition, ct, attachmentIds), // Pass attachmentIds
 
                     StatusConstants.Entity.DepositRequestExceptional =>
                             await HandleDepositTransitions(
                             entityId, currentStatusId, actionName,
-                            username, remarks, transition, ct),
+                            username, remarks, transition, ct, attachmentIds), // Pass attachmentIds
 
                     _ => LogUnknownEntity(entityType)
                 };
@@ -576,7 +585,8 @@ namespace VMSService.Core.Services.Workflows
         }
 
         private async Task<bool> HandleDepositTransitions(Guid entityId, int currentStatusId, string actionName,
-            string username, string remarks, WorkflowTransitionDto transition, CancellationToken ct)
+            string username, string remarks, WorkflowTransitionDto transition, CancellationToken ct,
+            List<long>? attachmentIds = null) // Add this parameter
         {
             var deposit = await _duow.Requests.FindById(entityId);
             if (deposit == null)
@@ -602,6 +612,9 @@ namespace VMSService.Core.Services.Workflows
                 ChangedBy = username,
                 ChangedAt = DateTime.Now,
                 Remarks = remarks,
+                AttachmentIds = attachmentIds != null && attachmentIds.Any() 
+                    ? string.Join(",", attachmentIds) 
+                    : null, // Store comma-separated attachment IDs
                 IsDeleted = false
             };
 
@@ -623,8 +636,9 @@ namespace VMSService.Core.Services.Workflows
                 //username, remarks);
             }
 
-            _logger.LogInformation("Deposit {Id} transitioned from status {From} to {To} by user {Username} with action {Action}",
-                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+            _logger.LogInformation(
+                "Deposit {Id} transitioned from status {From} to {To} by user {Username} with action {Action}. Attachments: {AttachmentCount}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName, attachmentIds?.Count ?? 0);
 
             return true;
         }

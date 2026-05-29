@@ -1,4 +1,4 @@
-﻿using StockService.Data.AuditColumns;
+﻿using VMSService.Data.AuditColumns;
 
 namespace VMSService.Data.Entities
 {

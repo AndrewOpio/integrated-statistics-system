@@ -1,4 +1,5 @@
 using VMSService.Core.Models.AgentDetails;
+using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.CbDepositRequests;
 using WorkflowService.Client.Dto;
 
@@ -69,5 +70,8 @@ namespace VMSService.Core.Models.CbDepositRequest
         // Panelists
         public string PanelAName { get; set; } = string.Empty;
         public string PanelBName { get; set; } = string.Empty;
+
+        // All attachments for this deposit request
+        public IEnumerable<AttachmentViewModel> AllAttachments { get; set; } = [];
     }
 }

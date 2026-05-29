@@ -63,14 +63,14 @@ namespace WorkflowService.Core.Repositories.WorkflowTransitions
 
             // Handle AttachmentRequirements collection
             // Remove attachments that are no longer in the model
-            var attachmentsToRemove = existingTransition.AttachmentRequirements
-                .Where(existing => !model.AttachmentRequirements.Any(m => m.Id == existing.Id && existing.Id != 0))
-                .ToList();
+            //var attachmentsToRemove = existingTransition.AttachmentRequirements
+            //    .Where(existing => !model.AttachmentRequirements.Any(m => m.Id == existing.Id && existing.Id != 0))
+            //    .ToList();
 
-            foreach (var attachment in attachmentsToRemove)
-            {
-                _db.TransitionAttachmentRequirements.Remove(attachment);
-            }
+            //foreach (var attachment in attachmentsToRemove)
+            //{
+            //    _db.TransitionAttachmentRequirements.Remove(attachment);
+            //}
 
             // Update or add attachments
             foreach (var modelAttachment in model.AttachmentRequirements)
@@ -87,7 +87,7 @@ namespace WorkflowService.Core.Repositories.WorkflowTransitions
                 {
                     // Add new attachment
                     modelAttachment.WorkflowTransitionId = existingTransition.Id;
-                    existingTransition.AttachmentRequirements.Add(modelAttachment);
+                    _db.TransitionAttachmentRequirements.Add(modelAttachment);
                 }
             }
 

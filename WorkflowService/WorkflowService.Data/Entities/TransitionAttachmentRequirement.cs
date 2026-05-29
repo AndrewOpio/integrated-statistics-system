@@ -14,7 +14,7 @@ namespace WorkflowService.Data.Entities
         /// The workflow transition this attachment requirement belongs to
         /// </summary>
         public int WorkflowTransitionId { get; set; }
-        public WorkflowTransition WorkflowTransition { get; set; }
+        public WorkflowTransition? WorkflowTransition { get; set; }
         
         /// <summary>
         /// Display name for the attachment (e.g., "Approval Letter", "Supporting Documents")
