@@ -6,8 +6,8 @@ namespace VMSService.Data.Entities
     {
         public int Id { get; set; }
         public string ReferenceNumber { get; set; } = string.Empty;
-        public Guid DepositRequestDenominationId { get; set; }
-        public DepositRequestDenomination? DepositRequestDenomination { get; set; }
+        public int DenominationId { get; set; } // Denomination constraint
         public bool IsDeleted { get; set; } = false;
+        public ICollection<BagDenomination> BagDenominations { get; set; } = [];
     }
 }

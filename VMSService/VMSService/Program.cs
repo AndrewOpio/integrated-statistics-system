@@ -20,6 +20,7 @@ using VMSService.Core.Repositories.ApprovedCurrencyDenominations;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
 using VMSService.Core.Repositories.Attachments;
+using VMSService.Core.Repositories.Bags;
 using VMSService.Core.Repositories.BranchCategories;
 using VMSService.Core.Repositories.Branches;
 using VMSService.Core.Repositories.Categories;
@@ -258,6 +259,7 @@ builder.Services.AddScoped<IStockService, VMSService.Core.Services.Stocks.StockS
 builder.Services.AddScoped<IStockPositionService, StockPositionService>();
 
 builder.Services.AddScoped<IAttachmentRepository, AttachmentRepository>();
+builder.Services.AddScoped<IBagRepository, BagRepository>();
 
 builder.Services.AddHttpClient<VMSService.Core.Services.Stocks.StockService>()
     .ConfigureHttpClient((sp, client) =>

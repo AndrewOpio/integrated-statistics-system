@@ -16,6 +16,6 @@ namespace VMSService.Data.Entities
         public decimal Amount { get; set; } // (Bundles ?? Boxes) × 1,000 × DenominationValue
         public string Origin { get; set; } = "Cb"; // "Cb" or "BOU"
         public int SubCategoryId { get; set; } // 1 - "FIT", 2 - "UNFIT", 3 - "N/A"
-
+        public ICollection<BagDenomination> BagDenominations { get; set; } = [];
     }
 }

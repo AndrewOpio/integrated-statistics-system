@@ -407,8 +407,8 @@ namespace VMSService.Data.Migrations
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<Guid>("DepositRequestDenominationId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<int>("DenominationId")
+                        .HasColumnType("int");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
@@ -426,9 +426,47 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.ToTable("Bags");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.BagDenomination", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BagId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("DepositRequestDenominationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BagId");
+
                     b.HasIndex("DepositRequestDenominationId");
 
-                    b.ToTable("Bags");
+                    b.ToTable("BagDenominations");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.CurrencyVendor", b =>
@@ -2588,13 +2626,21 @@ namespace VMSService.Data.Migrations
                     b.Navigation("ApprovedCurrencyProcurement");
                 });
 
-            modelBuilder.Entity("VMSService.Data.Entities.Bag", b =>
+            modelBuilder.Entity("VMSService.Data.Entities.BagDenomination", b =>
                 {
+                    b.HasOne("VMSService.Data.Entities.Bag", "Bag")
+                        .WithMany("BagDenominations")
+                        .HasForeignKey("BagId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("VMSService.Data.Entities.DepositRequestDenomination", "DepositRequestDenomination")
-                        .WithMany()
+                        .WithMany("BagDenominations")
                         .HasForeignKey("DepositRequestDenominationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("Bag");
 
                     b.Navigation("DepositRequestDenomination");
                 });
@@ -3010,6 +3056,11 @@ namespace VMSService.Data.Migrations
                     b.Navigation("WithdrawalRequest");
                 });
 
+            modelBuilder.Entity("VMSService.Data.Entities.Bag", b =>
+                {
+                    b.Navigation("BagDenominations");
+                });
+
             modelBuilder.Entity("VMSService.Data.Entities.DepositRequest", b =>
                 {
                     b.Navigation("DepositRequestAgents");
@@ -3017,6 +3068,11 @@ namespace VMSService.Data.Migrations
                     b.Navigation("DepositRequestDenominations");
 
                     b.Navigation("DepositRequestStatusHistory");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.DepositRequestDenomination", b =>
+                {
+                    b.Navigation("BagDenominations");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ExPrintMint", b =>

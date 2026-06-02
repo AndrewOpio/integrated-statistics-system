@@ -69,6 +69,7 @@ namespace VMSService.Data.Configurations
         public DbSet<StockProcessingSession> StockProcessingSessions { get; set; }
         public DbSet<StockProcessingSessionStatusHistory> StockProcessingSessionStatusHistory { get; set; }
         public DbSet<Bag> Bags { get; set; }
+        public DbSet<BagDenomination> BagDenominations { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

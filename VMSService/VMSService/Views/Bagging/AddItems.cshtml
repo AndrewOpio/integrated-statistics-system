@@ -1,0 +1,158 @@
+@model VMSService.Core.Models.Bags.AddItemsToBagViewModel
+
+@{
+    ViewData["Title"] = "Add Items to Bag";
+    var bag = ViewBag.Bag as VMSService.Core.Models.Bags.BagDetailsViewModel;
+    var availableItems = ViewBag.AvailableItems as List<VMSService.Core.Models.CbDepositRequests.DepositRequestDenominationViewModel> ?? new List<VMSService.Core.Models.CbDepositRequests.DepositRequestDenominationViewModel>();
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center py-4">
+    <div class="d-block mb-4 mb-md-0">
+        <h2 class="h4">Add Items to Bag</h2>
+        <p class="mb-0">Bag: <strong>@bag?.ReferenceNumber</strong> | Denomination: <strong>@bag?.DenominationName</strong></p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a asp-action="Details" asp-route-id="@bag?.Id" class="btn btn-sm btn-secondary">
+            <i class="ti ti-arrow-left me-2"></i>
+            Back to Bag Details
+        </a>
+    </div>
+</div>
+
+<div class="card border-0 shadow">
+    <div class="card-body">
+        @if (availableItems.Any())
+        {
+            <form asp-action="AddItems" method="post" id="addItemsForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="BagId" value="@bag?.Id" />
+
+                <div class="mb-3">
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="selectAllBtn">
+                        <i class="ti ti-checkbox me-2"></i>
+                        Select All
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="deselectAllBtn">
+                        <i class="ti ti-square me-2"></i>
+                        Deselect All
+                    </button>
+                    <span class="ms-3 text-muted">
+                        <strong id="selectedCount">0</strong> item(s) selected
+                    </span>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover" id="itemsTable">
+                        <thead>
+                            <tr>
+                                <th width="50">
+                                    <input type="checkbox" class="form-check-input" id="selectAllCheckbox" />
+                                </th>
+                                <th>Transaction Ref</th>
+                                <th>Denomination</th>
+                                <th>Type</th>
+                                <th>Bundles</th>
+                                <th>Amount</th>
+                                <th>Origin</th>
+                                <th>Sub-Category</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in availableItems)
+                            {
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" class="form-check-input item-checkbox" 
+                                               name="DepositRequestDenominationIds" 
+                                               value="@item.Id" />
+                                    </td>
+                                    <td>@item.TransactionRefNumber</td>
+                                    <td>@item.DenominationName</td>
+                                    <td>@item.DenominationTypeName</td>
+                                    <td>@(item.Bundles ?? item.Boxes)</td>
+                                    <td>@item.Amount.ToString("N2")</td>
+                                    <td>
+                                        <span class="badge bg-@(item.Origin == "Cb" ? "info" : "warning")">
+                                            @item.Origin
+                                        </span>
+                                    </td>
+                                    <td>@item.SubCategoryName</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <hr class="my-4" />
+
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <button type="submit" class="btn btn-success">
+                        <i class="ti ti-plus me-2"></i>
+                        Add Selected Items
+                    </button>
+                    <a asp-action="Details" asp-route-id="@bag?.Id" class="btn btn-secondary">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        }
+        else
+        {
+            <div class="alert alert-info">
+                <i class="ti ti-info-circle me-2"></i>
+                No available items with denomination <strong>@bag?.DenominationName</strong>. All items have already been added to bags.
+            </div>
+            <a asp-action="Details" asp-route-id="@bag?.Id" class="btn btn-secondary">
+                Back to Bag Details
+            </a>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            $('#itemsTable').DataTable({
+                pageLength: 25
+            });
+
+            function updateSelectedCount() {
+                const count = $('.item-checkbox:checked').length;
+                $('#selectedCount').text(count);
+            }
+
+            $('#selectAllCheckbox').change(function() {
+                $('.item-checkbox').prop('checked', this.checked);
+                updateSelectedCount();
+            });
+
+            $('#selectAllBtn').click(function() {
+                $('.item-checkbox').prop('checked', true);
+                $('#selectAllCheckbox').prop('checked', true);
+                updateSelectedCount();
+            });
+
+            $('#deselectAllBtn').click(function() {
+                $('.item-checkbox').prop('checked', false);
+                $('#selectAllCheckbox').prop('checked', false);
+                updateSelectedCount();
+            });
+
+            $('.item-checkbox').change(function() {
+                const total = $('.item-checkbox').length;
+                const checked = $('.item-checkbox:checked').length;
+                $('#selectAllCheckbox').prop('checked', total === checked);
+                updateSelectedCount();
+            });
+
+            $('#addItemsForm').submit(function(e) {
+                const count = $('.item-checkbox:checked').length;
+                if (count === 0) {
+                    e.preventDefault();
+                    alert('Please select at least one item to add.');
+                    return false;
+                }
+            });
+        });
+    </script>
+}
