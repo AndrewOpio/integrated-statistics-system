@@ -1,0 +1,130 @@
+@model GatewayService.Models.LoginModel.FirstFactorResponse
+
+@{
+    ViewData["Title"] = "Two-Factor Authentication";
+    Layout = "_LayoutLogin";
+}
+
+<!-- Right Sign-in Card -->
+<div class="col-lg-5 col-12 d-flex justify-content-center justify-content-lg-end align-items-center">
+    <div class="card rounded shadow-lg col-12 col-sm-10 col-md-8 col-lg-12">
+        <div class="card-header">
+            <div>
+                <h2><i class="ti ti-shield-lock me-2"></i>Two-Factor Authentication</h2>
+                <h6 class="card-subtitle my-1 text-body-secondary">
+                    Enter the verification code for: <strong>@Model.Username</strong>
+                </h6>
+            </div>
+        </div>
+
+        <form asp-action="Login2FA" method="post">
+            <input type="hidden" name="username" value="@Model.Username" />
+            <input type="hidden" name="authnAttemptId" value="@Model.RsaAuthnAttemptId" />
+            <input type="hidden" name="inResponseTo" value="@Model.RsaMessageId" />
+
+            <div class="card-body">
+                @if (!string.IsNullOrEmpty(ViewBag.Error))
+                {
+                    <div class="alert alert-danger" role="alert">
+                        <i class="ti ti-alert-circle me-2"></i>
+                        @ViewBag.Error
+                    </div>
+                }
+                @if (!string.IsNullOrEmpty(Model.RsaPromptText))
+                {
+                    <div class="alert alert-info" role="alert">
+                        <i class="ti ti-info-circle me-2"></i>
+                        <strong>@Model.RsaPromptText</strong>
+                    </div>
+                }
+                <div class="form-floating mb-3">
+                    <input type="password" name="rsaPasscode" class="form-control"
+                           placeholder="Verification Code" required autocomplete="one-time-code"
+                           autofocus maxlength="10">
+                    <label for="rsaPasscode">Verification Code</label>
+                </div>
+
+                <div class="form-text text-muted mb-3">
+                    Enter the code from your RSA SecurID token.
+                </div>
+            </div>
+
+            <div class="card-footer d-flex justify-content-between">
+                <a asp-action="Index" class="btn btn-danger">
+                    <i class="ti ti-x me-1"></i>Cancel
+                </a>
+                <button type="submit" class="btn btn-success">
+                    <i class="ti ti-check me-1"></i>Verify
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@* <div class="container">
+    <div class="d-flex justify-content-end align-items-center mb-3 mt-3">
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="ti ti-arrow-left me-1"></i> Back to Login
+        </a>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-6 offset-md-3">
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <h2><i class="ti ti-shield-lock me-2"></i>Two-Factor Authentication</h2>
+                        <h6 class="card-subtitle my-1 text-body-secondary">
+                            Enter the verification code for: <strong>@Model.Username</strong>
+                        </h6>
+                    </div>
+                </div>
+
+                <form asp-action="Login2FA" method="post">
+                    <input type="hidden" name="username" value="@Model.Username" />
+                    <input type="hidden" name="authnAttemptId" value="@Model.RsaAuthnAttemptId" />
+                    <input type="hidden" name="inResponseTo" value="@Model.RsaMessageId" />
+
+                    <div class="card-body">
+                        @if (!string.IsNullOrEmpty(ViewBag.Error))
+                        {
+                            <div class="alert alert-danger" role="alert">
+                                <i class="ti ti-alert-circle me-2"></i>
+                                @ViewBag.Error
+                            </div>
+                        }
+
+                        <div class="alert alert-info" role="alert">
+                            <i class="ti ti-info-circle me-2"></i>
+                            <strong>@Model.RsaPromptText</strong>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input type="text" name="rsaPasscode" class="form-control"
+                                   placeholder="Verification Code" required autocomplete="one-time-code"
+                                   autofocus maxlength="8">
+                            <label for="rsaPasscode">Verification Code</label>
+                        </div>
+
+                        <div class="form-text text-muted mb-3">
+                            Enter the code from your RSA SecurID token or authentication app.
+                        </div>
+                    </div>
+
+                    <div class="card-footer d-flex justify-content-between">
+                        <a asp-action="Index" class="btn btn-secondary">
+                            <i class="ti ti-x me-1"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-check me-1"></i>Verify
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div> *@
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

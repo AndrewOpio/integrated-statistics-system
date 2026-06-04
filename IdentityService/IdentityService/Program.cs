@@ -8,6 +8,7 @@ using IdentityService.Core.Repository.Roles;
 using IdentityService.Core.Repository.UserApplicationRoles;
 using IdentityService.Core.Repository.Users;
 using IdentityService.Core.Services.LDAPAuthentication;
+using IdentityService.Core.Services.RsaAuthentication;
 using IdentityService.Core.Static;
 using IdentityService.Data.Configurations;
 using IdentityService.Data.Entities;
@@ -81,6 +82,10 @@ builder.Services.Configure<LdapSettings>(
 builder.Services.Configure<JwtSettings>(
     builder.Configuration.GetSection("JwtSettings"));
 
+// Configure RSA SecurID settings
+builder.Services.Configure<RsaSecurIdSettings>(
+    builder.Configuration.GetSection("RsaSecurId"));
+
 // Make IHttpContextAccessor available for injection, TransactionContext to log the user
 builder.Services.AddHttpContextAccessor();
 
@@ -97,6 +102,10 @@ builder.Services.AddScoped<IApplicationRoleRepository, ApplicationRoleRepository
 builder.Services.AddScoped<IUserApplicationRoleRepository, UserApplicationRoleRepository>();
 builder.Services.AddScoped<IApplicationPermissionRepository, ApplicationPermissionRepository>();
 builder.Services.AddScoped<ICommercialBankUserRepository, CommercialBankUserRepository>();
+
+// Register RSA SecurID Service
+builder.Services.AddHttpClient<IRsaSecurIdService, RsaSecurIdService>();
+builder.Services.AddScoped<IRsaSecurIdService, RsaSecurIdService>();
 
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();

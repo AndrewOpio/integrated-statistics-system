@@ -2,13 +2,11 @@
 using IdentityService.Core.Repository.UserApplicationRoles;
 using IdentityService.Core.Repository.Users;
 using IdentityService.Core.Services.LDAPAuthentication;
+using IdentityService.Core.Services.RsaAuthentication;
 using IdentityService.Data.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
 
 namespace IdentityService.Controllers
 {
@@ -16,6 +14,7 @@ namespace IdentityService.Controllers
     [Route("api/[controller]")]
     public class AuthController(
         ILdapAuthenticationService _ldapService,
+        IRsaSecurIdService _rsaService,
         IJwtTokenService _jwtService,
         ILogger<AuthController> _logger,
         IConfiguration _config,
@@ -23,13 +22,15 @@ namespace IdentityService.Controllers
         IUserRepository _userRepo,
         UserManager<User> _userManager) : ControllerBase
     {
-
-        [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginRequest request)
+        // ═══════════════════════════════════════════════════════════
+        // STEP 1: First Factor Authentication (LDAP/AD or Local Password)
+        // ═══════════════════════════════════════════════════════════
+        [HttpPost("login/step1")]
+        public async Task<IActionResult> LoginStep1([FromBody] FirstFactorRequest request)
         {
             try
             {
-                // First, check if user exists in our database
+                // Check if user exists in our database
                 var dbUser = await _userRepo.FindByName(request.Username);
 
                 if (dbUser == null)
@@ -52,6 +53,7 @@ namespace IdentityService.Controllers
                     return Unauthorized(new { message = "User account has expired. Please contact administrator." });
                 }
 
+                // Authenticate via LDAP/AD or local password
                 bool isAuthenticated = false;
                 string displayName;
                 string email;
@@ -59,8 +61,7 @@ namespace IdentityService.Controllers
                 if (dbUser.IsStaff)
                 {
                     // Staff users authenticate via LDAP/AD
-                    //isAuthenticated = await _ldapService.ValidateCredentials(request.Username, request.Password);
-                    isAuthenticated = true;
+                    isAuthenticated = await _ldapService.ValidateCredentials(request.Username, request.Password);
 
                     if (!isAuthenticated)
                     {
@@ -69,16 +70,291 @@ namespace IdentityService.Controllers
                     }
 
                     // Get user details from LDAP for staff users
-                    //var ldapUser = await _ldapService.GetUserDetails(request.Username);
-                    LdapUser ldapUser = new();
+                    var ldapUser = await _ldapService.GetUserDetails(request.Username);
                     displayName = ldapUser?.DisplayName ?? $"{dbUser.FirstName} {dbUser.LastName}";
                     email = ldapUser?.Email ?? dbUser.Email;
                 }
                 else
                 {
                     // Non-staff users authenticate with local password
-                    //isAuthenticated = await _userManager.CheckPasswordAsync(dbUser, request.Password);
-                    isAuthenticated = true;
+                    isAuthenticated = await _userManager.CheckPasswordAsync(dbUser, request.Password);
+
+                    if (!isAuthenticated)
+                    {
+                        _logger.LogWarning("Failed local login attempt for non-staff user: {Username}", request.Username);
+                        return Unauthorized(new { message = "Invalid credentials" });
+                    }
+
+                    displayName = $"{dbUser.FirstName} {dbUser.LastName}".Trim();
+                    email = dbUser.Email;
+
+                    // Check if non-staff user must change password
+                    if (dbUser.MustChangePassword)
+                    {
+                        _logger.LogInformation("User {Username} must change password before proceeding", request.Username);
+
+                        return Ok(new FirstFactorResponse
+                        {
+                            Success = false,
+                            Username = dbUser.UserName,
+                            Email = email,
+                            DisplayName = displayName,
+                            MustChangePassword = true,
+                            Message = "Password change required before login"
+                        });
+                    }
+                }
+
+                _logger.LogInformation("First factor authentication successful for user: {Username}", request.Username);
+
+                // First factor succeeded, now initiate RSA authentication
+                var rsaInitResponse = await _rsaService.InitializeAuthenticationAsync(request.Username, null);
+
+                if (rsaInitResponse.AttemptResponseCode == RsaResponseCodes.Challenge)
+                {
+                    // Challenge initiated - need passcode
+                    _logger.LogInformation("RSA challenge initiated for user: {Username}", request.Username);
+
+                    var promptText = "Enter your RSA SecurID passcode (PIN + Token Code):";
+                    if (rsaInitResponse.ChallengeMethods?.Challenges?.Any() == true)
+                    {
+                        var securIdMethod = rsaInitResponse.ChallengeMethods.Challenges
+                            .SelectMany(c => c.RequiredMethods)
+                            .FirstOrDefault(m => m.MethodId == "SECURID");
+
+                        if (securIdMethod?.Versions?.Any() == true)
+                        {
+                            promptText = securIdMethod.Versions[0].Prompt?.DefaultText ?? promptText;
+                        }
+                    }
+
+                    return Ok(new FirstFactorResponse
+                    {
+                        Success = true,
+                        Username = dbUser.UserName,
+                        Email = email,
+                        DisplayName = displayName,
+                        RequiresSecondFactor = true,
+                        RsaAuthnAttemptId = rsaInitResponse.Context.AuthnAttemptId,
+                        RsaMessageId = rsaInitResponse.Context.MessageId,
+                        RsaPromptText = promptText,
+                        Message = "First factor successful. Please proceed to second factor authentication."
+                    });
+                }
+                else if (rsaInitResponse.AttemptResponseCode == RsaResponseCodes.Error)
+                {
+                    // RSA service error
+                    _logger.LogError("RSA initialization failed for user {Username}: {ReasonCode}",
+                        request.Username, rsaInitResponse.AttemptReasonCode);
+
+                    return StatusCode(500, new
+                    {
+                        message = "Authentication service error. Please contact administrator.",
+                        details = GetRsaErrorMessage(rsaInitResponse.AttemptReasonCode)
+                    });
+                }
+                else
+                {
+                    // Unexpected response
+                    _logger.LogError("Unexpected RSA response for user {Username}: {ResponseCode}",
+                        request.Username, rsaInitResponse.AttemptResponseCode);
+
+                    return StatusCode(500, new
+                    {
+                        message = "Unexpected authentication response. Please contact administrator."
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during first factor authentication for user: {Username}", request.Username);
+                return StatusCode(500, new { message = "An error occurred during authentication" });
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // STEP 2: Second Factor Authentication (RSA SecurID)
+        // ═══════════════════════════════════════════════════════════
+        [HttpPost("login/step2")]
+        public async Task<IActionResult> LoginStep2([FromBody] SecondFactorRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(request.Username))
+                {
+                    return BadRequest(new { message = "Username is required" });
+                }
+
+                if (string.IsNullOrEmpty(request.RsaPasscode))
+                {
+                    return BadRequest(new { message = "RSA passcode is required" });
+                }
+
+                if (string.IsNullOrEmpty(request.AuthnAttemptId))
+                {
+                    return BadRequest(new { message = "Authentication attempt ID is required" });
+                }
+
+                // Get user from database
+                var dbUser = await _userRepo.FindByName(request.Username);
+
+                if (dbUser == null)
+                {
+                    _logger.LogWarning("Second factor attempt for non-existent user: {Username}", request.Username);
+                    return Unauthorized(new { message = "Invalid authentication session" });
+                }
+
+                // Verify user is still active
+                if (!dbUser.IsActive)
+                {
+                    _logger.LogWarning("Second factor attempt for inactive user: {Username}", request.Username);
+                    return Unauthorized(new { message = "User account is inactive. Please contact administrator." });
+                }
+
+                _logger.LogInformation("Processing RSA 2FA verification for user: {Username}", request.Username);
+
+                // Verify RSA SecurID passcode
+                var rsaVerifyResponse = await _rsaService.VerifyAuthenticationAsync(
+                    request.AuthnAttemptId,
+                    request.RsaPasscode,
+                    request.InResponseTo ?? string.Empty
+                );
+
+                if (rsaVerifyResponse.AttemptResponseCode == RsaResponseCodes.Success)
+                {
+                    _logger.LogInformation("RSA 2FA successful for user: {Username}", request.Username);
+
+                    // Get display name and email
+                    string displayName;
+                    string email;
+
+                    if (dbUser.IsStaff)
+                    {
+                        var ldapUser = await _ldapService.GetUserDetails(request.Username);
+                        displayName = ldapUser?.DisplayName ?? $"{dbUser.FirstName} {dbUser.LastName}";
+                        email = ldapUser?.Email ?? dbUser.Email;
+                    }
+                    else
+                    {
+                        displayName = $"{dbUser.FirstName} {dbUser.LastName}".Trim();
+                        email = dbUser.Email;
+                    }
+
+                    // Generate token and complete login
+                    return await GenerateSuccessfulLoginResponse(dbUser, displayName, email, request.Username);
+                }
+                else if (rsaVerifyResponse.AttemptResponseCode == RsaResponseCodes.Challenge)
+                {
+                    // Still in challenge state (e.g., need next token code)
+                    _logger.LogWarning("RSA 2FA still in challenge state for user {Username}: {ReasonCode}",
+                        request.Username, rsaVerifyResponse.AttemptReasonCode);
+
+                    var promptText = "Enter your RSA SecurID passcode (PIN + Token Code):";
+                    if (rsaVerifyResponse.ChallengeMethods?.Challenges?.Any() == true)
+                    {
+                        var securIdMethod = rsaVerifyResponse.ChallengeMethods.Challenges
+                            .SelectMany(c => c.RequiredMethods)
+                            .FirstOrDefault(m => m.MethodId == "SECURID");
+
+                        if (securIdMethod?.Versions?.Any() == true)
+                        {
+                            promptText = securIdMethod.Versions[0].Prompt?.DefaultText ?? promptText;
+                        }
+                    }
+
+                    return Ok(new SecondFactorResponse
+                    {
+                        Success = false,
+                        RequiresRetry = true,
+                        RsaAuthnAttemptId = rsaVerifyResponse.Context.AuthnAttemptId,
+                        RsaMessageId = rsaVerifyResponse.Context.MessageId,
+                        RsaPromptText = promptText,
+                        Message = GetRsaErrorMessage(rsaVerifyResponse.AttemptReasonCode)
+                    });
+                }
+                else
+                {
+                    // Authentication failed
+                    _logger.LogWarning("RSA 2FA failed for user {Username}: {ReasonCode}",
+                        request.Username, rsaVerifyResponse.AttemptReasonCode);
+
+                    return Unauthorized(new
+                    {
+                        message = GetRsaErrorMessage(rsaVerifyResponse.AttemptReasonCode),
+                        rsaAuthnAttemptId = request.AuthnAttemptId,
+                        canRetry = rsaVerifyResponse.AttemptResponseCode != RsaResponseCodes.Error
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during second factor authentication for user: {Username}", request.Username);
+                return StatusCode(500, new { message = "An error occurred during authentication" });
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // Legacy Login Endpoint (Username & Password Only - No RSA)
+        // ═══════════════════════════════════════════════════════════
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] FirstFactorRequest request)
+        {
+            try
+            {
+                // Validate input
+                if (string.IsNullOrEmpty(request.Username) || string.IsNullOrEmpty(request.Password))
+                {
+                    return BadRequest(new { message = "Username and password are required" });
+                }
+
+                // Check if user exists in our database
+                var dbUser = await _userRepo.FindByName(request.Username);
+
+                if (dbUser == null)
+                {
+                    _logger.LogWarning("Login attempt for non-existent user: {Username}", request.Username);
+                    return Unauthorized(new { message = "Invalid credentials" });
+                }
+
+                // Check if user is active
+                if (!dbUser.IsActive)
+                {
+                    _logger.LogWarning("Login attempt for inactive user: {Username}", request.Username);
+                    return Unauthorized(new { message = "User account is inactive. Please contact administrator." });
+                }
+
+                // Check if user account has expired
+                if (dbUser.EndDate.HasValue && dbUser.EndDate.Value < DateTime.Now)
+                {
+                    _logger.LogWarning("Login attempt for expired user account: {Username}", request.Username);
+                    return Unauthorized(new { message = "User account has expired. Please contact administrator." });
+                }
+
+                // Authenticate via LDAP/AD or local password
+                bool isAuthenticated = false;
+                string displayName;
+                string email;
+
+                if (dbUser.IsStaff)
+                {
+                    // Staff users authenticate via LDAP/AD
+                    isAuthenticated = await _ldapService.ValidateCredentials(request.Username, request.Password);
+
+                    if (!isAuthenticated)
+                    {
+                        _logger.LogWarning("Failed AD login attempt for staff user: {Username}", request.Username);
+                        return Unauthorized(new { message = "Invalid credentials" });
+                    }
+
+                    // Get user details from LDAP for staff users
+                    var ldapUser = await _ldapService.GetUserDetails(request.Username);
+                    displayName = ldapUser?.DisplayName ?? $"{dbUser.FirstName} {dbUser.LastName}";
+                    email = ldapUser?.Email ?? dbUser.Email;
+                }
+                else
+                {
+                    // Non-staff users authenticate with local password
+                    isAuthenticated = await _userManager.CheckPasswordAsync(dbUser, request.Password);
 
                     if (!isAuthenticated)
                     {
@@ -105,61 +381,85 @@ namespace IdentityService.Controllers
                     }
                 }
 
-                // Build claims from user's application roles
-                List<Claim> claims = new();
-                var userAppRoles = await _userAppRoleRepo.FindByUserName(request.Username);
+                _logger.LogInformation("Legacy login successful for user: {Username} (without RSA)", request.Username);
 
-                foreach (UserApplicationRole userAppRole in userAppRoles)
-                {
-                    claims.Add(new Claim("appRole", $"{userAppRole.ApplicationRole.Application.Acronym}:{userAppRole.ApplicationRole.Role.Name}"));
-                    claims.Add(new Claim("appRoleId", $"{userAppRole.ApplicationRole.Application.Acronym}:{userAppRole.ApplicationRole.Id}"));
-                }
-
-                // Add IsStaff claim
-                claims.Add(new Claim("isStaff", dbUser.IsStaff.ToString().ToLower()));
-                claims.Add(new Claim(ClaimTypes.Name, request.Username));
-                claims.Add(new Claim(ClaimTypes.NameIdentifier, dbUser.Id));
-                if (!dbUser.IsStaff)
-                {
-                    claims.Add(new Claim("cbId", "2", ClaimValueTypes.Integer));
-                    claims.Add(new Claim("cbName", "ABSA Bank Uganda Limited"));
-                }
-                claims.Add(new Claim(ClaimTypes.Name, request.Username));
-                claims.Add(new Claim(ClaimTypes.NameIdentifier, dbUser.Id));
-
-                LdapUser user = new()
-                {
-                    Username = request.Username,
-                    Email = email ?? string.Empty,
-                    DisplayName = displayName ?? request.Username,
-                    UserClaims = claims
-                };
-
-                // Generate JWT token
-                var token = _jwtService.GenerateToken(user);
-
-                // Update last activity
-                dbUser.LastActivity = DateTime.Now;
-                dbUser.IsLoggedIn = true;
-                await _userManager.UpdateAsync(dbUser);
-
-                _logger.LogInformation("Successful login for {UserType} user: {Username}",
-                    dbUser.IsStaff ? "staff" : "non-staff", request.Username);
-
-                return Ok(new LoginResponse
-                {
-                    Token = token,
-                    Username = user.Username,
-                    Email = user.Email,
-                    DisplayName = user.DisplayName,
-                    MustChangePassword = false
-                });
+                // Generate token and complete login (without RSA 2FA)
+                return await GenerateSuccessfulLoginResponse(dbUser, displayName, email, request.Username);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during login for user: {Username}", request.Username);
+                _logger.LogError(ex, "Error during legacy login for user: {Username}", request.Username);
                 return StatusCode(500, new { message = "An error occurred during authentication" });
             }
+        }
+
+        private async Task<IActionResult> GenerateSuccessfulLoginResponse(
+            User dbUser,
+            string displayName,
+            string email,
+            string username)
+        {
+            // Build claims from user's application roles
+            List<Claim> claims = new();
+            var userAppRoles = await _userAppRoleRepo.FindByUserName(username);
+
+            foreach (UserApplicationRole userAppRole in userAppRoles)
+            {
+                claims.Add(new Claim("appRole", $"{userAppRole.ApplicationRole.Application.Acronym}:{userAppRole.ApplicationRole.Role.Name}"));
+                claims.Add(new Claim("appRoleId", $"{userAppRole.ApplicationRole.Application.Acronym}:{userAppRole.ApplicationRole.Id}"));
+            }
+
+            // Add IsStaff claim
+            claims.Add(new Claim("isStaff", dbUser.IsStaff.ToString().ToLower()));
+            claims.Add(new Claim(ClaimTypes.Name, username));
+            claims.Add(new Claim(ClaimTypes.NameIdentifier, dbUser.Id));
+            
+            if (!dbUser.IsStaff)
+            {
+                claims.Add(new Claim("cbId", "2", ClaimValueTypes.Integer));
+                claims.Add(new Claim("cbName", "ABSA Bank Uganda Limited"));
+            }
+
+            LdapUser user = new()
+            {
+                Username = username,
+                Email = email ?? string.Empty,
+                DisplayName = displayName ?? username,
+                UserClaims = claims
+            };
+
+            // Generate JWT token
+            var token = _jwtService.GenerateToken(user);
+
+            // Update last activity
+            dbUser.LastActivity = DateTime.Now;
+            dbUser.IsLoggedIn = true;
+            await _userManager.UpdateAsync(dbUser);
+
+            _logger.LogInformation("Successful login for {UserType} user: {Username}",
+                dbUser.IsStaff ? "staff" : "non-staff", username);
+
+            return Ok(new LoginResponse
+            {
+                Token = token,
+                Username = user.Username,
+                Email = user.Email,
+                DisplayName = user.DisplayName,
+                MustChangePassword = false
+            });
+        }
+
+        private string GetRsaErrorMessage(string reasonCode)
+        {
+            return reasonCode switch
+            {
+                RsaReasonCodes.SecurIdAuthFailure => "Invalid RSA SecurID passcode. Please try again.",
+                RsaReasonCodes.SecurIdNextCodeRequired => "Please wait for the next token code and try again.",
+                RsaReasonCodes.SecurIdNewPinRequired => "You need to set a new PIN. Please contact your administrator.",
+                RsaReasonCodes.UserNotFound => "User not found in RSA SecurID system. Please contact your administrator.",
+                RsaReasonCodes.LockedOut => "Your account is locked out. Please contact your administrator.",
+                _ => "RSA SecurID authentication failed. Please try again."
+            };
         }
 
         [HttpPost("change-password")]
@@ -257,7 +557,7 @@ namespace IdentityService.Controllers
             return Ok(new
             {
                 valid = true,
-                username = principal.Identity.Name,
+                username = principal.Identity?.Name,
                 claims = principal.Claims.Select(c => new { c.Type, c.Value })
             });
         }
@@ -286,35 +586,30 @@ namespace IdentityService.Controllers
             }
         }
 
-        private string GenerateJwtToken(string username, string[] roles)
+        [HttpPost("rsa/cancel")]
+        public async Task<IActionResult> CancelRsaAuthentication([FromBody] RsaCancelRequest request)
         {
-            var jwtSettings = _config.GetSection("JwtSettings");
-            var secretKey = jwtSettings["SecretKey"];
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
-            var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var claims = new List<Claim>
+            try
             {
-                new Claim(ClaimTypes.Name, username),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-            };
+                var result = await _rsaService.CancelAuthenticationAsync(request.AuthnAttemptId, request.Reason);
+                
+                if (result)
+                {
+                    return Ok(new { message = "RSA authentication cancelled successfully" });
+                }
 
-            claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
-
-            var token = new JwtSecurityToken(
-                issuer: jwtSettings["Issuer"],
-                audience: jwtSettings["Audience"],
-                claims: claims,
-                expires: DateTime.Now.AddHours(2),
-                signingCredentials: credentials
-            );
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
+                return BadRequest(new { message = "Failed to cancel RSA authentication" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error cancelling RSA authentication: {AttemptId}", request.AuthnAttemptId);
+                return StatusCode(500, new { message = "An error occurred while cancelling authentication" });
+            }
         }
     }
 
     public class LogoutRequest
     {
-        public string Username { get; set; }
+        public string Username { get; set; } = string.Empty;
     }
 }

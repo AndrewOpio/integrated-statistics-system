@@ -3,48 +3,90 @@ using GatewayService.Services;
 using GatewayService.Services.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using static GatewayService.Models.LoginModel;
 
 namespace GatewayService.Controllers
 {
     public class LoginController(ILogger<LoginController> _logger, IIdentityService _identityService) : Controller
     {
-        public IActionResult Index()
+        public IActionResult Index(string? errorMessage)
         {
+            @ViewBag.Error = errorMessage;
             return View();
         }
 
         [HttpPost]
-        public async Task<IActionResult> Index(string username, string password, [FromServices] IHttpClientFactory clientFactory)
+        public async Task<IActionResult> Index(string username, string password)
         {
             try
             {
-                var response = await _identityService.LoginAsync(username, password);
+                var firstFactorRequest = new FirstFactorRequest
+                {
+                    Username = username,
+                    Password = password
+                };
+
+                var response = await _identityService.LoginStep1Async(firstFactorRequest);
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
+                    var result = await response.Content.ReadFromJsonAsync<FirstFactorResponse>();
 
-                    if(result.MustChangePassword)
+                    if (result.MustChangePassword)
                     {
                         return RedirectToAction("ResetPassword", new { username = result.Username });
                     }
 
-                    // Set authentication cookie (PROD)
-                    //Response.Cookies.Append("AuthToken", result.Token, new CookieOptions
-                    //{
-                    //    Secure = true, // Set to true in production with HTTPS
-                    //    SameSite = SameSiteMode.None,
-                    //    Expires = DateTimeOffset.UtcNow.AddHours(2),
-                    //    Domain = ".bcnet.bou.or.ug"
-                    //});
+                    if (result.Success)
+                    {
+                        return RedirectToAction("Login2FA", result);
+                    }
+                }
 
-                    //Response.Cookies.Append("Username", result.Username, new CookieOptions
-                    //{
-                    //    Secure = true,
-                    //    SameSite = SameSiteMode.None,
-                    //    Expires = DateTimeOffset.UtcNow.AddHours(2),
-                    //    Domain = ".bcnet.bou.or.ug"
-                    //});
+                var errorResult = await response.Content.ReadFromJsonAsync<FirstFactorResponse>();
+                string errorMessage = errorResult?.Message ?? "Login failed";
+                ViewBag.Error = $"{response.ReasonPhrase} - {errorMessage}";
+                _logger.LogError($"{response.ReasonPhrase} - {errorMessage}");
+                return View();
+            }
+            catch (Exception ex)
+            {
+                string errorMessage = ex.Message;
+                ViewBag.Error = errorMessage;
+                _logger.LogError(errorMessage);
+                return View();
+            }
+        }
+
+        public IActionResult Login2FA(FirstFactorResponse firstFactorResponse)
+        {
+            if (firstFactorResponse == null || !firstFactorResponse.RequiresSecondFactor)
+            {
+                return RedirectToAction("Index");
+            }
+
+            return View(firstFactorResponse);
+        }
+
+        [HttpPost]
+        [ActionName("Login2FA")]
+        public async Task<IActionResult> Login2FAPost(string username, string rsaPasscode, string authnAttemptId, string? inResponseTo)
+        {
+            try
+            {
+                var secondFactorRequest = new SecondFactorRequest
+                {
+                    Username = username,
+                    RsaPasscode = rsaPasscode,
+                    AuthnAttemptId = authnAttemptId,
+                    InResponseTo = inResponseTo
+                };
+
+                var response = await _identityService.LoginStep2Async(secondFactorRequest);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
 
                     // Set authentication cookie (TEST)
                     Response.Cookies.Append("AuthToken", result.Token, new CookieOptions
@@ -62,33 +104,72 @@ namespace GatewayService.Controllers
                         Expires = DateTimeOffset.UtcNow.AddHours(2)
                     });
 
-                    //ApplicationUser user = new ApplicationUser
-                    //{
-                    //    FirstName = "result.Username",
-                    //    LastName = "result.Token",
-                    //    UserName = username,
-                    //    Title = "Admin",
-                    //    IsActive = true,
-                    //    LastActivity = DateTime.Now
-                    //};
-                    //await _authService.SignInApplicationUser(user);
-
-
                     return RedirectToAction("Index", "Home");
-                }
 
-                var errorResult = await response.Content.ReadFromJsonAsync<LogoutResponse>();
-                string errorMessage = errorResult.Message;
+                    //if (result.RequiresRetry)
+                    //{
+                    //    var firstFactorResponse1 = new FirstFactorResponse
+                    //    {
+                    //        Success = false,
+                    //        Username = username,
+                    //        RequiresSecondFactor = true,
+                    //        RsaAuthnAttemptId = authnAttemptId,
+                    //        RsaMessageId = result.RsaMessageId,
+                    //        RsaPromptText = result.RsaPromptText,
+                    //        Message = result.Message
+                    //    };
+
+                    //    ViewBag.Error = result.Message;
+                    //    return View("Login2FA", firstFactorResponse1);
+                    //}
+                } 
+                //else if ()
+                //{
+
+                //}
+
+                var errorResult = await response.Content.ReadFromJsonAsync<SecondFactorResponse>();
+                string errorMessage = errorResult?.Message ?? "2FA verification failed";
                 ViewBag.Error = $"{response.ReasonPhrase} - {errorMessage}";
                 _logger.LogError($"{response.ReasonPhrase} - {errorMessage}");
-                return View();
+
+                //return RedirectToAction("Index");
+                if (errorResult.RequiresRetry)
+                {
+                    var firstFactorResponse = new FirstFactorResponse
+                    {
+                        Success = false,
+                        Username = username,
+                        RequiresSecondFactor = true,
+                        RsaAuthnAttemptId = authnAttemptId,
+                        RsaMessageId = inResponseTo,
+                        RsaPromptText = errorResult?.RsaPromptText,
+                        Message = errorMessage
+                    };
+
+                    return View("Login2FA", firstFactorResponse);
+                } else
+                {
+                    return RedirectToAction("Index", new { errorMessage });
+                }                
             }
             catch (Exception ex)
             {
                 string errorMessage = ex.Message;
                 ViewBag.Error = errorMessage;
-                _logger.LogError(errorMessage);
-                return View();
+                _logger.LogError(ex, "Error during 2FA verification");
+
+                var firstFactorResponse = new FirstFactorResponse
+                {
+                    Success = false,
+                    Username = username,
+                    RequiresSecondFactor = true,
+                    RsaAuthnAttemptId = authnAttemptId,
+                    RsaMessageId = inResponseTo,
+                    Message = errorMessage
+                };
+
+                return View("Login2FA", firstFactorResponse);
             }
         }
 
@@ -171,7 +252,4 @@ namespace GatewayService.Controllers
             return RedirectToAction("Index");
         }
     }
-
-    public record LoginResponse(string Token, string Username, bool MustChangePassword);
-    public record LogoutResponse(string Message);
 }
