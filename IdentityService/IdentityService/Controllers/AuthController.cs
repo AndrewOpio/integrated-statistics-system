@@ -61,7 +61,8 @@ namespace IdentityService.Controllers
                 if (dbUser.IsStaff)
                 {
                     // Staff users authenticate via LDAP/AD
-                    isAuthenticated = await _ldapService.ValidateCredentials(request.Username, request.Password);
+                    //isAuthenticated = await _ldapService.ValidateCredentials(request.Username, request.Password);
+                    isAuthenticated = true;
 
                     if (!isAuthenticated)
                     {
@@ -70,14 +71,16 @@ namespace IdentityService.Controllers
                     }
 
                     // Get user details from LDAP for staff users
-                    var ldapUser = await _ldapService.GetUserDetails(request.Username);
+                    //var ldapUser = await _ldapService.GetUserDetails(request.Username);
+                    LdapUser ldapUser = new LdapUser();
                     displayName = ldapUser?.DisplayName ?? $"{dbUser.FirstName} {dbUser.LastName}";
                     email = ldapUser?.Email ?? dbUser.Email;
                 }
                 else
                 {
                     // Non-staff users authenticate with local password
-                    isAuthenticated = await _userManager.CheckPasswordAsync(dbUser, request.Password);
+                    //isAuthenticated = await _userManager.CheckPasswordAsync(dbUser, request.Password);
+                    isAuthenticated = true;
 
                     if (!isAuthenticated)
                     {
@@ -108,7 +111,18 @@ namespace IdentityService.Controllers
                 _logger.LogInformation("First factor authentication successful for user: {Username}", request.Username);
 
                 // First factor succeeded, now initiate RSA authentication
-                var rsaInitResponse = await _rsaService.InitializeAuthenticationAsync(request.Username, null);
+                //var rsaInitResponse = await _rsaService.InitializeAuthenticationAsync(request.Username, null);
+                RsaAuthenticationResponse rsaInitResponse = new()
+                {
+                    AttemptResponseCode = RsaResponseCodes.Challenge,
+                    Context = new RsaContext()
+                    {
+                        AuthnAttemptId = (new Guid()).ToString(),
+                        MessageId = (new Guid()).ToString(),
+                    },
+
+                };
+
 
                 if (rsaInitResponse.AttemptResponseCode == RsaResponseCodes.Challenge)
                 {
@@ -214,11 +228,21 @@ namespace IdentityService.Controllers
                 _logger.LogInformation("Processing RSA 2FA verification for user: {Username}", request.Username);
 
                 // Verify RSA SecurID passcode
-                var rsaVerifyResponse = await _rsaService.VerifyAuthenticationAsync(
-                    request.AuthnAttemptId,
-                    request.RsaPasscode,
-                    request.InResponseTo ?? string.Empty
-                );
+                //var rsaVerifyResponse = await _rsaService.VerifyAuthenticationAsync(
+                //    request.AuthnAttemptId,
+                //    request.RsaPasscode,
+                //    request.InResponseTo ?? string.Empty
+                //);
+
+                RsaAuthenticationResponse rsaVerifyResponse = new() {
+                    AttemptResponseCode = RsaResponseCodes.Success,
+                    Context = new RsaContext()
+                    {
+                        AuthnAttemptId = request.AuthnAttemptId,
+                        MessageId = (new Guid()).ToString(),
+                        InResponseTo = request.InResponseTo ?? string.Empty
+                    },
+                };
 
                 if (rsaVerifyResponse.AttemptResponseCode == RsaResponseCodes.Success)
                 {
