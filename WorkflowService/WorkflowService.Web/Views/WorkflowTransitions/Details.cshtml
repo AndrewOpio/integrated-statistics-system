@@ -4,7 +4,6 @@
     ViewData["Title"] = "Workflow Transition Details";
 }
 
-
 <!-- Page title -->
 <div class="page-header d-print-none">
     <div class="row align-items-center">
@@ -15,7 +14,6 @@
         </div>
     </div>
 </div>
-
 
 <div class="row row-deck row-cards">
     <!-- Main Details Card -->
@@ -137,6 +135,80 @@
                     </div>
                 </div>
 
+                <!-- Attachment Requirements -->
+                <div class="row mb-2">
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small text-uppercase">Attachments Required</label>
+                        <p class="mb-0">
+                            @if (Model.RequiresAttachments)
+                            {
+                                <span class="badge bg-warning">
+                                    <i class="ti ti-check me-1"></i> Yes
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">
+                                    <i class="ti ti-x me-1"></i> No
+                                </span>
+                            }
+                        </p>
+                    </div>
+                </div>
+
+                @if (Model.RequiresAttachments && Model.AttachmentRequirements.Any())
+                {
+                    <div class="mt-3">
+                        <label class="form-label text-muted small text-uppercase">Required Attachments</label>
+                        <div class="space-y-2">
+                            @foreach (var attachment in Model.AttachmentRequirements.OrderBy(a => a.DisplayOrder))
+                            {
+                                <div class="card border-primary mb-2">
+                                    <div class="card-body p-3">
+                                        <div class="d-flex align-items-start">
+                                            <div class="me-3">
+                                                <span class="badge bg-primary rounded-circle" style="width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">
+                                                    @attachment.DisplayOrder
+                                                </span>
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <h6 class="mb-2">
+                                                    <i class="ti ti-file-text me-1"></i>@attachment.AttachmentName
+                                                </h6>
+                                                <div>
+                                                    <small class="text-muted">Allowed formats:</small>
+                                                    <div class="mt-1">
+                                                        @foreach (var format in attachment.FormatsList)
+                                                        {
+                                                            var badgeColor = format.ToLower() switch
+                                                            {
+                                                                "pdf" => "danger",
+                                                                "excel" => "success",
+                                                                "docx" => "primary",
+                                                                "png" => "info",
+                                                                "jpg" => "warning",
+                                                                _ => "secondary"
+                                                            };
+                                                            var displayName = format.ToLower() switch
+                                                            {
+                                                                "docx" => "Word (DOCX)",
+                                                                "png" => "PNG Image",
+                                                                "jpg" => "JPG Image",
+                                                                _ => format.ToUpper()
+                                                            };
+                                                            <span class="badge bg-@badgeColor me-1">@displayName</span>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
                 <hr class="my-4" />
 
                 <!-- Notification Details -->
@@ -221,6 +293,13 @@
                         Users will be prompted to enter comments/remarks when clicking this button.
                     </p>
                 }
+                @if (Model.RequiresAttachments)
+                {
+                    <p class="text-muted mt-2 small">
+                        <i class="ti ti-paperclip me-1"></i>
+                        Users will be required to upload @Model.AttachmentRequirements.Count attachment(s) when performing this transition.
+                    </p>
+                }
             </div>
         </div>
     </div>
@@ -255,7 +334,7 @@
                         <h6 class="text-sm mb-2">Flow Details</h6>
                         <div class="text-sm space-y-2">
                             <div>
-                                <span class="text-muted small text-uppercasesmall text-uppercase">From:</span><br />
+                                <span class="text-muted small text-uppercase">From:</span><br />
                                 <span class="badge bg-info">@Model.FromStatusName</span>
                             </div>
                             <div>
@@ -293,6 +372,17 @@
                                 @if (Model.RequiresComments)
                                 {
                                     <i class="ti ti-check text-success"></i>
+                                }
+                                else
+                                {
+                                    <i class="ti ti-x text-danger"></i>
+                                }
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted small text-uppercase">Attachments Required:</span>
+                                @if (Model.RequiresAttachments)
+                                {
+                                    <span class="badge bg-warning">@Model.AttachmentRequirements.Count</span>
                                 }
                                 else
                                 {
@@ -340,6 +430,29 @@
                             </div>
                         </div>
                     </div>
+
+                    @if (Model.RequiresAttachments && Model.AttachmentRequirements.Any())
+                    {
+                        <hr />
+
+                        <!-- Attachment Summary -->
+                        <div>
+                            <h6 class="text-sm mb-2"><i class="ti ti-paperclip me-1"></i>Attachment Summary</h6>
+                            <div class="text-sm">
+                                <p class="mb-2">
+                                    <strong>@Model.AttachmentRequirements.Count</strong> attachment(s) required
+                                </p>
+                                <ol class="ps-3 mb-0">
+                                    @foreach (var attachment in Model.AttachmentRequirements.OrderBy(a => a.DisplayOrder))
+                                    {
+                                        <li class="mb-1">
+                                            <small>@attachment.AttachmentName</small>
+                                        </li>
+                                    }
+                                </ol>
+                            </div>
+                        </div>
+                    }
 
                     @if (Model.SendNotification)
                     {

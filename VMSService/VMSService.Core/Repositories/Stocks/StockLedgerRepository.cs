@@ -7,7 +7,7 @@ namespace VMSService.Core.Repositories.Stocks
 {
     public class StockLedgerRepository(IStockService _stockService, ILogger<StockLedgerRepository> _logger) : IStockLedgerRepository
     {
-        public async Task<StockLedger> Create(StockLedger model)
+        public async Task<bool> Create(StockLedger model)
         {
             try
             {
@@ -16,7 +16,7 @@ namespace VMSService.Core.Repositories.Stocks
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating stock ledger");
-                return null;
+                return false;
             }
         }
 

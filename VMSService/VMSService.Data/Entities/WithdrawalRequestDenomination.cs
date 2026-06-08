@@ -1,10 +1,4 @@
-﻿using StockService.Data.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using VMSService.Data.AuditColumns;
+﻿using VMSService.Data.AuditColumns;
 
 namespace VMSService.Data.Entities
 {

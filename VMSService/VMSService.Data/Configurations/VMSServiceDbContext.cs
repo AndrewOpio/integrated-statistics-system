@@ -54,6 +54,24 @@ namespace VMSService.Data.Configurations
         public DbSet<DepositRequestAgent> DepositRequestAgents { get; set; }
         public DbSet<DepositRequestDenomination> DepositRequestDenominations { get; set; }
         public DbSet<DepositRequestStatusHistory> DepositRequestStatusHistory { get; set; }
+        public DbSet<MinDepositStandard> MinDepositStandards { get; set; }
+        public DbSet<DepositProcessingFee> DepositProcessingFees { get; set; }
+        public DbSet<FeeType> FeeTypes { get; set; }
+        public DbSet<DepositFee> DepositFees { get; set; }
+        public DbSet<Attachment> Attachments { get; set; }
+
+        // Processing
+        public DbSet<ProcessingBoard> ProcessingBoards { get; set; }
+        public DbSet<BPSMachine> BPSMachines { get; set; }
+        public DbSet<StockProcessingPlan> StockProcessingPlans { get; set; }
+        public DbSet<StockProcessingPlanStatusHistory> StockProcessingPlanStatusHistory { get; set; }
+        public DbSet<StockProcessingResult> StockProcessingResults { get; set; }
+        public DbSet<StockProcessingSession> StockProcessingSessions { get; set; }
+        public DbSet<StockProcessingSessionStatusHistory> StockProcessingSessionStatusHistory { get; set; }
+        public DbSet<Bag> Bags { get; set; }
+        public DbSet<BagDenomination> BagDenominations { get; set; }
+        public DbSet<Vault> Vaults { get; set; }
+        public DbSet<VaultSection> VaultSections { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -129,6 +147,14 @@ namespace VMSService.Data.Configurations
             //    .WithMany()
             //    .HasForeignKey(l => l.NewStatusId)
             //    .OnDelete(DeleteBehavior.Restrict);
+
+            // ✅ ADD THIS AT THE END — catches all remaining FKs not explicitly configured above
+            foreach (var relationship in modelBuilder.Model.GetEntityTypes()
+                .SelectMany(e => e.GetForeignKeys())
+                .Where(fk => !fk.IsOwnership && fk.DeleteBehavior == DeleteBehavior.Cascade))
+            {
+                relationship.DeleteBehavior = DeleteBehavior.Restrict;
+            }
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

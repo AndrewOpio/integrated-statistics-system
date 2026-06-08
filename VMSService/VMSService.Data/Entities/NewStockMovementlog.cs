@@ -9,8 +9,8 @@ namespace VMSService.Data.Entities
         public long PackingListDetailId { get; set; }
         public int SerialNoteStartNumber { get; set; }
         public int SerialNoteEndNumber { get; set; }
-        public int NewStockAccountingStatus { get; set; }
-        public int NewCaseFullStatus { get; set; }
+        public int? AccountingStatusId { get; set; }
+        public int? CaseFullStatusId { get; set; }
 
         public StockMovement StockMovement { get; set; }
         public PackingListDetails PackingListDetail { get; set; }

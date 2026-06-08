@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace IdentityService.Core.Models
 {
@@ -47,5 +48,15 @@ namespace IdentityService.Core.Models
         [Display(Name = "Phone")]
         [RegularExpression(@"^\d{9}$", ErrorMessage = "Please enter a valid 9-digit phone number.")]
         public string? PhoneNumberLocal { get; set; }
+
+        // Commercial Bank properties
+        [Display(Name = "Commercial Bank")]
+        public int? CommercialBankId { get; set; }
+
+        [Display(Name = "Commercial Bank Branch")]
+        public int? CommercialBankBranchId { get; set; }
+
+        public IEnumerable<SelectListItem>? CommercialBankList { get; set; }
+        public IEnumerable<SelectListItem>? CommercialBankBranchList { get; set; }
     }
 }

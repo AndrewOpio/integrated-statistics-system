@@ -17,6 +17,8 @@ namespace StockService.Core.Repository.StockLedgers
                     .ThenInclude(sld => sld.Category)
                 .Include(sl => sl.StockLedgerDetails)
                     .ThenInclude(sld => sld.Denomination)
+                .Include(sl => sl.StockLedgerDetails)
+                    .ThenInclude(sld => sld.SubCategory)
                 .ToListAsync();
 
             // Decrypt values after fetching

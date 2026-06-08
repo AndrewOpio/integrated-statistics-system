@@ -92,6 +92,55 @@ namespace WorkflowService.Data.Migrations
                     b.ToTable("StatusTypes");
                 });
 
+            modelBuilder.Entity("WorkflowService.Data.Entities.TransitionAttachmentRequirement", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AllowedFormats")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AttachmentName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("WorkflowTransitionId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkflowTransitionId");
+
+                    b.ToTable("TransitionAttachmentRequirements");
+                });
+
             modelBuilder.Entity("WorkflowService.Data.Entities.WorkflowTransition", b =>
                 {
                     b.Property<int>("Id")
@@ -147,6 +196,9 @@ namespace WorkflowService.Data.Migrations
                     b.Property<int>("RequiredRole")
                         .HasColumnType("int");
 
+                    b.Property<bool>("RequiresAttachments")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("RequiresComments")
                         .HasColumnType("bit");
 
@@ -178,6 +230,17 @@ namespace WorkflowService.Data.Migrations
                     b.Navigation("EntityType");
                 });
 
+            modelBuilder.Entity("WorkflowService.Data.Entities.TransitionAttachmentRequirement", b =>
+                {
+                    b.HasOne("WorkflowService.Data.Entities.WorkflowTransition", "WorkflowTransition")
+                        .WithMany("AttachmentRequirements")
+                        .HasForeignKey("WorkflowTransitionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("WorkflowTransition");
+                });
+
             modelBuilder.Entity("WorkflowService.Data.Entities.WorkflowTransition", b =>
                 {
                     b.HasOne("WorkflowService.Data.Entities.EntityType", "EntityType")
@@ -203,6 +266,11 @@ namespace WorkflowService.Data.Migrations
                     b.Navigation("FromStatus");
 
                     b.Navigation("ToStatus");
+                });
+
+            modelBuilder.Entity("WorkflowService.Data.Entities.WorkflowTransition", b =>
+                {
+                    b.Navigation("AttachmentRequirements");
                 });
 #pragma warning restore 612, 618
         }

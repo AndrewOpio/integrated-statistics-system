@@ -10,6 +10,13 @@
         /// <summary>
         /// Indicates if the user must change their password before proceeding.
         /// </summary>
-        public bool MustChangePassword { get; set; } = false;
+        public bool MustChangePassword { get; set; }
+            = false;
+
+        // For 2FA flow
+        public bool RequiresRsaMfa { get; set; }
+        public string? RsaAuthnAttemptId { get; set; }
+        public string? RsaMessageId { get; set; }
+        public string? RsaPromptText { get; set; }
     }
 }

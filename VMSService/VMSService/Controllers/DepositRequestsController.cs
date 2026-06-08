@@ -14,15 +14,21 @@ using VMSService.Core.Models.DepositRequests;
 using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.BranchCategories;
 using VMSService.Core.Repositories.Branches;
+using VMSService.Core.Repositories.Categories;
 using VMSService.Core.Repositories.CounterPartyTypes;
 using VMSService.Core.Repositories.DenominationTypes;
 using VMSService.Core.Repositories.DepositUnitOfWorks;
+using VMSService.Core.Repositories.FeeTypes;
+using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
+using VMSService.Data.Entities;
 using WorkflowService.Client;
 using WorkflowService.Client.Dto;
+using VMSService.Core.Repositories.Attachments;
+using VMSService.Core.Models.Attachments;
 
 namespace VMSService.Web.Controllers
 {
@@ -38,41 +44,105 @@ namespace VMSService.Web.Controllers
         ICounterPartyTypeRepository _counterPartyTypeRepository,
         IBranchCategoryRepository _branchCategoryRepository,
         ILogger<DepositRequestsController> _logger,
-        IMapper _mapper) : Controller
+        IMapper _mapper,
+        IStockMovementRepository _stockMovementRepository,
+        ICategoryRepository _categoryRepository,
+        IFeeTypeRepository _feeTypeRepo,
+        IAttachmentRepository _attachmentRepository, // Add this
+        IWebHostEnvironment _environment) : Controller // Add this for file path
     {
         [Breadcrumb("Deposit Requests", FromController = typeof(HomeController), FromAction = nameof(Index))]
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string? branchCode = null)
         {
-            var allRequests = await _uow.Requests.FindAll();
-            allRequests = allRequests.Where(x => !x.IsDeleted).ToList();
+            ICollection<DepositRequest> visibleRequests = Array.Empty<DepositRequest>();
 
             var allStatuses = await _workflowServiceClient.FindAllStatuses();
             allStatuses = [.. allStatuses.Where(x => x.EntityType.Name == StatusConstants.Entity.DepositRequest || x.EntityType.Name == StatusConstants.Entity.DepositRequestExceptional)];
 
             var statusMap = allStatuses.ToDictionary(s => s.Id, s => s.Name);
+
+            try
+            {
+                var result = await _configServiceClient.GetAllCommercialBankAsync();
+                Console.WriteLine($"Result: {result}");
+                // or use _logger.LogInformation(...)
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                Console.WriteLine($"Stack: {ex.StackTrace}");
+            }
+
             var allCbs = await _configServiceClient.GetAllCommercialBankAsync();
             var cbMap = allCbs.ToDictionary(s => s.Id, s => s.Name);
             var allBouBranches = await _configServiceClient.GetAllBouBranchesAsync();
 
-            //Counts
-            var pendingCb = allRequests.Count(r =>
+            // Get user roles
+            var userRoles = User.FindAll("appRole")
+                .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
+                .Select(c => c.Value.Split(":")[1])
+                .ToList();
+
+            // Determine if user can view all locations
+            bool canViewAllLocations = userRoles.Contains(SystemPolicy.Roles.RemittancesOfficer);
+
+            // Filter branches based on user roles
+            var userBranches = new List<BranchDto>();
+            var draftStatus = await GetStatusByNameAsync(DepositStatuses.DepositStatusNames.Draft);
+            var draftStatusSpecial = await GetStatusByNameExceptionalAsync(DepositStatuses.DepositStatusNames.Draft);
+
+            if (canViewAllLocations)
+            {
+                // Remittances Officer can see all branches
+                userBranches = allBouBranches.ToList();
+                visibleRequests = (await _uow.Requests.FindAll()).Where(r => r.StatusTypeId != draftStatus.Id && r.StatusTypeId != draftStatusSpecial.Id).ToList();
+            }
+            else
+            {
+                // Filter branches based on role names matching branch names
+                userBranches = allBouBranches
+                    .Where(branch => userRoles.Any(role => role.Contains(branch.Name)))
+                    .ToList();
+            }
+
+            // Filter requests by selected branch if provided
+            if (!string.IsNullOrEmpty(branchCode))
+            {
+                var selectedBranch = allBouBranches.FirstOrDefault(b => b.BranchCode == branchCode);
+                if (selectedBranch != null)
+                {
+                    visibleRequests = (await _uow.Requests.FindByBouBranchId(selectedBranch.Id)).Where(r => r.StatusTypeId != draftStatus.Id && r.StatusTypeId != draftStatusSpecial.Id).ToList();
+                }
+            }
+            else if (!canViewAllLocations && userBranches.Any())
+            {
+                // If no branch selected and user is not RemittancesOfficer, show only their branches
+                List<int> userBranchIds = userBranches.Select(b => b.Id).ToList();
+                visibleRequests = (await _uow.Requests.FindByBouBranchIds(userBranchIds)).Where(r => r.StatusTypeId != draftStatus.Id && r.StatusTypeId != draftStatusSpecial.Id).ToList();
+            }
+
+            // Counts based on filtered requests
+            var pendingCb = visibleRequests.Count(r =>
                 statusMap.GetValueOrDefault(r.StatusTypeId) == DepositStatuses.DepositStatusNames.SubmittedToSupervisor);
 
-            var specialApproval = allRequests.Count(r => r.RequiresSpecialApproval);
+            var specialApproval = visibleRequests.Count(r => r.RequiresSpecialApproval);
 
-            var underBouProcessing = allRequests.Count(r =>
-            {
-                var name = statusMap.GetValueOrDefault(r.StatusTypeId);
-                return name == DepositStatuses.DepositStatusNames.SubmittedToBank
-                    || name == DepositStatuses.DepositStatusNames.Recommended;
-            });
-
-            var totalProcessed = allRequests
+            var approvedRequests = visibleRequests
                 .Where(r => statusMap.GetValueOrDefault(r.StatusTypeId) == DepositStatuses.DepositStatusNames.Approved)
-                .Sum(r => r.TotalAmount);
+                .ToList();
 
-            //Requests table
-            var rows = await Task.WhenAll(allRequests.Select(async r => new RecentRequestRowViewModel
+            var approvedCount = approvedRequests.Count;
+
+            var totalProcessed = approvedRequests.Sum(r => r.TotalAmount);
+
+            // Calculate approved count difference from last month
+            var lastMonth = DateTime.Now.AddMonths(-1);
+            var lastMonthApproved = approvedRequests.Count(r => r.CreatedDate.Month == lastMonth.Month && r.CreatedDate.Year == lastMonth.Year);
+            var thisMonthApproved = approvedRequests.Count(r => r.CreatedDate.Month == DateTime.Now.Month && r.CreatedDate.Year == DateTime.Now.Year);
+            var approvedCountDiff = thisMonthApproved - lastMonthApproved;
+
+            // Requests table
+            var rows = await Task.WhenAll(visibleRequests.Select(async r => new RecentRequestRowViewModel
             {
                 Id = r.Id,
                 TransactionRefNumber = r.TransactionRefNumber ?? "Not Generated",
@@ -90,10 +160,13 @@ namespace VMSService.Web.Controllers
             {
                 PendingCbCount = pendingCb,
                 SpecialApprovalCount = specialApproval,
-                UnderBouProcessing = underBouProcessing,
+                ApprovedCount = approvedCount,
+                ApprovedCountDiff = approvedCountDiff,
                 TotalProcessed = totalProcessed,
                 Requests = rows,
-                BouBranches = allBouBranches,
+                BouBranches = userBranches,
+                SelectedBranch = branchCode,
+                CanViewAllLocations = canViewAllLocations
             };
 
             return View(vm);
@@ -160,10 +233,12 @@ namespace VMSService.Web.Controllers
             }
 
             var approvedStatus = await GetStatusByNameAsync(DepositStatuses.DepositStatusNames.Approved);
+            var completedStatus = await GetStatusByNameAsync(DepositStatuses.DepositStatusNames.Completed);
 
             if (request.RequiresSpecialApproval)
             {
                 approvedStatus = await GetStatusByNameExceptionalAsync(DepositStatuses.DepositStatusNames.Approved);
+                completedStatus = await GetStatusByNameExceptionalAsync(DepositStatuses.DepositStatusNames.Completed);
             }
 
             //Status history
@@ -172,7 +247,52 @@ namespace VMSService.Web.Controllers
             {
                 history.NewStatusName = (await _workflowServiceClient.FindStatusById(history.NewStatusId)).Name;
                 history.OldStatusName = (await _workflowServiceClient.FindStatusById(history.OldStatusId)).Name;
+
+                // Load attachments for this status history entry
+                if (!string.IsNullOrEmpty(history.AttachmentIds))
+                {
+                    var attachmentIds = history.AttachmentIds.Split(',')
+                        .Where(id => int.TryParse(id.Trim(), out _))
+                        .Select(id => int.Parse(id.Trim()))
+                        .ToList();
+
+                    var attachments = new List<AttachmentViewModel>();
+                    foreach (var attachmentId in attachmentIds)
+                    {
+                        var attachment = await _attachmentRepository.FindById(attachmentId);
+                        if (attachment != null && !attachment.IsDeleted)
+                        {
+                            attachments.Add(new AttachmentViewModel
+                            {
+                                Id = attachment.Id,
+                                FileName = attachment.FileName,
+                                FilePath = attachment.FilePath,
+                                FileType = attachment.FileType,
+                                FileSize = attachment.FileSize,
+                                UploadedDate = attachment.CreatedDate
+                            });
+                        }
+                    }
+                    history.Attachments = attachments;
+                }
             }
+
+            // Load all attachments for this deposit request
+            var allAttachments = await _attachmentRepository.FindByEntityId(id.ToString());
+            var depositAttachments = allAttachments
+                .Where(a => !a.IsDeleted && 
+                           (a.EntityType == StatusConstants.Entity.DepositRequest || 
+                            a.EntityType == StatusConstants.Entity.DepositRequestExceptional))
+                .Select(a => new AttachmentViewModel
+                {
+                    Id = a.Id,
+                    FileName = a.FileName,
+                    FilePath = a.FilePath,
+                    FileType = a.FileType,
+                    FileSize = a.FileSize,
+                    UploadedDate = a.CreatedDate
+                })
+                .ToList();
 
             //Available transitions
             var userRoleIds = GetUserRoles();
@@ -216,6 +336,32 @@ namespace VMSService.Web.Controllers
                 }
             }
 
+            // Get fees from database
+            var depositFees = await _uow.DepositFees.GetByDepositRequestId(id);
+            var processingFeeType = await _feeTypeRepo.FindByName(SystemPolicy.FeeTypes.ProcessingFees);
+            var penaltyFeeType = await _feeTypeRepo.FindByName(SystemPolicy.FeeTypes.MinDepositFees);
+
+            decimal processingFee = 0;
+            decimal penaltyFee = 0;
+
+            if (processingFeeType != null)
+            {
+                var processingFeeEntity = depositFees.FirstOrDefault(f => f.FeeTypeId == processingFeeType.Id);
+                if (processingFeeEntity != null)
+                {
+                    processingFee = processingFeeEntity.Amount;
+                }
+            }
+
+            if (penaltyFeeType != null)
+            {
+                var penaltyFeeEntity = depositFees.FirstOrDefault(f => f.FeeTypeId == penaltyFeeType.Id);
+                if (penaltyFeeEntity != null)
+                {
+                    penaltyFee = penaltyFeeEntity.Amount;
+                }
+            }
+
             var vm = new DepositRequestDetailsViewModel
             {
                 Id = request.Id,
@@ -234,10 +380,12 @@ namespace VMSService.Web.Controllers
                 CbCode = cb?.CBCode ?? "—",
                 BouBranchName = bouBranch?.Name ?? "—",
                 BouBranchCode = bouBranch?.BranchCode ?? "—",
+                BouBranchId = bouBranch?.Id ?? 0,
                 FitNotes = cbDenoms
                     .Where(d => d.DenominationTypeId == noteTypeId && d.SubCategoryId == 1)
                     .Select(d => new DepositDenominationLineViewModel
                     {
+                        DenominationId = d.DenominationId,
                         DenominationLabel = $"UGX {d.DenominationValue:N0}",
                         Bundles = d.Bundles,
                         Amount = d.Amount,
@@ -248,6 +396,7 @@ namespace VMSService.Web.Controllers
                     .Where(d => d.DenominationTypeId == noteTypeId && d.SubCategoryId == 2)
                     .Select(d => new DepositDenominationLineViewModel
                     {
+                        DenominationId = d.DenominationId,
                         DenominationLabel = $"UGX {d.DenominationValue:N0}",
                         Bundles = d.Bundles,
                         Amount = d.Amount,
@@ -258,6 +407,7 @@ namespace VMSService.Web.Controllers
                     .Where(d => d.DenominationTypeId == noteTypeId && d.SubCategoryId == 3)
                     .Select(d => new DepositDenominationLineViewModel
                     {
+                        DenominationId = d.DenominationId,
                         DenominationLabel = $"UGX {d.DenominationValue:N0}",
                         Bundles = d.Bundles,
                         Amount = d.Amount,
@@ -278,9 +428,15 @@ namespace VMSService.Web.Controllers
                 TotalCoinsAmount = request.TotalCoinsAmount,
                 TotalAmount = request.TotalAmount,
                 Steps = DepositStepViewModelFactory.Build(currentStepKey,
-                    request.StatusTypeId == approvedStatus.Id, request.RequiresSpecialApproval, User),
+                    (request.StatusTypeId == approvedStatus.Id || request.StatusTypeId == completedStatus.Id), 
+                    request.RequiresSpecialApproval, User),
                 StatusHistory = statusHistoryList,
                 AvailableTransitions = availableTransitions,
+                ProcessingFee = processingFee,
+                MinimumDepositPenaltyFee = penaltyFee,
+                TotalFees = processingFee + penaltyFee,
+                HasPenaltyViolations = penaltyFee > 0,
+                AllAttachments = depositAttachments
             };
 
             return View(vm);
@@ -290,7 +446,6 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ExecuteAction(Guid id, string actionName, string remarks, CancellationToken ct)
         {
-            
             var request = await _uow.Requests.FindById(id);
             if (request is null)
             {
@@ -300,48 +455,138 @@ namespace VMSService.Web.Controllers
 
             try
             {
-
                 var username = User.FindFirst(ClaimTypes.Name)?.Value ?? "System";
                 var userRoles = GetUserRoles();
 
+                // Get the transition to check if attachments are required
+                var requestData = new GetTransitionByKeyRequestDto
+                {
+                    EntityTypeName = request.RequiresSpecialApproval 
+                        ? StatusConstants.Entity.DepositRequestExceptional 
+                        : StatusConstants.Entity.DepositRequest,
+                    FromStatusId = request.StatusTypeId,
+                    ActionName = actionName,
+                };
+
+                var transition = await _workflowServiceClient.FindByTransitionKey(requestData);
+                
+                // Handle file uploads if attachments are required
+                List<long>? uploadedAttachmentIds = null;
+                
+                if (transition != null && transition.RequiresAttachments && transition.AttachmentRequirements.Any())
+                {
+                    uploadedAttachmentIds = await HandleAttachmentUploads(
+                        transition.AttachmentRequirements.ToList(), 
+                        transition.Id,
+                        id, 
+                        request.RequiresSpecialApproval 
+                            ? StatusConstants.Entity.DepositRequestExceptional 
+                            : StatusConstants.Entity.DepositRequest,
+                        username);
+
+                    // Validate required attachments
+                    var requiredAttachments = transition.AttachmentRequirements.Where(r => r.IsRequired).ToList();
+                    if (requiredAttachments.Any())
+                    {
+                        var uploadedRequirementIds = uploadedAttachmentIds?
+                            .Select(aid => 
+                            {
+                                // You'll need to track which requirement each attachment belongs to
+                                // This is a simplified check - you may need to enhance this
+                                return transition.AttachmentRequirements
+                                    .FirstOrDefault(r => Request.Form.Files[$"attachments_{r.Id}"]?.Length > 0)?.Id ?? 0;
+                            })
+                            .Where(id => id > 0)
+                            .ToList();
+
+                        var missingRequirements = requiredAttachments
+                            .Where(r => !uploadedRequirementIds.Contains(r.Id))
+                            .ToList();
+
+                        if (missingRequirements.Any())
+                        {
+                            TempData["Error"] = $"Missing required attachments: {string.Join(", ", missingRequirements.Select(r => r.AttachmentName))}";
+                            return RedirectToAction(nameof(Details), new { id });
+                        }
+                    }
+                }
+
                 bool isExecuted = false;
 
-                if(request.RequiresSpecialApproval)
+                if (request.RequiresSpecialApproval)
                 {
                     isExecuted = await _workflowService.ExecuteTransition(
-                    entityType: StatusConstants.Entity.DepositRequestExceptional,
-                    entityId: id,
-                    currentStatusId: request.StatusTypeId,
-                    actionName: actionName,
-                    username: username,
-                    userRoles: userRoles,
-                    remarks: remarks,
-                    ct: ct); 
-                } else
+                        StatusConstants.Entity.DepositRequestExceptional, 
+                        id, 
+                        request.StatusTypeId,
+                        actionName, 
+                        username, 
+                        userRoles, 
+                        remarks, 
+                        ct,
+                        uploadedAttachmentIds);
+                }
+                else
                 {
                     isExecuted = await _workflowService.ExecuteTransition(
-                    entityType: StatusConstants.Entity.DepositRequest,
-                    entityId: id,
-                    currentStatusId: request.StatusTypeId,
-                    actionName: actionName,
-                    username: username,
-                    userRoles: userRoles,
-                    remarks: remarks,
-                    ct: ct);
+                        StatusConstants.Entity.DepositRequest, 
+                        id, 
+                        request.StatusTypeId,
+                        actionName, 
+                        username, 
+                        userRoles, 
+                        remarks, 
+                        ct,
+                        uploadedAttachmentIds);
                 }
 
                 if (isExecuted)
                 {
                     if (actionName.Equals("Complete"))
                     {
-                        BranchCategory store = await _branchCategoryRepository
-                                .FindByBranchAndCategoryName(request.BouBranchId, StockConstants.StoreTypes.Paids);
+                        var cbDenoms = request.DepositRequestDenominations
+                                .Where(d => d.Origin == DepositStatuses.DepositOrigin.Cb);
+                        Category paids = (await _categoryRepository.FindAll()).FirstOrDefault(c => c.Name == StockConstants.StoreTypes.Paids);
+                        //BranchDto store = await _configServiceClient
+                        //        .FindByBranchAndCategoryName(request.BouBranchId, StockConstants.StoreTypes.Paids);
                         var counterPartyType = await _counterPartyTypeRepository.FindByName(StockConstants.StockCounterPartyType.CommercialBank);
+
+                        StatusTypeDto receivedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+                        {
+                            ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                            StatusName = StatusConstants.StockMovement.Received,
+                            EntityTypeName = StatusConstants.Entity.StockMovement,
+                        });
+
+                        var movement = new StockMovement
+                        {
+                            MovementType = StockConstants.StockMovementTypes.CommBankToBranch,
+                            Date = DateTime.Now,
+                            ReferenceNumber = request.TransactionRefNumber,
+                            DispatchingBranchId = null,
+                            ReceivingBranchId = request.BouBranchId,
+                            TotalBagsBoxes = null,
+                            GrandTotalValue = request.TotalAmount,
+                            CurrentStatusId = receivedStatus.Id,
+                            CurrentStatusName = receivedStatus.Name,
+                            Denominations = [.. cbDenoms.Select(x => {
+                                return new StockMovementDenomination
+                                {
+                                    DenominationId = x.DenominationId,
+                                    NumBagsBoxes = x.Boxes,
+                                    NumBundles = x.Bundles,
+                                    CategoryId = paids?.Id,
+                                    ContainerType = x.Boxes == null ? StockConstants.ContainerTypes.Bag : StockConstants.ContainerTypes.Box,
+                                    SubTotalValue = x.Amount,
+                                    Categorization = paids?.Name
+                                };
+                            })]
+                        };
+
+                        StockMovement newStockMovement = await _stockMovementRepository.CreateAsync(movement);
 
                         List<StockLedgerDetail> stockLedgerDetails = new();
 
-                        var cbDenoms = request.DepositRequestDenominations
-                                .Where(d => d.Origin == DepositStatuses.DepositOrigin.Cb);
                         foreach (var denom in cbDenoms)
                         {
                             StockLedgerDetail stockLedgerDetail = new()
@@ -355,7 +600,8 @@ namespace VMSService.Web.Controllers
                                 NumberOfBundles = denom.Bundles,
                                 NumberOfPieces = ((denom.Bundles ?? 0) * 1000) + ((denom.Boxes ?? 0) * 1000),
                                 Value = denom.Amount,
-                                CategoryId = 2
+                                CategoryId = paids?.Id ?? 2,
+                                SubCategoryId = denom.SubCategoryId
                             };
                             stockLedgerDetails.Add(stockLedgerDetail);
                         }
@@ -364,7 +610,7 @@ namespace VMSService.Web.Controllers
                         StockLedger stockLedger = new()
                         {
                             ReferenceCode = request.TransactionRefNumber,
-                            StoreId = store.Id, //Branch - Paids
+                            StoreId = request.BouBranchId, //Branch
                             IsIn = true,
                             CounterPartyId = request.CbId,
                             CounterPartyTypeId = counterPartyType.Id, //Commercial Bank
@@ -373,18 +619,22 @@ namespace VMSService.Web.Controllers
                             CreatedDate = DateTime.Now,
                             ModifiedBy = username ?? "unknown",
                             ModifiedDate = DateTime.Now,
-                            StockLedgerDetails = stockLedgerDetails
+                            StockLedgerDetails = stockLedgerDetails,
+                            StockMovementId = newStockMovement.Id
                         };
 
-                        StockLedger createdLedgerRecord = await _stockLedgerRepository.Create(stockLedger);
-                        if (createdLedgerRecord != null)
+                        bool createdLedgerRecord = await _stockLedgerRepository.Create(stockLedger);
+                        if (!createdLedgerRecord)
                         {
                             TempData["Error"] = "Error Updating Stock Position";
                         }
-                        TempData["Success"] = "Action completed successfully. Stock position Updated";
+                        TempData["Success"] = "Deposit Confirmed successfully. Stock position Updated";
                     } else
                     {
-                        TempData["Success"] = "Action completed successfully.";
+                        var attachmentMessage = uploadedAttachmentIds?.Any() == true 
+                            ? $" {uploadedAttachmentIds.Count} attachment(s) uploaded." 
+                            : "";
+                        TempData["Success"] = $"Action completed successfully.{attachmentMessage}";
                     }
                 }
                 else
@@ -403,6 +653,152 @@ namespace VMSService.Web.Controllers
             return RedirectToAction(nameof(Details), new { id });
         }
 
+        [HttpGet]
+        public async Task<IActionResult> DownloadAttachment(int id)
+        {
+            try
+            {
+                var attachment = await _attachmentRepository.FindById(id);
+                if (attachment == null || attachment.IsDeleted)
+                {
+                    TempData["Error"] = "Attachment not found.";
+                    return NotFound();
+                }
+
+                var filePath = Path.Combine(_environment.WebRootPath, attachment.FilePath);
+                
+                if (!System.IO.File.Exists(filePath))
+                {
+                    TempData["Error"] = "File not found on server.";
+                    return NotFound();
+                }
+
+                var memory = new MemoryStream();
+                using (var stream = new FileStream(filePath, FileMode.Open))
+                {
+                    await stream.CopyToAsync(memory);
+                }
+                memory.Position = 0;
+
+                return File(memory, attachment.FileType, attachment.FileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error downloading attachment {AttachmentId}", id);
+                TempData["Error"] = "An error occurred while downloading the file.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        private async Task<List<long>> HandleAttachmentUploads(
+            List<TransitionAttachmentRequirementDto> requirements,
+            int workflowTransitionId,
+            Guid entityId,
+            string entityType,
+            string username)
+        {
+            var uploadedAttachmentIds = new List<long>();
+
+            // Create uploads directory if it doesn't exist
+            var uploadsPath = Path.Combine(_environment.WebRootPath, "uploads", "deposits", entityId.ToString());
+            Directory.CreateDirectory(uploadsPath);
+
+            foreach (var requirement in requirements)
+            {
+                var fileInputName = $"attachments_{requirement.Id}";
+                var file = Request.Form.Files[fileInputName];
+
+                if (file != null && file.Length > 0)
+                {
+                    try
+                    {
+                        // Validate file format
+                        var fileExtension = Path.GetExtension(file.FileName).TrimStart('.').ToLower();
+                        var allowedFormats = requirement.AllowedFormats.Split(',')
+                            .Select(f => f.Trim().ToLower())
+                            .ToList();
+
+                        // Map common format names
+                        var formatMap = new Dictionary<string, List<string>>
+                        {
+                            { "excel", new List<string> { "xls", "xlsx" } },
+                            { "word", new List<string> { "doc", "docx" } },
+                            { "docx", new List<string> { "doc", "docx" } },
+                            { "jpg", new List<string> { "jpg", "jpeg" } },
+                            { "jpeg", new List<string> { "jpg", "jpeg" } }
+                        };
+
+                        bool isValidFormat = false;
+                        foreach (var format in allowedFormats)
+                        {
+                            if (formatMap.ContainsKey(format))
+                            {
+                                if (formatMap[format].Contains(fileExtension))
+                                {
+                                    isValidFormat = true;
+                                    break;
+                                }
+                            }
+                            else if (format == fileExtension)
+                            {
+                                isValidFormat = true;
+                                break;
+                            }
+                        }
+
+                        if (!isValidFormat)
+                        {
+                            _logger.LogWarning("Invalid file format {Extension} for requirement {RequirementId}", 
+                                fileExtension, requirement.Id);
+                            continue;
+                        }
+
+                        // Generate unique filename
+                        var timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+                        var uniqueFileName = $"{requirement.Id}_{timestamp}_{Path.GetFileNameWithoutExtension(file.FileName)}.{fileExtension}";
+                        var filePath = Path.Combine(uploadsPath, uniqueFileName);
+
+                        // Save file
+                        using (var stream = new FileStream(filePath, FileMode.Create))
+                        {
+                            await file.CopyToAsync(stream);
+                        }
+
+                        // Create attachment record
+                        var attachment = new Attachment
+                        {
+                            FileName = file.FileName,
+                            FilePath = Path.Combine("uploads", "deposits", entityId.ToString(), uniqueFileName),
+                            FileType = file.ContentType,
+                            FileSize = file.Length,
+                            WorkflowTransitionId = workflowTransitionId,
+                            TransitionAttachmentRequirementId = requirement.Id,
+                            EntityId = entityId.ToString(),
+                            EntityType = entityType,
+                            CreatedBy = username,
+                            CreatedDate = DateTime.Now,
+                            ModifiedBy = username,
+                            ModifiedDate = DateTime.Now,
+                            IsDeleted = false
+                        };
+
+                        await _attachmentRepository.Create(attachment);
+                        uploadedAttachmentIds.Add(attachment.Id);
+
+                        _logger.LogInformation(
+                            "Attachment uploaded successfully. File: {FileName}, Size: {Size}, AttachmentId: {AttachmentId}",
+                            file.FileName, file.Length, attachment.Id);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error uploading attachment for requirement {RequirementId}", requirement.Id);
+                    }
+                }
+            }
+
+            return uploadedAttachmentIds;
+        }
+        
         //Helpers
 
         private static string GetCurrentStepKey(string status) => status switch
@@ -452,6 +848,74 @@ namespace VMSService.Web.Controllers
                 ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
                 StatusName = statusName,
                 EntityTypeName = StatusConstants.Entity.DepositRequestExceptional,
+            });
+        }
+
+        // Add new action for AJAX stats updates
+        [HttpGet]
+        public async Task<IActionResult> Stats(string? branchCode = null)
+        {
+            var allRequests = await _uow.Requests.FindAll();
+            allRequests = allRequests.Where(x => !x.IsDeleted).ToList();
+
+            var allStatuses = await _workflowServiceClient.FindAllStatuses();
+            allStatuses = [.. allStatuses.Where(x => x.EntityType.Name == StatusConstants.Entity.DepositRequest || x.EntityType.Name == StatusConstants.Entity.DepositRequestExceptional)];
+
+            var statusMap = allStatuses.ToDictionary(s => s.Id, s => s.Name);
+            var allBouBranches = await _configServiceClient.GetAllBouBranchesAsync();
+
+            // Get user roles
+            var userRoles = User.FindAll("appRole")
+                .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
+                .Select(c => c.Value.Split(":")[1])
+                .ToList();
+
+            bool canViewAllLocations = userRoles.Contains(SystemPolicy.Roles.RemittancesOfficer);
+
+            // Filter by branch if provided
+            if (!string.IsNullOrEmpty(branchCode))
+            {
+                var selectedBranch = allBouBranches.FirstOrDefault(b => b.BranchCode == branchCode);
+                if (selectedBranch != null)
+                {
+                    allRequests = allRequests.Where(r => r.BouBranchId == selectedBranch.Id).ToList();
+                }
+            }
+            else if (!canViewAllLocations)
+            {
+                // Filter by user's branches
+                var userBranches = allBouBranches
+                    .Where(branch => userRoles.Any(role => role.Contains(branch.BranchCode)))
+                    .ToList();
+                var userBranchIds = userBranches.Select(b => b.Id).ToList();
+                allRequests = allRequests.Where(r => userBranchIds.Contains(r.BouBranchId)).ToList();
+            }
+
+            // Calculate stats
+            var pendingCb = allRequests.Count(r =>
+                statusMap.GetValueOrDefault(r.StatusTypeId) == DepositStatuses.DepositStatusNames.SubmittedToSupervisor);
+
+            var specialApproval = allRequests.Count(r => r.RequiresSpecialApproval);
+
+            var approvedRequests = allRequests
+                .Where(r => statusMap.GetValueOrDefault(r.StatusTypeId) == DepositStatuses.DepositStatusNames.Approved)
+                .ToList();
+
+            var approvedCount = approvedRequests.Count;
+            var totalProcessed = approvedRequests.Sum(r => r.TotalAmount);
+
+            var lastMonth = DateTime.Now.AddMonths(-1);
+            var lastMonthApproved = approvedRequests.Count(r => r.CreatedDate.Month == lastMonth.Month && r.CreatedDate.Year == lastMonth.Year);
+            var thisMonthApproved = approvedRequests.Count(r => r.CreatedDate.Month == DateTime.Now.Month && r.CreatedDate.Year == DateTime.Now.Year);
+            var approvedCountDiff = thisMonthApproved - lastMonthApproved;
+
+            return Json(new
+            {
+                pendingCbCount = pendingCb,
+                specialApprovalCount = specialApproval,
+                approvedCount = approvedCount,
+                approvedCountDiff = approvedCountDiff,
+                totalProcessed = totalProcessed
             });
         }
     }

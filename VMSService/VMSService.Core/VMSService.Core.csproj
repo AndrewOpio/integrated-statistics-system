@@ -16,7 +16,7 @@
     <PackageReference Include="BOU.NotificationService.Client" Version="1.0.4" />
     <PackageReference Include="ConfigurationsService.Dto" Version="1.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.TagHelpers" Version="2.3.9" />
-    <PackageReference Include="WorkflowService.Client" Version="1.0.2" />
+    <PackageReference Include="WorkflowService.Client" Version="1.0.3" />
   </ItemGroup>
 
 </Project>

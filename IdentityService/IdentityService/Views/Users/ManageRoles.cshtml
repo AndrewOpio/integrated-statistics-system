@@ -2,107 +2,246 @@
 @{
     ViewData["Title"] = "Manage User Roles";
 }
-<div class="d-flex justify-content-end align-items-center mb-3 mt-3">
-    <a asp-action="Index" class="btn btn-outline-secondary">
-        <i class="ti ti-arrow-left me-1"></i> Back to List
-    </a>
-</div>
+<div class="container">
+    <div class="d-flex justify-content-end align-items-center mb-3 mt-3">
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="ti ti-arrow-left me-1"></i> Back to List
+        </a>
+    </div>
 
-
-<div class="row">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-
-                <div>
-                    <h2>@Model.UserName</h2>
-                    <h6 class="card-subtitle my-1 text-body-secondary">
-                        Manage roles for user: <strong>@Model.UserName</strong>
-
-                    </h6>
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2>Manage User Roles</h2>
+                        <h6 class="card-subtitle my-1 text-body-secondary">
+                            Assign application roles for user: <strong class="text-info">@Model.UserName</strong>
+                        </h6>
+                    </div>
                 </div>
+                <div class="card-body">
+                    <form asp-action="ManageRoles" method="post">
+                        <input type="hidden" asp-for="UserId" />
+                        <input type="hidden" asp-for="UserName" />
 
-                <div>
-                    <button type="button" class="btn btn-outline-warning btn-sm" id="selectAll">Select All</button>
-                    <button type="button" class="btn btn-outline-warning btn-sm ms-2" id="deselectAll">Deselect All</button>
-                </div>
-            </div>
-            <div class="card-body">
-                <form asp-action="ManageRoles" method="post">
-                    <input type="hidden" asp-for="UserId" />
-                    <input type="hidden" asp-for="UserName" />
-
-                    @foreach (var application in Model.ApplicationRolesByApplications)
-                    {
-                        <h3>@application.Key</h3>
-                        <div class="list-group mb-3">
-                            @{
-                                for (int i = 0; i < application.Value.Count; i++)
+                        <!-- Application Selection Dropdown -->
+                        <div class="form-floating mb-4">
+                            <select class="form-select" id="applicationSelector">
+                                <option value="">-- Select an Application --</option>
+                                @foreach (var application in Model.ApplicationRolesByApplications)
                                 {
-                                    <div class="list-group-item">
-                                        <input type="hidden" asp-for="ApplicationRolesByApplications[application.Key][i].ApplicationRoleId" />
-                                        <input type="hidden" asp-for="ApplicationRolesByApplications[application.Key][i].RoleName" />
-
-                                        <div class="form-check">
-                                            <input class="form-check-input role-checkbox" type="checkbox"
-                                                   asp-for="ApplicationRolesByApplications[application.Key][i].IsSelected"
-                                                   id="role_@Model.ApplicationRolesByApplications[application.Key][i].ApplicationRoleId" />
-                                            <label class="form-check-label" for="role_@Model.ApplicationRolesByApplications[application.Key][i].ApplicationRoleId">
-                                                @Model.ApplicationRolesByApplications[application.Key][i].RoleName
-                                            </label>
-                                        </div>
-                                    </div>
+                                    <option value="@application.Key">@application.Key</option>
                                 }
-                            }
+                            </select>
+                            <label for="applicationSelector">Select Application <span class="text-danger">*</span></label>
+                            <div class="form-text text-muted">
+                                Choose an application to view and assign its roles
+                            </div>
                         </div>
-                    }
-                    <div class="list-group mb-3">
-                        @* @for (int i = 0; i < Model.UserApplicationRoles.Count; i++)
-                        {
-                            <div class="list-group-item">
-                                <input type="hidden" asp-for="UserApplicationRoles[i].Id" />
-                                <input type="hidden" asp-for="UserApplicationRoles[i].ApplicationRole" />
 
-                                <div class="form-check">
-                                    <input class="form-check-input role-checkbox" type="checkbox"
-                                           asp-for="Roles[i].IsSelected"
-                                           id="role_@Model.Roles[i].RoleId" />
-                                    <label class="form-check-label" for="role_@Model.Roles[i].RoleId">
-                                        @Model.Roles[i].RoleName
-                                    </label>
+                        <!-- Roles Container - Initially Hidden -->
+                        <div id="rolesContainer" class="d-none">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">Available Roles for <span id="selectedApplicationName" class="text-primary"></span></h5>
+                                <div>
+                                    <button type="button" class="btn btn-outline-primary btn-sm" id="selectAll">
+                                        <i class="ti ti-checkbox me-1"></i>Select All
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm ms-2" id="deselectAll">
+                                        <i class="ti ti-square me-1"></i>Deselect All
+                                    </button>
                                 </div>
                             </div>
-                        } *@
 
-                        
-                    </div>
+                            @foreach (var application in Model.ApplicationRolesByApplications)
+                            {
+                                <div class="application-roles-section" data-application="@application.Key" style="display: none;">
+                                    <div class="list-group mb-3">
+                                        @for (int i = 0; i < application.Value.Count; i++)
+                                        {
+                                            <div class="list-group-item">
+                                                <input type="hidden" asp-for="ApplicationRolesByApplications[application.Key][i].ApplicationRoleId" />
+                                                <input type="hidden" asp-for="ApplicationRolesByApplications[application.Key][i].RoleName" />
 
-                    <button type="submit" class="btn btn-success btn-block">
-                        <i class="ti ti-folder me-1"></i>Save Changes
-                    </button>
-                </form>
+                                                <div class="form-check">
+                                                    <input class="form-check-input role-checkbox" type="checkbox"
+                                                           asp-for="ApplicationRolesByApplications[application.Key][i].IsSelected"
+                                                           id="role_{@application.Key}_{@i}"
+                                                           data-application="@application.Key" />
+                                                    <label class="form-check-label" for="role_{@application.Key}_{@i}">
+                                                        <strong>@application.Value[i].RoleName</strong>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+
+                            <!-- Summary Section -->
+                            <div class="alert alert-info mt-4" id="rolesSummary">
+                                <i class="ti ti-info-circle me-2"></i>
+                                <strong>Selected Roles: </strong>
+                                <span id="selectedRolesCount">0</span> role(s) selected
+                            </div>
+                        </div>
+
+                        <!-- Save Button -->
+                        <div class="card-footer bg-white border-top-0 px-0 pb-0">
+                            <button type="submit" class="btn btn-success" id="saveButton">
+                                <i class="ti ti-folder me-1"></i>Save Role Assignments
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary ms-2" onclick="window.location.href='@Url.Action("Index")'">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- All Applications Summary Card -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Current Role Assignments Summary</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.ApplicationRolesByApplications.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Application</th>
+                                        <th>Assigned Roles</th>
+                                        <th>Total Roles</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var application in Model.ApplicationRolesByApplications)
+                                    {
+                                        var assignedCount = application.Value.Count(r => r.IsSelected);
+                                        var totalCount = application.Value.Count;
+                                        <tr>
+                                            <td>
+                                                <strong>@application.Key</strong>
+                                            </td>
+                                            <td>
+                                                @if (assignedCount > 0)
+                                                {
+                                                    <span class="badge bg-success">@assignedCount assigned</span>
+                                                    <span class="badge bg-light text-info ms-2">
+                                                        (@string.Join(", ", application.Value.Where(r => r.IsSelected).Select(r => r.RoleName)))
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">No roles assigned</span>
+                                                }
+                                            </td>
+                                            <td>@totalCount</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-0">No applications available.</p>
+                    }
+                </div>
             </div>
         </div>
     </div>
-
 </div>
 
 @section Scripts {
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // Select All button
-            document.getElementById('selectAll').addEventListener('click', function () {
-                document.querySelectorAll('.role-checkbox').forEach(checkbox => {
-                    checkbox.checked = true;
+            const applicationSelector = document.getElementById('applicationSelector');
+            const rolesContainer = document.getElementById('rolesContainer');
+            const selectedApplicationName = document.getElementById('selectedApplicationName');
+            const selectAllBtn = document.getElementById('selectAll');
+            const deselectAllBtn = document.getElementById('deselectAll');
+            const rolesSummary = document.getElementById('rolesSummary');
+            const selectedRolesCount = document.getElementById('selectedRolesCount');
+
+            // Application selection handler
+            applicationSelector.addEventListener('change', function () {
+                const selectedApplication = this.value;
+
+                // Hide all application role sections
+                document.querySelectorAll('.application-roles-section').forEach(section => {
+                    section.style.display = 'none';
+                });
+
+                if (selectedApplication) {
+                    // Show roles container
+                    rolesContainer.classList.remove('d-none');
+
+                    // Update the selected application name
+                    selectedApplicationName.textContent = selectedApplication;
+
+                    // Show the selected application's roles
+                    const selectedSection = document.querySelector(`.application-roles-section[data-application="${selectedApplication}"]`);
+                    if (selectedSection) {
+                        selectedSection.style.display = 'block';
+                    }
+
+                    // Update the count
+                    updateSelectedCount(selectedApplication);
+                } else {
+                    // Hide roles container if no application selected
+                    rolesContainer.classList.add('d-none');
+                }
+            });
+
+            // Select All button - only for visible (current application) roles
+            selectAllBtn.addEventListener('click', function () {
+                const selectedApplication = applicationSelector.value;
+                if (selectedApplication) {
+                    document.querySelectorAll(`.role-checkbox[data-application="${selectedApplication}"]`).forEach(checkbox => {
+                        checkbox.checked = true;
+                    });
+                    updateSelectedCount(selectedApplication);
+                }
+            });
+
+            // Deselect All button - only for visible (current application) roles
+            deselectAllBtn.addEventListener('click', function () {
+                const selectedApplication = applicationSelector.value;
+                if (selectedApplication) {
+                    document.querySelectorAll(`.role-checkbox[data-application="${selectedApplication}"]`).forEach(checkbox => {
+                        checkbox.checked = false;
+                    });
+                    updateSelectedCount(selectedApplication);
+                }
+            });
+
+            // Update selected count when checkboxes change
+            document.querySelectorAll('.role-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', function () {
+                    const application = this.getAttribute('data-application');
+                    updateSelectedCount(application);
                 });
             });
 
-            // Deselect All button
-            document.getElementById('deselectAll').addEventListener('click', function () {
-                document.querySelectorAll('.role-checkbox').forEach(checkbox => {
-                    checkbox.checked = false;
-                });
-            });
+            // Function to update selected roles count for current application
+            function updateSelectedCount(application) {
+                if (application) {
+                    const checkboxes = document.querySelectorAll(`.role-checkbox[data-application="${application}"]`);
+                    const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+                    selectedRolesCount.textContent = checkedCount;
+                }
+            }
+
+            // Initialize: If there's only one application, auto-select it
+            const applicationOptions = applicationSelector.querySelectorAll('option');
+            if (applicationOptions.length === 2) { // One empty option + one application
+                applicationSelector.selectedIndex = 1;
+                applicationSelector.dispatchEvent(new Event('change'));
+            }
         });
     </script>
 }

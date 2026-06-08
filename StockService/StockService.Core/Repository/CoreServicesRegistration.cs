@@ -8,6 +8,7 @@ using StockService.Core.Repository.Denominations;
 using StockService.Core.Repository.DenominationTypes;
 using StockService.Core.Repository.StockLedgers;
 using StockService.Core.Repository.Auditable;
+using StockService.Core.Repository.SubCategories;
 
 namespace StockService.Core;
 
@@ -21,6 +22,7 @@ public static class CoreServicesRegistration
         services.AddScoped<IStockLedgerRepository, StockLedgerRepository>();
         services.AddScoped<IDenominationRepository, DenominationRepository>();
         services.AddScoped<IDenominationTypeRepository, DenominationTypeRepository>();
+        services.AddScoped<ISubCategoryRepository, SubCategoryRepository>();
         // Register HttpContextAccessor if not already registered
 
         return services;

@@ -4,6 +4,7 @@
     ViewData["Title"] = "Dashboard";
 
     var userRoles = User.FindAll("appRole").Select(c => c.Value).ToList();
+    var isStaff = User.FindFirst("isStaff")?.Value;
 }
 
 <div class="container-fluid px-4 py-4">
@@ -36,42 +37,47 @@
             {
                 
             } *@
-            @foreach (var app in Model)
-            {
-                string requiredAppRoleSubStr = $"{app.Acronym}:";
-                if (userRoles.Any(s => s.Contains(requiredAppRoleSubStr)))
-                {
-                    <div class="col-12 col-md-6 col-lg-4 col-xl-3">
-                        <a class="card service-card border" href="@app.Url">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-start mb-3">
-                                    <div class="service-icon">@app.Acronym</div>
-                                    <span class="badge badge-active rounded-pill px-3 py-2" style="font-size: 0.75rem;">@app.Status</span>
-                                </div>
-                                <h5 class="card-title fw-semibold mb-2">@app.Name</h5>
-                                <p class="card-text text-muted small mb-3">
-                                    @app.Description
-                                </p>
-                            </div>
-                        </a>
-                    </div>
-                }
-                
-            }
 
-        <div class="col-12 col-md-6 col-lg-4 col-xl-3">
-            <a class="card service-card border" href="https://localhost:7277/CbRequests/">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div class="service-icon">DP/WD</div>
-                        <span class="badge badge-active rounded-pill px-3 py-2" style="font-size: 0.75rem;">Active</span>
-                    </div>
-                    <h5 class="card-title fw-semibold mb-2">Commercial Bank Requests</h5>
-                    <p class="card-text text-muted small mb-3">
-                        Commercial Bank Interface to make a Withdraw (WD) or Deposit (DP) request to the Bank of Uganda.
-                    </p>
+            @if(isStaff == "true")
+            {
+                @foreach (var app in Model)
+                {
+                    string requiredAppRoleSubStr = $"{app.Acronym}:";
+                    if (userRoles.Any(s => s.Contains(requiredAppRoleSubStr)))
+                    {
+                        <div class="col-12 col-md-6 col-lg-4 col-xl-3">
+                            <a class="card service-card border" href="@app.Url">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <div class="service-icon">@app.Acronym</div>
+                                        <span class="badge badge-active rounded-pill px-3 py-2" style="font-size: 0.75rem;">@app.Status</span>
+                                    </div>
+                                    <h5 class="card-title fw-semibold mb-2">@app.Name</h5>
+                                    <p class="card-text text-muted small mb-3">
+                                        @app.Description
+                                    </p>
+                                </div>
+                            </a>
+                        </div>
+                    }
+
+                }
+            } else
+            {
+                <div class="col-12 col-md-6 col-lg-4 col-xl-3">
+                    <a class="card service-card border" href="https://localhost:7277/CbRequests/">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div class="service-icon">DP/WD</div>
+                                <span class="badge badge-active rounded-pill px-3 py-2" style="font-size: 0.75rem;">Active</span>
+                            </div>
+                            <h5 class="card-title fw-semibold mb-2">Commercial Bank Requests</h5>
+                            <p class="card-text text-muted small mb-3">
+                                Commercial Bank Interface to make a Withdraw (WD) or Deposit (DP) request to the Bank of Uganda.
+                            </p>
+                        </div>
+                    </a>
                 </div>
-            </a>
-        </div>
+            }
     </div>
 </div>

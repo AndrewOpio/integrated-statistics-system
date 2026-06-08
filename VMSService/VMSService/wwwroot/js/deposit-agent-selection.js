@@ -64,3 +64,20 @@ function setDepositAgentImage(imgId, placeholderId, url) {
         if (placeholder) placeholder.style.display = 'block';
     }
 }
+
+// Initialize agent selection on page load (for edit mode)
+function initializeDepositAgentSelection() {
+    for (let i = 1; i <= 2; i++) {
+        const agentSelect = document.getElementById(`agentSelect${i}`);
+        if (agentSelect && agentSelect.value) {
+            loadAgentDetails(i, agentSelect.value);
+        }
+    }
+}
+
+// Auto-initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeDepositAgentSelection);
+} else {
+    initializeDepositAgentSelection();
+}

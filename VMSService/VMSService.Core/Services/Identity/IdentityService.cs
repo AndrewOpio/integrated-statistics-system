@@ -67,5 +67,27 @@ namespace VMSService.Core.Services.Identity
                 return new List<RecipientDto>();
             }
         }
+
+        public async Task<UserDto> GetUserByUsername(string username)
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync($"{_baseUrl}/api/User/get-by-username/{username}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var user = await response.Content.ReadFromJsonAsync<UserDto>();
+                    return user ?? new UserDto();
+                }
+
+                _logger.LogError("Failed to retrieve user by username. Status: {StatusCode}", response.StatusCode);
+                return new UserDto();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving user by username from Identity API");
+                return new UserDto();
+            }
+        }
     }
 }

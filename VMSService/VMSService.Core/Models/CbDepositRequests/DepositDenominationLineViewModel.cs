@@ -11,5 +11,6 @@ namespace VMSService.Core.Models.CbDepositRequest
         /// </summary>
         public int SubCategoryId { get; init; }
         public string SubCategoryName { get; init; } = string.Empty;
+        public int DenominationId { get; init; }
     }
 }

@@ -83,6 +83,7 @@ namespace VMSService.Web.Controllers
                 CreatedBy = currentUserId,
                 CreatedDate = DateTime.UtcNow,
                 CurrentStatusId = draftStatus.Id,
+                CurrentStatusName = draftStatus.Name,
                 Categories = model.Categories.Select((cat, catIndex) => new LogisticsCategory
                 {
                     Name = cat.Name,
@@ -105,6 +106,7 @@ namespace VMSService.Web.Controllers
 
             return Json(new { success = true, logisticsId = logistics.Id, message = "Logistics record created successfully." });
         }
+
 
         [HttpGet]
         [Breadcrumb("Details", FromController = typeof(LogisticsController), FromAction = nameof(Index))]

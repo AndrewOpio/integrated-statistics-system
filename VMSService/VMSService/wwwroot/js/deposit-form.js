@@ -256,3 +256,50 @@ function onSpecialApprovalCancelled() {
 
     bootstrap.Modal.getInstance(document.getElementById('specialApprovalModal')).hide();
 }
+
+// Add this function to build form data (used by both create and edit)
+function buildDepositFormData() {
+    return {
+        id: depositFormState.id || null,
+        cbId: depositFormState.cbId,
+        cbCode: depositFormState.cbCode,
+        bouBranchCode: depositFormState.bouBranchCode,
+        bouBranchId: depositFormState.bouBranchId,
+        depositDate: depositFormState.depositDate,
+        rtgsDate: depositFormState.rtgsDate,
+        rtgsCode: depositFormState.rtgsCode,
+        requiresSpecialApproval: depositFormState.requiresSpecialApproval,
+        specialApprovalReason: depositFormState.specialApprovalReason,
+        agentIds: [
+            parseInt(document.getElementById('agentId-1')?.value || 0),
+            parseInt(document.getElementById('agentId-2')?.value || 0)
+        ],
+        denominations: Object.values(depDtGetRows())
+            .filter(r => r.valid && r.amount > 0 && r.denomValue > 0)
+            .map(r => ({
+                denominationId: r.denomId,
+                denominationValue: r.denomValue,
+                denominationTypeId: r.typeId,
+                bundles: r.type === 'notes' ? r.qty : null,
+                boxes: r.type === 'coins' ? r.qty : null,
+                amount: r.amount,
+                subCategoryId: r.subCategoryId
+            }))
+    };
+
+    //const payload = {
+    //    id: depositFormState.id,
+    //    bouBranchId: parseInt(depositFormState.bouBranchId) || 0,
+    //    cbCode: depositFormState.cbCode,
+    //    bouBranchCode: depositFormState.bouBranchCode,
+    //    depositDate: depositFormState.depositDate,
+    //    rtgsDate: depositFormState.rtgsDate,
+    //    rtgsCode: depositFormState.rtgsCode,
+    //    requiresSpecialApproval: depositFormState.requiresSpecialApproval,
+    //    specialApprovalReason: depositFormState.specialApprovalReason,
+    //    agentIds: depositFormState.agentIds.filter(Boolean),
+    //    denominations: buildDepositDenomLines(),
+    //    remarks: depositFormState.remarks,
+    //    cbId: parseInt(depositFormState.cbId) || 0,
+    //};
+}

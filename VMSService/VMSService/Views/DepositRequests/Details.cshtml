@@ -30,7 +30,7 @@
             </span>
             @if (Model.RequiresSpecialApproval)
             {
-                <span class="badge rounded-pill bg-secondary px-3 py-2 mt-1 ms-1 bg-opacity-50"
+                <span class="badge rounded-pill bg-secondary px-3 py-2 mt-1 ms-1 bg-opacity-75"
                       style="font-size:11px;">
                     <i class="ti ti-star me-1"></i>Exceptional Approval Required
                 </span>
@@ -42,11 +42,16 @@
                 UGX @Model.TotalAmount.ToString("N0")
             </h3>
             <p style="font-size:12px;color:#e8e8f0;" id="hero-words"></p>
+            @* Add Print Button Here *@
+            <button onclick="window.open('@Url.Action("PrintRequest", "CbDepositRequests", new { id = Model.Id })', '_blank')"
+                    class="btn btn-sm btn-secondary mt-2 text-white">
+                <i class="ti ti-printer me-1"></i> Print
+            </button>
         </div>
     </div>
 
     @*Stepper*@
-    @await Html.PartialAsync("~/Views/Shared/_Deposit/_DepositNavSteps.cshtml", Model.Steps)
+    @await Html.PartialAsync("~/Views/Shared/_Deposit/_DepositNavStepsInternal.cshtml", Model.Steps)
 </div>
 
 @*Two Column Layout*@ 
@@ -449,7 +454,6 @@
                         <span class="fw-bold text-primary">UGX @Model.TotalCoinsAmount.ToString("N0")</span>
                     </div>
                 </div>
-
                 @* Grand Total *@
                 <div class="bg-greene rounded-3 px-4 py-3">
                     <div class="d-flex justify-content-between align-items-baseline mb-2">
@@ -462,6 +466,100 @@
                     </div>
                 </div>
 
+            </div>
+        </div>
+
+        @*Fees Table*@
+        <div class="card mb-3 border-top-0 border-end-0 border-bottom-0 border-4 border-light shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3 justify-content-between">
+                    <div class="d-flex align-items-center gap-2 fw-bolder">
+                        <i class="ti ti-receipt"></i>
+                        <span class="text-uppercase mb-0">Fees Summary</span>
+                    </div>
+                    <span class="badge bg-info bg-opacity-10 text-uppercase text-info small">
+                        Calculated at Submission
+                    </span>
+                </div>
+
+                <div class="border rounded-3">
+                    <table class="table mb-0">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-2 rounded-start" style="width: 60%">Fee Type</th>
+                                <th class="px-4 py-2 rounded-end text-end" style="width: 40%">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="px-4 py-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="ti ti-calculator"></i>
+                                        <span class="fw-semibold">Processing Fees</span>
+                                    </div>
+                                    <small class="text-muted d-block ms-4">Based on "N/A" notes and coins total</small>
+                                </td>
+                                <td class="px-4 py-2 text-end fw-bold" id="fees-processing">
+                                    @if (Model.ProcessingFee > 0)
+                                    {
+                                        <span>UGX @Model.ProcessingFee.ToString("N0")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">UGX 0</span>
+                                    }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="ti ti-alert-triangle"></i>
+                                        <span class="fw-semibold">Minimum Deposit Penalty Fees</span>
+                                    </div>
+                                    <small class="text-muted d-block ms-4">For bundles below minimum standards</small>
+                                </td>
+                                <td class="px-4 py-2 text-end fw-bold" id="fees-penalty">
+                                    @if (Model.MinimumDepositPenaltyFee > 0)
+                                    {
+                                        <span>UGX @Model.MinimumDepositPenaltyFee.ToString("N0")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">UGX 0</span>
+                                    }
+                                </td>
+                            </tr>
+                            <tr class="border-top">
+                                <td class="px-4 py-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="ti ti-sum"></i>
+                                        <span class="fw-bold text-uppercase">Total Fees</span>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-2 text-end fw-bold text-danger fs-6" id="fees-total">
+                                    @if (Model.TotalFees > 0)
+                                    {
+                                        <span class="text-danger">UGX @Model.TotalFees.ToString("N0")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">UGX 0</span>
+                                    }
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="penalty-details" class="mt-3" style="display: none;">
+                    <div class="alert alert-warning d-flex align-items-start gap-2 py-2">
+                        <i class="ti ti-info-circle text-warning mt-1 flex-shrink-0"></i>
+                        <div class="flex-grow-1">
+                            <p class="fw-bold mb-1 small">Penalty Details</p>
+                            <div id="penalty-violations-list"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -503,6 +601,49 @@
                                         {
                                             <div class="mt-2 p-2 bg-white rounded border">
                                                 <span class="d-block">@history.Remarks</span>
+                                            </div>
+                                        }
+                                        
+                                        @* Display Attachments *@
+                                        @if (history.Attachments != null && history.Attachments.Any())
+                                        {
+                                            <div class="mt-3">
+                                                <p class="small text-muted mb-2">
+                                                    <i class="ti ti-paperclip me-1"></i>
+                                                    <strong>Attachments (@history.Attachments.Count)</strong>
+                                                </p>
+                                                <div class="d-flex flex-column gap-2">
+                                                    @foreach (var attachment in history.Attachments)
+                                                    {
+                                                        <div class="d-flex align-items-center gap-2 p-2 border rounded bg-light">
+                                                            <i class="ti @attachment.FileIcon @attachment.FileColor fs-4"></i>
+                                                            <div class="flex-grow-1">
+                                                                <p class="mb-0 small fw-semibold">@attachment.FileName</p>
+                                                                <small class="text-muted">
+                                                                    @attachment.FileSizeFormatted · 
+                                                                    Uploaded @attachment.UploadedDate.ToString("dd MMM yyyy HH:mm")
+                                                                </small>
+                                                            </div>
+                                                            <div class="d-flex gap-1">
+                                                                @if (attachment.IsPreviewable)
+                                                                {
+                                                                    <a href="/@attachment.FilePath" 
+                                                                       target="_blank"
+                                                                       class="btn btn-sm btn-outline-info"
+                                                                       title="@(attachment.IsPdf ? "Preview PDF" : "View Image")">
+                                                                        <i class="ti ti-external-link"></i>
+                                                                    </a>
+                                                                }
+                                                                <a asp-action="DownloadAttachment" 
+                                                                   asp-route-id="@attachment.Id" 
+                                                                   class="btn btn-sm btn-outline-primary"
+                                                                   title="Download">
+                                                                    <i class="ti ti-download"></i>
+                                                                </a>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                </div>
                                             </div>
                                         }
                                     </div>
@@ -573,6 +714,85 @@
                     </div>
                 </div>
 
+                @*All Attachments Section*@
+                @if (Model.AllAttachments.Any())
+                {
+                    <div class="card-body border-top pt-3">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <h6 class="mb-0 fw-bold text-uppercase small">
+                                <i class="ti ti-paperclip me-1"></i>
+                                Attachments
+                            </h6>
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary">
+                                @Model.AllAttachments.Count()
+                            </span>
+                        </div>
+                        
+                        <div class="d-flex flex-column gap-2">
+                            @foreach (var attachment in Model.AllAttachments.OrderByDescending(a => a.UploadedDate))
+                            {
+                                <div class="border rounded p-2 bg-light">
+                                    <div class="d-flex align-items-start gap-2 mb-2">
+                                        <i class="ti @attachment.FileIcon @attachment.FileColor fs-4 flex-shrink-0"></i>
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="mb-0 small fw-semibold text-truncate" title="@attachment.FileName">
+                                                @attachment.FileName
+                                            </p>
+                                            <small class="text-muted d-block">
+                                                @attachment.FileSizeFormatted
+                                            </small>
+                                            <small class="text-muted d-block">
+                                                @attachment.UploadedDate.ToString("dd MMM yyyy HH:mm")
+                                            </small>
+                                        </div>
+                                    </div>
+                                    
+                                    @* Preview Section *@
+                                    @* @if (attachment.IsPreviewable)
+                                    {
+                                        <div class="mb-2">
+                                            @if (attachment.IsImage)
+                                            {
+                                                <img src="/@attachment.FilePath" 
+                                                     alt="@attachment.FileName" 
+                                                     class="img-fluid rounded border w-100"
+                                                     style="max-height: 200px; object-fit: contain; cursor: pointer;"
+                                                     onclick="window.open('/@attachment.FilePath', '_blank')" />
+                                            }
+                                            else if (attachment.IsPdf)
+                                            {
+                                                <div class="border rounded bg-white p-2 text-center">
+                                                    <iframe src="/@attachment.FilePath" 
+                                                            style="width: 100%; height: 200px; border: none;"
+                                                            title="@attachment.FileName"></iframe>
+                                                </div>
+                                            }
+                                        </div>
+                                    } *@
+                                    
+                                    @* Action Buttons *@
+                                    <div class="d-flex gap-1">
+                                        @if (attachment.IsPreviewable)
+                                        {
+                                            <a href="/@attachment.FilePath" 
+                                               target="_blank"
+                                               class="btn btn-sm btn-outline-info flex-fill">
+                                                <i class="ti ti-external-link me-1"></i>
+                                                @(attachment.IsPdf ? "Open PDF" : "Open")
+                                            </a>
+                                        }
+                                        <a asp-action="DownloadAttachment" 
+                                           asp-route-id="@attachment.Id" 
+                                           class="btn btn-sm btn-outline-primary flex-fill">
+                                            <i class="ti ti-download me-1"></i>Download
+                                        </a>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
                 @*Workflow actions*@
                 @if (Model.AvailableTransitions.Any())
                 {
@@ -580,7 +800,8 @@
                         <form method="post"
                               asp-action="ExecuteAction"
                               asp-route-id="@Model.Id"
-                              id="workflowForm">
+                              id="workflowForm"
+                              enctype="multipart/form-data">
                             @Html.AntiForgeryToken()
 
                             <label class="form-label text-uppercase text-muted fw-semibold" style="font-size:10px;">
@@ -588,17 +809,37 @@
                                 <span id="commentRequired" class="text-danger" style="display:none;">*</span>
                             </label>
                             <textarea id="remarksTextarea"
-                                  class="form-control form-control-sm mb-3"
-                                  name="remarks"
-                                  rows="4"
-                                  placeholder="Add a comment..."></textarea>
+                                      class="form-control form-control-sm mb-3"
+                                      name="remarks"
+                                      rows="4"
+                                      placeholder="Add a comment..."></textarea>
                             <small id="commentHint" class="text-muted d-block mb-2"></small>
+
+                            @* Attachments Section *@
+                            <div id="attachmentsSection" style="display: none;">
+                                <div class="border-top pt-3 mb-3">
+                                    <label class="form-label text-uppercase text-muted fw-semibold d-flex align-items-center gap-2" style="font-size:10px;">
+                                        <i class="ti ti-paperclip"></i>
+                                        Required Attachments
+                                        <span class="text-danger">*</span>
+                                    </label>
+                                    <small class="text-muted d-block mb-3">Please upload all required documents before submitting</small>
+                                    
+                                    <div id="attachmentsList" class="d-flex flex-column gap-3">
+                                        @* Attachment items will be dynamically inserted here *@
+                                    </div>
+                                </div>
+                            </div>
 
                             @if (Model.AvailableTransitions.Count == 1)
                             {
                                 @*Single transition - show button directly*@
                                 var t = Model.AvailableTransitions.First();
-                                <input name="actionName" id="soloActionName" value="@t.ActionName" data-requires-comments="@t.RequiresComments.ToString().ToLower()" hidden />
+                                <input name="actionName" id="soloActionName" value="@t.ActionName" 
+                                       data-requires-comments="@t.RequiresComments.ToString().ToLower()"
+                                       data-requires-attachments="@t.RequiresAttachments.ToString().ToLower()"
+                                       data-attachment-requirements='@System.Text.Json.JsonSerializer.Serialize(t.AttachmentRequirements)' 
+                                       hidden />
                                 <div class="d-grid gap-2">
                                     <button type="submit"
                                             id="submitBtn"
@@ -621,7 +862,10 @@
                                         {
                                             <option value="@transition.ActionName"
                                                     data-requires-comments="@transition.RequiresComments.ToString().ToLower()"
-                                                    data-button-class="@transition.ButtonClass" data-display-label="@transition.DisplayLabel">
+                                                    data-requires-attachments="@transition.RequiresAttachments.ToString().ToLower()"
+                                                    data-attachment-requirements='@System.Text.Json.JsonSerializer.Serialize(transition.AttachmentRequirements)'
+                                                    data-button-class="@transition.ButtonClass" 
+                                                    data-display-label="@transition.DisplayLabel">
                                                 @transition.DisplayLabel
                                             </option>
                                         }
@@ -647,7 +891,7 @@
 
 @section Scripts {
     <script>
-            document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', function () {
             const actionSelect = document.getElementById('actionSelect');
             const remarksTextarea = document.getElementById('remarksTextarea');
             const commentRequired = document.getElementById('commentRequired');
@@ -656,29 +900,41 @@
             const submitBtnLabel = document.getElementById('submitBtnLabel');
             const workflowForm = document.getElementById('workflowForm');
             const soloActionName = document.getElementById('soloActionName');
+            const attachmentsSection = document.getElementById('attachmentsSection');
+            const attachmentsList = document.getElementById('attachmentsList');
 
-            // Update solo Comment requirement
+            // Track uploaded files
+            let uploadedFiles = {};
+
+            // Handle solo action
             if (soloActionName) {
                 const requiresComments = soloActionName.dataset.requiresComments === 'true';
+                const requiresAttachments = soloActionName.dataset.requiresAttachments === 'true';
+                const attachmentRequirements = JSON.parse(soloActionName.dataset.attachmentRequirements || '[]');
+
                 if (requiresComments) {
                     commentRequired.style.display = 'inline';
                     remarksTextarea.required = true;
                 }
+
+                if (requiresAttachments && attachmentRequirements.length > 0) {
+                    displayAttachmentFields(attachmentRequirements);
+                }
             }
 
-            // Only wire up workflow actions when the form is present
+            // Handle action selection for multiple transitions
             if (actionSelect && workflowForm) {
-                // Define hint messages for each action
                 const hintMessages = {
                     'Verify': 'Provide your verification comments.',
                     'Reject': 'Explain why you are rejecting this request.',
                     'Resubmit': 'Explain what changes were made.'
                 };
 
-                // Handle action selection change
                 actionSelect.addEventListener('change', function () {
                     const selectedOption = this.options[this.selectedIndex];
                     const requiresComments = selectedOption.dataset.requiresComments === 'true';
+                    const requiresAttachments = selectedOption.dataset.requiresAttachments === 'true';
+                    const attachmentRequirements = JSON.parse(selectedOption.dataset.attachmentRequirements || '[]');
                     const actionName = selectedOption.value;
                     const displayLabel = selectedOption.dataset.displayLabel;
                     const buttonClass = selectedOption.dataset.buttonClass;
@@ -696,6 +952,15 @@
                         // Update hint message
                         commentHint.textContent = hintMessages[actionName] || '';
 
+                        // Handle attachments
+                        if (requiresAttachments && attachmentRequirements.length > 0) {
+                            displayAttachmentFields(attachmentRequirements);
+                        } else {
+                            attachmentsSection.style.display = 'none';
+                            attachmentsList.innerHTML = '';
+                            uploadedFiles = {};
+                        }
+
                         // Update button
                         submitBtn.disabled = false;
                         submitBtnLabel.textContent = displayLabel;
@@ -706,6 +971,9 @@
                         remarksTextarea.required = false;
                         remarksTextarea.value = '';
                         commentHint.textContent = '';
+                        attachmentsSection.style.display = 'none';
+                        attachmentsList.innerHTML = '';
+                        uploadedFiles = {};
                         submitBtn.disabled = true;
                         submitBtnLabel.textContent = 'Submit';
                         submitBtn.className = 'text-white btn btn-primary';
@@ -714,18 +982,196 @@
 
                 // Form submission validation
                 workflowForm.addEventListener('submit', function (e) {
-                    const selectedOption = actionSelect.options[actionSelect.selectedIndex];
-                    const requiresComments = selectedOption.dataset.requiresComments === 'true';
+                    const selectedOption = actionSelect ? actionSelect.options[actionSelect.selectedIndex] : null;
+                    const requiresComments = selectedOption ? selectedOption.dataset.requiresComments === 'true' : 
+                                           soloActionName ? soloActionName.dataset.requiresComments === 'true' : false;
+                    const requiresAttachments = selectedOption ? selectedOption.dataset.requiresAttachments === 'true' :
+                                              soloActionName ? soloActionName.dataset.requiresAttachments === 'true' : false;
+                    const attachmentRequirements = selectedOption ? JSON.parse(selectedOption.dataset.attachmentRequirements || '[]') :
+                                                 soloActionName ? JSON.parse(soloActionName.dataset.attachmentRequirements || '[]') : [];
                     const remarksValue = remarksTextarea.value.trim();
 
+                    // Validate comments
                     if (requiresComments && !remarksValue) {
                         e.preventDefault();
                         alert('Comments are required for this action.');
                         remarksTextarea.focus();
                         return false;
                     }
+
+                    // Validate attachments
+                    if (requiresAttachments) {
+                        const requiredAttachments = attachmentRequirements.filter(req => req.isRequired);
+                        const missingAttachments = [];
+
+                        requiredAttachments.forEach(req => {
+                            const fileInput = document.getElementById(`attachment_${req.id}`);
+                            if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+                                missingAttachments.push(req.attachmentName);
+                            }
+                        });
+
+                        if (missingAttachments.length > 0) {
+                            e.preventDefault();
+                            alert('Please upload the following required attachments:\n- ' + missingAttachments.join('\n- '));
+                            return false;
+                        }
+                    }
                 });
             }
+
+            // Function to display attachment fields
+            function displayAttachmentFields(requirements) {
+                attachmentsSection.style.display = 'block';
+                attachmentsList.innerHTML = '';
+                uploadedFiles = {};
+
+                // Sort by display order
+                const sortedRequirements = [...requirements].sort((a, b) => a.displayOrder - b.displayOrder);
+
+                sortedRequirements.forEach(req => {
+                    const attachmentCard = createAttachmentCard(req);
+                    attachmentsList.appendChild(attachmentCard);
+                });
+            }
+
+            // Function to create attachment card
+            function createAttachmentCard(requirement) {
+                const card = document.createElement('div');
+                card.className = 'card border';
+                card.style.cssText = 'background: #f8f9fa;';
+
+                // Safely handle allowedFormats - check if it exists and provide a default
+                const allowedFormats = requirement.AllowedFormats || 'pdf,docx,xlsx,png,jpg';
+                const allowedFormatsArray = allowedFormats.split(',').map(f => f.trim());
+                const acceptAttribute = allowedFormatsArray.map(format => {
+                    const formatMap = {
+                        'pdf': '.pdf',
+                        'excel': '.xls,.xlsx',
+                        'docx': '.doc,.docx',
+                        'word': '.doc,.docx',
+                        'png': '.png',
+                        'jpg': '.jpg,.jpeg',
+                        'jpeg': '.jpg,.jpeg'
+                    };
+                    return formatMap[format.toLowerCase()] || '.' + format;
+                }).join(',');
+
+                card.innerHTML = `
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-start justify-content-between mb-2">
+                            <div class="flex-grow-1">
+                                <label class="form-label fw-semibold mb-1 d-flex align-items-center gap-2">
+                                    <i class="ti ti-file-text text-primary"></i>
+                                    ${requirement.AttachmentName || 'Attachment'}
+                                    ${requirement.IsRequired ? '<span class="text-danger">*</span>' : '<span class="badge bg-secondary bg-opacity-10 text-secondary small">Optional</span>'}
+                                </label>
+                                <small class="text-muted d-block mb-2">
+                                    <i class="ti ti-info-circle"></i>
+                                    Allowed formats: <strong class="text-info">${allowedFormatsArray.join(', ').toUpperCase()}</strong>
+                                </small>
+                            </div>
+                        </div>
+                        
+                        <div class="position-relative">
+                            <input type="file" 
+                                   class="form-control form-control-sm" 
+                                   id="attachment_${requirement.Id}"
+                                   name="attachments_${requirement.Id}"
+                                   accept="${acceptAttribute}"
+                                   ${requirement.IsRequired ? 'required' : ''}
+                                   data-attachment-id="${requirement.Id}"
+                                   data-attachment-name="${requirement.AttachmentName || 'Attachment'}">
+                            <div id="preview_${requirement.Id}" class="mt-2" style="display: none;">
+                                <div class="alert alert-success py-2 mb-0 d-flex align-items-center gap-2">
+                                    <i class="ti ti-circle-check"></i>
+                                    <span class="small flex-grow-1" id="fileName_${requirement.Id}"></span>
+                                    <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="clearFile(${requirement.Id})">
+                                        <i class="ti ti-x"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Add change event listener
+                const fileInput = card.querySelector(`#attachment_${requirement.Id}`);
+                fileInput.addEventListener('change', function(e) {
+                    handleFileSelect(e, requirement.Id, allowedFormats);
+                });
+
+                return card;
+            }
+
+            // Function to handle file selection
+            function handleFileSelect(event, attachmentId, allowedFormats) {
+                const file = event.target.files[0];
+                const preview = document.getElementById(`preview_${attachmentId}`);
+                const fileNameSpan = document.getElementById(`fileName_${attachmentId}`);
+
+                if (file) {
+                    // Validate file format
+                    const fileExtension = file.name.split('.').pop().toLowerCase();
+                    const allowedFormatsArray = (allowedFormats || 'pdf,docx,xlsx,png,jpg').split(',').map(f => f.trim().toLowerCase());
+                    
+                    const formatMap = {
+                        'excel': ['xls', 'xlsx'],
+                        'word': ['doc', 'docx'],
+                        'docx': ['doc', 'docx'],
+                        'jpg': ['jpg', 'jpeg'],
+                        'jpeg': ['jpg', 'jpeg']
+                    };
+
+                    let isValid = false;
+                    allowedFormatsArray.forEach(format => {
+                        if (formatMap[format]) {
+                            if (formatMap[format].includes(fileExtension)) {
+                                isValid = true;
+                            }
+                        } else if (format === fileExtension) {
+                            isValid = true;
+                        }
+                    });
+
+                    if (!isValid) {
+                        alert(`Invalid file format. Allowed formats: ${allowedFormats.toUpperCase()}`);
+                        event.target.value = '';
+                        preview.style.display = 'none';
+                        return;
+                    }
+
+                    // Validate file size (e.g., 10MB max)
+                    const maxSize = 10 * 1024 * 1024; // 10MB
+                    if (file.size > maxSize) {
+                        alert('File size exceeds 10MB limit. Please choose a smaller file.');
+                        event.target.value = '';
+                        preview.style.display = 'none';
+                        return;
+                    }
+
+                    // Show preview
+                    const fileSizeKB = (file.size / 1024).toFixed(2);
+                    fileNameSpan.textContent = `${file.name} (${fileSizeKB} KB)`;
+                    preview.style.display = 'block';
+                    uploadedFiles[attachmentId] = file;
+                } else {
+                    preview.style.display = 'none';
+                    delete uploadedFiles[attachmentId];
+                }
+            }
+
+            // Global function to clear file
+            window.clearFile = function(attachmentId) {
+                const fileInput = document.getElementById(`attachment_${attachmentId}`);
+                const preview = document.getElementById(`preview_${attachmentId}`);
+                
+                if (fileInput) {
+                    fileInput.value = '';
+                    preview.style.display = 'none';
+                    delete uploadedFiles[attachmentId];
+                }
+            };
 
             // Amount in words
             const ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
@@ -757,6 +1203,58 @@
             document.getElementById('total-in-words').textContent = toWords(@Html.Raw(Model.TotalAmount)) + ' only';
             document.getElementById('hero-words').textContent = toWords(@Html.Raw(Model.TotalAmount)) + ' only';
 
+            // Calculate fees on page load for Details view
+            calculateFeesForDetailsView();
         });
+
+        // Function to calculate fees for details view (read-only)
+        async function calculateFeesForDetailsView() {
+            try {
+                const denominations = [
+                    @foreach (var d in Model.FitNotes)
+                    {
+                        @:{ denominationId: @d.DenominationId, denominationValue: @d.Amount, bundles: @d.Bundles },
+                    }
+                    @foreach (var d in Model.UnfitNotes)
+                    {
+                        @:{ denominationId: @d.DenominationId, denominationValue: @d.Amount, bundles: @d.Bundles },
+                    }
+                    @foreach (var d in Model.NANotes)
+                    {
+                        @:{ denominationId: @d.DenominationId, denominationValue: @d.Amount, bundles: @d.Bundles },
+                    }
+                ];
+
+                const penaltyResponse = await fetch('/CbDepositRequests/CheckMinimumDepositStandards', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+                    },
+                    body: JSON.stringify({
+                        bouBranchId: @Model.BouBranchId,
+                        denominations: denominations
+                    })
+                });
+
+                if (penaltyResponse.ok) {
+                    const penaltyData = await penaltyResponse.json();
+                    if (penaltyData.violations && penaltyData.violations.length > 0) {
+                        const violationsList = document.getElementById('penalty-violations-list');
+                        violationsList.innerHTML = penaltyData.violations.map(v =>
+                            `<div class="small mb-1">
+                                <strong>UGX ${v.denominationValue.toLocaleString()}</strong>:
+                                Required ${v.required} bundles, submitted ${v.actual} bundles
+                                (shortage: ${v.shortage})
+                                - Penalty: <strong class="text-danger">UGX ${v.penalty.toLocaleString()}</strong>
+                            </div>`
+                        ).join('');
+                        document.getElementById('penalty-details').style.display = 'block';
+                    }
+                }
+            } catch (error) {
+                console.error('Error calculating penalty fees:', error);
+            }
+        }
     </script>
 }

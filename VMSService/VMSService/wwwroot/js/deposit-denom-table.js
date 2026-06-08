@@ -3,16 +3,38 @@
     const fmt = n => 'UGX ' + Math.round(n).toLocaleString();
     const $ = id => document.getElementById(id);
 
-    // SubCategory constants
-    const SUB_FIT = 1;
-    const SUB_UNFIT = 2;
-    const SUB_NA = 3;
+    // SubCategory constants - will be populated from server data
+    let SUB_FIT;
+    let SUB_UNFIT;
+    let SUB_N;
+    let SUB_OPTIONS = [];
 
-    const SUB_OPTIONS = [
-        { id: SUB_FIT,   label: 'Fit',   cssClass: 'text-bg-success' },
-        { id: SUB_UNFIT, label: 'Unfit', cssClass: 'text-bg-danger'  },
-        { id: SUB_NA,    label: 'N/A',   cssClass: 'text-bg-secondary' },
-    ];
+    // Initialize subcategories from server data
+    function initializeSubcategories() {
+        if (window.denomData && window.denomData.subcategories) {
+            SUB_OPTIONS = window.denomData.subcategories.map(s => ({
+                id: s.id,
+                label: s.label,
+                cssClass: getSubcategoryCssClass(s.label)
+            }));
+
+            // Set constants based on subcategory names
+            SUB_OPTIONS.forEach(opt => {
+                if (opt.label.toLowerCase() === 'fit') SUB_FIT = opt.id;
+                else if (opt.label.toLowerCase() === 'unfit') SUB_UNFIT = opt.id;
+                else if (opt.label.toLowerCase() === 'n/a') SUB_NA = opt.id;
+            });
+        }
+    }
+
+    // Helper function to determine CSS class based on subcategory label
+    function getSubcategoryCssClass(label) {
+        const lower = label.toLowerCase();
+        if (lower === 'fit') return 'text-bg-success';
+        if (lower === 'unfit') return 'text-bg-danger';
+        if (lower === 'n/a') return 'text-bg-secondary';
+        return 'text-bg-secondary'; // default
+    }
 
     // Track state per row: { denomId, typeId, denomValue, qty, amount, type, subCategoryId, valid }
     const rows = {};
@@ -32,6 +54,11 @@
 
     // Add Row
     window.depositDenomAddRow = function (type) {
+        // Initialize subcategories if not already done
+        if (SUB_OPTIONS.length === 0) {
+            initializeSubcategories();
+        }
+
         const denoms = type === 'notes'
             ? window.denomData.notes
             : window.denomData.coins;
@@ -91,7 +118,7 @@
                         <i class="ti ti-alert-triangle me-1"></i>Amount must equal a whole number of bundles
                     </div>
                 </td>
-                <td class="px-4 py-2 text-end fw-bold text-muted" id="dep-denom-bundles-${id}">—</td>
+                <td class="px-4 py-2 text-end fw-bold text-muted" id="dep-denom-bundles-${id}">-</td>
                 <td class="px-2 py-2 text-center">
                     <button type="button"
                             class="btn text-danger p-0"
@@ -118,7 +145,7 @@
                         <i class="ti ti-alert-triangle me-1"></i>Amount must equal a whole number of boxes
                     </div>
                 </td>
-                <td class="px-4 py-2 text-end fw-bold text-muted" id="dep-denom-bundles-${id}">—</td>
+                <td class="px-4 py-2 text-end fw-bold text-muted" id="dep-denom-bundles-${id}">-</td>
                 <td class="px-2 py-2 text-center">
                     <button type="button"
                             class="btn text-danger p-0"
@@ -240,7 +267,7 @@
                 ? `${bundles} ${bundles === 1 ? label : pluralLabel}`
                 : `${bundles.toFixed(2)} ${pluralLabel}`;
             bundlesEl.className = isWhole
-                ? `px-4 py-2 text-end fw-bold ${r.type === 'notes' ? 'text-primary' : 'text-warning'}`
+                ? `px-4 py-2 text-end fw-bold`
                 : 'px-4 py-2 text-end fw-bold text-danger';
 
             // Show/hide warning
@@ -251,7 +278,7 @@
         } else {
             r.qty = 0;
             r.valid = true;
-            bundlesEl.textContent = '—';
+            bundlesEl.textContent = '-';
             bundlesEl.className = 'px-4 py-2 text-end fw-bold text-muted';
             if (warnEl) warnEl.classList.add('d-none');
             if (inputEl) inputEl.classList.remove('is-invalid');
@@ -278,6 +305,11 @@
 
     // Refresh totals — only count valid (whole-bundle) rows
     function refreshTotals() {
+        // Initialize subcategories if not already done
+        if (SUB_OPTIONS.length === 0) {
+            initializeSubcategories();
+        }
+
         let fitAmt = 0, unfitAmt = 0, noteAmt = 0, coinAmt = 0;
 
         Object.values(rows).forEach(r => {
@@ -343,5 +375,12 @@
             }
         });
         return res.trim() + ' Shillings';
+    }
+
+    // Initialize subcategories when the script loads
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeSubcategories);
+    } else {
+        initializeSubcategories();
     }
 })();

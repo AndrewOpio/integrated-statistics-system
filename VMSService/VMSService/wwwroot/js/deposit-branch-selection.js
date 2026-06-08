@@ -31,3 +31,18 @@ function setDepositText(id, value) {
     const el = document.getElementById(id);
     if (el) el.textContent = value ?? '';
 }
+
+// Initialize branch selection on page load (for edit mode)
+function initializeDepositBranchSelection() {
+    const bouBranchSelect = document.getElementById('bouBranchSelect');
+    if (bouBranchSelect && bouBranchSelect.value) {
+        loadDepositBranchDetails('bou', bouBranchSelect.value);
+    }
+}
+
+// Auto-initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeDepositBranchSelection);
+} else {
+    initializeDepositBranchSelection();
+}
