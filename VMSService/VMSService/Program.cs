@@ -58,6 +58,8 @@ using VMSService.Core.Repositories.WithdrawalRequests;
 using VMSService.Core.Repositories.WithdrawalRequestStatusHistories;
 using VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
+using VMSService.Core.Repository.Vaults;
+using VMSService.Core.Repository.VaultSections;
 using VMSService.Core.Services.Configurations;
 using VMSService.Core.Services.Identity;
 using VMSService.Core.Services.PackingListRangeDetails;
@@ -260,6 +262,9 @@ builder.Services.AddScoped<IStockPositionService, StockPositionService>();
 
 builder.Services.AddScoped<IAttachmentRepository, AttachmentRepository>();
 builder.Services.AddScoped<IBagRepository, BagRepository>();
+// Add after line with builder.Services.AddScoped<IBagRepository, BagRepository>();
+builder.Services.AddScoped<IVaultRepository, VaultRepository>();
+builder.Services.AddScoped<IVaultSectionRepository, VaultSectionRepository>();
 
 builder.Services.AddHttpClient<VMSService.Core.Services.Stocks.StockService>()
     .ConfigureHttpClient((sp, client) =>

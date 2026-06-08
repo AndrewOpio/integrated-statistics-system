@@ -28,6 +28,8 @@ using VMSService.Core.Models.ReceivedStocksDetails;
 using VMSService.Core.Models.ReceivedStockStatusHistories;
 using VMSService.Core.Models.StockLedgers;
 using VMSService.Core.Models.SubCategories;
+using VMSService.Core.Models.Vaults;
+using VMSService.Core.Models.VaultSections;
 using VMSService.Core.Models.VendorTypes;
 using VMSService.Core.Services.Identity.IdentityEntities;
 using VMSService.Core.Services.Stocks.StockEntities;
@@ -85,6 +87,12 @@ namespace VMSService.Core.Mappings
             CreateMap<SubCategory, SubCategoryViewModel>().ReverseMap();
             CreateMap<Bag, BagViewModel>().ReverseMap();
             CreateMap<BagDenomination, BagDenominationViewModel>().ReverseMap();
+
+            // Vault and VaultSection mappings
+            CreateMap<Vault, VaultViewModel>().ReverseMap();
+            CreateMap<VaultSection, VaultSectionViewModel>()
+                .ForMember(dest => dest.VaultName, opt => opt.MapFrom(src => src.Vault.Name))
+                .ReverseMap();
         }
     }
 }

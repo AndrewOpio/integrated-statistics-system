@@ -10,6 +10,7 @@ namespace VMSService.Core.Models.Bags
         public int ItemCount { get; set; }
         public decimal TotalAmount { get; set; }
         public bool IsDeleted { get; set; }
+        public int BranchId { get; set; }
         public DateTime CreatedDate { get; set; }
         public string CreatedBy { get; set; } = string.Empty;
     }
