@@ -12,5 +12,10 @@ namespace VMSService.Data.Entities
         public int VaultSectionId { get; set; }
         public VaultSection? VaultSection { get; set; }
         public ICollection<BagDenomination> BagDenominations { get; set; } = [];
+        
+        // Self-referencing relationship for nested bags
+        public int? ParentBagId { get; set; }
+        public Bag? ParentBag { get; set; }
+        public ICollection<Bag> ChildBags { get; set; } = [];
     }
 }

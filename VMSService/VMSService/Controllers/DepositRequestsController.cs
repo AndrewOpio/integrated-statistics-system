@@ -8,6 +8,7 @@ using VMSService.Controllers;
 using VMSService.Core.Authorization;
 using VMSService.Core.Models.AgentDetails;
 using VMSService.Core.Models.Attachments;
+using VMSService.Core.Models.Bags;
 using VMSService.Core.Models.CbDepositRequest;
 using VMSService.Core.Models.CbDepositRequests;
 using VMSService.Core.Models.CbRequests;
@@ -550,6 +551,7 @@ namespace VMSService.Web.Controllers
                                 .Where(d => d.Origin == DepositStatuses.DepositOrigin.Cb);
 
                         //Create Bags
+                        List<Bag> createdBags = await CreateBagsFromDenominations(request.DepositRequestDenominations, request, username);
 
                         Category paids = (await _categoryRepository.FindAll()).FirstOrDefault(c => c.Name == StockConstants.StoreTypes.Paids);
                         //BranchDto store = await _configServiceClient
