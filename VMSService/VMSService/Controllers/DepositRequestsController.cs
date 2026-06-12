@@ -7,11 +7,15 @@ using System.Security.Claims;
 using VMSService.Controllers;
 using VMSService.Core.Authorization;
 using VMSService.Core.Models.AgentDetails;
+using VMSService.Core.Models.Attachments;
+using VMSService.Core.Models.Bags;
 using VMSService.Core.Models.CbDepositRequest;
 using VMSService.Core.Models.CbDepositRequests;
 using VMSService.Core.Models.CbRequests;
 using VMSService.Core.Models.DepositRequests;
 using VMSService.Core.Repositories.AgentDetails;
+using VMSService.Core.Repositories.Attachments;
+using VMSService.Core.Repositories.Bags;
 using VMSService.Core.Repositories.BranchCategories;
 using VMSService.Core.Repositories.Branches;
 using VMSService.Core.Repositories.Categories;
@@ -27,8 +31,6 @@ using VMSService.Core.Static;
 using VMSService.Data.Entities;
 using WorkflowService.Client;
 using WorkflowService.Client.Dto;
-using VMSService.Core.Repositories.Attachments;
-using VMSService.Core.Models.Attachments;
 
 namespace VMSService.Web.Controllers
 {
@@ -48,8 +50,9 @@ namespace VMSService.Web.Controllers
         IStockMovementRepository _stockMovementRepository,
         ICategoryRepository _categoryRepository,
         IFeeTypeRepository _feeTypeRepo,
-        IAttachmentRepository _attachmentRepository, // Add this
-        IWebHostEnvironment _environment) : Controller // Add this for file path
+        IAttachmentRepository _attachmentRepository,
+        IWebHostEnvironment _environment,
+        IBagRepository _bagRepository) : Controller
     {
         [Breadcrumb("Deposit Requests", FromController = typeof(HomeController), FromAction = nameof(Index))]
         public async Task<IActionResult> Index(string? branchCode = null)
@@ -546,6 +549,12 @@ namespace VMSService.Web.Controllers
                     {
                         var cbDenoms = request.DepositRequestDenominations
                                 .Where(d => d.Origin == DepositStatuses.DepositOrigin.Cb);
+
+                        //Create Bags
+                        List<Bag> createdBags = await CreateBagsFromDenominations(request.DepositRequestDenominations, request, username);
+
+                        bool bagsCreated = await _bagRepository.CreateBagsAsync(createdBags);
+
                         Category paids = (await _categoryRepository.FindAll()).FirstOrDefault(c => c.Name == StockConstants.StoreTypes.Paids);
                         //BranchDto store = await _configServiceClient
                         //        .FindByBranchAndCategoryName(request.BouBranchId, StockConstants.StoreTypes.Paids);
@@ -629,6 +638,10 @@ namespace VMSService.Web.Controllers
                             TempData["Error"] = "Error Updating Stock Position";
                         }
                         TempData["Success"] = "Deposit Confirmed successfully. Stock position Updated";
+                        if(bagsCreated)
+                        {
+                            TempData["Success"] = $"Deposit Confirmed successfully. Stock position Updated. {createdBags.Count} bags created";
+                        }
                     } else
                     {
                         var attachmentMessage = uploadedAttachmentIds?.Any() == true 
@@ -917,6 +930,311 @@ namespace VMSService.Web.Controllers
                 approvedCountDiff = approvedCountDiff,
                 totalProcessed = totalProcessed
             });
+        }
+
+        /// <summary>
+        /// Generates a bag reference number in the format: [CbCode]-[Date ddmmyy]-[DenominationShortForm]-[Sequence]
+        /// Example: 01-080626-1K-1
+        /// </summary>
+        /// <param name="cbCode">Commercial bank code</param>
+        /// <param name="date">Date for the bag</param>
+        /// <param name="denominationValue">Denomination value (e.g., 1000, 2000, 5000)</param>
+        /// <param name="sequence">Sequence number for the bag</param>
+        /// <returns>Generated bag reference number</returns>
+        private string GenerateBagReferenceNumber(string cbCode, DateOnly date, decimal denominationValue, int sequence)
+        {
+            // Format date as ddmmyy
+            string dateStr = date.ToString("ddMMyy");
+
+            // Generate denomination short form
+            string denomShortForm = GetDenominationShortForm(denominationValue);
+
+            // Format: CbCode-Date-DenomShortForm-Sequence
+            return $"{cbCode}-{dateStr}-{denomShortForm}-{sequence}";
+        }
+
+        /// <summary>
+        /// Converts denomination value to short form
+        /// Examples: 1000 -> 1K, 2000 -> 2K, 50000 -> 50K, 500 -> 500, 100 -> 100
+        /// </summary>
+        /// <param name="denominationValue">Denomination value</param>
+        /// <returns>Short form string</returns>
+        private string GetDenominationShortForm(decimal denominationValue)
+        {
+            if (denominationValue >= 1000)
+            {
+                // Convert to thousands and append 'K'
+                int thousands = (int)(denominationValue / 1000);
+                return $"{thousands}K";
+            }
+            else
+            {
+                // For values less than 1000, return as is
+                return denominationValue.ToString("0");
+            }
+        }
+
+        /// <summary>
+        /// Gets the next sequence number for bags for a specific CB, date, and denomination
+        /// </summary>
+        /// <param name="cbCode">Commercial bank code</param>
+        /// <param name="date">Date for the bag</param>
+        /// <param name="denominationValue">Denomination value</param>
+        /// <returns>Next sequence number</returns>
+        private async Task<int> GetNextBagSequenceNumber(string cbCode, DateOnly date, decimal denominationValue)
+        {
+            // Get all bags for this CB, date, and denomination
+            var allBags = await _bagRepository.GetAllBagsAsync();
+            
+            string dateStr = date.ToString("ddMMyy");
+            string denomShortForm = GetDenominationShortForm(denominationValue);
+            string prefix = $"{cbCode}-{dateStr}-{denomShortForm}-";
+
+            var matchingBags = allBags
+                .Where(b => b.ReferenceNumber.StartsWith(prefix))
+                .ToList();
+
+            if (!matchingBags.Any())
+            {
+                return 1;
+            }
+
+            // Extract sequence numbers and find the maximum
+            var sequenceNumbers = matchingBags
+                .Select(b =>
+                {
+                    var parts = b.ReferenceNumber.Split('-');
+                    if (parts.Length >= 4 && int.TryParse(parts[3], out int seq))
+                    {
+                        return seq;
+                    }
+                    return 0;
+                })
+                .ToList();
+
+            return sequenceNumbers.Max() + 1;
+        }
+
+        /// <summary>
+        /// Creates bags from deposit request denominations
+        /// Divides denominations into bags of 50 bundles each
+        /// </summary>
+        /// <param name="depositRequestDenominations">List of deposit request denominations</param>
+        /// <param name="depositRequest">The deposit request entity</param>
+        /// <param name="username">Username for audit fields</param>
+        /// <returns>List of created bags</returns>
+        private async Task<List<Bag>> CreateBagsFromDenominations(
+            IEnumerable<DepositRequestDenomination> depositRequestDenominations,
+            DepositRequest depositRequest,
+            string username)
+        {
+            const int BUNDLES_PER_BAG = 50;
+            var createdBags = new List<Bag>();
+
+            foreach (var denomination in depositRequestDenominations)
+            {
+                // Skip if no bundles (e.g., coins)
+                if (!denomination.Bundles.HasValue || denomination.Bundles.Value <= 0)
+                {
+                    continue;
+                }
+
+                int totalBundles = denomination.Bundles.Value;
+                int bundlesRemaining = totalBundles;
+                int bagCount = 0;
+
+                while (bundlesRemaining > 0)
+                {
+                    bagCount++;
+                    int bundlesInThisBag = Math.Min(bundlesRemaining, BUNDLES_PER_BAG);
+                    bundlesRemaining -= bundlesInThisBag;
+
+                    // Get next sequence number for this denomination
+                    int sequence = await GetNextBagSequenceNumber(
+                        depositRequest.CbCode,
+                        depositRequest.DepositDate,
+                        denomination.DenominationValue);
+
+                    // Generate bag reference number
+                    string bagReferenceNumber = GenerateBagReferenceNumber(
+                        depositRequest.CbCode,
+                        depositRequest.DepositDate,
+                        denomination.DenominationValue,
+                        sequence);
+
+                    // Create bag entity
+                    var bag = new Bag
+                    {
+                        ReferenceNumber = bagReferenceNumber,
+                        DenominationId = denomination.DenominationId,
+                        BranchId = depositRequest.BouBranchId,
+                        IsDeleted = false,
+                        //CreatedBy = username,
+                        //CreatedDate = DateTime.Now,
+                        //ModifiedBy = username,
+                        //ModifiedDate = DateTime.Now
+                    };
+
+                    // Create bag denomination link
+                    var bagDenomination = new BagDenomination
+                    {
+                        Bag = bag,
+                        DepositRequestDenominationId = denomination.Id,
+                        IsDeleted = false,
+                        //CreatedBy = username,
+                        //CreatedDate = DateTime.Now,
+                        //ModifiedBy = username,
+                        //ModifiedDate = DateTime.Now
+                    };
+
+                    bag.BagDenominations.Add(bagDenomination);
+                    createdBags.Add(bag);
+
+                    _logger.LogInformation(
+                        "Created bag {BagReference} with {Bundles} bundles for denomination {DenominationValue}",
+                        bagReferenceNumber, bundlesInThisBag, denomination.DenominationValue);
+                }
+            }
+
+            return createdBags;
+        }
+
+        /// <summary>
+        /// Saves the created bags to the database
+        /// </summary>
+        /// <param name="bags">List of bags to save</param>
+        /// <returns>True if successful</returns>
+        private async Task<bool> SaveBagsToDatabase(List<Bag> bags)
+        {
+            try
+            {
+                foreach (var bag in bags)
+                {
+                    var createBagModel = new CreateBagViewModel
+                    {
+                        ReferenceNumber = bag.ReferenceNumber,
+                        DenominationId = bag.DenominationId,
+                        BranchId = bag.BranchId,
+                        VaultSectionId = bag.VaultSectionId
+                    };
+
+                    var createdBag = await _bagRepository.CreateBagAsync(createBagModel);
+                    
+                    if (createdBag == null)
+                    {
+                        _logger.LogError("Failed to create bag with reference number {ReferenceNumber}", bag.ReferenceNumber);
+                        return false;
+                    }
+
+                    // Add items to the bag
+                    foreach (var bagDenom in bag.BagDenominations)
+                    {
+                        var addItemsModel = new AddItemsToBagViewModel
+                        {
+                            BagId = createdBag.Id,
+                            DepositRequestDenominationIds = new List<Guid> { bagDenom.DepositRequestDenominationId }
+                        };
+
+                        bool itemsAdded = await _bagRepository.AddItemsToBagAsync(addItemsModel);
+                        
+                        if (!itemsAdded)
+                        {
+                            _logger.LogError(
+                                "Failed to add denomination {DenominationId} to bag {BagId}",
+                                bagDenom.DepositRequestDenominationId, createdBag.Id);
+                            return false;
+                        }
+                    }
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving bags to database");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Generates bags for a deposit request
+        /// POST: DepositRequests/GenerateBags/5
+        /// </summary>
+        /// <param name="id">Deposit request ID</param>
+        /// <returns>Redirect to details page</returns>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> GenerateBags(Guid id)
+        {
+            try
+            {
+                var request = await _uow.Requests.GetWithDetailsAsync(id, CancellationToken.None);
+                if (request == null)
+                {
+                    TempData["Error"] = "Deposit request not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                // Check if request is approved
+                var approvedStatus = await GetStatusByNameAsync(DepositStatuses.DepositStatusNames.Approved);
+                var completedStatus = await GetStatusByNameAsync(DepositStatuses.DepositStatusNames.Completed);
+
+                if (request.RequiresSpecialApproval)
+                {
+                    approvedStatus = await GetStatusByNameExceptionalAsync(DepositStatuses.DepositStatusNames.Approved);
+                    completedStatus = await GetStatusByNameExceptionalAsync(DepositStatuses.DepositStatusNames.Completed);
+                }
+
+                if (request.StatusTypeId != approvedStatus.Id && request.StatusTypeId != completedStatus.Id)
+                {
+                    TempData["Error"] = "Bags can only be generated for approved or completed deposit requests.";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
+
+                var username = User.FindFirst(ClaimTypes.Name)?.Value ?? "System";
+
+                // Get only the CB denominations (notes with bundles)
+                var cbDenoms = request.DepositRequestDenominations
+                    .Where(d => d.Origin == DepositStatuses.DepositOrigin.Cb && d.Bundles.HasValue && d.Bundles.Value > 0)
+                    .ToList();
+
+                if (!cbDenoms.Any())
+                {
+                    TempData["Error"] = "No denominations with bundles found for bag generation.";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
+
+                // Create bags
+                var bags = await CreateBagsFromDenominations(cbDenoms, request, username);
+
+                if (!bags.Any())
+                {
+                    TempData["Error"] = "No bags were created. Please check the deposit request denominations.";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
+
+                // Save bags to database
+                bool saved = await SaveBagsToDatabase(bags);
+
+                if (saved)
+                {
+                    TempData["Success"] = $"Successfully generated {bags.Count} bag(s) for deposit request {request.TransactionRefNumber}.";
+                    _logger.LogInformation(
+                        "Generated {BagCount} bags for deposit request {TransactionRefNumber}",
+                        bags.Count, request.TransactionRefNumber);
+                }
+                else
+                {
+                    TempData["Error"] = "Failed to save bags. Please try again.";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating bags for deposit request {DepositRequestId}", id);
+                TempData["Error"] = "An error occurred while generating bags. Please try again.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id });
         }
     }
 }

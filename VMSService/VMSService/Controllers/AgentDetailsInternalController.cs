@@ -1,5 +1,5 @@
 using AutoMapper;
-using ConfigurationsService.Dto;
+using ConfigurationsService.Client;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;

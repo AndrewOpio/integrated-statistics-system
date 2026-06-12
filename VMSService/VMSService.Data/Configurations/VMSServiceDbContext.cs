@@ -72,6 +72,9 @@ namespace VMSService.Data.Configurations
         public DbSet<BagDenomination> BagDenominations { get; set; }
         public DbSet<Vault> Vaults { get; set; }
         public DbSet<VaultSection> VaultSections { get; set; }
+        public DbSet<BaggedBag> BaggedBags { get; set; }
+        public DbSet<BagMovement> BagMovements { get; set; }
+        public DbSet<BagMovementStatusHistory> BagMovementStatusHistory { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

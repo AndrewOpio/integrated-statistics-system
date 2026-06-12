@@ -105,6 +105,9 @@ namespace VMSService.Data.Migrations
                     b.Property<int>("AgentDetailId")
                         .HasColumnType("int");
 
+                    b.Property<string>("AttachmentIds")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("ChangedAt")
                         .HasColumnType("datetime2");
 
@@ -248,6 +251,9 @@ namespace VMSService.Data.Migrations
 
                     b.Property<int>("ApprovedCurrencyProcurementId")
                         .HasColumnType("int");
+
+                    b.Property<string>("AttachmentIds")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("ChangedAt")
                         .HasColumnType("datetime2");
@@ -423,14 +429,19 @@ namespace VMSService.Data.Migrations
                     b.Property<DateTime>("ModifiedDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("ParentBagId")
+                        .HasColumnType("int");
+
                     b.Property<string>("ReferenceNumber")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("VaultSectionId")
+                    b.Property<int?>("VaultSectionId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ParentBagId");
 
                     b.HasIndex("VaultSectionId");
 
@@ -475,6 +486,148 @@ namespace VMSService.Data.Migrations
                     b.HasIndex("DepositRequestDenominationId");
 
                     b.ToTable("BagDenominations");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.BagMovement", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BagId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CurrentStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("NewVaultSectionId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OldVaultSectionId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BagId");
+
+                    b.HasIndex("NewVaultSectionId");
+
+                    b.HasIndex("OldVaultSectionId");
+
+                    b.ToTable("BagMovements");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.BagMovementStatusHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AttachmentIds")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("BagMovementId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ChangedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("NewStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OldStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BagMovementId");
+
+                    b.ToTable("BagMovementStatusHistory");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.BaggedBag", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ChildBagId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("ParentBagId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChildBagId");
+
+                    b.HasIndex("ParentBagId");
+
+                    b.ToTable("BaggedBags");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.CurrencyVendor", b =>
@@ -990,6 +1143,9 @@ namespace VMSService.Data.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AttachmentIds")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("ChangedAt")
                         .HasColumnType("datetime2");
@@ -1749,6 +1905,9 @@ namespace VMSService.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AttachmentIds")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("ChangedAt")
                         .HasColumnType("datetime2");
 
@@ -1984,6 +2143,9 @@ namespace VMSService.Data.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AttachmentIds")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("ChangedAt")
                         .HasColumnType("datetime2");
@@ -2718,11 +2880,15 @@ namespace VMSService.Data.Migrations
 
             modelBuilder.Entity("VMSService.Data.Entities.Bag", b =>
                 {
+                    b.HasOne("VMSService.Data.Entities.Bag", "ParentBag")
+                        .WithMany("ChildBags")
+                        .HasForeignKey("ParentBagId");
+
                     b.HasOne("VMSService.Data.Entities.VaultSection", "VaultSection")
                         .WithMany()
-                        .HasForeignKey("VaultSectionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .HasForeignKey("VaultSectionId");
+
+                    b.Navigation("ParentBag");
 
                     b.Navigation("VaultSection");
                 });
@@ -2744,6 +2910,63 @@ namespace VMSService.Data.Migrations
                     b.Navigation("Bag");
 
                     b.Navigation("DepositRequestDenomination");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.BagMovement", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.Bag", "Bag")
+                        .WithMany()
+                        .HasForeignKey("BagId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("VMSService.Data.Entities.VaultSection", "NewVaultSection")
+                        .WithMany()
+                        .HasForeignKey("NewVaultSectionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("VMSService.Data.Entities.VaultSection", "OldVaultSection")
+                        .WithMany()
+                        .HasForeignKey("OldVaultSectionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Bag");
+
+                    b.Navigation("NewVaultSection");
+
+                    b.Navigation("OldVaultSection");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.BagMovementStatusHistory", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.BagMovement", "BagMovement")
+                        .WithMany()
+                        .HasForeignKey("BagMovementId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BagMovement");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.BaggedBag", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.Bag", "ChildBag")
+                        .WithMany()
+                        .HasForeignKey("ChildBagId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("VMSService.Data.Entities.Bag", "ParentBag")
+                        .WithMany()
+                        .HasForeignKey("ParentBagId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ChildBag");
+
+                    b.Navigation("ParentBag");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.CurrencyVendor", b =>
@@ -3171,6 +3394,8 @@ namespace VMSService.Data.Migrations
             modelBuilder.Entity("VMSService.Data.Entities.Bag", b =>
                 {
                     b.Navigation("BagDenominations");
+
+                    b.Navigation("ChildBags");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.DepositRequest", b =>

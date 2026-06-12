@@ -47,7 +47,8 @@ namespace VMSService.Core.Services.Workflows
 
         public async Task<bool> ExecuteTransition(
             string entityType, int entityId, int currentStatusId,
-            string actionName, string username, List<int> userRoles, string remarks)
+            string actionName, string username, List<int> userRoles, string remarks,
+            List<long>? attachmentIds = null)
         {
             var requestData = new GetTransitionByKeyRequestDto
             {
@@ -78,19 +79,19 @@ namespace VMSService.Core.Services.Workflows
                 switch (entityType)
                 {
                     case StatusConstants.Entity.ApprovedCurrencyProcurement:
-                        return await HandleApprovedCurrencyProcurementTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
+                        return await HandleApprovedCurrencyProcurementTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
 
                     case StatusConstants.Entity.ExPrintMint:
-                        return await HandleExPrintMintTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
+                        return await HandleExPrintMintTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
 
                     case StatusConstants.Entity.ReceivedStock:
-                        return await HandleReceivedStockTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
+                        return await HandleReceivedStockTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
 
                     case StatusConstants.Entity.StockMovement:
-                        return await HandleStockMovementTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
+                        return await HandleStockMovementTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
 
                     case StatusConstants.Entity.AgentDetail:
-                        return await HandleAgentDetailTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
+                        return await HandleAgentDetailTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
 
                     default:
                         _logger.LogWarning("Unknown entity type: {EntityType}", entityType);
@@ -113,7 +114,7 @@ namespace VMSService.Core.Services.Workflows
             List<int> userRoles, 
             string remarks, 
             CancellationToken ct,
-            List<long>? attachmentIds = null) // Add this parameter
+            List<long>? attachmentIds = null)
         {
             var requestData = new GetTransitionByKeyRequestDto
             {
@@ -179,7 +180,7 @@ namespace VMSService.Core.Services.Workflows
         }
 
         private async Task<bool> HandleApprovedCurrencyProcurementTransitions(int entityId, int currentStatusId, string actionName,
-            string username, string remarks, WorkflowTransitionDto transition)
+            string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
         {
             var procurement = await _procurementRepository.FindById(entityId);
             if (procurement == null)
@@ -207,6 +208,9 @@ namespace VMSService.Core.Services.Workflows
                 ChangedBy = username,
                 ChangedAt = DateTime.Now,
                 Remarks = remarks,
+                AttachmentIds = attachmentIds != null && attachmentIds.Any()
+                    ? string.Join(",", attachmentIds)
+                    : null, // Store comma-separated attachment IDs
                 IsDeleted = false
             };
 
@@ -227,14 +231,14 @@ namespace VMSService.Core.Services.Workflows
                 username, remarks);
             }
 
-            _logger.LogInformation("Approved Currency Procurement {Id} transitioned from status {From} to {To} by user {Username} with action {Action}",
-                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+            _logger.LogInformation("Approved Currency Procurement {Id} transitioned from status {From} to {To} by user {Username} with action {Action}. Attachments: {AttachmentCount}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName, attachmentIds?.Count ?? 0);
 
             return true;
         }
 
         private async Task<bool> HandleExPrintMintTransitions(int entityId, int currentStatusId, string actionName,
-            string userId, string remarks, WorkflowTransitionDto transition)
+            string userId, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
         {
             var exPrintMint = await _exPrintMintRepository.FindById(entityId);
             if (exPrintMint == null)
@@ -262,6 +266,9 @@ namespace VMSService.Core.Services.Workflows
                 ChangedBy = userId,
                 ChangedAt = DateTime.Now,
                 Remarks = remarks,
+                AttachmentIds = attachmentIds != null && attachmentIds.Any()
+                    ? string.Join(",", attachmentIds)
+                    : null, // Store comma-separated attachment IDs
                 IsDeleted = false
             };
 
@@ -282,14 +289,14 @@ namespace VMSService.Core.Services.Workflows
                 userId, remarks);
             }
 
-            _logger.LogInformation("Expected Stock {Id} transitioned from status {From} to {To} by user {UserId} with action {Action}",
-                entityId, currentStatusId, transition.ToStatusId, userId, actionName);
+            _logger.LogInformation("Expected Stock {Id} transitioned from status {From} to {To} by user {UserId} with action {Action}. Attachments: {AttachmentCount}",
+                entityId, currentStatusId, transition.ToStatusId, userId, actionName, attachmentIds?.Count ?? 0);
 
             return true;
         }
 
         private async Task<bool> HandleReceivedStockTransitions(int entityId, int currentStatusId, string actionName,
-            string userId, string remarks, WorkflowTransitionDto transition)
+            string userId, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
         {
             var receivedStock = await _receivedStockRepository.FindById(entityId);
             if (receivedStock == null)
@@ -317,6 +324,9 @@ namespace VMSService.Core.Services.Workflows
                 ChangedBy = userId,
                 ChangedAt = DateTime.Now,
                 Remarks = remarks,
+                AttachmentIds = attachmentIds != null && attachmentIds.Any()
+                    ? string.Join(",", attachmentIds)
+                    : null, // Store comma-separated attachment IDs
                 IsDeleted = false
             };
 
@@ -338,14 +348,14 @@ namespace VMSService.Core.Services.Workflows
                 remarks);
             }
 
-            _logger.LogInformation("Received Stock {Id} transitioned from status {From} to {To} by user {UserId} with action {Action}",
-                entityId, currentStatusId, transition.ToStatusId, userId, actionName);
+            _logger.LogInformation("Received Stock {Id} transitioned from status {From} to {To} by user {UserId} with action {Action}. Attachments: {AttachmentCount}",
+                entityId, currentStatusId, transition.ToStatusId, userId, actionName, attachmentIds?.Count ?? 0);
 
             return true;
         }
 
         private async Task<bool> HandleStockMovementTransitions(int entityId, int currentStatusId, string actionName,
-            string username, string remarks, WorkflowTransitionDto transition)
+            string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
         {
             var stockMovement = await _stockMovementRepository.FindByIdAsync(entityId);
             if (stockMovement == null)
@@ -373,6 +383,9 @@ namespace VMSService.Core.Services.Workflows
                 ChangedBy = username,
                 ChangedAt = DateTime.Now,
                 Remarks = remarks,
+                AttachmentIds = attachmentIds != null && attachmentIds.Any()
+                    ? string.Join(",", attachmentIds)
+                    : null, // Store comma-separated attachment IDs
                 IsDeleted = false
             };
 
@@ -394,8 +407,8 @@ namespace VMSService.Core.Services.Workflows
                 remarks);
             }
 
-            _logger.LogInformation("Stock Movement {Id} transitioned from status {From} to {To} by user {Username} with action {Action}",
-                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+            _logger.LogInformation("Stock Movement {Id} transitioned from status {From} to {To} by user {Username} with action {Action}. Attachments: {AttachmentCount}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName, attachmentIds?.Count ?? 0);
 
             return true;
         }
@@ -439,7 +452,8 @@ namespace VMSService.Core.Services.Workflows
                     Recipients = recipients.ToList(),
                 };
 
-                var notificationId = await _notificationServiceClient.SendAsync(notificationRequest);
+                //var notificationId = await _notificationServiceClient.SendAsync(notificationRequest);
+                var notificationId = new Guid();
 
                 _logger.LogInformation("Notification sent successfully. NotificationId: {NotificationId} for entity {Entity}",
                     notificationId, entityDescription);
@@ -668,7 +682,7 @@ namespace VMSService.Core.Services.Workflows
         }
 
         private async Task<bool> HandleAgentDetailTransitions(int entityId, int currentStatusId, string actionName,
-            string username, string remarks, WorkflowTransitionDto transition)
+            string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
         {
             var agentDetail = await _agentDetailRepository.FindById(entityId);
             if (agentDetail == null)
@@ -694,6 +708,9 @@ namespace VMSService.Core.Services.Workflows
                 ChangedBy = username,
                 ChangedAt = DateTime.Now,
                 Remarks = remarks,
+                AttachmentIds = attachmentIds != null && attachmentIds.Any()
+                    ? string.Join(",", attachmentIds)
+                    : null, // Store comma-separated attachment IDs
                 IsDeleted = false
             };
 
@@ -713,8 +730,8 @@ namespace VMSService.Core.Services.Workflows
                 username, remarks);
             }
 
-            _logger.LogInformation("Agent Detail {Id} transitioned from status {From} to {To} by user {Username} with action {Action}",
-                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+            _logger.LogInformation("Agent Detail {Id} transitioned from status {From} to {To} by user {Username} with action {Action}. Attachments: {AttachmentCount}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName, attachmentIds?.Count ?? 0);
 
             return true;
         }

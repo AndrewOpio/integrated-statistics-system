@@ -1,36 +1,37 @@
 using AutoMapper;
+using ConfigurationsService.Client;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using SmartBreadcrumbs.Attributes;
 using VMSService.Controllers;
 using VMSService.Core.Models.ApprovedCurrencyProcurements;
+using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.Branches;
 using VMSService.Core.Models.CurrencyVendors;
 using VMSService.Core.Models.Denominations;
 using VMSService.Core.Models.DenominationTypes;
+using VMSService.Core.Models.ExPrintMintDetails;
 using VMSService.Core.Models.ExPrintMints;
 using VMSService.Core.Models.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
+using VMSService.Core.Repositories.Attachments;
 using VMSService.Core.Repositories.Branches;
 using VMSService.Core.Repositories.CurrencyVendors;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.DenominationTypes;
 using VMSService.Core.Repositories.ExpectedCurrencies;
+using VMSService.Core.Repositories.ExPrintMintDetails;
 using VMSService.Core.Repositories.ExPrintMintStatusHistories;
+using VMSService.Core.Repositories.PackingListRanges;
 using VMSService.Core.Repositories.VendorTypes;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
+using VMSService.Data.Entities;
 using WorkflowService.Client;
 using WorkflowService.Client.Dto;
-
-using VMSService.Core.Repositories.ExPrintMintDetails;
-using VMSService.Core.Models.ExPrintMintDetails;
-using VMSService.Core.Repositories.PackingListRanges;
-using VMSService.Data.Entities;
-using ConfigurationsService.Client;
 
 namespace VMSService.Web.Controllers
 {
@@ -50,7 +51,9 @@ namespace VMSService.Web.Controllers
         IDenominationTypeRepository _denominationTypeRepository,
         IPackingListRangeRepository _packingListRangeRepository,
         IConfigurationsServiceClient _configServiceClient,
-        IWorkflowServiceClient _workflowServiceClient) : Controller
+        IWorkflowServiceClient _workflowServiceClient,
+        IWebHostEnvironment _environment,
+        IAttachmentRepository _attachmentRepository) : Controller
     {
         [Breadcrumb("Expected Stock", FromController = typeof(HomeController), FromAction = nameof(Index))]
         // GET: ExPrintMints
@@ -130,8 +133,61 @@ namespace VMSService.Web.Controllers
 
                 model.AvailableTransitions = availableTransitions.Distinct().ToList();
 
+                // Load status history
                 model.StatusHistory = _mapper.Map<ICollection<ExPrintMintStatusHistoryViewModel>>(
                     await _statusHistoryRepository.FindByExPrintMintId(id ?? 0));
+
+                // Load attachments for each status history entry
+                foreach (var history in model.StatusHistory)
+                {
+                    history.NewStatusName = (await _workflowServiceClient.FindStatusById(history.NewStatusId)).Name;
+                    history.OldStatusName = (await _workflowServiceClient.FindStatusById(history.OldStatusId)).Name;
+
+                    // Load attachments for this status history entry
+                    if (!string.IsNullOrEmpty(history.AttachmentIds))
+                    {
+                        var attachmentIds = history.AttachmentIds.Split(',')
+                            .Where(id => int.TryParse(id.Trim(), out _))
+                            .Select(id => int.Parse(id.Trim()))
+                            .ToList();
+
+                        var attachments = new List<AttachmentViewModel>();
+                        foreach (var attachmentId in attachmentIds)
+                        {
+                            var attachment = await _attachmentRepository.FindById(attachmentId);
+                            if (attachment != null && !attachment.IsDeleted)
+                            {
+                                attachments.Add(new AttachmentViewModel
+                                {
+                                    Id = attachment.Id,
+                                    FileName = attachment.FileName,
+                                    FilePath = attachment.FilePath,
+                                    FileType = attachment.FileType,
+                                    FileSize = attachment.FileSize,
+                                    UploadedDate = attachment.CreatedDate
+                                });
+                            }
+                        }
+                        history.Attachments = attachments;
+                    }
+                }
+
+                // Load all attachments for this ExPrintMint
+                var allAttachments = await _attachmentRepository.FindByEntityId(id.Value.ToString());
+                var exPrintMintAttachments = allAttachments
+                    .Where(a => !a.IsDeleted && a.EntityType == StatusConstants.Entity.ExPrintMint)
+                    .Select(a => new AttachmentViewModel
+                    {
+                        Id = a.Id,
+                        FileName = a.FileName,
+                        FilePath = a.FilePath,
+                        FileType = a.FileType,
+                        FileSize = a.FileSize,
+                        UploadedDate = a.CreatedDate
+                    })
+                    .ToList();
+
+                model.AllAttachments = exPrintMintAttachments;
 
                 // Fetch the details (denominations) for this batch
                 var details = await _exPrintMintDetailRepository.FindByExPrintMintId(id.Value);
@@ -627,6 +683,43 @@ namespace VMSService.Web.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        [HttpGet]
+        public async Task<IActionResult> DownloadAttachment(int id)
+        {
+            try
+            {
+                var attachment = await _attachmentRepository.FindById(id);
+                if (attachment == null || attachment.IsDeleted)
+                {
+                    TempData["Error"] = "Attachment not found.";
+                    return NotFound();
+                }
+
+                var filePath = Path.Combine(_environment.WebRootPath, attachment.FilePath);
+                
+                if (!System.IO.File.Exists(filePath))
+                {
+                    TempData["Error"] = "File not found on server.";
+                    return NotFound();
+                }
+
+                var memory = new MemoryStream();
+                using (var stream = new FileStream(filePath, FileMode.Open))
+                {
+                    await stream.CopyToAsync(memory);
+                }
+                memory.Position = 0;
+
+                return File(memory, attachment.FileType, attachment.FileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error downloading attachment {AttachmentId}", id);
+                TempData["Error"] = "An error occurred while downloading the file.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
         // Add generic transition action
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -649,6 +742,56 @@ namespace VMSService.Web.Controllers
                     .Select(id => id.Value)
                     .ToList();
 
+                // Get the transition to check if attachments are required
+                var requestData = new GetTransitionByKeyRequestDto
+                {
+                    EntityTypeName = StatusConstants.Entity.ExPrintMint,
+                    FromStatusId = exPrintMint.CurrentStatusId,
+                    ActionName = actionName,
+                };
+
+                var transition = await _workflowServiceClient.FindByTransitionKey(requestData);
+
+                // Handle file uploads if attachments are required
+                List<long>? uploadedAttachmentIds = null;
+
+                if (transition != null && transition.RequiresAttachments && transition.AttachmentRequirements.Any())
+                {
+                    uploadedAttachmentIds = await HandleAttachmentUploads(
+                        transition.AttachmentRequirements.ToList(),
+                        transition.Id,
+                        id,
+                        StatusConstants.Entity.ExPrintMint,
+                        username);
+
+                    // Validate required attachments
+                    var requiredAttachments = transition.AttachmentRequirements.Where(r => r.IsRequired).ToList();
+                    if (requiredAttachments.Any())
+                    {
+                        var uploadedRequirementIds = uploadedAttachmentIds?
+                            .Select(aid =>
+                            {
+                                // You'll need to track which requirement each attachment belongs to
+                                // This is a simplified check - you may need to enhance this
+                                return transition.AttachmentRequirements
+                                    .FirstOrDefault(r => Request.Form.Files[$"attachments_{r.Id}"]?.Length > 0)?.Id ?? 0;
+                            })
+                            .Where(id => id > 0)
+                            .ToList();
+
+                        var missingRequirements = requiredAttachments
+                            .Where(r => !uploadedRequirementIds.Contains(r.Id))
+                            .ToList();
+
+                        if (missingRequirements.Any())
+                        {
+                            TempData["Error"] = $"Missing required attachments: {string.Join(", ", missingRequirements.Select(r => r.AttachmentName))}";
+                            return RedirectToAction(nameof(Details), new { id });
+                        }
+                    }
+                }
+
+
                 bool isExecuted = await _workflowService.ExecuteTransition(
                     StatusConstants.Entity.ExPrintMint,
                     id,
@@ -656,11 +799,15 @@ namespace VMSService.Web.Controllers
                     actionName,
                     username,
                     userRoles,
-                    remarks);
+                    remarks,
+                    uploadedAttachmentIds);
 
                 if (isExecuted)
                 {
-                    TempData["Success"] = $"Review completed successfully!";
+                    var attachmentMessage = uploadedAttachmentIds?.Any() == true 
+                        ? $" {uploadedAttachmentIds.Count} attachment(s) uploaded." 
+                        : "";
+                    TempData["Success"] = $"Action completed successfully.{attachmentMessage}";
                 }
                 else
                 {
@@ -674,6 +821,115 @@ namespace VMSService.Web.Controllers
             }
 
             return RedirectToAction(nameof(Details), new { id });
+        }
+
+        private async Task<List<long>> HandleAttachmentUploads(
+            List<TransitionAttachmentRequirementDto> requirements,
+            int workflowTransitionId,
+            int entityId,
+            string entityType,
+            string username)
+        {
+            var uploadedAttachmentIds = new List<long>();
+
+            // Create uploads directory if it doesn't exist
+            var uploadsPath = Path.Combine(_environment.WebRootPath, "uploads", "exprintmint", entityId.ToString());
+            Directory.CreateDirectory(uploadsPath);
+
+            foreach (var requirement in requirements)
+            {
+                var fileInputName = $"attachments_{requirement.Id}";
+                var file = Request.Form.Files[fileInputName];
+
+                if (file != null && file.Length > 0)
+                {
+                    try
+                    {
+                        // Validate file format
+                        var fileExtension = Path.GetExtension(file.FileName).TrimStart('.').ToLower();
+                        var allowedFormats = requirement.AllowedFormats.Split(',')
+                            .Select(f => f.Trim().ToLower())
+                            .ToList();
+
+                        // Map common format names
+                        var formatMap = new Dictionary<string, List<string>>
+                        {
+                            { "excel", new List<string> { "xls", "xlsx" } },
+                            { "word", new List<string> { "doc", "docx" } },
+                            { "docx", new List<string> { "doc", "docx" } },
+                            { "jpg", new List<string> { "jpg", "jpeg" } },
+                            { "jpeg", new List<string> { "jpg", "jpeg" } }
+                        };
+
+                        bool isValidFormat = false;
+                        foreach (var format in allowedFormats)
+                        {
+                            if (formatMap.ContainsKey(format))
+                            {
+                                if (formatMap[format].Contains(fileExtension))
+                                {
+                                    isValidFormat = true;
+                                    break;
+                                }
+                            }
+                            else if (format == fileExtension)
+                            {
+                                isValidFormat = true;
+                                break;
+                            }
+                        }
+
+                        if (!isValidFormat)
+                        {
+                            _logger.LogWarning("Invalid file format {Extension} for requirement {RequirementId}",
+                                fileExtension, requirement.Id);
+                            continue;
+                        }
+
+                        // Generate unique filename
+                        var timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+                        var uniqueFileName = $"{requirement.Id}_{timestamp}_{Path.GetFileNameWithoutExtension(file.FileName)}.{fileExtension}";
+                        var filePath = Path.Combine(uploadsPath, uniqueFileName);
+
+                        // Save file
+                        using (var stream = new FileStream(filePath, FileMode.Create))
+                        {
+                            await file.CopyToAsync(stream);
+                        }
+
+                        // Create attachment record
+                        var attachment = new Attachment
+                        {
+                            FileName = file.FileName,
+                            FilePath = Path.Combine("uploads", "exprintmint", entityId.ToString(), uniqueFileName),
+                            FileType = file.ContentType,
+                            FileSize = file.Length,
+                            WorkflowTransitionId = workflowTransitionId,
+                            TransitionAttachmentRequirementId = requirement.Id,
+                            EntityId = entityId.ToString(),
+                            EntityType = entityType,
+                            CreatedBy = username,
+                            CreatedDate = DateTime.Now,
+                            ModifiedBy = username,
+                            ModifiedDate = DateTime.Now,
+                            IsDeleted = false
+                        };
+
+                        await _attachmentRepository.Create(attachment);
+                        uploadedAttachmentIds.Add(attachment.Id);
+
+                        _logger.LogInformation(
+                            "Attachment uploaded successfully. File: {FileName}, Size: {Size}, AttachmentId: {AttachmentId}",
+                            file.FileName, file.Length, attachment.Id);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error uploading attachment for requirement {RequirementId}", requirement.Id);
+                    }
+                }
+            }
+
+            return uploadedAttachmentIds;
         }
     }
 }

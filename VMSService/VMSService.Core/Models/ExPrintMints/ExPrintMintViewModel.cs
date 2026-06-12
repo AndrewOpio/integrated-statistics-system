@@ -1,11 +1,12 @@
 using Microsoft.AspNetCore.Http;
 using VMSService.Core.Models.ApprovedCurrencyProcurements;
+using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.Branches;
 using VMSService.Core.Models.CurrencyVendors;
 using VMSService.Core.Models.Denominations;
+using VMSService.Core.Models.ExPrintMintDetails;
 using VMSService.Core.Models.ExPrintMintStatusHistories;
 using WorkflowService.Client.Dto;
-using VMSService.Core.Models.ExPrintMintDetails;
 
 namespace VMSService.Core.Models.ExPrintMints
 {
@@ -39,6 +40,7 @@ namespace VMSService.Core.Models.ExPrintMints
         public ICollection<ExPrintMintStatusHistoryViewModel>? StatusHistory { get; set; } = new List<ExPrintMintStatusHistoryViewModel>();
         public ICollection<WorkflowTransitionDto>? AvailableTransitions { get; set; } = new List<WorkflowTransitionDto>();
         public ICollection<ExPrintMintDetailViewModel>? Details { get; set; } = new List<ExPrintMintDetailViewModel>();
+        public IEnumerable<AttachmentViewModel> AllAttachments { get; set; } = [];
     }
 
     public class ExPrintMintBatchCreateViewModel

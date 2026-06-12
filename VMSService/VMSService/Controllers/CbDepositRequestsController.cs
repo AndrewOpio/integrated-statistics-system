@@ -5,10 +5,12 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using VMSService.Core.Authorization;
 using VMSService.Core.Models.AgentDetails;
+using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.CbDepositRequest;
 using VMSService.Core.Models.CbDepositRequests;
 using VMSService.Core.Models.CbRequests;
 using VMSService.Core.Repositories.AgentDetails;
+using VMSService.Core.Repositories.Attachments;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.DenominationTypes;
 using VMSService.Core.Repositories.DepositProcessingFees;
@@ -44,7 +46,9 @@ namespace VMSService.Web.Controllers
         IMinDepositStandardRepository _minDepositStandardRepo,
         IFeeTypeRepository _feeTypeRepo,
         ISubCategoryRepository _subCategoryRepo,
-        IIdentityService _identityService) : BaseWithdrawController(authorizationService)
+        IIdentityService _identityService,
+        IAttachmentRepository _attachmentRepository,
+        IWebHostEnvironment _environment) : BaseWithdrawController(authorizationService)
     {
         public async Task<IActionResult> Index(CancellationToken ct)
         {
@@ -452,7 +456,52 @@ namespace VMSService.Web.Controllers
                 history.NewStatusName = status.Name;
                 var oldStatus = await _workflowServiceClient.FindStatusById(history.OldStatusId);
                 history.OldStatusName = oldStatus.Name;
+
+                // Load attachments for this status history entry
+                if (!string.IsNullOrEmpty(history.AttachmentIds))
+                {
+                    var attachmentIds = history.AttachmentIds.Split(',')
+                        .Where(id => int.TryParse(id.Trim(), out _))
+                        .Select(id => int.Parse(id.Trim()))
+                        .ToList();
+
+                    var attachments = new List<AttachmentViewModel>();
+                    foreach (var attachmentId in attachmentIds)
+                    {
+                        var attachment = await _attachmentRepository.FindById(attachmentId);
+                        if (attachment != null && !attachment.IsDeleted)
+                        {
+                            attachments.Add(new AttachmentViewModel
+                            {
+                                Id = attachment.Id,
+                                FileName = attachment.FileName,
+                                FilePath = attachment.FilePath,
+                                FileType = attachment.FileType,
+                                FileSize = attachment.FileSize,
+                                UploadedDate = attachment.CreatedDate
+                            });
+                        }
+                    }
+                    history.Attachments = attachments;
+                }
             }
+
+            // Load all attachments for this deposit request
+            var allAttachments = await _attachmentRepository.FindByEntityId(id.ToString());
+            var depositAttachments = allAttachments
+                .Where(a => !a.IsDeleted && 
+                           (a.EntityType == StatusConstants.Entity.DepositRequest || 
+                            a.EntityType == StatusConstants.Entity.DepositRequestExceptional))
+                .Select(a => new AttachmentViewModel
+                {
+                    Id = a.Id,
+                    FileName = a.FileName,
+                    FilePath = a.FilePath,
+                    FileType = a.FileType,
+                    FileSize = a.FileSize,
+                    UploadedDate = a.CreatedDate
+                })
+                .ToList();
 
             // Logged in user's roles
             var userRoleIds = GetUserRoles();
@@ -604,6 +653,7 @@ namespace VMSService.Web.Controllers
                 TotalFees = processingFee + penaltyFee,
                 HasPenaltyViolations = penaltyFee > 0,
                 CanEdit = canEdit,
+                AllAttachments = depositAttachments
             };
 
             //var userRoles = GetUserRoles();
@@ -852,24 +902,93 @@ namespace VMSService.Web.Controllers
                 var username = User.FindFirst(ClaimTypes.Name)?.Value ?? "System";
                 var userRoles = GetUserRoles();
 
+                // Get the transition to check if attachments are required
+                var requestData = new GetTransitionByKeyRequestDto
+                {
+                    EntityTypeName = request.RequiresSpecialApproval 
+                        ? StatusConstants.Entity.DepositRequestExceptional 
+                        : StatusConstants.Entity.DepositRequest,
+                    FromStatusId = request.StatusTypeId,
+                    ActionName = actionName,
+                };
+
+                var transition = await _workflowServiceClient.FindByTransitionKey(requestData);
+                
+                // Handle file uploads if attachments are required
+                List<long>? uploadedAttachmentIds = null;
+                
+                if (transition != null && transition.RequiresAttachments && transition.AttachmentRequirements.Any())
+                {
+                    uploadedAttachmentIds = await HandleAttachmentUploads(
+                        transition.AttachmentRequirements.ToList(), 
+                        transition.Id,
+                        id, 
+                        request.RequiresSpecialApproval 
+                            ? StatusConstants.Entity.DepositRequestExceptional 
+                            : StatusConstants.Entity.DepositRequest,
+                        username);
+
+                    // Validate required attachments
+                    var requiredAttachments = transition.AttachmentRequirements.Where(r => r.IsRequired).ToList();
+                    if (requiredAttachments.Any())
+                    {
+                        var uploadedRequirementIds = uploadedAttachmentIds?
+                            .Select(aid => 
+                            {
+                                // Track which requirement each attachment belongs to
+                                return transition.AttachmentRequirements
+                                    .FirstOrDefault(r => Request.Form.Files[$"attachments_{r.Id}"]?.Length > 0)?.Id ?? 0;
+                            })
+                            .Where(id => id > 0)
+                            .ToList();
+
+                        var missingRequirements = requiredAttachments
+                            .Where(r => !uploadedRequirementIds.Contains(r.Id))
+                            .ToList();
+
+                        if (missingRequirements.Any())
+                        {
+                            TempData["Error"] = $"Missing required attachments: {string.Join(", ", missingRequirements.Select(r => r.AttachmentName))}";
+                            return RedirectToAction(nameof(Details), new { id });
+                        }
+                    }
+                }
+
                 bool isExecuted = false;
 
                 if (request.RequiresSpecialApproval)
                 {
                     isExecuted = await _workflowService.ExecuteTransition(
-                        StatusConstants.Entity.DepositRequestExceptional, id, request.StatusTypeId,
-                        actionName, username, userRoles, remarks, ct);
+                        StatusConstants.Entity.DepositRequestExceptional, 
+                        id, 
+                        request.StatusTypeId,
+                        actionName, 
+                        username, 
+                        userRoles, 
+                        remarks, 
+                        ct,
+                        uploadedAttachmentIds);
                 }
                 else
                 {
                     isExecuted = await _workflowService.ExecuteTransition(
-                        StatusConstants.Entity.DepositRequest, id, request.StatusTypeId,
-                        actionName, username, userRoles, remarks, ct);
+                        StatusConstants.Entity.DepositRequest, 
+                        id, 
+                        request.StatusTypeId,
+                        actionName, 
+                        username, 
+                        userRoles, 
+                        remarks, 
+                        ct,
+                        uploadedAttachmentIds);
                 }
 
                 if (isExecuted)
                 {
-                    TempData["Success"] = "Action completed successfully.";
+                    var attachmentMessage = uploadedAttachmentIds?.Any() == true 
+                        ? $" {uploadedAttachmentIds.Count} attachment(s) uploaded." 
+                        : "";
+                    TempData["Success"] = $"Action completed successfully.{attachmentMessage}";
                 }
                 else
                 {
@@ -893,6 +1012,152 @@ namespace VMSService.Web.Controllers
             //    ct);
 
             return RedirectToAction(nameof(Details), new { id });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> DownloadAttachment(int id)
+        {
+            try
+            {
+                var attachment = await _attachmentRepository.FindById(id);
+                if (attachment == null || attachment.IsDeleted)
+                {
+                    TempData["Error"] = "Attachment not found.";
+                    return NotFound();
+                }
+
+                var filePath = Path.Combine(_environment.WebRootPath, attachment.FilePath);
+                
+                if (!System.IO.File.Exists(filePath))
+                {
+                    TempData["Error"] = "File not found on server.";
+                    return NotFound();
+                }
+
+                var memory = new MemoryStream();
+                using (var stream = new FileStream(filePath, FileMode.Open))
+                {
+                    await stream.CopyToAsync(memory);
+                }
+                memory.Position = 0;
+
+                return File(memory, attachment.FileType, attachment.FileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error downloading attachment {AttachmentId}", id);
+                TempData["Error"] = "An error occurred while downloading the file.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        private async Task<List<long>> HandleAttachmentUploads(
+            List<TransitionAttachmentRequirementDto> requirements,
+            int workflowTransitionId,
+            Guid entityId,
+            string entityType,
+            string username)
+        {
+            var uploadedAttachmentIds = new List<long>();
+
+            // Create uploads directory if it doesn't exist
+            var uploadsPath = Path.Combine(_environment.WebRootPath, "uploads", "deposits", entityId.ToString());
+            Directory.CreateDirectory(uploadsPath);
+
+            foreach (var requirement in requirements)
+            {
+                var fileInputName = $"attachments_{requirement.Id}";
+                var file = Request.Form.Files[fileInputName];
+
+                if (file != null && file.Length > 0)
+                {
+                    try
+                    {
+                        // Validate file format
+                        var fileExtension = Path.GetExtension(file.FileName).TrimStart('.').ToLower();
+                        var allowedFormats = requirement.AllowedFormats.Split(',')
+                            .Select(f => f.Trim().ToLower())
+                            .ToList();
+
+                        // Map common format names
+                        var formatMap = new Dictionary<string, List<string>>
+                        {
+                            { "excel", new List<string> { "xls", "xlsx" } },
+                            { "word", new List<string> { "doc", "docx" } },
+                            { "docx", new List<string> { "doc", "docx" } },
+                            { "jpg", new List<string> { "jpg", "jpeg" } },
+                            { "jpeg", new List<string> { "jpg", "jpeg" } }
+                        };
+
+                        bool isValidFormat = false;
+                        foreach (var format in allowedFormats)
+                        {
+                            if (formatMap.ContainsKey(format))
+                            {
+                                if (formatMap[format].Contains(fileExtension))
+                                {
+                                    isValidFormat = true;
+                                    break;
+                                }
+                            }
+                            else if (format == fileExtension)
+                            {
+                                isValidFormat = true;
+                                break;
+                            }
+                        }
+
+                        if (!isValidFormat)
+                        {
+                            _logger.LogWarning("Invalid file format {Extension} for requirement {RequirementId}", 
+                                fileExtension, requirement.Id);
+                            continue;
+                        }
+
+                        // Generate unique filename
+                        var timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+                        var uniqueFileName = $"{requirement.Id}_{timestamp}_{Path.GetFileNameWithoutExtension(file.FileName)}.{fileExtension}";
+                        var filePath = Path.Combine(uploadsPath, uniqueFileName);
+
+                        // Save file
+                        using (var stream = new FileStream(filePath, FileMode.Create))
+                        {
+                            await file.CopyToAsync(stream);
+                        }
+
+                        // Create attachment record
+                        var attachment = new Attachment
+                        {
+                            FileName = file.FileName,
+                            FilePath = Path.Combine("uploads", "deposits", entityId.ToString(), uniqueFileName),
+                            FileType = file.ContentType,
+                            FileSize = file.Length,
+                            WorkflowTransitionId = workflowTransitionId,
+                            TransitionAttachmentRequirementId = requirement.Id,
+                            EntityId = entityId.ToString(),
+                            EntityType = entityType,
+                            CreatedBy = username,
+                            CreatedDate = DateTime.Now,
+                            ModifiedBy = username,
+                            ModifiedDate = DateTime.Now,
+                            IsDeleted = false
+                        };
+
+                        await _attachmentRepository.Create(attachment);
+                        uploadedAttachmentIds.Add(attachment.Id);
+
+                        _logger.LogInformation(
+                            "Attachment uploaded successfully. File: {FileName}, Size: {Size}, AttachmentId: {AttachmentId}",
+                            file.FileName, file.Length, attachment.Id);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error uploading attachment for requirement {RequirementId}", requirement.Id);
+                    }
+                }
+            }
+
+            return uploadedAttachmentIds;
         }
 
         // Helpers

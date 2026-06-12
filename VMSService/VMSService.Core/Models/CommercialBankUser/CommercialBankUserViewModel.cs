@@ -1,4 +1,4 @@
-﻿using ConfigurationsService.Dto;
+﻿using ConfigurationsService.Client;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using VMSService.Core.Services.Stocks.StockEntities;
 
