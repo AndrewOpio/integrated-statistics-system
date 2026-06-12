@@ -1,0 +1,83 @@
+@model VMSService.Core.Models.Shared.WorkflowActionsViewModel
+
+<div class="row">
+	<div class="col-12">
+		<!-- Workflow Actions Section -->
+		@if (Model.AdditionalValidationMessage != null)
+		{
+			<div class="alert alert-warning alert-dismissible fade show" role="alert">
+				<i class="ti ti-alert-circle me-2"></i>
+				@Html.Raw(Model.AdditionalValidationMessage)
+				<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+			</div>
+		}
+		@if (Model.AvailableTransitions != null && Model.AvailableTransitions.Any() && Model.IsValid)
+		{
+			<div class="card border-0 bg-light mb-1 shadow-sm">
+				<div class="card-header bg-white border-bottom no-after">
+					<h6 class="card-title mb-0">
+						<i class="ti ti-checkbox me-2 text-primary"></i>Available Actions
+					</h6>
+				</div>
+				<div class="card-body">
+					<form method="post" asp-controller="@Model.ControllerName" asp-action="ExecuteAction" asp-route-id="@Model.EntityId" id="workflowForm" enctype="multipart/form-data">
+						@Html.AntiForgeryToken()
+						
+						<div class="mb-3">
+							<label class="form-label">
+								Action <span class="text-danger">*</span>
+							</label>
+							<select id="actionSelect" name="actionName" class="form-select" required>
+								<option value="">-- Select an action --</option>
+								@foreach (var transition in Model.AvailableTransitions)
+								{
+									<option value="@transition.ActionName" 
+											data-requires-comments="@transition.RequiresComments.ToString().ToLower()"
+											data-requires-attachments="@transition.RequiresAttachments.ToString().ToLower()"
+											data-attachment-requirements='@System.Text.Json.JsonSerializer.Serialize(transition.AttachmentRequirements)'
+											data-button-class="@transition.ButtonClass" 
+											data-display-label="@transition.DisplayLabel">
+										@transition.DisplayLabel
+									</option>
+								}
+							</select>
+						</div>
+
+						<div class="mb-3">
+							<label class="form-label">
+								Comments
+								<span id="commentRequired" class="text-danger" style="display: none;">*</span>
+							</label>
+							<textarea id="remarksTextarea"
+									  class="form-control"
+									  name="remarks"
+									  rows="3"
+									  placeholder="Enter your comments..."></textarea>
+							<small id="commentHint" class="text-muted d-block mt-1"></small>
+
+							@* Attachments Section *@
+							<div id="attachmentsSection" style="display: none;">
+								<div class="pt-3 mb-3">
+									<label class="form-label text-uppercase text-muted fw-semibold d-flex align-items-center gap-2" style="font-size:10px;">
+										<i class="ti ti-paperclip"></i>
+										Required Attachments
+										<span class="text-danger">*</span>
+									</label>
+									<small class="text-muted d-block mb-3">Please upload all required documents before submitting</small>
+
+									<div id="attachmentsList" class="d-flex flex-column gap-3">
+										@* Attachment items will be dynamically inserted here *@
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<button type="submit" id="submitBtn" class="text-white btn btn-primary" disabled>
+							<i class="ti ti-check me-1"></i><span id="submitBtnLabel">Submit</span>
+						</button>
+					</form>
+				</div>
+			</div>
+		}
+	</div>
+</div>

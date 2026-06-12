@@ -1,4 +1,4 @@
-using ConfigurationsService.Dto;
+using ConfigurationsService.Client;
 
 namespace VMSService.Core.Services.Configurations
 {

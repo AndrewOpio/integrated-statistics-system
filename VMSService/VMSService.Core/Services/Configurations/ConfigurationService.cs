@@ -1,4 +1,4 @@
-using ConfigurationsService.Dto;
+using ConfigurationsService.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Net.Http.Json;

@@ -1,4 +1,4 @@
-using ConfigurationsService.Dto;
+using ConfigurationsService.Client;
 using VMSService.Core.Models.Categories;
 
 namespace VMSService.Core.Models.BranchCategories

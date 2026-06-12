@@ -105,6 +105,9 @@ namespace VMSService.Data.Migrations
                     b.Property<int>("AgentDetailId")
                         .HasColumnType("int");
 
+                    b.Property<string>("AttachmentIds")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("ChangedAt")
                         .HasColumnType("datetime2");
 
@@ -248,6 +251,9 @@ namespace VMSService.Data.Migrations
 
                     b.Property<int>("ApprovedCurrencyProcurementId")
                         .HasColumnType("int");
+
+                    b.Property<string>("AttachmentIds")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("ChangedAt")
                         .HasColumnType("datetime2");
@@ -430,7 +436,7 @@ namespace VMSService.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("VaultSectionId")
+                    b.Property<int?>("VaultSectionId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
@@ -1137,6 +1143,9 @@ namespace VMSService.Data.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AttachmentIds")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("ChangedAt")
                         .HasColumnType("datetime2");
@@ -1896,6 +1905,9 @@ namespace VMSService.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AttachmentIds")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("ChangedAt")
                         .HasColumnType("datetime2");
 
@@ -2131,6 +2143,9 @@ namespace VMSService.Data.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AttachmentIds")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("ChangedAt")
                         .HasColumnType("datetime2");
@@ -2871,9 +2886,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasOne("VMSService.Data.Entities.VaultSection", "VaultSection")
                         .WithMany()
-                        .HasForeignKey("VaultSectionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .HasForeignKey("VaultSectionId");
 
                     b.Navigation("ParentBag");
 

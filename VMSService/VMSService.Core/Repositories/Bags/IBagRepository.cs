@@ -1,9 +1,11 @@
 using VMSService.Core.Models.Bags;
 using VMSService.Core.Models.CbDepositRequests;
+using VMSService.Core.Repository.Common;
+using VMSService.Data.Entities;
 
 namespace VMSService.Core.Repositories.Bags
 {
-    public interface IBagRepository
+    public interface IBagRepository : IRepositoryBase<Bag, int>
     {
         Task<List<BagViewModel>> GetAllBagsAsync();
         Task<BagDetailsViewModel?> GetBagByIdAsync(int bagId);
@@ -12,5 +14,6 @@ namespace VMSService.Core.Repositories.Bags
         Task<bool> RemoveItemFromBagAsync(int bagId, Guid depositRequestDenominationId);
         Task<bool> DeleteBagAsync(int bagId);
         Task<List<DepositRequestDenominationViewModel>> GetAvailableItemsByDenominationAsync(int denominationId);
+        Task<bool> CreateBagsAsync(List<Bag> bags);
     }
 }

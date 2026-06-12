@@ -182,7 +182,7 @@ namespace WorkflowService.Web.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Breadcrumb("Create Transition", FromController = typeof(WorkflowTransitionsController), FromAction = nameof(Index))]
-        public async Task<IActionResult> Create(int applicationId, WorkflowTransitionViewModel model, string attachmentsJson)
+        public async Task<IActionResult> Create(int applicationId, WorkflowTransitionViewModel model, string? attachmentsJson)
         {
             // Set custom breadcrumb with query parameters
             ViewBag.BreadcrumbItems = new List<(string Text, string Url)>

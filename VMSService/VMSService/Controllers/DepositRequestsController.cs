@@ -50,9 +50,9 @@ namespace VMSService.Web.Controllers
         IStockMovementRepository _stockMovementRepository,
         ICategoryRepository _categoryRepository,
         IFeeTypeRepository _feeTypeRepo,
-        IAttachmentRepository _attachmentRepository, // Add this
+        IAttachmentRepository _attachmentRepository,
         IWebHostEnvironment _environment,
-        IBagRepository _bagRepository) : Controller // Add this for file path
+        IBagRepository _bagRepository) : Controller
     {
         [Breadcrumb("Deposit Requests", FromController = typeof(HomeController), FromAction = nameof(Index))]
         public async Task<IActionResult> Index(string? branchCode = null)
@@ -553,6 +553,8 @@ namespace VMSService.Web.Controllers
                         //Create Bags
                         List<Bag> createdBags = await CreateBagsFromDenominations(request.DepositRequestDenominations, request, username);
 
+                        bool bagsCreated = await _bagRepository.CreateBagsAsync(createdBags);
+
                         Category paids = (await _categoryRepository.FindAll()).FirstOrDefault(c => c.Name == StockConstants.StoreTypes.Paids);
                         //BranchDto store = await _configServiceClient
                         //        .FindByBranchAndCategoryName(request.BouBranchId, StockConstants.StoreTypes.Paids);
@@ -636,6 +638,10 @@ namespace VMSService.Web.Controllers
                             TempData["Error"] = "Error Updating Stock Position";
                         }
                         TempData["Success"] = "Deposit Confirmed successfully. Stock position Updated";
+                        if(bagsCreated)
+                        {
+                            TempData["Success"] = $"Deposit Confirmed successfully. Stock position Updated. {createdBags.Count} bags created";
+                        }
                     } else
                     {
                         var attachmentMessage = uploadedAttachmentIds?.Any() == true 
@@ -1062,12 +1068,11 @@ namespace VMSService.Web.Controllers
                         ReferenceNumber = bagReferenceNumber,
                         DenominationId = denomination.DenominationId,
                         BranchId = depositRequest.BouBranchId,
-                        VaultSectionId = 0, // To be assigned later
                         IsDeleted = false,
-                        CreatedBy = username,
-                        CreatedDate = DateTime.Now,
-                        ModifiedBy = username,
-                        ModifiedDate = DateTime.Now
+                        //CreatedBy = username,
+                        //CreatedDate = DateTime.Now,
+                        //ModifiedBy = username,
+                        //ModifiedDate = DateTime.Now
                     };
 
                     // Create bag denomination link
@@ -1076,10 +1081,10 @@ namespace VMSService.Web.Controllers
                         Bag = bag,
                         DepositRequestDenominationId = denomination.Id,
                         IsDeleted = false,
-                        CreatedBy = username,
-                        CreatedDate = DateTime.Now,
-                        ModifiedBy = username,
-                        ModifiedDate = DateTime.Now
+                        //CreatedBy = username,
+                        //CreatedDate = DateTime.Now,
+                        //ModifiedBy = username,
+                        //ModifiedDate = DateTime.Now
                     };
 
                     bag.BagDenominations.Add(bagDenomination);
