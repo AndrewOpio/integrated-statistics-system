@@ -1,0 +1,467 @@
+@model VMSService.Core.Models.DestructionRequests.DestructionRequestDetailsViewModel
+
+@using VMSService.Core.Services.Stocks.StockEntities
+@using VMSService.Core.Static
+
+@{
+    ViewData["Title"] = "Destruction Request Details";
+    var denominations = ViewBag.Denominations as List<Denomination> ?? new List<Denomination>();
+    var grandTotal = Model.Denominations.Sum(d => d.Amount);
+    bool hasPendingCompletion = Model.AvailableTransitions
+        .Any(t => t.ToStatus?.Name == StatusConstants.DestructionRequest.PendingCompletion);
+
+    var s = Model.CurrentStatusName;
+    string statusBadgeClass =
+        s == StatusConstants.DestructionRequest.Draft                  ? "bg-secondary" :
+        s == StatusConstants.DestructionRequest.PendingVerification    ? "bg-warning text-dark" :
+        s == StatusConstants.DestructionRequest.PendingApproval        ? "bg-warning text-dark" :
+        s == StatusConstants.DestructionRequest.Approved               ? "bg-success" :
+        s == StatusConstants.DestructionRequest.Completed              ? "bg-primary" :
+        s == StatusConstants.DestructionRequest.ReturnedToStorage      ? "bg-danger" :
+        s == StatusConstants.DestructionRequest.ReturnedForDestruction ? "bg-info" :
+        "bg-secondary";
+}
+
+<div class="row g-4">
+
+    @* ── Left column: request details ──────────────────────────────── *@
+    <div class="col-12 col-xl-8">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header pb-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="text-muted small mb-1 d-block">Destruction Management</span>
+                        <h2 class="fs-4 fw-bold mb-0">@Model.ReferenceNumber</h2>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge @statusBadgeClass fs-6">@Model.CurrentStatusName</span>
+                        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+                            <i class="ti ti-arrow-left me-1"></i>Back
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body">
+
+                @* @if (TempData["Success"] != null)
+                {
+                    <div class="alert alert-success alert-dismissible fade show">
+                        <i class="ti ti-circle-check me-1"></i>@TempData["Success"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                } *@
+                @if (TempData["Error"] != null)
+                {
+                    <div class="alert alert-danger alert-dismissible fade show">
+                        <i class="ti ti-alert-triangle me-1"></i>@TempData["Error"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                }
+
+                @* Summary *@
+                <div class="row mb-4">
+                    @if (Model.DestructionAuthorizationId.HasValue)
+                    {
+                        <div class="col-md-3 mb-3">
+                            <span class="text-muted small d-block">Authorization</span>
+                            <a asp-controller="DestructionAuthorizations" asp-action="Details" asp-route-id="@Model.DestructionAuthorizationId" class="text-decoration-none">
+                                <span class="badge rounded-pill bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2">
+                                    <i class="ti ti-file-check me-1"></i>@Model.AuthorizationReferenceNumber
+                                </span>
+                            </a>
+                        </div>
+                    }
+                    <div class="col-md-3 mb-3">
+                        <span class="text-muted small d-block">Destruction Type</span>
+                        <span class="fw-bold">@Model.DestructionTypeName</span>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <span class="text-muted small d-block">Branch</span>
+                        <span class="fw-bold">@(string.IsNullOrEmpty(Model.BranchName) ? "Not specified" : Model.BranchName)</span>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <span class="text-muted small d-block">Reference Number</span>
+                        <span class="fw-bold">@Model.ReferenceNumber</span>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <span class="text-muted small d-block">Date</span>
+                        <span>@Model.Date.ToString("dd MMM yyyy")</span>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <span class="text-muted small d-block">Verification Officer</span>
+                        <span>@Model.VerificationOfficer</span>
+                    </div>
+                    @if (!string.IsNullOrEmpty(Model.LocationName))
+                    {
+                        <div class="col-md-3 mb-3">
+                            <span class="text-muted small d-block">Location</span>
+                            <span class="fw-bold">@Model.LocationName</span>
+                        </div>
+                    }
+                </div>
+
+                <hr />
+
+                @* Denominations *@
+                @{
+                    var totalDestroyed  = Model.Denominations.Sum(d => d.Destroyed);
+                    var totalRemaining  = grandTotal - totalDestroyed;
+                    bool hasDestroyedAny = totalDestroyed > 0;
+                }
+                <h5 class="fw-bold mb-3">Denomination Details</h5>
+                <div class="table-responsive mb-4">
+                    <table class="table table-bordered">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Denomination</th>
+                                <th>Bags / Notes</th>
+                                <th class="text-end">Original Amount</th>
+                                @if (hasDestroyedAny)
+                                {
+                                    <th class="text-end text-success">Destroyed</th>
+                                    <th class="text-end text-danger">Remaining</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{ int row = 1; }
+                            @foreach (var denom in Model.Denominations)
+                            {
+                                var denomName  = denominations.FirstOrDefault(d => d.Id == denom.DenominationId)?.Name ?? $"ID {denom.DenominationId}";
+                                var remaining  = denom.Amount - denom.Destroyed;
+                                <tr>
+                                    <td>@row</td>
+                                    <td>@denomName</td>
+                                    <td>@(denom.NumberOfNotes != null ? $"{denom.NumberOfNotes} notes" : denom.NumberOfBags != null ? $"{denom.NumberOfBags} bags" : "—")</td>
+                                    <td class="text-end">@denom.Amount.ToString("N0")</td>
+                                    @if (hasDestroyedAny)
+                                    {
+                                        <td class="text-end text-success fw-semibold">@denom.Destroyed.ToString("N0")</td>
+                                        <td class="text-end @(remaining > 0 ? "text-danger fw-semibold" : "text-muted")">@remaining.ToString("N0")</td>
+                                    }
+                                </tr>
+                                row++;
+                            }
+                        </tbody>
+                        <tfoot style="background-color: #f8f9fa;">
+                            <tr>
+                                <td colspan="3" class="text-end fw-bold">Grand Total</td>
+                                <td class="text-end fw-bold">@grandTotal.ToString("N0")</td>
+                                @if (hasDestroyedAny)
+                                {
+                                    <td class="text-end fw-bold text-success">@totalDestroyed.ToString("N0")</td>
+                                    <td class="text-end fw-bold @(totalRemaining > 0 ? "text-danger" : "text-muted")">@totalRemaining.ToString("N0")</td>
+                                }
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                @* Members *@
+                @if (Model.Members.Any())
+                {
+                    <hr />
+                    <h5 class="fw-bold mb-3">Members</h5>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-bordered">
+                            <thead class="thead-light">
+                                <tr><th>#</th><th>ID Number</th><th>Full Name</th></tr>
+                            </thead>
+                            <tbody>
+                                @{ int mRow = 1; }
+                                @foreach (var m in Model.Members)
+                                {
+                                    <tr>
+                                        <td>@mRow</td>
+                                        <td>@m.IDNumber</td>
+                                        <td>@m.FullName</td>
+                                    </tr>
+                                    mRow++;
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+
+                @* Witnesses *@
+                @if (Model.Witnesses.Any())
+                {
+                    <hr />
+                    <h5 class="fw-bold mb-3">Witnesses</h5>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-bordered">
+                            <thead class="thead-light">
+                                <tr><th>#</th><th>ID Number</th><th>Full Name</th></tr>
+                            </thead>
+                            <tbody>
+                                @{ int wRow = 1; }
+                                @foreach (var w in Model.Witnesses)
+                                {
+                                    <tr>
+                                        <td>@wRow</td>
+                                        <td>@w.IDNumber</td>
+                                        <td>@w.FullName</td>
+                                    </tr>
+                                    wRow++;
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+
+                <hr />
+
+                @* Status History *@
+                @if (Model.StatusHistory.Any())
+                {
+                    <div class="card border-0 shadow-sm mb-3">
+                        <div class="card-header bg-white border-bottom">
+                            <h6 class="card-title mb-0">
+                                <i class="ti ti-message me-2 text-secondary"></i>Comments
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="timeline">
+                                @foreach (var h in Model.StatusHistory.OrderBy(x => x.ChangedAt))
+                                {
+                                    <div class="timeline-item mb-4">
+                                        <div class="d-flex gap-3">
+                                            <div class="timeline-marker">
+                                                <i class="ti ti-circle-check text-success"></i>
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <div class="d-flex justify-content-between align-items-start">
+                                                    <div>
+                                                        <h6 class="mb-1 small">
+                                                            <strong>@h.OldStatusName</strong>
+                                                            <i class="ti ti-arrow-right text-muted"></i>
+                                                            <strong>@h.NewStatusName</strong>
+                                                        </h6>
+                                                        <small class="text-muted">
+                                                            By: <strong>@h.ChangedBy</strong>
+                                                        </small>
+                                                    </div>
+                                                    <small class="text-muted">
+                                                        @h.ChangedAt.ToString("dd/MMM/yyyy HH:mm:ss")
+                                                    </small>
+                                                </div>
+                                                @if (!string.IsNullOrWhiteSpace(h.Remarks))
+                                                {
+                                                    <div class="mt-2 p-2 bg-white rounded border">
+                                                        <span class="d-block">@h.Remarks</span>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <hr />
+
+                @* Audit *@
+                <div class="row text-muted small">
+                    <div class="col-md-3">
+                        <span class="d-block">Created By</span>
+                        <span>@Model.CreatedBy</span>
+                    </div>
+                    <div class="col-md-3">
+                        <span class="d-block">Created Date</span>
+                        <span>@Model.CreatedDate.ToString(format: "dd MMM yyyy HH:mm")</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    @* ── Right column: action panel ────────────────────────────────── *@
+    <div class="col-12 col-xl-4">
+        <div class="card border-0 shadow" style="position: sticky; top: 1.5rem;">
+            <div class="card-header">
+                <h5 class="fw-bold mb-0">Actions</h5>
+            </div>
+            <div class="card-body">
+
+                @if ((Model.CurrentStatusName == StatusConstants.DestructionRequest.Approved || Model.CurrentStatusName == StatusConstants.DestructionRequest.ReturnedForDestruction) && hasPendingCompletion)
+                {
+                    @* ── Record Destruction Form ── *@
+                    @Html.AntiForgeryToken()
+                    <div id="destructionFormAlerts"></div>
+                    <p class="text-muted small mb-3">Enter the amount destroyed today per denomination. Any balance will be automatically credited back to storage.</p>
+
+                    <div class="mb-3" id="recordDestructionTable">
+                        @foreach (var d in Model.Denominations)
+                        {
+                            var remaining = d.Amount - d.Destroyed;
+                            var denomName = denominations.FirstOrDefault(x => x.Id == d.DenominationId)?.Name ?? $"ID {d.DenominationId}";
+                            var remainingInt = (long)Math.Floor(remaining);
+                            <div class="border rounded p-2 mb-2">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="small fw-semibold">@denomName</span>
+                                    <div class="text-end">
+                                        <span class="small text-muted d-block">Approved: <strong>@d.Amount.ToString("N0")</strong></span>
+                                        <span class="small text-muted d-block">Remaining: <strong class="text-success">@remaining.ToString("N0")</strong></span>
+                                    </div>
+                                </div>
+                                <input type="number" class="form-control form-control-sm text-end denom-destroyed-input"
+                                       data-denom-id="@d.DenominationId"
+                                       data-remaining="@remainingInt"
+                                       data-approved="@d.Amount.ToString("F0")"
+                                       min="0" max="@remainingInt" step="1"
+                                       placeholder="0" />
+                                <div class="invalid-feedback">Cannot exceed remaining amount of @remaining.ToString("N0").</div>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Remarks</label>
+                        <textarea class="form-control" id="destructionRemarks" rows="2"
+                                  placeholder="Add remarks…"></textarea>
+                    </div>
+
+                    <button type="button" class="btn btn-primary w-100" id="submitDestructionBtn">
+                        <i class="ti ti-check me-1"></i>Record Destruction
+                    </button>
+                }
+                else if (Model.AvailableTransitions.Any() && Model.CurrentStatusName != StatusConstants.DestructionRequest.Approved && Model.CurrentStatusName != StatusConstants.DestructionRequest.ReturnedForDestruction)
+                {
+                    <form asp-action="ExecuteAction" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@Model.Id" />
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Select Action</label>
+                            <select class="form-select" name="actionName">
+                                <option value="">-- Choose action --</option>
+                                @foreach (var t in Model.AvailableTransitions)
+                                {
+                                    <option value="@t.ActionName">@t.DisplayLabel</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Remarks</label>
+                            <textarea class="form-control" name="remarks" rows="3"
+                                      placeholder="Add comments (required for some actions)…"></textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="ti ti-check me-1"></i>Submit
+                        </button>
+                    </form>
+                }
+                else
+                {
+                    <div class="text-center text-muted py-3">
+                        <i class="ti ti-lock fs-3 d-block mb-2"></i>
+                        No actions available for your role at this stage.
+                    </div>
+                }
+
+                <hr />
+
+                <a asp-action="Edit" asp-route-id="@Model.Id"
+                   class="btn btn-outline-primary w-100 @(Model.CurrentStatusName != "Draft" ? "disabled" : "")">
+                    <i class="ti ti-edit me-1"></i>Edit Request
+                </a>
+
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@if (Model.CurrentStatusName == StatusConstants.DestructionRequest.Approved || Model.CurrentStatusName == StatusConstants.DestructionRequest.ReturnedForDestruction)
+{
+    @section Scripts {
+    <script>
+    // Real-time validation as user types
+    document.querySelectorAll('.denom-destroyed-input').forEach(function (input) {
+        input.addEventListener('input', function () {
+            const remaining = parseFloat(this.dataset.remaining) || 0;
+            const value     = parseFloat(this.value) || 0;
+            if (value < 0 || value > remaining) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+            } else if (value > 0) {
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+            } else {
+                this.classList.remove('is-invalid', 'is-valid');
+            }
+        });
+    });
+
+    document.getElementById('submitDestructionBtn')?.addEventListener('click', function () {
+        const btn = this;
+        const denominations = [];
+        let valid = true;
+
+        document.querySelectorAll('.denom-destroyed-input').forEach(function (input) {
+            const denomId   = parseInt(input.dataset.denomId);
+            const remaining = parseFloat(input.dataset.remaining);
+            const value     = parseFloat(input.value) || 0;
+
+            if (value < 0 || value > remaining) {
+                input.classList.add('is-invalid');
+                valid = false;
+            } else {
+                input.classList.remove('is-invalid');
+            }
+
+            denominations.push({ DenominationId: denomId, DestroyedToday: value });
+        });
+
+        if (!valid) {
+            document.getElementById('destructionFormAlerts').innerHTML =
+                '<div class="alert alert-danger">One or more amounts exceed the remaining balance. Please correct before submitting.</div>';
+            return;
+        }
+
+        const payload = {
+            DestructionRequestId: @Model.Id,
+            Remarks:       document.getElementById('destructionRemarks').value,
+            Denominations: denominations
+        };
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving...';
+        document.getElementById('destructionFormAlerts').innerHTML = '';
+
+        fetch('@Url.Action("RecordDestruction")', {
+            method:  'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? ''
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.redirectUrl) {
+                window.location.href = data.redirectUrl;
+            } else {
+                document.getElementById('destructionFormAlerts').innerHTML =
+                    '<div class="alert alert-danger">' + (data.message ?? 'An error occurred.') + '</div>';
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ti ti-check me-1"></i>Record Destruction';
+            }
+        })
+        .catch(() => {
+            document.getElementById('destructionFormAlerts').innerHTML =
+                '<div class="alert alert-danger">An unexpected error occurred.</div>';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ti ti-check me-1"></i>Record Destruction';
+        });
+    });
+    </script>
+    }
+}

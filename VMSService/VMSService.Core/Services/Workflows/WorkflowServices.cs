@@ -5,6 +5,12 @@ using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.AgentDetailStatusHistories;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
+using VMSService.Core.Repositories.CfbReportStatusHistories;
+using VMSService.Core.Repositories.CfbReports;
+using VMSService.Core.Repositories.DestructionAuthorizationStatusHistories;
+using VMSService.Core.Repositories.DestructionAuthorizations;
+using VMSService.Core.Repositories.DestructionRequestStatusHistories;
+using VMSService.Core.Repositories.DestructionRequests;
 using VMSService.Core.Repositories.DepositUnitOfWorks;
 using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ExPrintMintStatusHistories;
@@ -41,7 +47,13 @@ namespace VMSService.Core.Services.Workflows
         IWithdrawalUnitOfWork _uow,
         IAgentDetailRepository _agentDetailRepository,
         IAgentDetailStatusHistoryRepository _agentDetailStatusHistoryRepository,
-        IDepositUnitOfWork _duow) : IWorkflowService
+        IDepositUnitOfWork _duow,
+        IDestructionRequestRepository _destructionRequestRepository,
+        IDestructionRequestStatusHistoryRepository _destructionStatusHistoryRepository,
+        IDestructionAuthorizationRepository _destructionAuthorizationRepository,
+        IDestructionAuthorizationStatusHistoryRepository _destructionAuthorizationStatusHistoryRepository,
+        ICfbReportRepository _cfbReportRepository,
+        ICfbReportStatusHistoryRepository _cfbReportStatusHistoryRepository) : IWorkflowService
     {
 
 
@@ -91,6 +103,15 @@ namespace VMSService.Core.Services.Workflows
 
                     case StatusConstants.Entity.AgentDetail:
                         return await HandleAgentDetailTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
+
+                    case StatusConstants.Entity.DestructionRequest:
+                        return await HandleDestructionRequestTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
+
+                    case StatusConstants.Entity.DestructionAuthorization:
+                        return await HandleDestructionAuthorizationTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
+
+                    case StatusConstants.Entity.CfbReport:
+                        return await HandleCfbReportTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
 
                     default:
                         _logger.LogWarning("Unknown entity type: {EntityType}", entityType);
@@ -507,7 +528,7 @@ namespace VMSService.Core.Services.Workflows
                 return false;
             }
 
-            // Verify current status matches — prevents race conditions
+            // Verify current status matches ï¿½ prevents race conditions
             if (request.StatusTypeId != currentStatusId)
             {
                 _logger.LogWarning(
@@ -538,7 +559,7 @@ namespace VMSService.Core.Services.Workflows
             request.ModifiedBy = username;
             request.ModifiedDate = DateTime.Now;
 
-            // If supervisor is submitting to bank — generate ref number + copy denominations
+            // If supervisor is submitting to bank ï¿½ generate ref number + copy denominations
             //if (transition.ToStatusId == WithdrawStatuses.WithdrawalStatusIds.SubmittedToBOU)
             //{
             //    //request.SupervisorUserId = username;
@@ -700,6 +721,159 @@ namespace VMSService.Core.Services.Workflows
             }
 
             _logger.LogInformation("Agent Detail {Id} transitioned from status {From} to {To} by user {Username} with action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
+        private async Task<bool> HandleDestructionRequestTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition)
+        {
+            var request = await _destructionRequestRepository.FindById(entityId);
+            if (request == null)
+            {
+                _logger.LogWarning("Destruction Request {Id} not found", entityId);
+                return false;
+            }
+
+            if (request.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Destruction Request {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, request.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new DestructionRequestStatusHistory
+            {
+                DestructionRequestId = entityId,
+                OldStatusId = request.CurrentStatusId,
+                OldStatusName = request.CurrentStatusName,
+                NewStatusId = transition.ToStatusId,
+                NewStatusName = transition.ToStatus.Name,
+                ChangedBy = username,
+                ChangedAt = DateTime.Now,
+                Remarks = remarks,
+                IsDeleted = false
+            };
+
+            await _destructionStatusHistoryRepository.Create(statusHistory);
+
+            request.CurrentStatusId = transition.ToStatusId;
+            request.CurrentStatusName = transition.ToStatus.Name;
+            await _destructionRequestRepository.Update(request);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"Destruction Request {request.ReferenceNumber}",
+                    transition,
+                    statusHistory.NewStatusName,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("Destruction Request {Id} transitioned from status {From} to {To} by user {Username} with action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
+        private async Task<bool> HandleCfbReportTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition)
+        {
+            var report = await _cfbReportRepository.FindById(entityId);
+            if (report == null)
+            {
+                _logger.LogWarning("CFB Report {Id} not found", entityId);
+                return false;
+            }
+
+            if (report.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("CFB Report {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, report.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new CfbReportStatusHistory
+            {
+                CfbReportId   = entityId,
+                OldStatusId   = report.CurrentStatusId,
+                OldStatusName = report.CurrentStatusName,
+                NewStatusId   = transition.ToStatusId,
+                NewStatusName = transition.ToStatus.Name,
+                ChangedBy     = username,
+                ChangedAt     = DateTime.Now,
+                Remarks       = remarks,
+                IsDeleted     = false
+            };
+
+            await _cfbReportStatusHistoryRepository.Create(statusHistory);
+
+            report.CurrentStatusId   = transition.ToStatusId;
+            report.CurrentStatusName = transition.ToStatus.Name;
+            await _cfbReportRepository.Update(report);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"CFB Report {report.ReferenceNumber}",
+                    transition,
+                    statusHistory.NewStatusName,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("CFB Report {Id} transitioned from status {From} to {To} by user {Username} with action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
+        private async Task<bool> HandleDestructionAuthorizationTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition)
+        {
+            var authorization = await _destructionAuthorizationRepository.FindById(entityId);
+            if (authorization == null)
+            {
+                _logger.LogWarning("Destruction Authorization {Id} not found", entityId);
+                return false;
+            }
+
+            if (authorization.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Destruction Authorization {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, authorization.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new DestructionAuthorizationStatusHistory
+            {
+                DestructionAuthorizationId = entityId,
+                OldStatusId               = authorization.CurrentStatusId,
+                OldStatusName             = authorization.CurrentStatusName,
+                NewStatusId               = transition.ToStatusId,
+                NewStatusName             = transition.ToStatus.Name,
+                ChangedBy                 = username,
+                ChangedAt                 = DateTime.Now,
+                Remarks                   = remarks,
+                IsDeleted                 = false
+            };
+
+            await _destructionAuthorizationStatusHistoryRepository.Create(statusHistory);
+
+            authorization.CurrentStatusId   = transition.ToStatusId;
+            authorization.CurrentStatusName = transition.ToStatus.Name;
+            await _destructionAuthorizationRepository.Update(authorization);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"Destruction Authorization {authorization.ReferenceNumber}",
+                    transition,
+                    statusHistory.NewStatusName,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("Destruction Authorization {Id} transitioned from status {From} to {To} by user {Username} with action {Action}",
                 entityId, currentStatusId, transition.ToStatusId, username, actionName);
 
             return true;

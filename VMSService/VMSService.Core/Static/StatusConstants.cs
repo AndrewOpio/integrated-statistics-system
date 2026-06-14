@@ -82,6 +82,37 @@
             public const string Approved = "Approved";
         }
 
+        public static class DestructionRequest
+        {
+            public const string Draft = "Draft";
+            public const string PendingVerification = "Pending Verification";
+            public const string PendingApproval = "Pending Approval";
+            public const string Approved = "Approved";
+            public const string PendingCompletion = "Pending Completion";
+            public const string Completed = "Completed";
+            public const string ReturnedToStorage = "Returned To Storage";
+            public const string ReturnedForDestruction = "Returned For Destruction";
+        }
+
+        public static class DestructionAuthorization
+        {
+            public const string Draft             = "Draft";
+            public const string PendingApproval   = "Pending Approval";
+            public const string Approved          = "Approved";
+            public const string Rejected          = "Rejected";
+            public const string AmendmentDraft    = "Amendment Draft";
+            public const string AmendmentApproved = "Amendment Approved";
+        }
+
+        public static class CfbReport
+        {
+            public const string Draft = "Draft";
+            public const string PendingVerification = "Pending Verification";
+            public const string PendingApproval = "Pending Approval";
+            public const string Approved = "Approved";
+            public const string Returned = "Returned";
+        }
+
         public static class Entity
         {
             public const string ApprovedCurrencyProcurement = "ApprovedCurrencyProcurement";
@@ -94,6 +125,9 @@
             public const string AgentDetail = "AgentDetail";
             public const string DepositRequest = "DepositRequest";
             public const string DepositRequestExceptional = "DepositRequestExceptional";
+            public const string DestructionRequest = "Destruction";
+            public const string DestructionAuthorization = "DestructionAuthorization";
+            public const string CfbReport = "CfbReport";
         }
     }
 }

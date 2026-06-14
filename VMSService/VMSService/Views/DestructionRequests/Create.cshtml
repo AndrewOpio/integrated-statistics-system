@@ -1,118 +1,588 @@
-@model VMSService.Models.DestructionRequestCreateViewModel
+@model dynamic
+
+@using VMSService.Data.Entities
+@using ConfigurationsService.Client
+@using VMSService.Web.Controllers
+@using VMSService.Core.Static
+
 @{
     ViewData["Title"] = "Create Destruction Request";
+    var destructionTypes   = ViewBag.DestructionTypes as List<DestructionType> ?? new List<DestructionType>();
+    var branches           = ViewBag.Branches as List<BranchDto>;
+    var authorizations     = ViewBag.Authorizations as List<VMSService.Data.Entities.DestructionAuthorization> ?? new();
+    var locations          = ViewBag.Locations as List<VMSService.Data.Entities.DestructionLocation> ?? new();
+    var onlineTypeName     = StockConstants.DestructionTypes.Online;
+    var offsiteTypeName    = StockConstants.DestructionTypes.Offsite;
 }
-<h2>@ViewData["Title"]</h2>
-<form asp-action="Create" method="post">
-    <div class="form-group">
-        <label asp-for="Date"></label>
-        <input asp-for="Date" class="form-control" type="date" />
-    </div>
-    <div class="form-group">
-        <label asp-for="ReferenceNumber"></label>
-        <input asp-for="ReferenceNumber" class="form-control" />
-    </div>
-    <div class="form-group">
-        <label asp-for="PanelA"></label>
-        <input asp-for="PanelA" class="form-control" />
-    </div>
-    <div class="form-group">
-        <label asp-for="PanelB"></label>
-        <input asp-for="PanelB" class="form-control" />
-    </div>
-    <div class="form-group">
-        <label asp-for="VerificationOfficer"></label>
-        <input asp-for="VerificationOfficer" class="form-control" />
-    </div>
-    <div class="form-group">
-        <label asp-for="OtherMembers"></label>
-        <input asp-for="OtherMembers" class="form-control" />
-    </div>
 
-    <h4>Denominations</h4>
-    <div id="denominations-list">
-        @for (int i = 0; i < Model.Denominations.Count; i++)
-        {
-            <div class="denomination-item border p-2 mb-2">
-                <div class="form-row">
-                    <div class="form-group col-md-4">
-                        <label>DenominationId</label>
-                        <input name="Denominations[@i].DenominationId" class="form-control" value="@Model.Denominations[i].DenominationId" />
+<div class="row">
+    <div class="col-12 col-lg-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header pb-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="d-flex flex-column">
+                        <span class="text-muted small mb-2">Destruction Management</span>
+                        <h2 class="fs-4 fw-bold mb-0">New Destruction Request</h2>
                     </div>
-                    <div class="form-group col-md-4">
-                        <label>Number Of Bags</label>
-                        <input name="Denominations[@i].NumberOfBags" class="form-control" value="@Model.Denominations[i].NumberOfBags" />
-                    </div>
-                    <div class="form-group col-md-4">
-                        <label>Amount</label>
-                        <input name="Denominations[@i].Amount" class="form-control" value="@Model.Denominations[i].Amount" />
-                    </div>
+                    <a asp-action="Index" class="btn btn-outline-secondary">
+                        <i class="ti ti-arrow-left me-1"></i> Back to List
+                    </a>
                 </div>
             </div>
-        }
-    </div>
-    <button type="button" class="btn btn-secondary mb-3" onclick="addDenomination()">Add Denomination</button>
 
-    <h4>Witnesses</h4>
-    <div id="witnesses-list">
-        @for (int i = 0; i < Model.Witnesses.Count; i++)
-        {
-            <div class="witness-item border p-2 mb-2">
-                <div class="form-row">
-                    <div class="form-group col-md-6">
-                        <label>ID Number</label>
-                        <input name="Witnesses[@i].IDNumber" class="form-control" value="@Model.Witnesses[i].IDNumber" />
+            <div class="card-body">
+                <div id="formAlerts"></div>
+
+                <form id="destructionRequestForm">
+                    <div class="row mb-3">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Destruction Type <span class="text-danger">*</span></label>
+                            <select class="form-select" id="destructionTypeId">
+                                <option value="">-- Select Type --</option>
+                                @foreach (var dt in destructionTypes)
+                                {
+                                    <option value="@dt.Id">@dt.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Branch <span class="text-danger">*</span></label>
+                            <select class="form-select" id="branchId">
+                                <option value="">-- Select Branch --</option>
+                                @foreach (var b in branches)
+                                {
+                                    <option value="@b.Id">@b.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Reference Number <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="referenceNumber" placeholder="e.g. DR-2025-001" />
+                        </div>
                     </div>
-                    <div class="form-group col-md-6">
-                        <label>Full Name</label>
-                        <input name="Witnesses[@i].FullName" class="form-control" value="@Model.Witnesses[i].FullName" />
+
+                    <div class="row mb-3">
+                        <div class="col-md-4 mb-3" id="authorizationRow">
+                            <label class="form-label">Destruction Authorization <span class="text-danger">*</span></label>
+                            <select class="form-select" id="destructionAuthorizationId">
+                                <option value="">-- Select Authorization --</option>
+                                @foreach (var a in authorizations)
+                                {
+                                    <option value="@a.Id">@a.ReferenceNumber — @a.Date.ToString("dd/MMM/yyyy")</option>
+                                }
+                            </select>
+                            <div class="form-text text-muted" id="authorizationHint"></div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="requestDate" />
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Verification Officer <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="verificationOfficer" placeholder="Full name" />
+                        </div>
                     </div>
-                </div>
+
+                    <div class="row mb-3" id="locationRow" style="display:none;">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Location <span class="text-danger">*</span></label>
+                            <select class="form-select" id="destructionLocationId">
+                                <option value="">-- Select Location --</option>
+                                @foreach (var l in locations)
+                                {
+                                    <option value="@l.Id">@l.Name</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Denomination Details</label>
+                        <table class="table table-bordered" id="denominationTable">
+                            <thead>
+                                <tr>
+                                    <th>Denomination</th>
+                                    <th id="denomQtyHeader">Number of Bags</th>
+                                    <th>Amount</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                            <tfoot style="background-color: #f8f9fa;">
+                                <tr>
+                                    <td colspan="2" class="text-end align-middle">Grand Total Amount</td>
+                                    <td style="min-width: 160px;">
+                                        <input type="text" class="form-control text-end" id="grandTotalAmount" readonly placeholder="0" />
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                        <div class="d-flex justify-content-end mt-3">
+                            <button type="button" class="btn btn-success btn-sm" id="addDenominationRow">
+                                <i class="ti ti-plus"></i> Add Row
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Members &amp; Witnesses</label>
+                        <table class="table table-bordered" id="membersTable">
+                            <thead>
+                                <tr>
+                                    <th>ID Number</th>
+                                    <th>Full Name</th>
+                                    <th>Role</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="d-flex justify-content-end gap-2 mt-3">
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="addMemberRow">
+                                <i class="ti ti-user-plus me-1"></i> Add Member
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="addWitnessRow">
+                                <i class="ti ti-eye me-1"></i> Add Witness
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            <i class="ti ti-check me-1"></i>Save
+                        </button>
+                        <a asp-action="Index" class="btn btn-secondary">
+                            <i class="ti ti-arrow-left me-1"></i>Cancel
+                        </a>
+                    </div>
+
+                </form>
             </div>
-        }
+        </div>
     </div>
-    <button type="button" class="btn btn-secondary mb-3" onclick="addWitness()">Add Witness</button>
+</div>
 
-    <button type="submit" class="btn btn-primary">Submit</button>
-</form>
-
+@section Scripts {
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-    function addDenomination() {
-        var list = document.getElementById('denominations-list');
-        var count = list.children.length;
-        var html = `<div class="denomination-item border p-2 mb-2">
-            <div class="form-row">
-                <div class="form-group col-md-4">
-                    <label>DenominationId</label>
-                    <input name="Denominations[${count}].DenominationId" class="form-control" />
-                </div>
-                <div class="form-group col-md-4">
-                    <label>Number Of Bags</label>
-                    <input name="Denominations[${count}].NumberOfBags" class="form-control" />
-                </div>
-                <div class="form-group col-md-4">
-                    <label>Amount</label>
-                    <input name="Denominations[${count}].Amount" class="form-control" />
-                </div>
-            </div>
-        </div>`;
-        list.insertAdjacentHTML('beforeend', html);
+$(document).ready(function () {
+
+    // ─── Razor data passed into JS ────────────────────────────────────────────
+
+    const denominationOptions = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(
+        ViewBag.Denominations != null
+            ? ((List<VMSService.Core.Services.Stocks.StockEntities.Denomination>)ViewBag.Denominations)
+                .Select(d => new { id = d.Id, name = d.Name, value = d.Value, piecesInBox = d.NumberOfPiecesInABox })
+            : Enumerable.Empty<object>()
+    ));
+
+    const ONLINE_TYPE_NAME   = '@onlineTypeName';
+    const OFFSITE_TYPE_NAME  = '@offsiteTypeName';
+
+    function isOnlineType()  { return $('#destructionTypeId option:selected').text().trim() === ONLINE_TYPE_NAME; }
+    function isOffsiteType() { return $('#destructionTypeId option:selected').text().trim() === OFFSITE_TYPE_NAME; }
+
+    function updateDenomTableForType() {
+        if (isOnlineType()) {
+            $('#denomQtyHeader').text('Number of Notes');
+        } else {
+            $('#denomQtyHeader').text('Number of Bags');
+        }
+        renderDenominationTable();
     }
-    function addWitness() {
-        var list = document.getElementById('witnesses-list');
-        var count = list.children.length;
-        var html = `<div class="witness-item border p-2 mb-2">
-            <div class="form-row">
-                <div class="form-group col-md-6">
-                    <label>ID Number</label>
-                    <input name="Witnesses[${count}].IDNumber" class="form-control" />
-                </div>
-                <div class="form-group col-md-6">
-                    <label>Full Name</label>
-                    <input name="Witnesses[${count}].FullName" class="form-control" />
-                </div>
-            </div>
-        </div>`;
-        list.insertAdjacentHTML('beforeend', html);
+
+    $('#destructionTypeId').on('change', function () {
+        if (isOnlineType()) {
+            $('#authorizationRow').hide().find('select').val('');
+            denominationRows = [{ denominationId: '', numberOfBags: '', amount: '' }];
+            $('#authorizationHint').text('');
+        } else {
+            $('#authorizationRow').show();
+        }
+
+        if (isOffsiteType()) {
+            $('#locationRow').show();
+        } else {
+            $('#locationRow').hide().find('select').val('');
+        }
+
+        updateDenomTableForType();
+    });
+
+    // Authorization denomination data keyed by authorizationId
+    const authorizationData = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(
+        authorizations.ToDictionary(
+            a => a.Id,
+            a => (a.DestructionAuthorizationDenominations ?? new List<VMSService.Data.Entities.DestructionAuthorizationDenomination>())
+                .Select(d => new { denominationId = d.DenominationId, numberOfBags = d.NumberOfBags, amount = d.Amount })
+        )
+    ));
+
+    // ─── State ────────────────────────────────────────────────────────────────
+
+    let denominationRows = [
+        { denominationId: '', numberOfBags: '', amount: '' }
+    ];
+
+    let memberRows = [
+        { idNumber: '', fullName: '', isWitness: false }
+    ];
+
+    // ─── Authorization selection ──────────────────────────────────────
+
+    $('#destructionAuthorizationId').on('change', function () {
+        const authId = parseInt($(this).val());
+        if (!authId || !authorizationData[authId]) return;
+
+        const authDenoms = authorizationData[authId];
+        denominationRows = authDenoms.map(d => ({
+            denominationId: String(d.denominationId),
+            numberOfBags:   d.numberOfBags ?? '',
+            amount:         d.amount,
+            maxAmount:      d.amount
+        }));
+        renderDenominationTable();
+        $('#authorizationHint').text(`${authDenoms.length} denomination(s) loaded from authorization.`);
+    });
+
+    // ─── Option builders ──────────────────────────────────────────────────────
+
+    function buildDenomOptions(selectedId) {
+        let html = '<option value="">-- Select Denomination --</option>';
+        denominationOptions.forEach(d => {
+            html += `<option value="${d.id}" data-value="${d.value}" data-pieces="${d.piecesInBox}" ${String(d.id) === String(selectedId) ? 'selected' : ''}>${d.name} (${Number(d.value).toLocaleString()})</option>`;
+        });
+        return html;
     }
+
+    // ─── Render denomination table ────────────────────────────────────────────
+
+    function renderDenominationTable() {
+        const $tbody = $('#denominationTable tbody');
+        $tbody.empty();
+
+        denominationRows.forEach((row, idx) => {
+            $tbody.append(`
+                <tr data-idx="${idx}">
+                    <td>
+                        <select class="form-select denom-id">${buildDenomOptions(row.denominationId)}</select>
+                    </td>
+                    <td>
+                        <input type="text" class="form-control denom-bags" value="${row.numberOfBags}" placeholder="${isOnlineType() ? 'e.g. 1000' : 'e.g. 5'}" />
+                    </td>
+                    <td>
+                        <input type="text" class="form-control text-end denom-amount" value="${formatAmount(row.amount)}" placeholder="0" readonly />
+                    </td>
+                    <td class="text-center align-middle">
+                        <button type="button" class="btn btn-danger btn-sm remove-denom-row">
+                            <i class="ti ti-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `);
+        });
+
+        recalculateGrandTotal();
+    }
+
+    // ─── Render members table ─────────────────────────────────────────────────
+
+    function renderMembersTable() {
+        const $tbody = $('#membersTable tbody');
+        $tbody.empty();
+
+        memberRows.forEach((row, idx) => {
+            const roleBadge = row.isWitness
+                ? '<span class="badge bg-secondary">Witness</span>'
+                : '<span class="badge bg-primary">Member</span>';
+
+            $tbody.append(`
+                <tr data-idx="${idx}">
+                    <td>
+                        <input type="text" class="form-control member-id-number" value="${row.idNumber}" placeholder="Employee ID" />
+                    </td>
+                    <td>
+                        <input type="text" class="form-control member-full-name" value="${row.fullName}" placeholder="Full name" />
+                    </td>
+                    <td class="align-middle">${roleBadge}</td>
+                    <td class="text-center align-middle">
+                        <button type="button" class="btn btn-danger btn-sm remove-member-row">
+                            <i class="ti ti-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `);
+        });
+    }
+
+    // ─── Formatting helpers ───────────────────────────────────────────────────
+
+    function formatAmount(val) {
+        const n = parseFloat(val);
+        if (isNaN(n)) return '';
+        return n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+    // ─── Denomination events ──────────────────────────────────────────────────
+
+    $('#denominationTable').on('change', '.denom-id', function () {
+        const idx = $(this).closest('tr').data('idx');
+        denominationRows[idx].denominationId = $(this).val();
+        calculateDenomRow(idx);
+        recalculateGrandTotal();
+    });
+
+    $('#denominationTable').on('input', '.denom-bags', function () {
+        const idx = $(this).closest('tr').data('idx');
+        denominationRows[idx].numberOfBags = $(this).val();
+        calculateDenomRow(idx);
+        recalculateGrandTotal();
+    });
+
+    function calculateDenomRow(idx) {
+        const row  = denominationRows[idx];
+        const $row = $(`#denominationTable tbody tr[data-idx="${idx}"]`);
+        if (!$row.length) return;
+
+        const denom = denominationOptions.find(d => String(d.id) === String(row.denominationId));
+        const qty   = parseInt(row.numberOfBags) || 0;
+
+        if (!denom || qty === 0) {
+            denominationRows[idx].amount = '';
+            $row.find('.denom-amount').val('');
+            return;
+        }
+
+        // Online: amount = face value × number of notes
+        // Other:  amount = pieces per bag × face value × number of bags
+        const amount = isOnlineType()
+            ? denom.value * qty
+            : denom.piecesInBox * denom.value * qty;
+        denominationRows[idx].amount = amount;
+        $row.find('.denom-amount').val(formatAmount(amount));
+    }
+
+    $('#addDenominationRow').on('click', function () {
+        denominationRows.push({ denominationId: '', numberOfBags: '', amount: '' });
+        renderDenominationTable();
+    });
+
+    $('#denominationTable').on('click', '.remove-denom-row', function () {
+        const idx = $(this).closest('tr').data('idx');
+        if (denominationRows.length > 1) {
+            denominationRows.splice(idx, 1);
+            renderDenominationTable();
+        }
+    });
+
+    function recalculateGrandTotal() {
+        const grand = denominationRows.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+        $('#grandTotalAmount').val(formatAmount(grand));
+    }
+
+    // ─── Member events ────────────────────────────────────────────────────────
+
+    $('#addMemberRow').on('click', function () {
+        memberRows.push({ idNumber: '', fullName: '', isWitness: false });
+        renderMembersTable();
+    });
+
+    $('#addWitnessRow').on('click', function () {
+        memberRows.push({ idNumber: '', fullName: '', isWitness: true });
+        renderMembersTable();
+    });
+
+    $('#membersTable').on('input', '.member-id-number', function () {
+        const idx = $(this).closest('tr').data('idx');
+        memberRows[idx].idNumber = $(this).val();
+    });
+
+    $('#membersTable').on('input', '.member-full-name', function () {
+        const idx = $(this).closest('tr').data('idx');
+        memberRows[idx].fullName = $(this).val();
+    });
+
+    $('#membersTable').on('click', '.remove-member-row', function () {
+        const idx = $(this).closest('tr').data('idx');
+        if (memberRows.length > 1) {
+            memberRows.splice(idx, 1);
+            renderMembersTable();
+        }
+    });
+
+    // ─── AJAX Submit ──────────────────────────────────────────────────────────
+
+    $('#destructionRequestForm').on('submit', function (e) {
+        e.preventDefault();
+
+        const $submitBtn = $('#submitBtn');
+
+        const errors = [];
+
+        const authId          = parseInt($('#destructionAuthorizationId').val()) || 0;
+        const destructionType = parseInt($('#destructionTypeId').val()) || 0;
+        const branch          = parseInt($('#branchId').val()) || 0;
+        const refNumber       = $('#referenceNumber').val().trim();
+        const date            = $('#requestDate').val();
+        const officer         = $('#verificationOfficer').val().trim();
+        const validDenoms     = denominationRows.filter(r => r.denominationId !== '');
+
+        if (!destructionType)            errors.push('Please select a Destruction Type.');
+        if (!branch)                     errors.push('Please select a Branch.');
+        if (!isOnlineType() && !authId)  errors.push('Please select a Destruction Authorization.');
+        if (!refNumber)                  errors.push('Reference Number is required.');
+        if (!date)                       errors.push('Date is required.');
+        if (!officer)                    errors.push('Verification Officer is required.');
+        if (!validDenoms.length)         errors.push('At least one denomination must be added.');
+        if (isOffsiteType() && !(parseInt($('#destructionLocationId').val()) || 0))
+                                         errors.push('Location is required for Offsite destruction.');
+
+        // Members — each added row must be fully filled
+        memberRows.filter(r => !r.isWitness).forEach((r, i) => {
+            const hasId   = r.idNumber.trim() !== '';
+            const hasName = r.fullName.trim() !== '';
+            if (hasId && !hasName)  errors.push(`Member row ${i + 1}: Full Name is required.`);
+            if (!hasId && hasName)  errors.push(`Member row ${i + 1}: ID Number is required.`);
+        });
+
+        // Witnesses — at least 2 required, each must be fully filled
+        const witnessRows = memberRows.filter(r => r.isWitness);
+        const validWitnesses = witnessRows.filter(r => r.idNumber.trim() !== '' && r.fullName.trim() !== '');
+        if (validWitnesses.length < 2)
+            errors.push('At least 2 witnesses are required.');
+        witnessRows.forEach((r, i) => {
+            const hasId   = r.idNumber.trim() !== '';
+            const hasName = r.fullName.trim() !== '';
+            if (hasId && !hasName)  errors.push(`Witness row ${i + 1}: Full Name is required.`);
+            if (!hasId && hasName)  errors.push(`Witness row ${i + 1}: ID Number is required.`);
+        });
+
+        // Amount validation against authorization (skip for Online)
+        const authDenoms = (!isOnlineType() && authorizationData[authId]) ? authorizationData[authId] : [];
+        for (const row of validDenoms) {
+            const auth = authDenoms.find(d => String(d.denominationId) === String(row.denominationId));
+            if (auth && parseFloat(row.amount) > auth.amount) {
+                errors.push(`Amount for a denomination exceeds the authorized limit of ${auth.amount.toLocaleString()}.`);
+                break;
+            }
+        }
+
+        if (errors.length) {
+            $('#formAlerts').html(
+                '<div class="alert alert-danger alert-dismissible fade show"><ul class="mb-0">' +
+                errors.map(e => `<li>${e}</li>`).join('') +
+                '</ul><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>'
+            );
+            $submitBtn.prop('disabled', false).html('<i class="ti ti-check me-1"></i>Save');
+            return;
+        }
+
+        const payload = {
+            DestructionAuthorizationId: authId || null,
+            DestructionTypeId:          destructionType,
+            DestructionLocationId:      parseInt($('#destructionLocationId').val()) || null,
+            BranchId:                   branch,
+            ReferenceNumber:            refNumber,
+            Date:                       date,
+            VerificationOfficer:        officer,
+            Denominations: denominationRows
+                .filter(r => r.denominationId !== '')
+                .map(r => ({
+                    DenominationId: parseInt(r.denominationId) || 0,
+                    NumberOfBags:   isOnlineType() ? null : (r.numberOfBags || null),
+                    NumberOfNotes:  isOnlineType() ? (r.numberOfBags || null) : null,
+                    Amount:         parseFloat(r.amount) || 0
+                })),
+            Members: memberRows
+                .filter(r => r.idNumber !== '' || r.fullName !== '')
+                .map(r => ({
+                    IDNumber:  r.idNumber,
+                    FullName:  r.fullName,
+                    IsWitness: r.isWitness
+                }))
+        };
+
+        $submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Saving...');
+        $('#formAlerts').empty();
+
+        $.ajax({
+            url:         '@Url.Action("Create")',
+            type:        'POST',
+            contentType: 'application/json',
+            data:        JSON.stringify(payload),
+            success: function (response) {
+                if (response && response.redirectUrl) {
+                    window.location.href = response.redirectUrl;
+                    return;
+                }
+                if (response && response.success === true) {
+                    $('#formAlerts').html(
+                        '<div class="alert alert-success alert-dismissible fade show">' +
+                        '<i class="ti ti-check me-1"></i>Destruction request saved successfully.' +
+                        '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>'
+                    );
+                    // Reset state
+                    denominationRows = [{ denominationId: '', numberOfBags: '', amount: '' }];
+                    memberRows       = [{ idNumber: '', fullName: '', isWitness: false }];
+                    $('#destructionTypeId').val('');
+                    $('#referenceNumber').val('');
+                    $('#requestDate').val('');
+                    $('#verificationOfficer').val('');
+                    renderDenominationTable();
+                    renderMembersTable();
+                    return;
+                }
+                if (response && response.errors) {
+                    let html = '<div class="alert alert-danger alert-dismissible fade show"><ul class="mb-0">';
+                    Object.values(response.errors).forEach(msg => { html += `<li>${msg}</li>`; });
+                    html += '</ul><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
+                    $('#formAlerts').html(html);
+                }
+            },
+            error: function (xhr) {
+                console.error('Submission error:', xhr.status, xhr.statusText, xhr.responseText);
+                let html = '<div class="alert alert-danger alert-dismissible fade show"><ul class="mb-0">';
+
+                if (xhr.responseJSON) {
+                    const errors = xhr.responseJSON;
+                    if (errors.message) {
+                        html += `<li>${errors.message}</li>`;
+                    } else if (errors.errors) {
+                        for (let key in errors.errors) {
+                            (errors.errors[key] || []).forEach(e => { html += `<li>${e}</li>`; });
+                        }
+                    } else {
+                        for (let key in errors) {
+                            if (Array.isArray(errors[key])) {
+                                errors[key].forEach(e => { html += `<li>${e}</li>`; });
+                            } else if (typeof errors[key] === 'string') {
+                                html += `<li>${errors[key]}</li>`;
+                            }
+                        }
+                    }
+                } else {
+                    html += `<li>Unexpected error: ${xhr.status} ${xhr.statusText}</li>`;
+                }
+
+                html += '</ul><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
+                $('#formAlerts').html(html);
+            },
+            complete: function () {
+                $submitBtn.prop('disabled', false).html('<i class="ti ti-check me-1"></i>Save');
+            }
+        });
+    });
+
+    // ─── Init ─────────────────────────────────────────────────────────────────
+
+    $('#requestDate').val(new Date().toISOString().split('T')[0]);
+    renderDenominationTable();
+    renderMembersTable();
+
+});
 </script>
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

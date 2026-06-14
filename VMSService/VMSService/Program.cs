@@ -60,6 +60,14 @@ using VMSService.Core.Repositories.NewStockMovementLogs;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Services.PackingListRangeDetails;
 using WorkflowService.Client;
+using VMSService.Core.Repositories.DestructionRequests;
+using VMSService.Core.Repositories.DestructionRequestStatusHistories;
+using VMSService.Core.Repositories.DestructionTypes;
+using VMSService.Core.Repositories.DestructionAuthorizations;
+using VMSService.Core.Repositories.DestructionAuthorizationStatusHistories;
+using VMSService.Core.Repositories.DestructionLocations;
+using VMSService.Core.Repositories.CfbReports;
+using VMSService.Core.Repositories.CfbReportStatusHistories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -236,6 +244,14 @@ builder.Services.AddScoped<IDepositUnitOfWork, DepositUnitOfWork>();
 builder.Services.AddScoped<IDepositTransactionRefNumberGenerator, DepositTransactionRefNumberGenerator>();
 builder.Services.AddScoped<IDepositRequestRepository, DepositRequestRepository>();
 builder.Services.AddScoped<IDepositRequestStatusHistoryRepository, DepositRequestStatusHistoryRepository>();
+builder.Services.AddScoped<IDestructionRequestRepository, DestructionRequestRepository>();
+builder.Services.AddScoped<IDestructionRequestStatusHistoryRepository, DestructionRequestStatusHistoryRepository>();
+builder.Services.AddScoped<IDestructionTypeRepository, DestructionTypeRepository>();
+builder.Services.AddScoped<IDestructionLocationRepository, DestructionLocationRepository>();
+builder.Services.AddScoped<IDestructionAuthorizationRepository, DestructionAuthorizationRepository>();
+builder.Services.AddScoped<IDestructionAuthorizationStatusHistoryRepository, DestructionAuthorizationStatusHistoryRepository>();
+builder.Services.AddScoped<ICfbReportRepository, CfbReportRepository>();
+builder.Services.AddScoped<ICfbReportStatusHistoryRepository, CfbReportStatusHistoryRepository>();
 
 // ── Resource-based ownership check ────────────────────────────
 builder.Services.AddSingleton<IAuthorizationHandler, CbOwnershipAuthorizationHandler>();

@@ -1,0 +1,270 @@
+@model VMSService.Core.Models.CfbReports.CfbReportDetailsViewModel
+
+@using VMSService.Core.Static
+
+@{
+    ViewData["Title"] = "CFB Report Details";
+
+    var totalShortage = Model.Transactions.Where(t => t.Type == "Shortage").Sum(t => t.Amount);
+    var totalSurplus  = Model.Transactions.Where(t => t.Type == "Surplus").Sum(t => t.Amount);
+    var netAmount     = totalSurplus - totalShortage;
+
+    var s = Model.CurrentStatusName;
+    string statusBadgeClass =
+        s == StatusConstants.CfbReport.Draft               ? "bg-secondary" :
+        s == StatusConstants.CfbReport.PendingVerification ? "bg-info text-dark" :
+        s == StatusConstants.CfbReport.PendingApproval     ? "bg-warning text-dark" :
+        s == StatusConstants.CfbReport.Approved            ? "bg-success" :
+        s == StatusConstants.CfbReport.Returned            ? "bg-danger" :
+        "bg-secondary";
+}
+
+<div class="row g-4">
+
+    @* ── Left column ─────────────────────────────────────────── *@
+    <div class="col-12 col-xl-8">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header pb-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="text-muted small mb-1 d-block">Cash Flow Balancing</span>
+                        <h2 class="fs-4 fw-bold mb-0">@Model.ReferenceNumber</h2>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge @statusBadgeClass fs-6">@Model.CurrentStatusName</span>
+                        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+                            <i class="ti ti-arrow-left me-1"></i>Back
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body">
+
+                @if (TempData["Success"] != null)
+                {
+                    <div class="alert alert-success alert-dismissible fade show">
+                        <i class="ti ti-circle-check me-1"></i>@TempData["Success"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                }
+                @if (TempData["Error"] != null)
+                {
+                    <div class="alert alert-danger alert-dismissible fade show">
+                        <i class="ti ti-alert-triangle me-1"></i>@TempData["Error"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                }
+
+                @* Summary *@
+                <div class="row mb-4">
+                    <div class="col-md-4 mb-3">
+                        <span class="text-muted small d-block">Reference Number</span>
+                        <span class="fw-bold">@Model.ReferenceNumber</span>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <span class="text-muted small d-block">Branch</span>
+                        <span class="fw-bold">@Model.BranchName</span>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <span class="text-muted small d-block">Period</span>
+                        <span class="fw-bold">@Model.PeriodStart.ToString("dd MMM yyyy") – @Model.PeriodEnd.ToString("dd MMM yyyy")</span>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(Model.Remarks))
+                    {
+                        <div class="col-12 mb-3">
+                            <span class="text-muted small d-block">Remarks</span>
+                            <span class="fw-bold">@Model.Remarks</span>
+                        </div>
+                    }
+                </div>
+
+                @* Totals *@
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="card border-danger border-1 bg-light text-center py-3">
+                            <div class="text-danger small fw-semibold">Total Shortage</div>
+                            <div class="fs-5 fw-bold text-danger">@totalShortage.ToString("N0")</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-success border-1 bg-light text-center py-3">
+                            <div class="text-success small fw-semibold">Total Surplus</div>
+                            <div class="fs-5 fw-bold text-success">@totalSurplus.ToString("N0")</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-primary border-1 bg-light text-center py-3">
+                            <div class="text-primary small fw-semibold">Net Amount</div>
+                            <div class="fs-5 fw-bold @(netAmount >= 0 ? "text-success" : "text-danger")">@netAmount.ToString("N0")</div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr />
+
+                @* Transactions *@
+                <h5 class="fw-bold mb-3">Compiled Transactions</h5>
+                <div class="table-responsive mb-4">
+                    <table class="table table-bordered table-sm datatable">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Teller Name</th>
+                                <th>Date</th>
+                                <th>Reference</th>
+                                <th>Type</th>
+                                <th class="text-end">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{ int row = 1; }
+                            @if (Model.Transactions.Any())
+                            {
+                                foreach (var txn in Model.Transactions)
+                                {
+                                    <tr>
+                                        <td>@row</td>
+                                        <td>@txn.TellerName</td>
+                                        <td>@txn.TransactionDate.ToString("dd/MMM/yyyy")</td>
+                                        <td>@(txn.TransactionReference ?? "–")</td>
+                                        <td>
+                                            <span class="badge @(txn.Type == "Shortage" ? "bg-danger" : "bg-success")">@txn.Type</span>
+                                        </td>
+                                        <td class="text-end">@txn.Amount.ToString("N0")</td>
+                                    </tr>
+                                    row++;
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-3">No transactions compiled into this report.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <hr />
+
+                @* Status History *@
+                @if (Model.StatusHistory.Any())
+                {
+                    <div class="card border-0 shadow-sm mb-3">
+                        <div class="card-header bg-white border-bottom">
+                            <h6 class="card-title mb-0">
+                                <i class="ti ti-message me-2 text-secondary"></i>Comments &amp; History
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="timeline">
+                                @foreach (var h in Model.StatusHistory.OrderBy(x => x.ChangedAt))
+                                {
+                                    <div class="timeline-item mb-4">
+                                        <div class="d-flex gap-3">
+                                            <div class="timeline-marker">
+                                                <i class="ti ti-circle-check text-success"></i>
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <div class="d-flex justify-content-between align-items-start">
+                                                    <div>
+                                                        <h6 class="mb-1 small">
+                                                            <strong>@h.OldStatusName</strong>
+                                                            <i class="ti ti-arrow-right text-muted"></i>
+                                                            <strong>@h.NewStatusName</strong>
+                                                        </h6>
+                                                        <small class="text-muted">By: <strong>@h.ChangedBy</strong></small>
+                                                    </div>
+                                                    <small class="text-muted">@h.ChangedAt.ToString("dd/MMM/yyyy HH:mm:ss")</small>
+                                                </div>
+                                                @if (!string.IsNullOrWhiteSpace(h.Remarks))
+                                                {
+                                                    <div class="mt-2 p-2 bg-white rounded border">
+                                                        <span class="d-block">@h.Remarks</span>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <hr />
+
+                <div class="row text-muted small">
+                    <div class="col-md-3">
+                        <span class="d-block">Created By</span>
+                        <span>@Model.CreatedBy</span>
+                    </div>
+                    <div class="col-md-3">
+                        <span class="d-block">Created Date</span>
+                        <span>@Model.CreatedDate.ToString("dd MMM yyyy HH:mm")</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    @* ── Right column: actions ────────────────────────────────── *@
+    <div class="col-12 col-xl-4">
+        <div class="card border-0 shadow" style="position: sticky; top: 1.5rem;">
+            <div class="card-header">
+                <h5 class="fw-bold mb-0">Actions</h5>
+            </div>
+            <div class="card-body">
+
+                @if (Model.AvailableTransitions.Any())
+                {
+                    <form asp-action="ExecuteAction" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@Model.Id" />
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Select Action</label>
+                            <select class="form-select" name="actionName">
+                                <option value="">-- Choose action --</option>
+                                @foreach (var t in Model.AvailableTransitions)
+                                {
+                                    <option value="@t.ActionName">@t.DisplayLabel</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Remarks</label>
+                            <textarea class="form-control" name="remarks" rows="3"
+                                      placeholder="Add comments…"></textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="ti ti-check me-1"></i>Submit
+                        </button>
+                    </form>
+                }
+                else
+                {
+                    <div class="text-center text-muted py-3">
+                        <i class="ti ti-lock fs-3 d-block mb-2"></i>
+                        No actions available for your role at this stage.
+                    </div>
+                }
+
+                @if (Model.CurrentStatusName == StatusConstants.CfbReport.Draft ||
+                     Model.CurrentStatusName == StatusConstants.CfbReport.Returned)
+                {
+                    <hr />
+                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-primary w-100">
+                        <i class="ti ti-edit me-1"></i>Edit Report
+                    </a>
+                }
+
+            </div>
+        </div>
+    </div>
+
+</div>

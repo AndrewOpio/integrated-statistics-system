@@ -10,6 +10,7 @@ using VMSService.Core.Models.CommercialBankUser;
 using VMSService.Core.Models.CounterPartyTypes;
 using VMSService.Core.Models.CurrencyVendors;
 using VMSService.Core.Models.Denominations;
+using VMSService.Core.Models.DestructionLocations;
 using VMSService.Core.Models.DenominationTypes;
 using VMSService.Core.Models.ExPrintMints;
 using VMSService.Core.Models.ExPrintMintStatusHistories;
@@ -18,6 +19,7 @@ using VMSService.Core.Models.ReceivedStocks;
 using VMSService.Core.Models.ReceivedStocksDetails;
 using VMSService.Core.Models.ReceivedStockStatusHistories;
 using VMSService.Core.Models.StockLedgers;
+using VMSService.Core.Models.DestructionTypes;
 using VMSService.Core.Models.VendorTypes;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Data.Entities;
@@ -35,6 +37,8 @@ namespace VMSService.Core.Mappings
         public VMSServiceAutoMapperProfile()
         {
             CreateMap<VendorType, VendorTypeViewModel>().ReverseMap();
+            CreateMap<DestructionType, DestructionTypeViewModel>().ReverseMap();
+            CreateMap<DestructionLocation, DestructionLocationViewModel>().ReverseMap();
             CreateMap<CurrencyVendor, CurrencyVendorViewModel>().ReverseMap();
             CreateMap<DenominationType, DenominationTypeViewModel>().ReverseMap();
             CreateMap<Denomination, DenominationViewModel>().ReverseMap();

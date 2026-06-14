@@ -55,12 +55,22 @@ namespace VMSService.Data.Configurations
         public DbSet<DepositRequestDenomination> DepositRequestDenominations { get; set; }
         public DbSet<DepositRequestStatusHistory> DepositRequestStatusHistory { get; set; }
 
-        // Destruction
-        public DbSet<DestructionRequest> DestructionRequests { get; set; }  
-        public DbSet<DestructionRequestDenomination> DestructionRequestDenominations { get; set; }
-        public DbSet<DestructionRequestWitness> DestructionRequestWitnesses { get; set; }
-        public DbSet<DestructionRequestMember> DestructionRequestMembers { get; set; }
+        // CFB
+        public DbSet<CfbReport> CfbReports { get; set; }
+        public DbSet<CfbReportTransaction> CfbReportTransactions { get; set; }
+        public DbSet<CfbReportStatusHistory> CfbReportStatusHistories { get; set; }
 
+        // Destruction
+        public DbSet<DestructionRequest> DestructionRequests { get; set; }
+        public DbSet<DestructionRequestDenomination> DestructionRequestDenominations { get; set; }
+        public DbSet<DestructionRequestMember> DestructionRequestMembers { get; set; }
+        public DbSet<DestructionRequestStatusHistory> DestructionRequestStatusHistory { get; set; }
+        public DbSet<DestructionType> DestructionTypes { get; set; }
+        public DbSet<DestructionLocation> DestructionLocations { get; set; }
+        public DbSet<DestructionAuthorization> DestructionAuthorizations { get; set; }
+        public DbSet<DestructionAuthorizationDenomination> DestructionAuthorizationDenominations { get; set; }
+        public DbSet<DestructionAuthorizationStatusHistory> DestructionAuthorizationStatusHistory { get; set; }
+        
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

@@ -1,0 +1,271 @@
+@{
+    ViewData["Title"] = "Create Destruction Authorization";
+}
+
+<div class="row">
+    <div class="col-12 col-lg-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header pb-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="d-flex flex-column">
+                        <span class="text-muted small mb-2">Destruction Management</span>
+                        <h2 class="fs-4 fw-bold mb-0">New Destruction Authorization</h2>
+                    </div>
+                    <a asp-action="Index" class="btn btn-outline-secondary">
+                        <i class="ti ti-arrow-left me-1"></i> Back to List
+                    </a>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <div id="formAlerts"></div>
+
+                <form id="destructionAuthorizationForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Reference Number <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="referenceNumber" placeholder="e.g. DA-2026-001" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="authorizationDate" />
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Denomination Details</label>
+                        <table class="table table-bordered" id="denominationTable">
+                            <thead>
+                                <tr>
+                                    <th>Denomination</th>
+                                    <th>Number of Bags</th>
+                                    <th>Amount</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                            <tfoot style="background-color: #f8f9fa;">
+                                <tr>
+                                    <td colspan="2" class="text-end align-middle">Grand Total Amount</td>
+                                    <td style="min-width: 160px;">
+                                        <input type="text" class="form-control text-end" id="grandTotalAmount" readonly placeholder="0" />
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                        <div class="d-flex justify-content-end mt-3">
+                            <button type="button" class="btn btn-success btn-sm" id="addDenominationRow">
+                                <i class="ti ti-plus"></i> Add Row
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            <i class="ti ti-check me-1"></i>Save
+                        </button>
+                        <a asp-action="Index" class="btn btn-secondary">
+                            <i class="ti ti-arrow-left me-1"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+$(document).ready(function () {
+
+    const denominationOptions = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(
+        ViewBag.Denominations != null
+            ? ((List<VMSService.Core.Services.Stocks.StockEntities.Denomination>)ViewBag.Denominations)
+                .Select(d => new { id = d.Id, name = d.Name, value = d.Value, piecesInBox = d.NumberOfPiecesInABox })
+            : Enumerable.Empty<object>()
+    ));
+
+    let denominationRows = [{ denominationId: '', numberOfBags: '', amount: '' }];
+
+    function buildDenomOptions(selectedId) {
+        let html = '<option value="">-- Select Denomination --</option>';
+        denominationOptions.forEach(d => {
+            html += `<option value="${d.id}" data-value="${d.value}" data-pieces="${d.piecesInBox}" ${String(d.id) === String(selectedId) ? 'selected' : ''}>${d.name} (${Number(d.value).toLocaleString()})</option>`;
+        });
+        return html;
+    }
+
+    function formatAmount(val) {
+        const n = parseFloat(val);
+        if (isNaN(n)) return '';
+        return n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+    function recalculateGrandTotal() {
+        const grand = denominationRows.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+        $('#grandTotalAmount').val(formatAmount(grand));
+    }
+
+    function renderDenominationTable() {
+        const $tbody = $('#denominationTable tbody');
+        $tbody.empty();
+
+        denominationRows.forEach((row, idx) => {
+            $tbody.append(`
+                <tr data-idx="${idx}">
+                    <td>
+                        <select class="form-select denom-id">${buildDenomOptions(row.denominationId)}</select>
+                    </td>
+                    <td>
+                        <input type="text" class="form-control denom-bags" value="${row.numberOfBags}" placeholder="e.g. 5" />
+                    </td>
+                    <td>
+                        <input type="text" class="form-control text-end denom-amount" value="${formatAmount(row.amount)}" placeholder="0" readonly />
+                    </td>
+                    <td class="text-center align-middle">
+                        <button type="button" class="btn btn-danger btn-sm remove-denom-row">
+                            <i class="ti ti-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `);
+        });
+
+        recalculateGrandTotal();
+    }
+
+    function calculateDenomRow(idx) {
+        const row = denominationRows[idx];
+        const $row = $(`#denominationTable tbody tr[data-idx="${idx}"]`);
+        if (!$row.length) return;
+
+        const denom = denominationOptions.find(d => String(d.id) === String(row.denominationId));
+        const bags  = parseInt(row.numberOfBags) || 0;
+
+        if (!denom || bags === 0) {
+            denominationRows[idx].amount = '';
+            $row.find('.denom-amount').val('');
+            return;
+        }
+
+        const amount = denom.piecesInBox * denom.value * bags;
+        denominationRows[idx].amount = amount;
+        $row.find('.denom-amount').val(formatAmount(amount));
+    }
+
+    $('#denominationTable').on('change', '.denom-id', function () {
+        const idx = $(this).closest('tr').data('idx');
+        denominationRows[idx].denominationId = $(this).val();
+        calculateDenomRow(idx);
+        recalculateGrandTotal();
+    });
+
+    $('#denominationTable').on('input', '.denom-bags', function () {
+        const idx = $(this).closest('tr').data('idx');
+        denominationRows[idx].numberOfBags = $(this).val();
+        calculateDenomRow(idx);
+        recalculateGrandTotal();
+    });
+
+    $('#addDenominationRow').on('click', function () {
+        denominationRows.push({ denominationId: '', numberOfBags: '', amount: '' });
+        renderDenominationTable();
+    });
+
+    $('#denominationTable').on('click', '.remove-denom-row', function () {
+        const idx = $(this).closest('tr').data('idx');
+        if (denominationRows.length > 1) {
+            denominationRows.splice(idx, 1);
+            renderDenominationTable();
+        }
+    });
+
+    $('#destructionAuthorizationForm').on('submit', function (e) {
+        e.preventDefault();
+
+        const $submitBtn = $('#submitBtn');
+
+        const payload = {
+            ReferenceNumber: $('#referenceNumber').val().trim(),
+            Date:            $('#authorizationDate').val(),
+            Denominations:   denominationRows
+                .filter(r => r.denominationId !== '')
+                .map(r => ({
+                    DenominationId: parseInt(r.denominationId) || 0,
+                    NumberOfBags:   r.numberOfBags || null,
+                    Amount:         parseFloat(r.amount) || 0
+                }))
+        };
+
+        $submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Saving...');
+        $('#formAlerts').empty();
+
+        $.ajax({
+            url:         '@Url.Action("Create")',
+            type:        'POST',
+            contentType: 'application/json',
+            data:        JSON.stringify(payload),
+            success: function (response) {
+                if (response && response.redirectUrl) {
+                    window.location.href = response.redirectUrl;
+                    return;
+                }
+                if (response && response.success === true) {
+                    $('#formAlerts').html(
+                        '<div class="alert alert-success alert-dismissible fade show">' +
+                        '<i class="ti ti-check me-1"></i>Destruction authorization saved successfully.' +
+                        '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>'
+                    );
+                    denominationRows = [{ denominationId: '', numberOfBags: '', amount: '' }];
+                    $('#referenceNumber').val('');
+                    $('#authorizationDate').val(new Date().toISOString().split('T')[0]);
+                    renderDenominationTable();
+                    return;
+                }
+                if (response && response.errors) {
+                    let html = '<div class="alert alert-danger alert-dismissible fade show"><ul class="mb-0">';
+                    Object.values(response.errors).forEach(msg => { html += `<li>${msg}</li>`; });
+                    html += '</ul><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
+                    $('#formAlerts').html(html);
+                }
+            },
+            error: function (xhr) {
+                let html = '<div class="alert alert-danger alert-dismissible fade show"><ul class="mb-0">';
+                if (xhr.responseJSON) {
+                    const errors = xhr.responseJSON;
+                    if (errors.message) {
+                        html += `<li>${errors.message}</li>`;
+                    } else if (errors.errors) {
+                        for (let key in errors.errors) {
+                            (errors.errors[key] || []).forEach(e => { html += `<li>${e}</li>`; });
+                        }
+                    } else {
+                        for (let key in errors) {
+                            if (Array.isArray(errors[key])) {
+                                errors[key].forEach(e => { html += `<li>${e}</li>`; });
+                            } else if (typeof errors[key] === 'string') {
+                                html += `<li>${errors[key]}</li>`;
+                            }
+                        }
+                    }
+                } else {
+                    html += `<li>Unexpected error: ${xhr.status} ${xhr.statusText}</li>`;
+                }
+                html += '</ul><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
+                $('#formAlerts').html(html);
+            },
+            complete: function () {
+                $submitBtn.prop('disabled', false).html('<i class="ti ti-check me-1"></i>Save');
+            }
+        });
+    });
+
+    $('#authorizationDate').val(new Date().toISOString().split('T')[0]);
+    renderDenominationTable();
+});
+</script>
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}
