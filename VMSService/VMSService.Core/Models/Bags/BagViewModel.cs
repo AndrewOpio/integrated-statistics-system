@@ -1,3 +1,6 @@
+using VMSService.Core.Models.CbDepositRequests;
+using VMSService.Data.Entities;
+
 namespace VMSService.Core.Models.Bags
 {
     public class BagViewModel
@@ -11,7 +14,10 @@ namespace VMSService.Core.Models.Bags
         public decimal TotalAmount { get; set; }
         public bool IsDeleted { get; set; }
         public int BranchId { get; set; }
+        public string? CbCode { get; set; }
         public DateTime CreatedDate { get; set; }
         public string CreatedBy { get; set; } = string.Empty;
+        public int NumberOfBundlesOrBoxes { get; set; }
+        public List<BagDenomination> Items { get; set; } = [];
     }
 }

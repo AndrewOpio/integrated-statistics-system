@@ -74,7 +74,8 @@ namespace VMSService.Core.Repositories.Bags
                         .Sum(bd => bd.DepositRequestDenomination.Amount),
                     IsDeleted = b.IsDeleted,
                     CreatedDate = b.CreatedDate,
-                    CreatedBy = b.CreatedBy
+                    CreatedBy = b.CreatedBy,
+                    Items = b.BagDenominations.ToList(),
                 })
                 .OrderByDescending(b => b.CreatedDate)
                 .ToListAsync();
@@ -109,7 +110,9 @@ namespace VMSService.Core.Repositories.Bags
                         Boxes = bd.DepositRequestDenomination.Boxes,
                         Amount = bd.DepositRequestDenomination.Amount,
                         Origin = bd.DepositRequestDenomination.Origin,
-                        SubCategoryId = bd.DepositRequestDenomination.SubCategoryId
+                        SubCategoryId = bd.DepositRequestDenomination.SubCategoryId,
+                        DepositDate = bd.DepositRequestDenomination.DepositRequest.DepositDate,
+                        CbId = bd.DepositRequestDenomination.DepositRequest.CbId
                     })
                     .ToList(),
                 TotalAmount = bag.BagDenominations.Sum(bd => bd.DepositRequestDenomination.Amount),
@@ -124,6 +127,8 @@ namespace VMSService.Core.Repositories.Bags
             {
                 ReferenceNumber = model.ReferenceNumber,
                 DenominationId = model.DenominationId,
+                BranchId = model.BranchId,
+                CbCode = model.CbCode,
                 IsDeleted = false
             };
 
@@ -135,6 +140,8 @@ namespace VMSService.Core.Repositories.Bags
                 Id = bag.Id,
                 ReferenceNumber = bag.ReferenceNumber,
                 DenominationId = bag.DenominationId,
+                BranchId = model.BranchId,
+                CbCode = model.CbCode,
                 ItemCount = 0,
                 TotalAmount = 0,
                 IsDeleted = bag.IsDeleted,
@@ -242,7 +249,8 @@ namespace VMSService.Core.Repositories.Bags
                     Amount = d.Amount,
                     Origin = d.Origin,
                     SubCategoryId = d.SubCategoryId,
-                    IsInBag = false
+                    IsInBag = false,
+                    DepositDate = d.DepositRequest.DepositDate
                 })
                 .OrderByDescending(d => d.TransactionRefNumber)
                 .ToListAsync();
@@ -252,6 +260,54 @@ namespace VMSService.Core.Repositories.Bags
         {
             _db.Bags.AddRange(bags);
             return await Save();
+        }
+
+        public async Task<int> BagSequence(DateTime date, int denominationId, string CbCode)
+        {
+            var bags = await _db.Bags
+                .Where(b => b.DenominationId == denominationId && b.CbCode == CbCode)
+                .Where(b => !b.IsDeleted)
+                .Where(b => b.CreatedDate.Date == date.Date)
+                .ToListAsync();
+            return bags.Count + 1;
+        }
+
+        public async Task<List<DepositRequestBagCardViewModel>> GetBagsByDepositRequestIdAsync(Guid depositRequestId)
+        {
+            var bags = await _db.Bags
+                .Where(b => !b.IsDeleted &&
+                    b.BagDenominations.Any(bd => !bd.IsDeleted &&
+                        bd.DepositRequestDenomination.DepositRequestId == depositRequestId))
+                .Include(b => b.BagDenominations.Where(bd => !bd.IsDeleted))
+                    .ThenInclude(bd => bd.DepositRequestDenomination)
+                        .ThenInclude(d => d.DepositRequest)
+                .OrderBy(b => b.ReferenceNumber)
+                .ToListAsync();
+
+            return [.. bags.Select(b =>
+            {
+                var activeItems = b.BagDenominations.Where(bd => !bd.IsDeleted).ToList();
+                return new DepositRequestBagCardViewModel
+                {
+                    Id = b.Id,
+                    ReferenceNumber = b.ReferenceNumber,
+                    DenominationValue = activeItems
+                        .Select(bd => bd.DepositRequestDenomination.DenominationValue)
+                        .FirstOrDefault(),
+                    TotalAmount = activeItems.Sum(bd => bd.DepositRequestDenomination.Amount),
+                    NumberOfBundlesOrBoxes = b.NumberOfBundlesOrBoxes,
+                    TotalBundles = activeItems.Sum(bd =>
+                        bd.DepositRequestDenomination.Bundles ?? bd.DepositRequestDenomination.Boxes ?? 0),
+                    Items = activeItems.Select(bd => new BagItemLineViewModel
+                    {
+                        CbName = bd.DepositRequestDenomination.DepositRequest.CbCode ?? string.Empty,
+                        DepositDate = bd.DepositRequestDenomination.DepositRequest.DepositDate,
+                        Bundles = bd.DepositRequestDenomination.Bundles
+                            ?? bd.DepositRequestDenomination.Boxes
+                            ?? 0
+                    }).ToList()
+                };
+            })];
         }
     }
 }

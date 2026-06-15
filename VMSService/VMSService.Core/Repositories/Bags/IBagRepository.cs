@@ -15,5 +15,7 @@ namespace VMSService.Core.Repositories.Bags
         Task<bool> DeleteBagAsync(int bagId);
         Task<List<DepositRequestDenominationViewModel>> GetAvailableItemsByDenominationAsync(int denominationId);
         Task<bool> CreateBagsAsync(List<Bag> bags);
+        Task<int> BagSequence(DateTime date, int denominationId, string CbCode);
+        Task<List<DepositRequestBagCardViewModel>> GetBagsByDepositRequestIdAsync(Guid depositRequestId);
     }
 }

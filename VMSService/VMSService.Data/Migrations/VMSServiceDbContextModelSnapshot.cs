@@ -409,6 +409,9 @@ namespace VMSService.Data.Migrations
                     b.Property<int>("BranchId")
                         .HasColumnType("int");
 
+                    b.Property<string>("CbCode")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("CreatedBy")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -428,6 +431,9 @@ namespace VMSService.Data.Migrations
 
                     b.Property<DateTime>("ModifiedDate")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("NumberOfBundlesOrBoxes")
+                        .HasColumnType("int");
 
                     b.Property<int?>("ParentBagId")
                         .HasColumnType("int");

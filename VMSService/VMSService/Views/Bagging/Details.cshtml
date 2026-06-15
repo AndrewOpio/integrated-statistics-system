@@ -38,7 +38,8 @@
                                     <th>Denomination</th>
                                     <th>Bundles/Boxes</th>
                                     <th>Amount</th>
-                                    <th>Origin</th>
+                                    <th>Commercial Bank</th>
+                                    <th>Deposit Date</th>
                                     <th>Sub-Category</th>
                                     <th>Actions</th>
                                 </tr>
@@ -50,13 +51,14 @@
                                         <td>@item.TransactionRefNumber</td>
                                         <td>@item.DenominationName</td>
                                         <td>@(item.Bundles ?? item.Boxes)</td>
-                                        <td>@item.Amount.ToString("N2")</td>
+                                        <td>@item.Amount.ToString("N0")</td>
+                                        <td>@item.CommercialBankName</td>
+                                        <td>@item.DepositDate.ToString("dd MMM yyyy")</td>
                                         <td>
-                                            <span class="badge bg-@(item.Origin == "Cb" ? "info" : "warning")">
-                                                @item.Origin
+                                            <span class="badge bg-info">
+                                                @item.SubCategoryName
                                             </span>
                                         </td>
-                                        <td>@item.SubCategoryName</td>
                                         <td>
                                             <form asp-action="RemoveItem" asp-route-bagId="@Model.Id" asp-route-itemId="@item.Id" method="post" class="d-inline" onsubmit="return confirm('Remove this item from the bag?');">
                                                 @Html.AntiForgeryToken()
@@ -94,7 +96,7 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label text-muted">Denomination</label>
-                    <p class="fw-bold">@Model.DenominationName (@Model.DenominationValue.ToString("N2"))</p>
+                    <p class="fw-bold">@Model.DenominationName</p>
                 </div>
                 <div class="mb-3">
                     <label class="form-label text-muted">Total Items</label>
@@ -102,12 +104,7 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label text-muted">Total Amount</label>
-                    <p class="fw-bold text-success">@Model.TotalAmount.ToString("N2")</p>
-                </div>
-                <hr />
-                <div class="mb-3">
-                    <label class="form-label text-muted">Created By</label>
-                    <p>@Model.CreatedBy</p>
+                    <p class="fw-bold">@Model.TotalAmount.ToString("N0")</p>
                 </div>
                 <div class="mb-3">
                     <label class="form-label text-muted">Created Date</label>

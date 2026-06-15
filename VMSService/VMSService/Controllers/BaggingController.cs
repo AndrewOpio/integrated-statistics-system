@@ -1,3 +1,4 @@
+using ConfigurationsService.Client;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartBreadcrumbs.Attributes;
@@ -14,11 +15,13 @@ namespace VMSService.Controllers
     {
         private readonly IBagRepository _bagRepository;
         private readonly IStockService _stockService;
+        private readonly IConfigurationsServiceClient _configServiceClient;
 
-        public BaggingController(IBagRepository bagRepository, IStockService stockService)
+        public BaggingController(IBagRepository bagRepository, IStockService stockService, IConfigurationsServiceClient configServiceClient)
         {
             _bagRepository = bagRepository;
             _stockService = stockService;
+            _configServiceClient = configServiceClient;
         }
 
         // GET: Bagging
@@ -61,6 +64,9 @@ namespace VMSService.Controllers
 
                 var subCat = await _stockService.GetSubCategoryById(item.SubCategoryId);
                 item.SubCategoryName = subCat?.Name;
+
+                var commercialBank = await _configServiceClient.GetCbIdAsync(item.CbId);
+                item.CommercialBankName = commercialBank.Name;
             }
 
             return View(bag);
