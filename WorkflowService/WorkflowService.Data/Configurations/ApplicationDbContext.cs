@@ -18,6 +18,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<EntityType> EntityTypes { get; set; }
     public DbSet<StatusType> StatusTypes { get; set; }
     public DbSet<WorkflowTransition> WorkflowTransitions { get; set; }
+    public DbSet<TransitionAttachmentRequirement> TransitionAttachmentRequirements { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

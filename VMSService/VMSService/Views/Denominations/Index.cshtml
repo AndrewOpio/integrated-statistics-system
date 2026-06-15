@@ -28,6 +28,7 @@
                                 <th class="border-0">Name</th>
                                 <th class="border-0">Value (UGX)</th>
                                 <th class="border-0">Number of Pieces in a Box</th>
+                                <th class="border-0">Number of Pieces in a Bundle</th>
                                 <th class="border-0">Type</th>
                                 <th class="border-0 rounded-end">Actions</th>
                             </tr>
@@ -44,6 +45,7 @@
                                     <td class="fw-bold">@item.Name</td>
                                     <td>@item.Value.ToString("N0")</td>
                                     <td>@item.NumberOfPiecesInABox.ToString("N0")</td>
+                                    <td>@item.NumberOfPiecesInABundle.ToString("N0")</td>
                                     <td>
                                         @if (!string.IsNullOrEmpty(item.DenominationType.Name))
                                         {

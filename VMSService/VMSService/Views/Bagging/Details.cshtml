@@ -1,0 +1,137 @@
+@model VMSService.Core.Models.Bags.BagDetailsViewModel
+
+@{
+    ViewData["Title"] = $"Bag Details - {Model.ReferenceNumber}";
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center py-4">
+    <div class="d-block mb-4 mb-md-0">
+        <h2 class="h4">Bag Details</h2>
+        <p class="mb-0">Reference: <strong>@Model.ReferenceNumber</strong></p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a asp-action="AddItems" asp-route-id="@Model.Id" class="btn btn-sm btn-success me-2">
+            <i class="ti ti-plus me-2"></i>
+            Add Items
+        </a>
+        <a asp-action="Index" class="btn btn-sm btn-secondary">
+            <i class="ti ti-arrow-left me-2"></i>
+            Back to List
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12 col-xl-8">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Bag Items</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.Items.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm" id="itemsTable">
+                            <thead>
+                                <tr>
+                                    <th>Transaction Ref</th>
+                                    <th>Denomination</th>
+                                    <th>Bundles/Boxes</th>
+                                    <th>Amount</th>
+                                    <th>Origin</th>
+                                    <th>Sub-Category</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model.Items)
+                                {
+                                    <tr>
+                                        <td>@item.TransactionRefNumber</td>
+                                        <td>@item.DenominationName</td>
+                                        <td>@(item.Bundles ?? item.Boxes)</td>
+                                        <td>@item.Amount.ToString("N2")</td>
+                                        <td>
+                                            <span class="badge bg-@(item.Origin == "Cb" ? "info" : "warning")">
+                                                @item.Origin
+                                            </span>
+                                        </td>
+                                        <td>@item.SubCategoryName</td>
+                                        <td>
+                                            <form asp-action="RemoveItem" asp-route-bagId="@Model.Id" asp-route-itemId="@item.Id" method="post" class="d-inline" onsubmit="return confirm('Remove this item from the bag?');">
+                                                @Html.AntiForgeryToken()
+                                                <button type="submit" class="btn btn-sm btn-danger" title="Remove">
+                                                    <i class="ti ti-x"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-info">
+                        <i class="ti ti-info-circle me-2"></i>
+                        No items in this bag yet. Click "Add Items" to start adding deposit request denominations.
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Bag Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label text-muted">Reference Number</label>
+                    <p class="fw-bold">@Model.ReferenceNumber</p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-muted">Denomination</label>
+                    <p class="fw-bold">@Model.DenominationName (@Model.DenominationValue.ToString("N2"))</p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-muted">Total Items</label>
+                    <p class="fw-bold">@Model.Items.Count</p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-muted">Total Amount</label>
+                    <p class="fw-bold text-success">@Model.TotalAmount.ToString("N2")</p>
+                </div>
+                <hr />
+                <div class="mb-3">
+                    <label class="form-label text-muted">Created By</label>
+                    <p>@Model.CreatedBy</p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-muted">Created Date</label>
+                    <p>@Model.CreatedDate.ToString("dd MMM yyyy HH:mm")</p>
+                </div>
+            </div>
+        </div>
+
+        <form asp-action="Delete" asp-route-id="@Model.Id" method="post" onsubmit="return confirm('Are you sure you want to delete this bag? All items will be released.');">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-danger w-100">
+                <i class="ti ti-trash me-2"></i>
+                Delete Bag
+            </button>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            $('#itemsTable').DataTable({
+                pageLength: 25
+            });
+        });
+    </script>
+}

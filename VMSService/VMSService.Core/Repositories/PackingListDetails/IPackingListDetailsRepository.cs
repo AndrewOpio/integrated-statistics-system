@@ -6,6 +6,7 @@ namespace VMSService.Core.Repositories.PackingListRangeDetails
     {
         Task<ICollection<PackingListDetails>> FindByPackingListRangeIdAsync(int packingListRangeId);
         Task<PackingListDetails> FindByIdAsync(long id);
+        Task<PackingListDetails> FindByCaseNumberAsync(int caseNumber);
         Task<PackingListDetails> CreateAsync(PackingListDetails entity);
         Task<bool> CreateBatchAsync(List<PackingListDetails> entities);
         Task<bool> DeleteByRangeIdAsync(int rangeId);

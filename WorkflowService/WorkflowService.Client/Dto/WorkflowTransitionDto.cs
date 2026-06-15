@@ -66,6 +66,16 @@ namespace WorkflowService.Client.Dto
         /// </summary>
         public string? NotificationEmails { get; set; }
 
+        /// <summary>
+        /// Whether this transition requires attachments
+        /// </summary>
+        public bool RequiresAttachments { get; set; }
+
+        /// <summary>
+        /// Collection of attachment requirements for this transition
+        /// </summary>
+        public ICollection<TransitionAttachmentRequirementDto> AttachmentRequirements { get; set; } = new List<TransitionAttachmentRequirementDto>();
+
         public bool IsActive { get; set; } = true;
         public bool IsDeleted { get; set; }
     }

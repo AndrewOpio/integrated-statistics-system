@@ -41,6 +41,73 @@
         @*Denomination Selection (with subcategories)*@
         @await Html.PartialAsync("~/Views/Shared/_Deposit/_DepositDenomTable.cshtml", Model.Denoms)
 
+        @*Fees Table*@
+        <div class="card mb-4 border-top-0 border-end-0 border-bottom-0 border-4 border-info shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3 justify-content-between">
+                    <div class="d-flex align-items-center gap-2 fw-bolder">
+                        <i class="ti ti-receipt"></i>
+                        <span class="text-uppercase mb-0">Fees Summary</span>
+                    </div>
+                    <span class="badge bg-info bg-opacity-10 text-uppercase text-info small">
+                        Auto-calculated
+                    </span>
+                </div>
+
+                <div class="table-responsive border rounded">
+                    <table class="table mb-0">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-2 rounded-start" style="width: 60%">Fee Type</th>
+                                <th class="px-4 py-2 rounded-end text-end" style="width: 40%">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="px-4 py-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="ti ti-calculator"></i>
+                                        <span class="fw-semibold">Processing Fees</span>
+                                    </div>
+                                    <small class="text-muted d-block ms-4">Based on "N/A" notes and coins total</small>
+                                </td>
+                                <td class="px-4 py-2 text-end" id="fees-processing">UGX 0</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="ti ti-alert-triangle"></i>
+                                        <span class="fw-semibold">Minimum Deposit Penalty Fees</span>
+                                    </div>
+                                    <small class="text-muted d-block ms-4">For bundles below minimum standards</small>
+                                </td>
+                                <td class="px-4 py-2 text-end" id="fees-penalty">UGX 0</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="ti ti-sum"></i>
+                                        <span class="fw-bold text-uppercase">Total Fees</span>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-2 text-end fw-bold text-danger fs-6" id="fees-total">UGX 0</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="penalty-details" class="mt-3" style="display: none;">
+                    <div class="alert alert-warning d-flex align-items-start gap-2 py-2">
+                        <i class="ti ti-info-circle text-warning mt-1 flex-shrink-0"></i>
+                        <div class="flex-grow-1">
+                            <p class="fw-bold mb-1 small">Penalty Details</p>
+                            <div id="penalty-violations-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     @*RTGS Details*@
@@ -162,11 +229,13 @@
     <script src="~/js/deposit-branch-selection.js"></script>
     <script src="~/js/deposit-agent-selection.js"></script>
     <script src="~/js/deposit-denom-table.js"></script>
+    <script src="~/js/deposit-fees-calculator.js"></script>
 
     <script>
         window.denomData = {
             notes: @Html.Raw(Json.Serialize(Model.Denoms.Notes.Select(d => new { id = d.Id, value = d.Value, label = $"UGX {d.Value:N0}", typeId = d.DenominationTypeId }))),
-            coins: @Html.Raw(Json.Serialize(Model.Denoms.Coins.Select(d => new { id = d.Id, value = d.Value, label = $"UGX {d.Value:N0}", typeId = d.DenominationTypeId })))
+            coins: @Html.Raw(Json.Serialize(Model.Denoms.Coins.Select(d => new { id = d.Id, value = d.Value, label = $"UGX {d.Value:N0}", typeId = d.DenominationTypeId }))),
+            subcategories: @Html.Raw(Json.Serialize(Model.Denoms.SubCategories.Select(s => new { id = s.Id, value = s.Id, label = s.Name, typeId = s.CategoryId }))),
         };
 
         depositFormState.cbCode = document.getElementById('cbCode')?.textContent?.trim() || null;

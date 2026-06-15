@@ -7,6 +7,7 @@ using StockService.Core.Models.StockLedger;
 using StockService.Core.Repository.StockLedgers;
 using StockService.Data.Entities;
 using StockService.Core.Models.Categories;
+using StockService.Core.Models.SubCategories;
 
 namespace StockService.Web.Controllers
 {
@@ -61,7 +62,13 @@ namespace StockService.Web.Controllers
                     NumberOfPieces = d.NumberOfPieces,
                     NumberOfBoxes = d.NumberOfBoxes,
                     NumberOfBundles = d.NumberOfBundles,
-                    Value = decimal.TryParse(d.Value, out decimal val) ? val : 0
+                    Value = decimal.TryParse(d.Value, out decimal val) ? val : 0,
+                    SubCategoryId = d.SubCategoryId ?? 0,
+                    SubCategory = d.SubCategory == null ? null : new SubCategoryDto
+                    {
+                        Id = d.SubCategory.Id,
+                        Name = d.SubCategory.Name
+                    }
                 }).ToList() ?? new List<StockLedgerDetailDto>()
             });
             return Ok(result);
@@ -115,7 +122,13 @@ namespace StockService.Web.Controllers
                     NumberOfPieces = d.NumberOfPieces,
                     NumberOfBoxes = d.NumberOfBoxes,
                     NumberOfBundles = d.NumberOfBundles,
-                    Value = decimal.TryParse(d.Value, out decimal val) ? val : 0
+                    Value = decimal.TryParse(d.Value, out decimal val) ? val : 0,
+                    SubCategoryId = d.SubCategoryId ?? 0,
+                    SubCategory = d.SubCategory == null ? null : new SubCategoryDto
+                    {
+                        Id = d.SubCategory.Id,
+                        Name = d.SubCategory.Name
+                    }
                 }).ToList() ?? new List<StockLedgerDetailDto>()
             };
             return Ok(result);
@@ -148,6 +161,7 @@ namespace StockService.Web.Controllers
                         NumberOfBoxes = d.NumberOfBoxes,
                         NumberOfBundles = d.NumberOfBundles,
                         Value = d.Value.ToString(), // Convert decimal to string
+                        SubCategoryId = d.SubCategoryId
                     }).ToList() ?? new List<StockLedgerDetail>()
                 };
 
@@ -192,7 +206,13 @@ namespace StockService.Web.Controllers
                         NumberOfPieces = d.NumberOfPieces,
                         NumberOfBoxes = d.NumberOfBoxes,
                         NumberOfBundles = d.NumberOfBundles,
-                        Value = decimal.TryParse(d.Value, out decimal val) ? val : 0
+                        Value = decimal.TryParse(d.Value, out decimal val) ? val : 0,
+                        SubCategoryId = d.SubCategoryId ?? 0,
+                        SubCategory = d.SubCategory == null ? null : new SubCategoryDto
+                        {
+                            Id = d.SubCategory.Id,
+                            Name = d.SubCategory.Name
+                        }
                     }).ToList() ?? new List<StockLedgerDetailDto>()
                 };
                 return CreatedAtAction(nameof(GetStockLedger), new { id = created.Id }, result);

@@ -194,6 +194,15 @@
                     </a>
                 </li>
 
+                <li class="nav-item">
+                    <a asp-controller="Bagging" asp-action="Index" class="nav-link d-flex align-items-center">
+                        <span class="sidebar-icon fs-5 me-4">
+                            <i class="ti ti-package"></i>
+                        </span>
+                        <span class="sidebar-text">Bagging</span>
+                    </a>
+                </li>
+
                 @if (isAdmin)
                 {
                     <li class="nav-item">
@@ -236,6 +245,11 @@
                                     </a>
                                 </li>
                                 <li class="nav-item">
+                                    <a asp-controller="SubCategories" asp-action="Index" class="nav-link">
+                                        <span class="sidebar-text">Currency Sub Categories</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
                                     <a asp-controller="BranchCategories" asp-action="Index" class="nav-link">
                                         <span class="sidebar-text">Vault Stores</span>
                                     </a>
@@ -270,6 +284,16 @@
                                 <li class="nav-item">
                                     <a asp-controller="CurrencyVendors" asp-action="Index" class="nav-link">
                                         <span class="sidebar-text">Currency Vendors</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a asp-controller="MinDepositStandards" asp-action="Index" class="nav-link">
+                                        <span class="sidebar-text">Min Deposit Standards</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a asp-controller="DepositProcessingFees" asp-action="Index" class="nav-link">
+                                        <span class="sidebar-text">Deposit Processing Fees</span>
                                     </a>
                                 </li>
                             </ul>

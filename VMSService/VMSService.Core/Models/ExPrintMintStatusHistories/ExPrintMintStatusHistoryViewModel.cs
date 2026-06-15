@@ -1,3 +1,5 @@
+using VMSService.Core.Models.Attachments;
+
 namespace VMSService.Core.Models.ExPrintMintStatusHistories
 {
     public class ExPrintMintStatusHistoryViewModel
@@ -11,5 +13,7 @@ namespace VMSService.Core.Models.ExPrintMintStatusHistories
         public string ChangedBy { get; set; }
         public DateTime ChangedAt { get; set; }
         public string? Remarks { get; set; }
+        public string? AttachmentIds { get; set; } // Comma Separated Values of AttachmentIds
+        public ICollection<AttachmentViewModel> Attachments { get; set; } = new List<AttachmentViewModel>();
     }
 }

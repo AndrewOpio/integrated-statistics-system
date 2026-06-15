@@ -1,4 +1,4 @@
-@using ConfigurationsService.Dto
+@using ConfigurationsService.Client;
 @using VMSService.Core.Models.StockMovement
 @using VMSService.Core.Services.Stocks.StockEntities
 @model VMSService.Data.Entities.StockMovement
@@ -84,14 +84,14 @@
                     || Model.MovementType == StockConstants.StockMovementTypes.OperationalToBuffer 
                     || Model.MovementType == StockConstants.StockMovementTypes.BufferToOperational)
                     {
-                        <dt class="col-sm-4">Dispatching BranchDto</dt>
+                        <dt class="col-sm-4">Dispatching Branch</dt>
                         <dd class="col-sm-8">
                             @{
                                 var dispatchingBranch = allBranches?.FirstOrDefault(b => b.Id == Model.DispatchingBranchId);
                             }
                             @(dispatchingBranch != null ? dispatchingBranch.Name : Model.DispatchingBranchId.ToString())
                         </dd>
-                        <dt class="col-sm-4">Receiving BranchDto</dt>
+                        <dt class="col-sm-4">Receiving Branch</dt>
                         <dd class="col-sm-8">
                             @{
                                 var receivingBranch = allBranches?.FirstOrDefault(b => b.Id == Model.ReceivingBranchId);
@@ -297,7 +297,7 @@
             <div class="card border-0 shadow mb-3">
                 <div class="card-header bg-white border-bottom no-after">
                     <h6 class="card-title mb-0">
-                        <i class="ti ti-alert-circle me-2 text-warning"></i>Discrepancy Management
+                        <i class="ti ti-alert-circle me-2 text-warning"></i>Mismatch Management
                     </h6>
                 </div>
                 <div class="card-body">
@@ -537,6 +537,7 @@
         @{
             var availableTransitions = ViewBag.AvailableTransitions as List<WorkflowTransitionDto>;
             // Hide the workflow form only for branch movements with Dispatched status until received denominations are saved
+            @* bool showWorkflowForm = !(Model.MovementType == StockConstants.StockMovementTypes.BranchToBranch && isDispatchedStatus && !hasReceivedDenominations); *@
             bool showWorkflowForm = !(Model.MovementType == StockConstants.StockMovementTypes.BranchToBranch && isDispatchedStatus && !hasReceivedDenominations);
         }
         @if (showWorkflowForm && availableTransitions != null && availableTransitions.Any())

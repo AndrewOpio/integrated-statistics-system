@@ -87,6 +87,7 @@
                                 <label asp-for="EndDate">End Date <span class="text-danger">*</span></label>
                                 <span asp-validation-for="EndDate" class="text-danger"></span>
                             </div>
+
                             <!-- IsStaff checkbox (disabled in edit mode) -->
                             <div class="form-group mb-3">
                                 <div class="form-check">
@@ -127,6 +128,36 @@
                                            placeholder="Email">
                                     <label asp-for="Email">Email <span class="text-danger">*</span></label>
                                     <span asp-validation-for="Email" class="text-danger"></span>
+                                </div>
+                                <!-- Commercial Bank Dropdowns -->
+                                <div class="form-floating mb-3">
+                                    <select asp-for="CommercialBankId" class="form-select" id="commercialBankSelect">
+                                        <option value="">-- Select Commercial Bank (Optional) --</option>
+                                        @if (Model.CommercialBankList != null)
+                                        {
+                                            @foreach (var item in Model.CommercialBankList)
+                                            {
+                                                <option value="@item.Value">@item.Text</option>
+                                            }
+                                        }
+                                    </select>
+                                    <label asp-for="CommercialBankId">Commercial Bank</label>
+                                    <span asp-validation-for="CommercialBankId" class="text-danger"></span>
+                                </div>
+
+                                <div class="form-floating mb-3">
+                                    <select asp-for="CommercialBankBranchId" class="form-select" id="commercialBankBranchSelect">
+                                        <option value="">-- Select Branch (Optional) --</option>
+                                        @if (Model.CommercialBankBranchList != null)
+                                        {
+                                            @foreach (var item in Model.CommercialBankBranchList)
+                                            {
+                                                <option value="@item.Value">@item.Text</option>
+                                            }
+                                        }
+                                    </select>
+                                    <label asp-for="CommercialBankBranchId">Commercial Bank Branch</label>
+                                    <span asp-validation-for="CommercialBankBranchId" class="text-danger"></span>
                                 </div>
                                 <!-- Phone Number field -->
                                 <div class="mb-3">
@@ -173,6 +204,7 @@
                         }
                         else
                         {
+                            <!-- Create Mode -->
                             <div class="form-floating mb-3">
                                 <input type="text" asp-for="UserName" class="form-control"
                                        placeholder="Username" required>
@@ -194,6 +226,7 @@
                                 <label asp-for="EndDate">End Date <span class="text-danger">*</span></label>
                                 <span asp-validation-for="EndDate" class="text-danger"></span>
                             </div>
+
                             <!-- IsStaff checkbox -->
                             <div class="form-group mb-3">
                                 <div class="form-check">
@@ -232,6 +265,36 @@
                                            placeholder="Email">
                                     <label asp-for="Email">Email <span class="text-danger">*</span></label>
                                     <span asp-validation-for="Email" class="text-danger"></span>
+                                </div>
+                                <!-- Commercial Bank Dropdowns -->
+                                <div class="form-floating mb-3">
+                                    <select asp-for="CommercialBankId" class="form-select" id="commercialBankSelectCreate">
+                                        <option value="">-- Select Commercial Bank (Optional) --</option>
+                                        @if (Model.CommercialBankList != null)
+                                        {
+                                            @foreach (var item in Model.CommercialBankList)
+                                            {
+                                                <option value="@item.Value">@item.Text</option>
+                                            }
+                                        }
+                                    </select>
+                                    <label asp-for="CommercialBankId">Commercial Bank</label>
+                                    <span asp-validation-for="CommercialBankId" class="text-danger"></span>
+                                </div>
+
+                                <div class="form-floating mb-3">
+                                    <select asp-for="CommercialBankBranchId" class="form-select" id="commercialBankBranchSelectCreate">
+                                        <option value="">-- Select Branch (Optional) --</option>
+                                        @if (Model.CommercialBankBranchList != null)
+                                        {
+                                            @foreach (var item in Model.CommercialBankBranchList)
+                                            {
+                                                <option value="@item.Value">@item.Text</option>
+                                            }
+                                        }
+                                    </select>
+                                    <label asp-for="CommercialBankBranchId">Commercial Bank Branch</label>
+                                    <span asp-validation-for="CommercialBankBranchId" class="text-danger"></span>
                                 </div>
                                 <!-- Phone Number field -->
                                 <div class="mb-3">
@@ -386,6 +449,74 @@
                 });
                 // Initialize
                 updatePhoneNumberEdit();
+            }
+
+            // Commercial Bank change handler - Edit mode
+            const commercialBankSelect = document.getElementById('commercialBankSelect');
+            const commercialBankBranchSelect = document.getElementById('commercialBankBranchSelect');
+
+            if (commercialBankSelect && commercialBankBranchSelect) {
+                commercialBankSelect.addEventListener('change', function () {
+                    const commercialBankId = this.value;
+                    
+                    if (commercialBankId) {
+                        // Fetch branches for selected commercial bank
+                        fetch(`/Users/GetCommercialBankBranches?commercialBankId=${commercialBankId}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                // Clear existing options
+                                commercialBankBranchSelect.innerHTML = '<option value="">-- Select Branch (Optional) --</option>';
+                                
+                                // Add new options
+                                data.forEach(branch => {
+                                    const option = document.createElement('option');
+                                    option.value = branch.id;
+                                    option.textContent = branch.name;
+                                    commercialBankBranchSelect.appendChild(option);
+                                });
+                            })
+                            .catch(error => {
+                                console.error('Error fetching branches:', error);
+                            });
+                    } else {
+                        // Clear branches if no bank selected
+                        commercialBankBranchSelect.innerHTML = '<option value="">-- Select Branch (Optional) --</option>';
+                    }
+                });
+            }
+
+            // Commercial Bank change handler - Create mode
+            const commercialBankSelectCreate = document.getElementById('commercialBankSelectCreate');
+            const commercialBankBranchSelectCreate = document.getElementById('commercialBankBranchSelectCreate');
+
+            if (commercialBankSelectCreate && commercialBankBranchSelectCreate) {
+                commercialBankSelectCreate.addEventListener('change', function () {
+                    const commercialBankId = this.value;
+                    
+                    if (commercialBankId) {
+                        // Fetch branches for selected commercial bank
+                        fetch(`/Users/GetCommercialBankBranches?commercialBankId=${commercialBankId}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                // Clear existing options
+                                commercialBankBranchSelectCreate.innerHTML = '<option value="">-- Select Branch (Optional) --</option>';
+                                
+                                // Add new options
+                                data.forEach(branch => {
+                                    const option = document.createElement('option');
+                                    option.value = branch.id;
+                                    option.textContent = branch.name;
+                                    commercialBankBranchSelectCreate.appendChild(option);
+                                });
+                            })
+                            .catch(error => {
+                                console.error('Error fetching branches:', error);
+                            });
+                    } else {
+                        // Clear branches if no bank selected
+                        commercialBankBranchSelectCreate.innerHTML = '<option value="">-- Select Branch (Optional) --</option>';
+                    };
+                });
             }
         });
     </script>

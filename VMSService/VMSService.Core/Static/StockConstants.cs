@@ -25,6 +25,7 @@
             public const string BranchToBranch = "BranchToBranch";
             public const string BufferToOperational = "BufferToOperational";
             public const string OperationalToBuffer = "OperationalToBuffer";
+            public const string CommBankToBranch = "Commercial Bank To Branch";
         }
 
         public static readonly (string Key, string Value)[] MovementTypes = new[]
@@ -33,5 +34,18 @@
             (Key: StockMovementTypes.BufferToOperational, Value: "Buffer to Operational"),
             (Key: StockMovementTypes.OperationalToBuffer, Value: "Operational to Buffer")
         };
+
+        public static class ContainerTypes
+        {
+            public const string Bag = "Bag";
+            public const string Box = "Box";
+        }
+
+        public static class SubCategories
+        {
+            public const string Fit = "Fit";
+            public const string Unfit = "Unfit";
+            public const string NA = "N/A";
+        }
     }
 }

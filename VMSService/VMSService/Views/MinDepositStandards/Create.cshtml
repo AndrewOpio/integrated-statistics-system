@@ -1,0 +1,117 @@
+@model VMSService.Core.Models.MinDepositStandards.MinDepositStandardViewModel
+
+@{
+    ViewData["Title"] = "Create Min Deposit Standard";
+}
+
+<div class="row">
+    <div class="col-12 col-lg-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header">
+                <h2 class="fs-5 fw-bold mb-0">Create New Min Deposit Standard</h2>
+            </div>
+            <div class="card-body">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <form asp-action="Create" method="post">
+                    <input type="number" class="form-control" asp-for="MinimumBundles" required hidden>
+                    <input type="number" step="0.01" class="form-control" asp-for="Value" required hidden>
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="DenominationId">Denomination <span class="text-danger">*</span></label>
+                        <select class="form-select" asp-for="DenominationId" asp-items="@Model.DenominationList" required>
+                            <option value="">-- Select Denomination --</option>
+                        </select>
+                        <span asp-validation-for="DenominationId" class="text-danger small d-block mt-1"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="BranchId">Branch <span class="text-danger">*</span></label>
+                        <select class="form-select" asp-for="BranchId" asp-items="@Model.BranchList" required>
+                            <option value="">-- Select Branch --</option>
+                        </select>
+                        <span asp-validation-for="BranchId" class="text-danger small d-block mt-1"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="MinimumBundles">Minimum Bundles <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="MinimumBundlesText" placeholder="Enter minimum bundles">
+                        <span asp-validation-for="MinimumBundles" class="text-danger small d-block mt-1"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="Value">Value <span class="badge bg-info">Auto-calculated</span></label>
+                        <input type="text" class="form-control" id="ValueText" placeholder="Calculated automatically" readonly>
+                        <span asp-validation-for="Value" class="text-danger small d-block mt-1"></span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-check me-1"></i>Save
+                        </button>
+                        <a asp-action="Index" class="btn btn-secondary">
+                            <i class="ti ti-arrow-left me-1"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const plainMinimumBundles = document.getElementById("MinimumBundles");
+    const plainValue = document.getElementById("Value");
+    const denominationSelect = document.getElementById("DenominationId");
+    
+    // Parse denomination data from ViewBag
+    const denominationData = @Html.Raw(ViewBag.DenominationData ?? "[]");
+    const denominationMap = {};
+    denominationData.forEach(d => {
+        denominationMap[d.id] = d;
+    });
+
+    // Function to calculate value
+    function calculateValue() {
+        const denominationId = parseInt(denominationSelect.value);
+        const minimumBundles = parseInt(plainMinimumBundles.value) || 0;
+        
+        if (denominationId && denominationMap[denominationId]) {
+            const denomination = denominationMap[denominationId];
+            const value = denomination.value * denomination.numberOfPiecesInABundle * minimumBundles;
+            
+            plainValue.value = value;
+            document.getElementById("ValueText").value = value.toLocaleString("en-US", {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            });
+        } else {
+            plainValue.value = 0;
+            document.getElementById("ValueText").value = "";
+        }
+    }
+
+    // Format MinimumBundles input with commas
+    document.getElementById("MinimumBundlesText").addEventListener("input", function (e) {
+        // 1. Remove everything except digits
+        let raw = e.target.value.replace(/[^0-9]/g, "");
+
+        // 2. Format with commas
+        const number = parseInt(raw);
+        if (!isNaN(number)) {
+            e.target.value = number.toLocaleString("en-US");
+        } else {
+            e.target.value = "";
+        }
+
+        plainMinimumBundles.value = number;
+        calculateValue();
+    });
+
+    // Trigger value calculation when denomination changes
+    denominationSelect.addEventListener("change", function () {
+        calculateValue();
+    });
+</script>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

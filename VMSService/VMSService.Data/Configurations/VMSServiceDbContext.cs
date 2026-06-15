@@ -55,7 +55,29 @@ namespace VMSService.Data.Configurations
         public DbSet<DepositRequestAgent> DepositRequestAgents { get; set; }
         public DbSet<DepositRequestDenomination> DepositRequestDenominations { get; set; }
         public DbSet<DepositRequestStatusHistory> DepositRequestStatusHistory { get; set; }
+        public DbSet<MinDepositStandard> MinDepositStandards { get; set; }
+        public DbSet<DepositProcessingFee> DepositProcessingFees { get; set; }
+        public DbSet<FeeType> FeeTypes { get; set; }
+        public DbSet<DepositFee> DepositFees { get; set; }
+        public DbSet<Attachment> Attachments { get; set; }
+
         public DbSet<BoxState> BoxStates { get; set; }
+        // Processing
+        public DbSet<ProcessingBoard> ProcessingBoards { get; set; }
+        public DbSet<BPSMachine> BPSMachines { get; set; }
+        public DbSet<StockProcessingPlan> StockProcessingPlans { get; set; }
+        public DbSet<StockProcessingPlanStatusHistory> StockProcessingPlanStatusHistory { get; set; }
+        public DbSet<StockProcessingResult> StockProcessingResults { get; set; }
+        public DbSet<StockProcessingSession> StockProcessingSessions { get; set; }
+        public DbSet<StockProcessingSessionStatusHistory> StockProcessingSessionStatusHistory { get; set; }
+        public DbSet<Bag> Bags { get; set; }
+        public DbSet<BagDenomination> BagDenominations { get; set; }
+        public DbSet<Vault> Vaults { get; set; }
+        public DbSet<VaultSection> VaultSections { get; set; }
+        public DbSet<BaggedBag> BaggedBags { get; set; }
+        public DbSet<BagMovement> BagMovements { get; set; }
+        public DbSet<BagMovementStatusHistory> BagMovementStatusHistory { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -135,17 +157,6 @@ namespace VMSService.Data.Configurations
             //    .WithMany()
             //    .HasForeignKey(l => l.NewStatusId)
             //    .OnDelete(DeleteBehavior.Restrict);
-
-            // ── WithdrawalRequestDenomination ─────────────────────
-            modelBuilder.Entity<WithdrawalRequestDenominationBox>(e =>
-            {
-                e.HasOne(x => x.WithdrawalRequestDenomination)
-                 .WithMany(x => x.DispatchedBoxes)
-                 .HasForeignKey(x => x.WithdrawalRequestDenominationId)
-                 .OnDelete(DeleteBehavior.Cascade);
-
-                e.HasIndex(x => x.CaseNumber);
-            });
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -154,6 +165,14 @@ namespace VMSService.Data.Configurations
             var now = DateTime.Now;
 
             foreach (var entry in ChangeTracker.Entries<AuditableEntity>())
+            {
+                var entity = entry.Entity;
+
+                if (entry.State == EntityState.Added)
+                {
+                    entity.CreatedBy = user;
+                    entity.CreatedDate = now;
+                    entity.ModifiedBy = user;
             {
                 var entity = entry.Entity;
 

@@ -1,0 +1,374 @@
+@model VMSService.Core.Models.CbDepositRequest.DepositRequestDetailsViewModel
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Deposit Request - @Model.ReferenceNumber</title>
+    <style>
+        @@media print {
+            .no-print {
+                display: none;
+            }
+            @@page {
+                margin: 0.5cm;
+            }
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 210mm;
+            margin: 0 auto;
+            font-size: 14px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header img {
+            width: 80px;
+            height: auto;
+            margin-bottom: 10px;
+        }
+
+        .header h1 {
+            margin: 5px 0;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .header .subtitle {
+            font-size: 18px;
+            margin: 5px 0;
+        }
+
+        .info-section {
+            margin-bottom: 20px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .info-label {
+            font-weight: bold;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        table th, table td {
+            border: 1px solid #333;
+            padding: 8px;
+            text-align: left;
+        }
+
+        table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .subcategory-header {
+            background-color: #e8e8e8;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .total-row {
+            font-weight: bold;
+            background-color: #f5f5f5;
+        }
+
+        .signature-section {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .signature-box {
+            width: 45%;
+            border: 1px solid #333;
+            padding: 15px;
+            min-height: 100px;
+        }
+
+        .signature-box h4 {
+            margin: 0 0 10px 0;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+        }
+
+        .signature-line {
+            margin-top: 60px;
+            border-top: 1px solid #333;
+            padding-top: 5px;
+        }
+
+        .print-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .print-button:hover {
+            background-color: #0056b3;
+        }
+
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .col-md-4 {
+            -webkit-box-flex: 0;
+            -ms-flex: 0 0 33.333333%;
+            flex: 0 0 33.333333%;
+            max-width: 33.333333%;
+        }
+    </style>
+</head>
+<body>
+    <button class="print-button no-print" onclick="window.print()">
+        <i class="ti ti-printer"></i> Print
+    </button>
+
+    <div class="header">
+        <img src="~/img/bou.png" alt="Bank of Uganda Logo" />
+        <h1>BANK OF UGANDA</h1>
+        <div class="subtitle">Deposit Request</div>
+    </div>
+
+    <div class="info-section">
+        <div class="info-row">
+            <div>
+                <span class="info-label">Deposit Date:</span>
+                @Model.DepositDate.ToString("dd MMMM yyyy")
+            </div>
+            <div>
+                <span class="info-label">Time:</span>
+                @DateTime.Now.ToString("HH:mm")
+            </div>
+        </div>
+        <div class="info-row">
+            <div>
+                <span class="info-label">Reference Number:</span>
+                @Model.ReferenceNumber
+            </div>
+        </div>
+        <div class="info-row">
+            <div>
+                <span class="info-label">BOU Branch:</span>
+                @Model.BouBranchName
+            </div>
+        </div>
+        <div class="info-row">
+            <div>
+                <span class="info-label">Commercial Bank:</span>
+                @Model.CbName
+            </div>
+        </div>
+    </div>
+
+    <h3>Denominations</h3>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Category</th>
+                <th>Denomination</th>
+                <th class="text-right">Number of Bundles</th>
+                <th class="text-right">Amount (UGX)</th>
+            </tr>
+        </thead>
+        <tbody>
+            @* FIT Notes *@
+            @if (Model.FitNotes.Any())
+            {
+                @foreach (var denom in Model.FitNotes)
+                {
+                    <tr>
+                        <td>FIT</td>
+                        <td>@denom.DenominationLabel</td>
+                        <td class="text-right">@denom.Bundles</td>
+                        <td class="text-right">@denom.Amount.ToString("N0")</td>
+                    </tr>
+                }
+            }
+
+            @* UNFIT Notes *@
+            @if (Model.UnfitNotes.Any())
+            {
+                @foreach (var denom in Model.UnfitNotes)
+                {
+                    <tr>
+                        <td>UNFIT</td>
+                        <td>@denom.DenominationLabel</td>
+                        <td class="text-right">@denom.Bundles</td>
+                        <td class="text-right">@denom.Amount.ToString("N0")</td>
+                    </tr>
+                }
+            }
+
+            @* N/A Notes *@
+            @if (Model.NANotes.Any())
+            {
+                @foreach (var denom in Model.NANotes)
+                {
+                    <tr>
+                        <td>N/A</td>
+                        <td>@denom.DenominationLabel</td>
+                        <td class="text-right">@denom.Bundles</td>
+                        <td class="text-right">@denom.Amount.ToString("N0")</td>
+                    </tr>
+                }
+            }
+
+            @* Coins *@
+            @if (Model.Coins.Any())
+            {
+                @foreach (var denom in Model.Coins)
+                {
+                    <tr>
+                        <td>N/A (COINS)</td>
+                        <td>@denom.DenominationLabel</td>
+                        <td class="text-right">@denom.Boxes Boxes</td>
+                        <td class="text-right">@denom.Amount.ToString("N0")</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+
+    <div class="info-section">
+        <div class="info-row">
+            <span class="info-label">Total Amount (Figures):</span>
+            <span style="font-size: 18px; font-weight: bold;">UGX @Model.TotalAmount.ToString("N0")</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Total Amount (Words):</span>
+            <span style="font-style: italic;" id="amount-in-words"></span>
+        </div>
+        @if (Model.ProcessingFee > 0)
+        {
+            <div class="info-row mt-4">
+                <span class="info-label">Processing Fee:</span>
+                <span>UGX @Model.ProcessingFee.ToString("N0")</span>
+            </div>
+        }
+    </div>
+
+    <h3>Transacting Agents</h3>
+
+    <div class="signature-section">
+        @{
+            var agentList = Model.DepositAgents.ToList();
+        }
+        @if (agentList.Count > 0)
+        {
+            <div class="signature-box">
+                <h4>Agent 1</h4>
+                <p><strong>Name:</strong> @agentList[0].AgentNames</p>
+                <p><strong>NIN:</strong> @agentList[0].NIN</p>
+                <div class="signature-line">
+                    Signature
+                </div>
+            </div>
+        }
+
+        @if (agentList.Count > 1)
+        {
+            <div class="signature-box">
+                <h4>Agent 2</h4>
+                <p><strong>Name:</strong> @agentList[1].AgentNames</p>
+                <p><strong>NIN:</strong> @agentList[1].NIN</p>
+                <div class="signature-line">
+                    Signature
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="panelists-section mt-4">
+        <h3>Bank of Uganda Panelists</h3>
+        <div class="row">
+            <div class="col-md-4">
+                <p><strong>Panel A:</strong></p>
+            </div>
+            <div class="col-md-4">
+                <p>@(string.IsNullOrEmpty(Model.PanelAName) ? "N/A" : Model.PanelAName)</p>
+            </div>
+            <div class="col-md-4">
+                <p >Signature: _________________</p>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                <p><strong>Panel B:</strong></p>
+            </div>
+            <div class="col-md-4">
+                <p>@(string.IsNullOrEmpty(Model.PanelBName) ? "N/A" : Model.PanelBName)</p>
+            </div>
+            <div class="col-md-4">
+                <p>Signature: __________________</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Convert number to words
+        const ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+            'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+            'Seventeen', 'Eighteen', 'Nineteen'];
+        const TENS = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+        function wordsUnder1000(n) {
+            if (n === 0) return '';
+            if (n < 20) return ONES[n];
+            if (n < 100) return TENS[Math.floor(n / 10)] + (n % 10 ? ' ' + ONES[n % 10] : '');
+            return ONES[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + wordsUnder1000(n % 100) : '');
+        }
+
+        function toWords(n) {
+            if (n === 0) return 'Zero Shillings';
+            const scales = [[1e12, 'Trillion'], [1e9, 'Billion'], [1e6, 'Million'], [1e3, 'Thousand'], [1, '']];
+            let res = '', rem = n;
+            scales.forEach(([s, name]) => {
+                if (rem >= s) {
+                    const chunk = Math.floor(rem / s);
+                    res += wordsUnder1000(chunk) + (name ? ' ' + name + ' ' : ' ');
+                    rem %= s;
+                }
+            });
+            return res.trim() + ' Shillings Only';
+        }
+
+        document.getElementById('amount-in-words').textContent = toWords(@Model.TotalAmount);
+    </script>
+</body>
+</html>

@@ -19,6 +19,8 @@ using VMSService.Core.Repositories.AgentDetailStatusHistories;
 using VMSService.Core.Repositories.ApprovedCurrencyDenominations;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
+using VMSService.Core.Repositories.Attachments;
+using VMSService.Core.Repositories.Bags;
 using VMSService.Core.Repositories.BranchCategories;
 using VMSService.Core.Repositories.Branches;
 using VMSService.Core.Repositories.Categories;
@@ -29,18 +31,26 @@ using VMSService.Core.Repositories.CounterPartyTypes;
 using VMSService.Core.Repositories.CurrencyVendors;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.DenominationTypes;
+using VMSService.Core.Repositories.DepositFees;
+using VMSService.Core.Repositories.DepositProcessingFees;
 using VMSService.Core.Repositories.DepositUnitOfWorks;
 using VMSService.Core.Repositories.ExpectedCurrencies;
-using VMSService.Core.Repositories.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.ExPrintMintDetails;
+using VMSService.Core.Repositories.ExPrintMintStatusHistories;
+using VMSService.Core.Repositories.FeeTypes;
+using VMSService.Core.Repositories.Logistics;
+using VMSService.Core.Repositories.MinDepositStandards;
+using VMSService.Core.Repositories.NewStockMovementLogs;
+using VMSService.Core.Repositories.PackingListRangeDetails;
+using VMSService.Core.Repositories.PackingListRanges;
 using VMSService.Core.Repositories.ReceivedStocks;
 using VMSService.Core.Repositories.ReceivedStocksDetails;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
 using VMSService.Core.Repositories.StockMovementDiscrepancies;
 using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.StockMovementStatusHistories;
-using VMSService.Core.Repositories.Logistics;
 using VMSService.Core.Repositories.Stocks;
+using VMSService.Core.Repositories.SubCategories;
 using VMSService.Core.Repositories.VendorTypes;
 using VMSService.Core.Repositories.WithdrawalRequestAgents;
 using VMSService.Core.Repositories.WithdrawalRequestDenominations;
@@ -48,15 +58,15 @@ using VMSService.Core.Repositories.WithdrawalRequests;
 using VMSService.Core.Repositories.WithdrawalRequestStatusHistories;
 using VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
+using VMSService.Core.Repository.Vaults;
+using VMSService.Core.Repository.VaultSections;
 using VMSService.Core.Services.Configurations;
 using VMSService.Core.Services.Identity;
+using VMSService.Core.Services.PackingListRangeDetails;
 using VMSService.Core.Services.StockPositions;
 using VMSService.Core.Services.Stocks;
 using VMSService.Core.Services.Workflows;
 using VMSService.Data;
-using VMSService.Core.Repositories.PackingListRangeDetails;
-using VMSService.Core.Repositories.PackingListRanges;
-using VMSService.Core.Services.PackingListRangeDetails;
 using WorkflowService.Client;
 using VMSService.Core.Repositories.BoxStates;
 
@@ -235,16 +245,29 @@ builder.Services.AddScoped<IDepositUnitOfWork, DepositUnitOfWork>();
 builder.Services.AddScoped<IDepositTransactionRefNumberGenerator, DepositTransactionRefNumberGenerator>();
 builder.Services.AddScoped<IDepositRequestRepository, DepositRequestRepository>();
 builder.Services.AddScoped<IDepositRequestStatusHistoryRepository, DepositRequestStatusHistoryRepository>();
+builder.Services.AddScoped<IMinDepositStandardRepository, MinDepositStandardRepository>();
+builder.Services.AddScoped<IDepositProcessingFeeRepository, DepositProcessingFeeRepository>();
+builder.Services.AddScoped<IDepositFeeRepository, DepositFeeRepository>();
+builder.Services.AddScoped<IFeeTypeRepository, FeeTypeRepository>();
+builder.Services.AddScoped<ISubCategoryRepository, SubCategoryRepository>();
 builder.Services.AddScoped<IBoxStateRepository, BoxStateRepository>();
 
 // ── Resource-based ownership check ────────────────────────────
 builder.Services.AddSingleton<IAuthorizationHandler, CbOwnershipAuthorizationHandler>();
 builder.Services.AddScoped<ILogisticsRepository, LogisticsRepository>();
 builder.Services.AddScoped<ILogisticsStatusHistoryRepository, LogisticsStatusHistoryRepository>();
+builder.Services.AddScoped<INewStockMovementLogRepository, NewStockMovementLogRepository>();
 
 // Add this in your service registration section
 builder.Services.AddScoped<IStockService, VMSService.Core.Services.Stocks.StockService>();
 builder.Services.AddScoped<IStockPositionService, StockPositionService>();
+
+builder.Services.AddScoped<IAttachmentRepository, AttachmentRepository>();
+builder.Services.AddScoped<IBagRepository, BagRepository>();
+// Add after line with builder.Services.AddScoped<IBagRepository, BagRepository>();
+builder.Services.AddScoped<IVaultRepository, VaultRepository>();
+builder.Services.AddScoped<IVaultSectionRepository, VaultSectionRepository>();
+
 builder.Services.AddHttpClient<VMSService.Core.Services.Stocks.StockService>()
     .ConfigureHttpClient((sp, client) =>
     {
@@ -290,6 +313,7 @@ var rabbitMqHost = builder.Configuration["RabbitMQ:Host"] ?? "localhost";
 var rabbitMqUsername = builder.Configuration["RabbitMQ:Username"] ?? "guest";
 var rabbitMqPassword = builder.Configuration["RabbitMQ:Password"] ?? "guest";
 builder.Services.AddNotificationEventPublisher(rabbitMqHost, rabbitMqUsername, rabbitMqPassword);
+builder.Services.AddNotificationServiceClient(builder.Configuration["MicroServices:notificationservice"] ?? "https://localhost:7026");
 
 // Configure LDAP settings
 builder.Services.Configure<StockAPISettings>(

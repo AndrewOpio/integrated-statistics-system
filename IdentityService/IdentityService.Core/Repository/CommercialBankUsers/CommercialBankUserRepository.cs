@@ -1,9 +1,8 @@
-using IdentityService.Core.Repository.CommercialBankUsers;
 using IdentityService.Data.Configurations;
 using IdentityService.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace IdentityService.Core.Repositories.CommercialBankUsers
+namespace IdentityService.Core.Repository.CommercialBankUsers
 {
     public class CommercialBankUserRepository(ApplicationDbContext _db) : ICommercialBankUserRepository
     {

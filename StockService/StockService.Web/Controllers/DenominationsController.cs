@@ -26,6 +26,7 @@ namespace StockService.Web.Controllers
                 Name = d.Name,
                 Value = d.Value,
                 NumberOfPiecesInABox = d.NumberOfPiecesInABox,
+                NumberOfPiecesInABundle = d.NumberOfPiecesInABundle,
                 DenominationTypeId = d.DenominationTypeId,
                 DenominationType = d.DenominationType == null ? null : new DenominationTypeDto
                 {
@@ -50,6 +51,7 @@ namespace StockService.Web.Controllers
                 Name = item.Name,
                 Value = item.Value,
                 NumberOfPiecesInABox = item.NumberOfPiecesInABox,
+                NumberOfPiecesInABundle = item.NumberOfPiecesInABundle,
                 DenominationTypeId = item.DenominationTypeId,
                 DenominationType = item.DenominationType == null ? null : new DenominationTypeDto
                 {

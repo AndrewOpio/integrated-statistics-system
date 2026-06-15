@@ -49,12 +49,18 @@ namespace VMSService.Core.Services.Stocks
         // StockLedger methods
         Task<ICollection<StockLedger>> GetAllStockLedgers();
         Task<StockLedger> GetStockLedgerById(int id);
-        Task<StockLedger> CreateStockLedger(StockLedger stockLedger);
+        Task<bool> CreateStockLedger(StockLedger stockLedger);
 
         // StockLedgerDetail methods
         Task<ICollection<StockLedgerDetail>> GetAllStockLedgerDetails();
         Task<StockLedgerDetail> GetStockLedgerDetailById(int id);
         Task<bool> CreateStockLedgerDetail(StockLedgerDetail stockLedgerDetail);
         Task<bool> UpdateStockLedgerDetail(StockLedgerDetail stockLedgerDetail);
+
+        // SubCategory methods
+        Task<ICollection<SubCategory>> GetAllSubCategories();
+        Task<SubCategory> GetSubCategoryById(int id);
+        Task<bool> CreateSubCategory(SubCategory subCategory);
+        Task<bool> UpdateSubCategory(SubCategory subCategory);
     }
 }

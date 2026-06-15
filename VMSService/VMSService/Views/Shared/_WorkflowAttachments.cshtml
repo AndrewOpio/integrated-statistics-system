@@ -1,0 +1,62 @@
+@model IEnumerable<VMSService.Core.Models.Attachments.AttachmentViewModel>
+
+@if (Model != null && Model.Any())
+{
+	<div class="row">
+		<div class="col-12">
+			<!-- Attachments Section -->
+			<div class="card border-0 shadow mb-3">
+				<div class="card-header bg-white border-bottom no-after">
+					<h6 class="card-title mb-0">
+						<i class="ti ti-paperclip me-1"></i>Attachments
+						<span class="badge bg-secondary bg-opacity-10 text-secondary">
+							@Model.Count()
+						</span>
+					</h6>
+				</div>
+
+				<div class="card-body">
+					<div class="row">
+						@foreach (var attachment in Model.OrderByDescending(a => a.UploadedDate))
+						{
+							<div class="border rounded p-3 bg-light col-4 m-2">
+								<div class="d-flex align-items-start gap-2 mb-2">
+									<i class="ti @attachment.FileIcon @attachment.FileColor fs-4 flex-shrink-0"></i>
+									<div class="flex-grow-1 overflow-hidden">
+										<p class="mb-0 small fw-semibold text-truncate" title="@attachment.FileName">
+											@attachment.FileName
+										</p>
+										<small class="text-muted d-block">
+											@attachment.FileSizeFormatted
+										</small>
+										<small class="text-muted d-block">
+											@attachment.UploadedDate.ToString("dd MMM yyyy HH:mm")
+										</small>
+									</div>
+								</div>
+
+								@* Action Buttons *@
+								<div class="d-flex gap-1">
+									@if (attachment.IsPreviewable)
+									{
+										<a href="/@attachment.FilePath"
+										   target="_blank"
+										   class="btn btn-sm btn-outline-info flex-fill">
+											<i class="ti ti-external-link me-1"></i>
+											@(attachment.IsPdf ? "Open PDF" : "Open")
+										</a>
+									}
+									<a asp-action="DownloadAttachment"
+									   asp-route-id="@attachment.Id"
+									   class="btn btn-sm btn-outline-primary flex-fill">
+										<i class="ti ti-download me-1"></i>Download
+									</a>
+								</div>
+							</div>
+						}
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+}

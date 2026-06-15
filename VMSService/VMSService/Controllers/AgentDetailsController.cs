@@ -1,5 +1,5 @@
 using AutoMapper;
-using ConfigurationsService.Dto;
+using ConfigurationsService.Client;
 using MassTransit.Middleware;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

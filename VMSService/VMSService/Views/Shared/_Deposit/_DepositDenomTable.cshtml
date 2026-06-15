@@ -1,4 +1,4 @@
-@model VMSService.Core.Models.CbDepositRequest.DepositDenomTableViewModel
+@model VMSService.Core.Models.CbDepositRequests.DepositDenomTableViewModel
 
 <div class="card mb-4 border-top-0 border-end-0 border-bottom-0 border-4 shadow-sm" style="border-color: #b31b34">
 
@@ -10,11 +10,11 @@
                 <span class="text-uppercase mb-0">Deposit Denomination Details</span>
             </div>
             <div class="d-flex gap-2">
-                <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1"
+                <button type="button" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1"
                         onclick="depositDenomAddRow('notes')">
                     <i class="ti ti-circle-letter-n-filled"></i>Add Banknote
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-warning d-inline-flex align-items-center gap-1"
+                <button type="button" class="btn btn-sm btn-warning d-inline-flex align-items-center gap-1"
                         onclick="depositDenomAddRow('coins')">
                     <i class="ti ti-circle-letter-c-filled"></i>Add Coin
                 </button>
@@ -30,7 +30,7 @@
                 <i class="ti ti-x me-1"></i> Unfit — Worn/damaged banknotes
             </span>
             <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle px-3 py-2">
-                <i class="ti ti-minus me-1"></i> N/A — Not applicable (coins)
+                <i class="ti ti-minus me-1"></i> N/A — Not applicable (unsorted)
             </span>
         </div>
 

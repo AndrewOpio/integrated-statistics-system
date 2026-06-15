@@ -1,4 +1,4 @@
-using ConfigurationsService.Dto;
+using ConfigurationsService.Client;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using VMSService.Core.Repository.Common;

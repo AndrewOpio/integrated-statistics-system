@@ -82,6 +82,34 @@ namespace IdentityService.Web.Controllers
                 return StatusCode(500, "An error occurred while retrieving recipients.");
             }
         }
+
+        [HttpGet("get-by-username/{username}")]
+        public async Task<ActionResult<UserDto>> GetUserByUsername(string username)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(username))
+                {
+                    return BadRequest("Username is required.");
+                }
+
+                var user = await _userRepo.FindByName(username);
+                
+                if (user == null)
+                {
+                    _logger.LogWarning("User with username {Username} not found", username);
+                    return NotFound($"User with username '{username}' not found.");
+                }
+
+                var userDto = _mapper.Map<UserDto>(user);
+                return Ok(userDto);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving user by username: {Username}", username);
+                return StatusCode(500, "An error occurred while retrieving the user.");
+            }
+        }
     }
 
     public class RecipientRequest

@@ -1,4 +1,4 @@
-using ConfigurationsService.Dto;
+using ConfigurationsService.Client;
 using VMSService.Core.Repository.Common;
 
 namespace VMSService.Core.Repositories.CommercialBanks

@@ -10,8 +10,9 @@
             public const string StockApprover = "Stock Approver"; 
             public const string CurrencyApprover = "Currency Approver";
             public const string Director = "Director";
+            public const string FinanceAndBudgetingOfficer = "Finance and Budgeting Officer";
 
-            public const string BranchManager = "Branch Manager";
+            public const string BranchManager = "Panel B";
             public const string RemittancesOfficer = "Remittance Officer";
 
             public const string CbMaker = "CB Maker";
@@ -47,6 +48,11 @@
             public const string CurrencyApprover = $"{SystemSettings.AppAcronym}:Currency Approver";
             public const string Director = $"{SystemSettings.AppAcronym}:Director";
             public const string CbId = "cbId";
+        }
+
+        public static class FeeTypes {
+            public const string ProcessingFees = "Processing Fees";
+            public const string MinDepositFees = "Minimum Deposit Penalty Fees";
         }
     }
 }

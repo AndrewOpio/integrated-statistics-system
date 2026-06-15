@@ -1,3 +1,4 @@
+using VMSService.Core.Repositories.DepositFees;
 using VMSService.Data.Configurations;
 
 namespace VMSService.Core.Repositories.DepositUnitOfWorks
@@ -15,6 +16,9 @@ namespace VMSService.Core.Repositories.DepositUnitOfWorks
 
         public IDepositRequestStatusHistoryRepository StatusHistory { get; }
             = new DepositRequestStatusHistoryRepository(_db);
+
+        public IDepositFeeRepository DepositFees { get; }
+            = new DepositFeeRepository(_db);
 
         public async Task<int> SaveAsync(CancellationToken ct = default)
             => await _db.SaveChangesAsync(ct);
