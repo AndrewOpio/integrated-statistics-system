@@ -50,7 +50,7 @@ namespace VMSService.Data.Configurations
         public DbSet<ReceivedStockDetails> ReceivedStockDetails { get; set; }
         public DbSet<NewStockAccountingStatus> NewStockAccountingStatuses { get; set; }
 
-                // Deposit
+        // Deposit
         public DbSet<DepositRequest> DepositRequests { get; set; }
         public DbSet<DepositRequestAgent> DepositRequestAgents { get; set; }
         public DbSet<DepositRequestDenomination> DepositRequestDenominations { get; set; }
@@ -157,6 +157,17 @@ namespace VMSService.Data.Configurations
             //    .WithMany()
             //    .HasForeignKey(l => l.NewStatusId)
             //    .OnDelete(DeleteBehavior.Restrict);
+
+            // ── WithdrawalRequestDenomination ─────────────────────
+            modelBuilder.Entity<WithdrawalRequestDenominationBox>(e =>
+            {
+                e.HasOne(x => x.WithdrawalRequestDenomination)
+                 .WithMany(x => x.DispatchedBoxes)
+                 .HasForeignKey(x => x.WithdrawalRequestDenominationId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasIndex(x => x.CaseNumber);
+            });
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -173,16 +184,9 @@ namespace VMSService.Data.Configurations
                     entity.CreatedBy = user;
                     entity.CreatedDate = now;
                     entity.ModifiedBy = user;
-            {
-                var entity = entry.Entity;
-
-                if (entry.State == EntityState.Added)
-                {
-                    entity.CreatedBy = user;
-                    entity.CreatedDate = now;
-                    entity.ModifiedBy = user;
                     entity.ModifiedDate = now;
                 }
+
                 else if (entry.State == EntityState.Modified)
                 {
                     // Prevent overwriting creation audit fields
@@ -194,9 +198,9 @@ namespace VMSService.Data.Configurations
                     entity.ModifiedDate = now;
                 }
             }
-
             return await base.SaveChangesAsync(cancellationToken);
         }
     }
 }
+
 

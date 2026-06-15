@@ -29,8 +29,7 @@
 	<PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.0" />
 	<PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.23" />
 	<PackageReference Include="SmartBreadcrumbs" Version="3.6.1" />
-	<PackageReference Include="WorkflowService.Client" Version="1.0.3" />
-  <PackageReference Include="BOU.NotificationService.Client" Version="1.0.4" />
+WorkflowService  <PackageReference Include="BOU.NotificationService.Client" Version="1.0.4" />
   <PackageReference Include="BOU.ConfigurationsService.Client" Version="1.0.7" />
   <!--<PackageReference Include="BOU.StockService.Client" Version="1.0.2" />-->
   </ItemGroup>
