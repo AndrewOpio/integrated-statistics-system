@@ -2,6 +2,7 @@
 
 @using VMSService.Core.Services.Stocks.StockEntities
 @using VMSService.Core.Static
+@using VMSService.Core.Models.Shared
 
 @{
     ViewData["Title"] = "Destruction Request Details";
@@ -20,6 +21,14 @@
         s == StatusConstants.DestructionRequest.ReturnedToStorage      ? "bg-danger" :
         s == StatusConstants.DestructionRequest.ReturnedForDestruction ? "bg-info" :
         "bg-secondary";
+
+    var workflowActionsViewModel = new WorkflowActionsViewModel
+    {
+        EntityId = Model.Id,
+        ControllerName = "DestructionRequests",
+        AvailableTransitions = Model.AvailableTransitions,
+        IsValid = true
+    };
 }
 
 <div class="row g-4">
@@ -214,53 +223,10 @@
                 <hr />
 
                 @* Status History *@
-                @if (Model.StatusHistory.Any())
-                {
-                    <div class="card border-0 shadow-sm mb-3">
-                        <div class="card-header bg-white border-bottom">
-                            <h6 class="card-title mb-0">
-                                <i class="ti ti-message me-2 text-secondary"></i>Comments
-                            </h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="timeline">
-                                @foreach (var h in Model.StatusHistory.OrderBy(x => x.ChangedAt))
-                                {
-                                    <div class="timeline-item mb-4">
-                                        <div class="d-flex gap-3">
-                                            <div class="timeline-marker">
-                                                <i class="ti ti-circle-check text-success"></i>
-                                            </div>
-                                            <div class="flex-grow-1">
-                                                <div class="d-flex justify-content-between align-items-start">
-                                                    <div>
-                                                        <h6 class="mb-1 small">
-                                                            <strong>@h.OldStatusName</strong>
-                                                            <i class="ti ti-arrow-right text-muted"></i>
-                                                            <strong>@h.NewStatusName</strong>
-                                                        </h6>
-                                                        <small class="text-muted">
-                                                            By: <strong>@h.ChangedBy</strong>
-                                                        </small>
-                                                    </div>
-                                                    <small class="text-muted">
-                                                        @h.ChangedAt.ToString("dd/MMM/yyyy HH:mm:ss")
-                                                    </small>
-                                                </div>
-                                                @if (!string.IsNullOrWhiteSpace(h.Remarks))
-                                                {
-                                                    <div class="mt-2 p-2 bg-white rounded border">
-                                                        <span class="d-block">@h.Remarks</span>
-                                                    </div>
-                                                }
-                                            </div>
-                                        </div>
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                    </div>
-                }
+                @await Html.PartialAsync("_WorkflowComments", Model.StatusHistory)
+
+                @* All Attachments *@
+                @await Html.PartialAsync("_WorkflowAttachments", Model.AllAttachments)
 
                 <hr />
 
@@ -332,31 +298,7 @@
                 }
                 else if (Model.AvailableTransitions.Any() && Model.CurrentStatusName != StatusConstants.DestructionRequest.Approved && Model.CurrentStatusName != StatusConstants.DestructionRequest.ReturnedForDestruction)
                 {
-                    <form asp-action="ExecuteAction" method="post">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="id" value="@Model.Id" />
-
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Select Action</label>
-                            <select class="form-select" name="actionName">
-                                <option value="">-- Choose action --</option>
-                                @foreach (var t in Model.AvailableTransitions)
-                                {
-                                    <option value="@t.ActionName">@t.DisplayLabel</option>
-                                }
-                            </select>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Remarks</label>
-                            <textarea class="form-control" name="remarks" rows="3"
-                                      placeholder="Add comments (required for some actions)…"></textarea>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="ti ti-check me-1"></i>Submit
-                        </button>
-                    </form>
+                    @await Html.PartialAsync("_WorkflowActions", workflowActionsViewModel)
                 }
                 else
                 {
@@ -379,89 +321,93 @@
 
 </div>
 
-@if (Model.CurrentStatusName == StatusConstants.DestructionRequest.Approved || Model.CurrentStatusName == StatusConstants.DestructionRequest.ReturnedForDestruction)
-{
-    @section Scripts {
-    <script>
-    // Real-time validation as user types
-    document.querySelectorAll('.denom-destroyed-input').forEach(function (input) {
-        input.addEventListener('input', function () {
-            const remaining = parseFloat(this.dataset.remaining) || 0;
-            const value     = parseFloat(this.value) || 0;
-            if (value < 0 || value > remaining) {
-                this.classList.add('is-invalid');
-                this.classList.remove('is-valid');
-            } else if (value > 0) {
-                this.classList.remove('is-invalid');
-                this.classList.add('is-valid');
-            } else {
-                this.classList.remove('is-invalid', 'is-valid');
-            }
-        });
-    });
-
-    document.getElementById('submitDestructionBtn')?.addEventListener('click', function () {
-        const btn = this;
-        const denominations = [];
-        let valid = true;
-
+@section Scripts {
+    @if (Model.CurrentStatusName == StatusConstants.DestructionRequest.Approved || Model.CurrentStatusName == StatusConstants.DestructionRequest.ReturnedForDestruction)
+    {
+        <script>
+        // Real-time validation as user types
         document.querySelectorAll('.denom-destroyed-input').forEach(function (input) {
-            const denomId   = parseInt(input.dataset.denomId);
-            const remaining = parseFloat(input.dataset.remaining);
-            const value     = parseFloat(input.value) || 0;
-
-            if (value < 0 || value > remaining) {
-                input.classList.add('is-invalid');
-                valid = false;
-            } else {
-                input.classList.remove('is-invalid');
-            }
-
-            denominations.push({ DenominationId: denomId, DestroyedToday: value });
+            input.addEventListener('input', function () {
+                const remaining = parseFloat(this.dataset.remaining) || 0;
+                const value     = parseFloat(this.value) || 0;
+                if (value < 0 || value > remaining) {
+                    this.classList.add('is-invalid');
+                    this.classList.remove('is-valid');
+                } else if (value > 0) {
+                    this.classList.remove('is-invalid');
+                    this.classList.add('is-valid');
+                } else {
+                    this.classList.remove('is-invalid', 'is-valid');
+                }
+            });
         });
 
-        if (!valid) {
-            document.getElementById('destructionFormAlerts').innerHTML =
-                '<div class="alert alert-danger">One or more amounts exceed the remaining balance. Please correct before submitting.</div>';
-            return;
-        }
+        document.getElementById('submitDestructionBtn')?.addEventListener('click', function () {
+            const btn = this;
+            const denominations = [];
+            let valid = true;
 
-        const payload = {
-            DestructionRequestId: @Model.Id,
-            Remarks:       document.getElementById('destructionRemarks').value,
-            Denominations: denominations
-        };
+            document.querySelectorAll('.denom-destroyed-input').forEach(function (input) {
+                const denomId   = parseInt(input.dataset.denomId);
+                const remaining = parseFloat(input.dataset.remaining);
+                const value     = parseFloat(input.value) || 0;
 
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving...';
-        document.getElementById('destructionFormAlerts').innerHTML = '';
+                if (value < 0 || value > remaining) {
+                    input.classList.add('is-invalid');
+                    valid = false;
+                } else {
+                    input.classList.remove('is-invalid');
+                }
 
-        fetch('@Url.Action("RecordDestruction")', {
-            method:  'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? ''
-            },
-            body: JSON.stringify(payload)
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.redirectUrl) {
-                window.location.href = data.redirectUrl;
-            } else {
+                denominations.push({ DenominationId: denomId, DestroyedToday: value });
+            });
+
+            if (!valid) {
                 document.getElementById('destructionFormAlerts').innerHTML =
-                    '<div class="alert alert-danger">' + (data.message ?? 'An error occurred.') + '</div>';
+                    '<div class="alert alert-danger">One or more amounts exceed the remaining balance. Please correct before submitting.</div>';
+                return;
+            }
+
+            const payload = {
+                DestructionRequestId: @Model.Id,
+                Remarks:       document.getElementById('destructionRemarks').value,
+                Denominations: denominations
+            };
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving...';
+            document.getElementById('destructionFormAlerts').innerHTML = '';
+
+            fetch('@Url.Action("RecordDestruction")', {
+                method:  'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? ''
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.redirectUrl) {
+                    window.location.href = data.redirectUrl;
+                } else {
+                    document.getElementById('destructionFormAlerts').innerHTML =
+                        '<div class="alert alert-danger">' + (data.message ?? 'An error occurred.') + '</div>';
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="ti ti-check me-1"></i>Record Destruction';
+                }
+            })
+            .catch(() => {
+                document.getElementById('destructionFormAlerts').innerHTML =
+                    '<div class="alert alert-danger">An unexpected error occurred.</div>';
                 btn.disabled = false;
                 btn.innerHTML = '<i class="ti ti-check me-1"></i>Record Destruction';
-            }
-        })
-        .catch(() => {
-            document.getElementById('destructionFormAlerts').innerHTML =
-                '<div class="alert alert-danger">An unexpected error occurred.</div>';
-            btn.disabled = false;
-            btn.innerHTML = '<i class="ti ti-check me-1"></i>Record Destruction';
+            });
         });
-    });
-    </script>
+        </script>
+    }
+    else
+    {
+        @await Html.PartialAsync("_WorkflowActionsScript")
     }
 }

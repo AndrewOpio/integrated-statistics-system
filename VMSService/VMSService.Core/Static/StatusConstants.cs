@@ -127,7 +127,7 @@
             public const string DepositRequestExceptional = "DepositRequestExceptional";
             public const string DestructionRequest = "Destruction";
             public const string DestructionAuthorization = "DestructionAuthorization";
-            public const string CfbReport = "CfbReport";
+            public const string CfbReport = "EndOfDayDiscrepancies";
         }
     }
 }

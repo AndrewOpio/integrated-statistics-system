@@ -14,6 +14,7 @@ using System.Text;
 using VMSService.Core.Authorization;
 using VMSService.Core.Mappings;
 using VMSService.Core.Models.Authentication;
+using VMSService.Core.Repositories.Attachments;
 using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.AgentDetailStatusHistories;
 using VMSService.Core.Repositories.ApprovedCurrencyDenominations;
@@ -66,8 +67,8 @@ using VMSService.Core.Repositories.DestructionTypes;
 using VMSService.Core.Repositories.DestructionAuthorizations;
 using VMSService.Core.Repositories.DestructionAuthorizationStatusHistories;
 using VMSService.Core.Repositories.DestructionLocations;
-using VMSService.Core.Repositories.CfbReports;
-using VMSService.Core.Repositories.CfbReportStatusHistories;
+using VMSService.Core.Repositories.EodDiscrepancyReports;
+using VMSService.Core.Repositories.EodDiscrepancyReportStatusHistories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -188,8 +189,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 context.Response.Redirect(authenticationSettings?.LoginPath ?? "/logout");
                 await context.Response.CompleteAsync();
             }
-            
-
         };
     });
 
@@ -250,8 +249,9 @@ builder.Services.AddScoped<IDestructionTypeRepository, DestructionTypeRepository
 builder.Services.AddScoped<IDestructionLocationRepository, DestructionLocationRepository>();
 builder.Services.AddScoped<IDestructionAuthorizationRepository, DestructionAuthorizationRepository>();
 builder.Services.AddScoped<IDestructionAuthorizationStatusHistoryRepository, DestructionAuthorizationStatusHistoryRepository>();
-builder.Services.AddScoped<ICfbReportRepository, CfbReportRepository>();
-builder.Services.AddScoped<ICfbReportStatusHistoryRepository, CfbReportStatusHistoryRepository>();
+builder.Services.AddScoped<IEodDiscrepancyReportRepository, EodDiscrepancyReportRepository>();
+builder.Services.AddScoped<IEodDiscrepancyReportStatusHistoryRepository, EodDiscrepancyReportStatusHistoryRepository>();
+builder.Services.AddScoped<IAttachmentRepository, AttachmentRepository>();
 
 // ── Resource-based ownership check ────────────────────────────
 builder.Services.AddSingleton<IAuthorizationHandler, CbOwnershipAuthorizationHandler>();

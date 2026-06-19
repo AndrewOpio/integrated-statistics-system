@@ -5,8 +5,8 @@ using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.AgentDetailStatusHistories;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
-using VMSService.Core.Repositories.CfbReportStatusHistories;
-using VMSService.Core.Repositories.CfbReports;
+using VMSService.Core.Repositories.EodDiscrepancyReportStatusHistories;
+using VMSService.Core.Repositories.EodDiscrepancyReports;
 using VMSService.Core.Repositories.DestructionAuthorizationStatusHistories;
 using VMSService.Core.Repositories.DestructionAuthorizations;
 using VMSService.Core.Repositories.DestructionRequestStatusHistories;
@@ -52,14 +52,14 @@ namespace VMSService.Core.Services.Workflows
         IDestructionRequestStatusHistoryRepository _destructionStatusHistoryRepository,
         IDestructionAuthorizationRepository _destructionAuthorizationRepository,
         IDestructionAuthorizationStatusHistoryRepository _destructionAuthorizationStatusHistoryRepository,
-        ICfbReportRepository _cfbReportRepository,
-        ICfbReportStatusHistoryRepository _cfbReportStatusHistoryRepository) : IWorkflowService
+        IEodDiscrepancyReportRepository _cfbReportRepository,
+        IEodDiscrepancyReportStatusHistoryRepository _cfbReportStatusHistoryRepository) : IWorkflowService
     {
 
 
         public async Task<bool> ExecuteTransition(
             string entityType, int entityId, int currentStatusId,
-            string actionName, string username, List<int> userRoles, string remarks)
+            string actionName, string username, List<int> userRoles, string remarks, List<long>? attachmentIds = null)
         {
             var requestData = new GetTransitionByKeyRequestDto
             {
@@ -105,7 +105,7 @@ namespace VMSService.Core.Services.Workflows
                         return await HandleAgentDetailTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
 
                     case StatusConstants.Entity.DestructionRequest:
-                        return await HandleDestructionRequestTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
+                        return await HandleDestructionRequestTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
 
                     case StatusConstants.Entity.DestructionAuthorization:
                         return await HandleDestructionAuthorizationTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
@@ -727,7 +727,7 @@ namespace VMSService.Core.Services.Workflows
         }
 
         private async Task<bool> HandleDestructionRequestTransitions(int entityId, int currentStatusId, string actionName,
-            string username, string remarks, WorkflowTransitionDto transition)
+            string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
         {
             var request = await _destructionRequestRepository.FindById(entityId);
             if (request == null)
@@ -746,14 +746,17 @@ namespace VMSService.Core.Services.Workflows
             var statusHistory = new DestructionRequestStatusHistory
             {
                 DestructionRequestId = entityId,
-                OldStatusId = request.CurrentStatusId,
-                OldStatusName = request.CurrentStatusName,
-                NewStatusId = transition.ToStatusId,
-                NewStatusName = transition.ToStatus.Name,
-                ChangedBy = username,
-                ChangedAt = DateTime.Now,
-                Remarks = remarks,
-                IsDeleted = false
+                OldStatusId          = request.CurrentStatusId,
+                OldStatusName        = request.CurrentStatusName,
+                NewStatusId          = transition.ToStatusId,
+                NewStatusName        = transition.ToStatus.Name,
+                ChangedBy            = username,
+                ChangedAt            = DateTime.Now,
+                Remarks              = remarks,
+                AttachmentIds        = attachmentIds != null && attachmentIds.Any()
+                                           ? string.Join(",", attachmentIds)
+                                           : null,
+                IsDeleted            = false
             };
 
             await _destructionStatusHistoryRepository.Create(statusHistory);
@@ -794,9 +797,9 @@ namespace VMSService.Core.Services.Workflows
                 return false;
             }
 
-            var statusHistory = new CfbReportStatusHistory
+            var statusHistory = new EodDiscrepancyReportStatusHistory
             {
-                CfbReportId   = entityId,
+                EodDiscrepancyReportId = entityId,
                 OldStatusId   = report.CurrentStatusId,
                 OldStatusName = report.CurrentStatusName,
                 NewStatusId   = transition.ToStatusId,

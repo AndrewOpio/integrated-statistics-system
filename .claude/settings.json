@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find \"c:\\\\Users\\\\aopio\\\\Desktop\\\\Projects\\\\bpms\" -type f -name \"*DbContext.cs\" | head -5)",
+      "Read(//c/Users/aopio/Desktop/Projects/bpms/**)"
+    ]
+  }
+}

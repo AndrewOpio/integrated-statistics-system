@@ -1,7 +1,7 @@
-@model IEnumerable<VMSService.Data.Entities.CfbReport>
+@model IEnumerable<VMSService.Data.Entities.EodDiscrepancyReport>
 
 @{
-    ViewData["Title"] = "CFB Reports";
+    ViewData["Title"] = "End of Day Discrepancies";
 }
 
 <div class="row">
@@ -10,11 +10,11 @@
             <div class="card-header">
                 <div class="row align-items-center">
                     <div class="col">
-                        <h2 class="fs-5 fw-bold mb-0">Cash Flow Balancing Reports</h2>
+                        <h2 class="fs-5 fw-bold mb-0">End of Day Discrepancy Reports</h2>
                     </div>
                     <div class="col text-end">
                         <a asp-action="Create" class="btn btn-sm btn-primary">
-                            <i class="ti ti-plus me-1"></i>New CFB Report
+                            <i class="ti ti-plus me-1"></i>New Discrepancy Report
                         </a>
                     </div>
                 </div>
@@ -38,8 +38,8 @@
                             @{ int rowNumber = 1; }
                             @foreach (var item in Model)
                             {
-                                var totalShortage = item.CfbReportTransactions?.Where(t => t.Type == "Shortage").Sum(t => t.Amount) ?? 0m;
-                                var totalSurplus  = item.CfbReportTransactions?.Where(t => t.Type == "Surplus").Sum(t => t.Amount) ?? 0m;
+                                var totalShortage = item.BoardSessionSurplusShortages?.Where(t => !t.IsSurplus).Sum(t => t.Amount) ?? 0m;
+                                var totalSurplus  = item.BoardSessionSurplusShortages?.Where(t => t.IsSurplus).Sum(t => t.Amount) ?? 0m;
                                 <tr>
                                     <td><span class="text-primary fw-bold">@rowNumber</span></td>
                                     <td class="fw-bold">@item.ReferenceNumber</td>

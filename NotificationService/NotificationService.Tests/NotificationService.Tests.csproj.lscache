@@ -84,7 +84,7 @@ obj/Debug/net8.0/
  System.Console.dll
  System.Core.dll
  System.Data.Common.dll
- System.Data.DataSetExtensions.dll
+ System.Data.DataSetExtensi0ons.dll
  System.Data.dll
  System.Diagnostics.Contracts.dll
  System.Diagnostics.Debug.dll

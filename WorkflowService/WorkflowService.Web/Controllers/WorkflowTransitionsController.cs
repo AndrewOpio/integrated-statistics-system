@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using SmartBreadcrumbs.Attributes;
+using System.Text.Json;
 using WorkflowService.Core.Models.WorkflowTransitions;
 using WorkflowService.Core.Repositories.EntityTypes;
 using WorkflowService.Core.Repositories.StatusTypes;
@@ -181,7 +182,7 @@ namespace WorkflowService.Web.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Breadcrumb("Create Transition", FromController = typeof(WorkflowTransitionsController), FromAction = nameof(Index))]
-        public async Task<IActionResult> Create(int applicationId, WorkflowTransitionViewModel model)
+        public async Task<IActionResult> Create(int applicationId, WorkflowTransitionViewModel model, string? attachmentsJson)
         {
             // Set custom breadcrumb with query parameters
             ViewBag.BreadcrumbItems = new List<(string Text, string Url)>
@@ -231,9 +232,38 @@ namespace WorkflowService.Web.Controllers
                     SendNotification = model.SendNotification,
                     NotificationRoleIds = notificationRoleIds,
                     NotificationEmails = model.NotificationEmails,
+                    RequiresAttachments = model.RequiresAttachments,
                     IsActive = true,
                     IsDeleted = false
                 };
+
+                if (model.RequiresAttachments && !string.IsNullOrWhiteSpace(attachmentsJson))
+                {
+                    try
+                    {
+                        var attachments = JsonSerializer.Deserialize<List<TransitionAttachmentRequirementViewModel>>(attachmentsJson);
+                        if (attachments != null && attachments.Any())
+                        {
+                            foreach (var attachment in attachments.OrderBy(a => a.DisplayOrder))
+                            {
+                                workflowTransition.AttachmentRequirements.Add(new WorkflowService.Data.Entities.TransitionAttachmentRequirement
+                                {
+                                    AttachmentName = attachment.AttachmentName,
+                                    AllowedFormats = attachment.AllowedFormats,
+                                    DisplayOrder = attachment.DisplayOrder,
+                                    IsRequired = attachment.IsRequired
+                                });
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error parsing attachments JSON");
+                        ModelState.AddModelError("", "Invalid attachment data provided.");
+                        await PopulateDropdowns(model, applicationId);
+                        return View(model);
+                    }
+                }
 
                 bool isCreated = await _workflowTransitionRepository.Create(workflowTransition);
 
@@ -309,7 +339,7 @@ namespace WorkflowService.Web.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Breadcrumb("Edit Transition", FromController = typeof(WorkflowTransitionsController), FromAction = nameof(Index))]
-        public async Task<IActionResult> Edit(int id, int applicationId, WorkflowTransitionViewModel model)
+        public async Task<IActionResult> Edit(int id, int applicationId, WorkflowTransitionViewModel model, string attachmentsJson)
         {
             // Set custom breadcrumb with query parameters
             ViewBag.BreadcrumbItems = new List<(string Text, string Url)>
@@ -370,6 +400,36 @@ namespace WorkflowService.Web.Controllers
                 transition.SendNotification = model.SendNotification;
                 transition.NotificationRoleIds = notificationRoleIds;
                 transition.NotificationEmails = model.NotificationEmails;
+                transition.RequiresAttachments = model.RequiresAttachments;
+
+                transition.AttachmentRequirements.Clear();
+                if (model.RequiresAttachments && !string.IsNullOrWhiteSpace(attachmentsJson))
+                {
+                    try
+                    {
+                        var attachments = JsonSerializer.Deserialize<List<TransitionAttachmentRequirementViewModel>>(attachmentsJson);
+                        if (attachments != null && attachments.Any())
+                        {
+                            foreach (var attachment in attachments.OrderBy(a => a.DisplayOrder))
+                            {
+                                transition.AttachmentRequirements.Add(new WorkflowService.Data.Entities.TransitionAttachmentRequirement
+                                {
+                                    AttachmentName = attachment.AttachmentName,
+                                    AllowedFormats = attachment.AllowedFormats,
+                                    DisplayOrder = attachment.DisplayOrder,
+                                    IsRequired = attachment.IsRequired
+                                });
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error parsing attachments JSON");
+                        ModelState.AddModelError("", "Invalid attachment data provided.");
+                        await PopulateDropdowns(model, applicationId);
+                        return View(model);
+                    }
+                }
 
                 bool isUpdated = await _workflowTransitionRepository.Update(transition);
 

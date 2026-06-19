@@ -1,0 +1,103 @@
+@model IEnumerable<VMSService.Core.Models.Shared.StatusHistoryViewModel>
+
+<div class="row">
+	<div class="col-12">
+		<!-- Status History Section -->
+		<div class="card border-0 shadow mb-3">
+			<div class="card-header bg-white border-bottom no-after">
+				<h6 class="card-title mb-0">
+					<i class="ti ti-message me-2 text-secondary"></i>Comments
+				</h6>
+			</div>
+			<div class="card-body">
+				@if (Model != null && Model.Any())
+				{
+					<div class="timeline">
+						@foreach (var history in Model.OrderBy(x => x.ChangedAt))
+						{
+							<div class="timeline-item mb-4">
+								<div class="d-flex gap-3">
+									<div class="timeline-marker">
+										<i class="ti ti-circle-check text-success"></i>
+									</div>
+									<div class="flex-grow-1">
+										<div class="d-flex justify-content-between align-items-start">
+											<div>
+												<h6 class="mb-1 small">
+													<strong>@history.OldStatusName</strong>
+													<i class="ti ti-arrow-right text-muted"></i>
+													<strong>@history.NewStatusName</strong>
+												</h6>
+												<small class="text-muted">
+													By: <strong>@history.ChangedBy</strong>
+												</small>
+											</div>
+											<small class="text-muted">
+												@history.ChangedAt.ToString("dd/MMM/yyyy HH:mm:ss")
+											</small>
+										</div>
+										@if (!string.IsNullOrEmpty(history.Remarks))
+										{
+											<div class="mt-2 p-2 bg-white rounded border">
+												<span class="d-block">@history.Remarks</span>
+											</div>
+										}
+
+										@* Display Attachments *@
+										@if (history.Attachments != null && history.Attachments.Any())
+										{
+											<div class="mt-3">
+												<p class="small text-muted mb-2">
+													<i class="ti ti-paperclip me-1"></i>
+													<strong>Attachments (@history.Attachments.Count())</strong>
+												</p>
+												<div class="d-flex flex-column gap-2">
+													@foreach (var attachment in history.Attachments)
+													{
+														<div class="d-flex align-items-center gap-2 p-2 border rounded bg-light">
+															<i class="ti @attachment.FileIcon @attachment.FileColor fs-4"></i>
+															<div class="flex-grow-1">
+																<p class="mb-0 small fw-semibold">@attachment.FileName</p>
+																<small class="text-muted">
+																	@attachment.FileSizeFormatted ·
+																	Uploaded @attachment.UploadedDate.ToString("dd MMM yyyy HH:mm")
+																</small>
+															</div>
+															<div class="d-flex gap-1">
+																@if (attachment.IsPreviewable)
+																{
+																	<a href="/@attachment.FilePath"
+																	   target="_blank"
+																	   class="btn btn-sm btn-outline-info"
+																	   title="@(attachment.IsPdf ? "Preview PDF" : "View Image")">
+																		<i class="ti ti-external-link"></i>
+																	</a>
+																}
+																<a asp-action="DownloadAttachment"
+																   asp-route-id="@attachment.Id"
+																   class="btn btn-sm btn-outline-primary"
+																   title="Download">
+																	<i class="ti ti-download"></i>
+																</a>
+															</div>
+														</div>
+													}
+												</div>
+											</div>
+										}
+									</div>
+								</div>
+							</div>
+						}
+					</div>
+				}
+				else
+				{
+					<p class="text-muted text-center">
+						<i class="ti ti-inbox me-2"></i>No comments yet.
+					</p>
+				}
+			</div>
+		</div>
+	</div>
+</div>

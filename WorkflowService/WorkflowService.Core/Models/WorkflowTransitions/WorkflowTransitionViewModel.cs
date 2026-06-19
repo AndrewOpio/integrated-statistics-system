@@ -49,6 +49,9 @@ namespace WorkflowService.Core.Models.WorkflowTransitions
         /// </summary>
         public List<string> NotificationEmailList { get; set; } = new List<string>();
 
+        public bool RequiresAttachments { get; set; }
+        public List<TransitionAttachmentRequirementViewModel> AttachmentRequirements { get; set; } = [];
+
         // Dropdown lists
         public List<SelectListItem> EntityTypesList { get; set; } = new List<SelectListItem>();
         public List<SelectListItem> FromStatusesList { get; set; } = new List<SelectListItem>();

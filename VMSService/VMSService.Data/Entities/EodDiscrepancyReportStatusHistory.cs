@@ -1,11 +1,15 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using VMSService.Data.AuditColumns;
 
 namespace VMSService.Data.Entities
 {
-    public class CfbReportStatusHistory : AuditableEntity
+    [Table("EodDiscrepancyReportStatusHistories")]
+    public class EodDiscrepancyReportStatusHistory : AuditableEntity
     {
         public int Id { get; set; }
-        public int CfbReportId { get; set; }
+
+        [Column("EodDiscrepancyReportId")]
+        public int EodDiscrepancyReportId { get; set; }
         public int OldStatusId { get; set; }
         public string OldStatusName { get; set; } = null!;
         public int NewStatusId { get; set; }
@@ -15,6 +19,6 @@ namespace VMSService.Data.Entities
         public string? Remarks { get; set; }
         public bool IsDeleted { get; set; }
 
-        public virtual CfbReport CfbReport { get; set; } = null!;
+        public virtual EodDiscrepancyReport EodDiscrepancyReport { get; set; } = null!;
     }
 }

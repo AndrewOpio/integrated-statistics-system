@@ -68,6 +68,16 @@ namespace WorkflowService.Data.Entities
         /// </summary>
         public string? NotificationEmails { get; set; }
 
+        /// <summary>
+        /// Whether this transition requires attachments
+        /// </summary>
+        public bool RequiresAttachments { get; set; }
+
+        /// <summary>
+        /// Collection of attachment requirements for this transition
+        /// </summary>
+        public ICollection<TransitionAttachmentRequirement> AttachmentRequirements { get; set; } = [];
+
         public bool IsActive { get; set; } = true;
         public bool IsDeleted { get; set; }
     }

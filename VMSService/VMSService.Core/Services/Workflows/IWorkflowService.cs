@@ -9,7 +9,7 @@ namespace VMSService.Core.Services.Workflows
         /// </summary>
         Task<bool> ExecuteTransition(
             string entityType, int entityId, int currentStatusId,
-            string actionName, string username, List<int> userRoles, string remarks);
+            string actionName, string username, List<int> userRoles, string remarks, List<long>? attachmentIds = null);
 
         /// <summary>
         /// Execute a discrepancy transition with stock position update

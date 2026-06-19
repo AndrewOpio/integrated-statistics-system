@@ -4,9 +4,10 @@ using Microsoft.AspNetCore.Mvc;
 using SmartBreadcrumbs.Attributes;
 using System.Security.Claims;
 using VMSService.Controllers;
-using VMSService.Core.Models.CfbReports;
-using VMSService.Core.Repositories.CfbReports;
-using VMSService.Core.Repositories.CfbReportStatusHistories;
+using VMSService.Core.Models.EodDiscrepancyReports;
+using VMSService.Core.Repositories.EodDiscrepancyReports;
+using VMSService.Core.Repositories.EodDiscrepancyReportStatusHistories;
+using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
@@ -16,29 +17,32 @@ using WorkflowService.Client.Dto;
 namespace VMSService.Web.Controllers
 {
     [Authorize]
-    public class CfbReportsController : Controller
+    public class EndOfDayDiscrepanciesController : Controller
     {
-        private readonly ICfbReportRepository _cfbReportRepository;
-        private readonly ICfbReportStatusHistoryRepository _statusHistoryRepository;
+        private readonly IEodDiscrepancyReportRepository _cfbReportRepository;
+        private readonly IEodDiscrepancyReportStatusHistoryRepository _statusHistoryRepository;
         private readonly IWorkflowServiceClient _workflowServiceClient;
         private readonly IWorkflowService _workflowService;
         private readonly IConfigurationsServiceClient _configServiceClient;
+        private readonly IDenominationRepository _denominationRepository;
 
-        public CfbReportsController(
-            ICfbReportRepository cfbReportRepository,
-            ICfbReportStatusHistoryRepository statusHistoryRepository,
+        public EndOfDayDiscrepanciesController(
+            IEodDiscrepancyReportRepository cfbReportRepository,
+            IEodDiscrepancyReportStatusHistoryRepository statusHistoryRepository,
             IWorkflowServiceClient workflowServiceClient,
             IWorkflowService workflowService,
-            IConfigurationsServiceClient configServiceClient)
+            IConfigurationsServiceClient configServiceClient,
+            IDenominationRepository denominationRepository)
         {
             _cfbReportRepository     = cfbReportRepository;
             _statusHistoryRepository = statusHistoryRepository;
             _workflowServiceClient   = workflowServiceClient;
             _workflowService         = workflowService;
             _configServiceClient     = configServiceClient;
+            _denominationRepository  = denominationRepository;
         }
 
-        [Breadcrumb("CFB Reports", FromController = typeof(HomeController), FromAction = nameof(HomeController.Index))]
+        [Breadcrumb("End of Day Discrepancies", FromController = typeof(HomeController), FromAction = nameof(HomeController.Index))]
         public async Task<IActionResult> Index()
         {
             var reports = await _cfbReportRepository.FindAll();
@@ -46,11 +50,15 @@ namespace VMSService.Web.Controllers
         }
 
         [HttpGet]
-        [Breadcrumb("Create", FromController = typeof(CfbReportsController), FromAction = nameof(Index))]
+        [Breadcrumb("Create", FromController = typeof(EndOfDayDiscrepanciesController), FromAction = nameof(Index))]
         public async Task<IActionResult> Create()
         {
-            var branches = await _configServiceClient.GetAllBouBranchesAsync();
-            ViewBag.Branches = branches?.ToList() ?? new();
+            var branches      = await _configServiceClient.GetAllBouBranchesAsync();
+            var denominations = await _denominationRepository.FindAll();
+            var banks         = await _configServiceClient.GetAllCommercialBankAsync();
+            ViewBag.Branches      = branches?.ToList() ?? new();
+            ViewBag.Denominations = denominations?.Where(d => !d.IsDeleted).ToList() ?? new();
+            ViewBag.Banks         = banks?.ToList() ?? new();
             return View();
         }
 
@@ -64,18 +72,24 @@ namespace VMSService.Web.Controllers
 
             var result = transactions.Select(t => new
             {
-                t.TellerName,
-                TransactionDate      = t.TransactionDate.ToString("dd/MMM/yyyy"),
-                TransactionReference = t.TransactionReference ?? "–",
-                t.Type,
-                t.Amount
+                SessionDate          = t.CreatedDate.ToString("dd/MMM/yyyy"),
+                t.DenominationId,
+                Type                 = t.IsSurplus ? "Surplus" : "Shortage",
+                t.Amount,
+                t.IsDifferentDenomination,
+                t.IsProcessedOnRtgs,
+                t.CommercialBankId,
+                DepositBranchId      = t.DepositRequest != null ? (int?)t.DepositRequest.BouBranchId : null,
+                DepositDenomAmount   = t.DepositRequest?.DepositRequestDenominations
+                                           ?.FirstOrDefault(d => d.DenominationId == t.DenominationId)?.Amount,
+                DepositDate          = t.DepositRequest != null ? t.DepositRequest.DepositDate.ToString("dd/MMM/yyyy") : null
             });
 
             return Ok(new { transactions = result });
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] CreateCfbReportDto dto)
+        public async Task<IActionResult> Create([FromBody] CreateEodDiscrepancyReportDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(new { errors = ModelState });
@@ -100,7 +114,7 @@ namespace VMSService.Web.Controllers
                 }
                 catch { /* WorkflowService may not be configured yet */ }
 
-                var report = new CfbReport
+                var report = new EodDiscrepancyReport
                 {
                     ReferenceNumber   = dto.ReferenceNumber,
                     PeriodStart       = dto.PeriodStart,
@@ -128,7 +142,7 @@ namespace VMSService.Web.Controllers
         }
 
         [HttpGet]
-        [Breadcrumb("Details", FromController = typeof(CfbReportsController), FromAction = nameof(Index))]
+        [Breadcrumb("Details", FromController = typeof(EndOfDayDiscrepanciesController), FromAction = nameof(Index))]
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null) return NotFound();
@@ -169,11 +183,17 @@ namespace VMSService.Web.Controllers
                     availableTransitions.AddRange(transitions);
             }
 
-            var branches   = await _configServiceClient.GetAllBouBranchesAsync();
-            var branchName = branches?.FirstOrDefault(b => b.Id == report.BranchId)?.Name ?? report.BranchId.ToString();
+            var branches      = await _configServiceClient.GetAllBouBranchesAsync();
+            var branchName    = branches?.FirstOrDefault(b => b.Id == report.BranchId)?.Name ?? report.BranchId.ToString();
+            var denominations = await _denominationRepository.FindAll();
+            var banks         = await _configServiceClient.GetAllCommercialBankAsync();
+            ViewBag.DenomNames   = denominations?.Where(d => !d.IsDeleted)
+                .ToDictionary(d => d.Id, d => d.Name) ?? new Dictionary<int, string>();
+            ViewBag.BankNames    = banks?.ToDictionary(b => b.Id, b => b.Name) ?? new Dictionary<int, string>();
+            ViewBag.BranchNames  = branches?.ToDictionary(b => b.Id, b => b.Name) ?? new Dictionary<int, string>();
 
             var historyEntities = await _statusHistoryRepository.FindByCfbReportId(id.Value);
-            var statusHistory = historyEntities.Select(h => new CfbReportStatusHistoryViewModel
+            var statusHistory = historyEntities.Select(h => new EodDiscrepancyReportStatusHistoryViewModel
             {
                 OldStatusId   = h.OldStatusId,
                 OldStatusName = h.OldStatusName,
@@ -184,7 +204,7 @@ namespace VMSService.Web.Controllers
                 Remarks       = h.Remarks
             });
 
-            var vm = new CfbReportDetailsViewModel
+            var vm = new EodDiscrepancyReportDetailsViewModel
             {
                 Id                   = report.Id,
                 ReferenceNumber      = report.ReferenceNumber,
@@ -197,7 +217,7 @@ namespace VMSService.Web.Controllers
                 CurrentStatusName    = report.CurrentStatusName,
                 CreatedBy            = report.CreatedBy,
                 CreatedDate          = report.CreatedDate,
-                Transactions         = report.CfbReportTransactions ?? [],
+                Transactions         = report.BoardSessionSurplusShortages ?? [],
                 AvailableTransitions = availableTransitions,
                 StatusHistory        = statusHistory,
             };
@@ -206,7 +226,7 @@ namespace VMSService.Web.Controllers
         }
 
         [HttpGet]
-        [Breadcrumb("Edit", FromController = typeof(CfbReportsController), FromAction = nameof(Index))]
+        [Breadcrumb("Edit", FromController = typeof(EndOfDayDiscrepanciesController), FromAction = nameof(Index))]
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null) return NotFound();
@@ -220,7 +240,7 @@ namespace VMSService.Web.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Edit([FromBody] UpdateCfbReportDto dto)
+        public async Task<IActionResult> Edit([FromBody] UpdateEodDiscrepancyReportDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(new { errors = ModelState });

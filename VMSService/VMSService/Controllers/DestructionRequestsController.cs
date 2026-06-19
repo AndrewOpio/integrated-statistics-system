@@ -4,7 +4,10 @@ using Microsoft.AspNetCore.Mvc;
 using SmartBreadcrumbs.Attributes;
 using System.Security.Claims;
 using VMSService.Controllers;
+using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.DestructionRequests;
+using VMSService.Core.Models.Shared;
+using VMSService.Core.Repositories.Attachments;
 using VMSService.Core.Repositories.CounterPartyTypes;
 using VMSService.Core.Repositories.DestructionRequestStatusHistories;
 using VMSService.Core.Repositories.DestructionAuthorizations;
@@ -34,6 +37,8 @@ namespace VMSService.Web.Controllers
         private readonly ICounterPartyTypeRepository _counterPartyTypeRepository;
         private readonly IDestructionAuthorizationRepository _authorizationRepository;
         private readonly IDestructionLocationRepository _locationRepository;
+        private readonly IAttachmentRepository _attachmentRepository;
+        private readonly IWebHostEnvironment _environment;
 
         public DestructionRequestsController(
             IDestructionRequestRepository destructionRequestRepository,
@@ -45,7 +50,9 @@ namespace VMSService.Web.Controllers
             IStockLedgerRepository stockLedgerRepository,
             ICounterPartyTypeRepository counterPartyTypeRepository,
             IDestructionAuthorizationRepository authorizationRepository,
-            IDestructionLocationRepository locationRepository)
+            IDestructionLocationRepository locationRepository,
+            IAttachmentRepository attachmentRepository,
+            IWebHostEnvironment environment)
         {
             _destructionRequestRepository = destructionRequestRepository;
             _statusHistoryRepository      = statusHistoryRepository;
@@ -57,6 +64,8 @@ namespace VMSService.Web.Controllers
             _counterPartyTypeRepository   = counterPartyTypeRepository;
             _authorizationRepository      = authorizationRepository;
             _locationRepository           = locationRepository;
+            _attachmentRepository         = attachmentRepository;
+            _environment                  = environment;
         }
 
         [Breadcrumb("Destruction Requests", FromController = typeof(HomeController), FromAction = nameof(HomeController.Index))]
@@ -91,16 +100,43 @@ namespace VMSService.Web.Controllers
             var denominations = await _stockService.GetAllDenominations();
 
             var historyEntities = await _statusHistoryRepository.FindByDestructionRequestId(id.Value);
-            var statusHistory = historyEntities.Select(h => new DestructionRequestStatusHistoryViewModel
+            var statusHistory = new List<StatusHistoryViewModel>();
+            foreach (var h in historyEntities.OrderBy(x => x.ChangedAt))
             {
-                OldStatusId   = h.OldStatusId,
-                OldStatusName = h.OldStatusName,
-                NewStatusId   = h.NewStatusId,
-                NewStatusName = h.NewStatusName,
-                ChangedBy     = h.ChangedBy,
-                ChangedAt     = h.ChangedAt,
-                Remarks       = h.Remarks
-            });
+                var entry = new StatusHistoryViewModel
+                {
+                    OldStatusName = h.OldStatusName,
+                    NewStatusName = h.NewStatusName,
+                    ChangedBy     = h.ChangedBy,
+                    ChangedAt     = h.ChangedAt,
+                    Remarks       = h.Remarks,
+                };
+
+                if (!string.IsNullOrEmpty(h.AttachmentIds))
+                {
+                    var attachments = new List<AttachmentViewModel>();
+                    foreach (var aid in h.AttachmentIds.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        if (int.TryParse(aid.Trim(), out var attachmentId))
+                        {
+                            var att = await _attachmentRepository.FindById(attachmentId);
+                            if (att != null && !att.IsDeleted)
+                                attachments.Add(new AttachmentViewModel
+                                {
+                                    Id           = att.Id,
+                                    FileName     = att.FileName,
+                                    FilePath     = att.FilePath,
+                                    FileType     = att.FileType,
+                                    FileSize     = att.FileSize,
+                                    UploadedDate = att.CreatedDate,
+                                });
+                        }
+                    }
+                    entry.Attachments = attachments;
+                }
+
+                statusHistory.Add(entry);
+            }
 
             var availableTransitions = new List<WorkflowTransitionDto>();
             foreach (var roleId in GetUserRoles())
@@ -123,6 +159,19 @@ namespace VMSService.Web.Controllers
                 branchName = branch?.Name ?? "Unknown";
             }
 
+            var allAttachments = (await _attachmentRepository.FindByEntityId(id.Value.ToString()))
+                .Where(a => !a.IsDeleted && a.EntityType == StatusConstants.Entity.DestructionRequest)
+                .Select(a => new AttachmentViewModel
+                {
+                    Id           = a.Id,
+                    FileName     = a.FileName,
+                    FilePath     = a.FilePath,
+                    FileType     = a.FileType,
+                    FileSize     = a.FileSize,
+                    UploadedDate = a.CreatedDate,
+                })
+                .ToList();
+
             var vm = new DestructionRequestDetailsViewModel
             {
                 Id                            = request.Id,
@@ -143,6 +192,7 @@ namespace VMSService.Web.Controllers
                 Witnesses            = request.DestructionRequestMembers?.Where(m => m.IsWitness) ?? [],
                 AvailableTransitions = availableTransitions,
                 StatusHistory        = statusHistory,
+                AllAttachments       = allAttachments,
             };
 
             ViewBag.Denominations = denominations;
@@ -310,9 +360,38 @@ namespace VMSService.Web.Controllers
 
             try
             {
-                var username             = User.FindFirst(ClaimTypes.Name)?.Value ?? "System";
-                var userRoles            = GetUserRoles();
-                var previousStatusName   = request.CurrentStatusName;
+                var username  = User.FindFirst(ClaimTypes.Name)?.Value ?? "System";
+                var userRoles = GetUserRoles();
+
+                // Check if this transition requires attachments
+                var transition = await _workflowServiceClient.FindByTransitionKey(new GetTransitionByKeyRequestDto
+                {
+                    EntityTypeName = StatusConstants.Entity.DestructionRequest,
+                    FromStatusId   = request.CurrentStatusId,
+                    ActionName     = actionName,
+                });
+
+                List<long>? uploadedAttachmentIds = null;
+                if (transition != null && transition.RequiresAttachments && transition.AttachmentRequirements.Any())
+                {
+                    uploadedAttachmentIds = await HandleAttachmentUploads(
+                        transition.AttachmentRequirements.ToList(),
+                        transition.Id,
+                        id,
+                        StatusConstants.Entity.DestructionRequest,
+                        username);
+
+                    var missingRequired = transition.AttachmentRequirements
+                        .Where(r => r.IsRequired && !(Request.Form.Files[$"attachments_{r.Id}"]?.Length > 0))
+                        .Select(r => r.AttachmentName)
+                        .ToList();
+
+                    if (missingRequired.Any())
+                    {
+                        TempData["Error"] = $"Missing required attachments: {string.Join(", ", missingRequired)}";
+                        return RedirectToAction(nameof(Details), new { id });
+                    }
+                }
 
                 var executed = await _workflowService.ExecuteTransition(
                     entityType:      StatusConstants.Entity.DestructionRequest,
@@ -321,7 +400,8 @@ namespace VMSService.Web.Controllers
                     actionName:      actionName,
                     username:        username,
                     userRoles:       userRoles,
-                    remarks:         remarks);
+                    remarks:         remarks,
+                    attachmentIds:   uploadedAttachmentIds);
 
                 if (executed)
                 {
@@ -330,14 +410,12 @@ namespace VMSService.Web.Controllers
 
                     if (request.CurrentStatusName == StatusConstants.DestructionRequest.Approved)
                     {
-                        // First approval — stock OUT using original denomination amounts
                         var stockAmounts = denoms.Select(d => (d.DenominationId, d.Amount)).ToList();
                         await PostStockMovementForDenoms(request, stockAmounts, isIn: false,
                             reference: request.ReferenceNumber, notes: remarks, username: username);
                     }
                     else if (request.CurrentStatusName == StatusConstants.DestructionRequest.ReturnedForDestruction)
                     {
-                        // Brought back from storage — stock OUT using remaining balance (Amount - Destroyed)
                         var stockAmounts = denoms.Select(d => (d.DenominationId, d.Amount - d.Destroyed)).ToList();
                         await PostStockMovementForDenoms(request, stockAmounts, isIn: false,
                             reference: request.ReferenceNumber, notes: remarks, username: username);
@@ -357,6 +435,79 @@ namespace VMSService.Web.Controllers
             }
 
             return RedirectToAction(nameof(Details), new { id });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> DownloadAttachment(int id)
+        {
+            var attachment = await _attachmentRepository.FindById(id);
+            if (attachment == null || attachment.IsDeleted)
+                return NotFound();
+
+            var filePath = Path.Combine(_environment.WebRootPath, attachment.FilePath);
+            if (!System.IO.File.Exists(filePath))
+                return NotFound();
+
+            var memory = new MemoryStream();
+            await using (var stream = new FileStream(filePath, FileMode.Open))
+                await stream.CopyToAsync(memory);
+            memory.Position = 0;
+
+            return File(memory, attachment.FileType, attachment.FileName);
+        }
+
+        private async Task<List<long>> HandleAttachmentUploads(
+            List<TransitionAttachmentRequirementDto> requirements,
+            int workflowTransitionId,
+            int entityId,
+            string entityType,
+            string username)
+        {
+            var uploaded = new List<long>();
+            var uploadsPath = Path.Combine(_environment.WebRootPath, "uploads", "destruction", entityId.ToString());
+            Directory.CreateDirectory(uploadsPath);
+
+            var formatMap = new Dictionary<string, List<string>>
+            {
+                { "excel", new List<string> { "xls", "xlsx" } },
+                { "word",  new List<string> { "doc", "docx" } },
+                { "docx",  new List<string> { "doc", "docx" } },
+                { "jpg",   new List<string> { "jpg", "jpeg" } },
+                { "jpeg",  new List<string> { "jpg", "jpeg" } },
+            };
+
+            foreach (var req in requirements)
+            {
+                var file = Request.Form.Files[$"attachments_{req.Id}"];
+                if (file == null || file.Length == 0) continue;
+
+                var ext = Path.GetExtension(file.FileName).TrimStart('.').ToLower();
+                var allowed = req.AllowedFormats.Split(',').Select(f => f.Trim().ToLower()).ToList();
+                bool valid = allowed.Any(f => formatMap.TryGetValue(f, out var mapped) ? mapped.Contains(ext) : f == ext);
+                if (!valid) continue;
+
+                var uniqueName = $"{req.Id}_{DateTime.Now:yyyyMMddHHmmss}_{Path.GetFileNameWithoutExtension(file.FileName)}.{ext}";
+                var fullPath   = Path.Combine(uploadsPath, uniqueName);
+                await using (var stream = new FileStream(fullPath, FileMode.Create))
+                    await file.CopyToAsync(stream);
+
+                var attachment = new Attachment
+                {
+                    FileName                          = file.FileName,
+                    FilePath                          = Path.Combine("uploads", "destruction", entityId.ToString(), uniqueName),
+                    FileType                          = file.ContentType,
+                    FileSize                          = file.Length,
+                    WorkflowTransitionId              = workflowTransitionId,
+                    TransitionAttachmentRequirementId = req.Id,
+                    EntityId                          = entityId.ToString(),
+                    EntityType                        = entityType,
+                    IsDeleted                         = false,
+                };
+                await _attachmentRepository.Create(attachment);
+                uploaded.Add(attachment.Id);
+            }
+
+            return uploaded;
         }
 
         [HttpPost]

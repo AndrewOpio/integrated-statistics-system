@@ -55,10 +55,13 @@ namespace VMSService.Data.Configurations
         public DbSet<DepositRequestDenomination> DepositRequestDenominations { get; set; }
         public DbSet<DepositRequestStatusHistory> DepositRequestStatusHistory { get; set; }
 
-        // CFB
-        public DbSet<CfbReport> CfbReports { get; set; }
-        public DbSet<CfbReportTransaction> CfbReportTransactions { get; set; }
-        public DbSet<CfbReportStatusHistory> CfbReportStatusHistories { get; set; }
+        // End of Day Discrepancies
+        public DbSet<EodDiscrepancyReport> EodDiscrepancyReports { get; set; }
+        public DbSet<BoardSessionSurplusShortage> BoardSessionSurplusShortages { get; set; }
+        public DbSet<BoardSessionDifferentDenom> BoardSessionDifferentDenoms { get; set; }
+        public DbSet<EodDiscrepancyReportStatusHistory> EodDiscrepancyReportStatusHistories { get; set; }
+
+        public DbSet<Attachment> Attachments { get; set; }
 
         // Destruction
         public DbSet<DestructionRequest> DestructionRequests { get; set; }
@@ -145,6 +148,13 @@ namespace VMSService.Data.Configurations
             //    .WithMany()
             //    .HasForeignKey(l => l.NewStatusId)
             //    .OnDelete(DeleteBehavior.Restrict);
+
+            // ── BoardSessionSurplusShortage → DepositRequest ─────────────────────────
+            modelBuilder.Entity<BoardSessionSurplusShortage>()
+                .HasOne(s => s.DepositRequest)
+                .WithMany(d => d.BoardSessionSurplusShortages)
+                .HasForeignKey(s => s.DepositRequestId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             // ✅ ADD THIS AT THE END — catches all remaining FKs not explicitly configured above
             foreach (var relationship in modelBuilder.Model.GetEntityTypes()

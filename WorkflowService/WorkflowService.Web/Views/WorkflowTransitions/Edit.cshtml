@@ -107,8 +107,43 @@
                         </div>
                     </div>
 
-                    <!-- Active Status -->
+                    <!-- Attachment Requirements Section -->
+                    <h6 class="mb-3 mt-3"><i class="ti ti-paperclip me-1"></i>Attachment Requirements</h6>
+
                     <div class="mb-3">
+                        <div class="form-check">
+                            <input asp-for="RequiresAttachments" type="checkbox" class="form-check-input" id="RequiresAttachments" />
+                            <label class="form-check-label" for="RequiresAttachments">
+                                Require Attachment(s)
+                            </label>
+                        </div>
+                        <small class="form-hint d-block mt-2">Check if users must provide attachments when performing this transition</small>
+                    </div>
+
+                    <div id="attachmentsConfigSection" class="d-none">
+                        <div class="card border">
+                            <div class="card-header bg-light">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">Configure Required Attachments</h6>
+                                    <button type="button" id="addAttachmentBtn" class="btn btn-sm btn-primary">
+                                        <i class="ti ti-plus me-1"></i>Add Attachment
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div id="attachmentsList" class="space-y-3"></div>
+                                <div id="noAttachmentsMessage" class="text-center text-muted py-4">
+                                    <i class="ti ti-file-alert fs-2 mb-2"></i>
+                                    <p class="mb-0">No attachments configured yet. Click "Add Attachment" to add one.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <input type="hidden" id="attachmentsJson" name="attachmentsJson" value="" />
+
+                    <!-- Active Status -->
+                    <div class="mb-3 mt-3">
                         <div class="form-check">
                             <input asp-for="IsActive" type="checkbox" class="form-check-input" id="IsActive" />
                             <label class="form-check-label" for="IsActive">
@@ -291,6 +326,132 @@
 
             // Render existing tags on load
             renderTags();
+
+            // --- Attachments Management ---
+            const requiresAttachmentsCheckbox = document.getElementById('RequiresAttachments');
+            const attachmentsConfigSection = document.getElementById('attachmentsConfigSection');
+            const attachmentsList = document.getElementById('attachmentsList');
+            const noAttachmentsMessage = document.getElementById('noAttachmentsMessage');
+            const addAttachmentBtn = document.getElementById('addAttachmentBtn');
+            const attachmentsJsonField = document.getElementById('attachmentsJson');
+
+            const fileFormats = [
+                { value: 'pdf', label: 'PDF', color: 'danger' },
+                { value: 'excel', label: 'Excel', color: 'success' },
+                { value: 'docx', label: 'Word (DOCX)', color: 'primary' },
+                { value: 'png', label: 'PNG Image', color: 'info' },
+                { value: 'jpg', label: 'JPG Image', color: 'warning' }
+            ];
+
+            // Seed from model
+            let attachments = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                Model.AttachmentRequirements.Select(a => new {
+                    id = a.Id,
+                    name = a.AttachmentName,
+                    formats = a.FormatsList
+                })
+            ));
+            let attachmentCounter = attachments.length;
+
+            function toggleAttachmentsSection() {
+                if (requiresAttachmentsCheckbox.checked) {
+                    attachmentsConfigSection.classList.remove('d-none');
+                } else {
+                    attachmentsConfigSection.classList.add('d-none');
+                }
+            }
+
+            function updateAttachmentsJson() {
+                const jsonData = attachments.map((att, index) => ({
+                    Id: att.id || 0,
+                    WorkflowTransitionId: 0,
+                    AttachmentName: att.name,
+                    AllowedFormats: att.formats.join(','),
+                    DisplayOrder: index + 1,
+                    IsRequired: true
+                }));
+                attachmentsJsonField.value = JSON.stringify(jsonData);
+            }
+
+            function renderAttachments() {
+                attachmentsList.innerHTML = '';
+                if (attachments.length === 0) {
+                    noAttachmentsMessage.classList.remove('d-none');
+                    updateAttachmentsJson();
+                    return;
+                }
+                noAttachmentsMessage.classList.add('d-none');
+
+                attachments.forEach((attachment, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'card mb-3 border-primary';
+                    card.innerHTML = `
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <h6 class="mb-0"><i class="ti ti-file-text me-1"></i>Attachment ${index + 1}</h6>
+                                <button type="button" class="btn btn-sm btn-danger" data-index="${index}"><i class="ti ti-trash"></i></button>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Attachment Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control attachment-name" data-index="${index}"
+                                       value="${attachment.name}" placeholder="e.g., Approval Letter" required />
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label">Allowed File Formats <span class="text-danger">*</span></label>
+                                <div class="d-flex flex-wrap gap-2">
+                                    ${fileFormats.map(format => `
+                                        <div class="form-check">
+                                            <input class="form-check-input format-checkbox" type="checkbox"
+                                                   id="format_${index}_${format.value}"
+                                                   data-index="${index}" data-format="${format.value}"
+                                                   ${attachment.formats.includes(format.value) ? 'checked' : ''}>
+                                            <label class="form-check-label" for="format_${index}_${format.value}">
+                                                <span class="badge bg-${format.color}">${format.label}</span>
+                                            </label>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>`;
+                    attachmentsList.appendChild(card);
+                });
+
+                attachmentsList.querySelectorAll('.btn-danger').forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        attachments.splice(parseInt(this.getAttribute('data-index')), 1);
+                        renderAttachments();
+                    });
+                });
+                attachmentsList.querySelectorAll('.attachment-name').forEach(input => {
+                    input.addEventListener('input', function () {
+                        attachments[parseInt(this.getAttribute('data-index'))].name = this.value;
+                        updateAttachmentsJson();
+                    });
+                });
+                attachmentsList.querySelectorAll('.format-checkbox').forEach(checkbox => {
+                    checkbox.addEventListener('change', function () {
+                        const index = parseInt(this.getAttribute('data-index'));
+                        const format = this.getAttribute('data-format');
+                        if (this.checked) {
+                            if (!attachments[index].formats.includes(format)) attachments[index].formats.push(format);
+                        } else {
+                            attachments[index].formats = attachments[index].formats.filter(f => f !== format);
+                        }
+                        renderAttachments();
+                    });
+                });
+
+                updateAttachmentsJson();
+            }
+
+            addAttachmentBtn.addEventListener('click', function () {
+                attachments.push({ id: 0, name: '', formats: [] });
+                renderAttachments();
+            });
+
+            requiresAttachmentsCheckbox.addEventListener('change', toggleAttachmentsSection);
+            toggleAttachmentsSection();
+            renderAttachments();
         });
     </script>
 }

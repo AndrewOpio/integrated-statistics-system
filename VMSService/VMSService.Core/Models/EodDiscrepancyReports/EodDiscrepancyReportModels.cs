@@ -1,9 +1,9 @@
 using VMSService.Data.Entities;
 using WorkflowService.Client.Dto;
 
-namespace VMSService.Core.Models.CfbReports
+namespace VMSService.Core.Models.EodDiscrepancyReports
 {
-    public class CreateCfbReportDto
+    public class CreateEodDiscrepancyReportDto
     {
         public string ReferenceNumber { get; set; } = null!;
         public DateTime PeriodStart { get; set; }
@@ -12,7 +12,7 @@ namespace VMSService.Core.Models.CfbReports
         public string? Remarks { get; set; }
     }
 
-    public class UpdateCfbReportDto
+    public class UpdateEodDiscrepancyReportDto
     {
         public int Id { get; set; }
         public string ReferenceNumber { get; set; } = null!;
@@ -22,7 +22,7 @@ namespace VMSService.Core.Models.CfbReports
         public string? Remarks { get; set; }
     }
 
-    public class CfbReportDetailsViewModel
+    public class EodDiscrepancyReportDetailsViewModel
     {
         public int Id { get; set; }
         public string ReferenceNumber { get; set; } = string.Empty;
@@ -36,12 +36,12 @@ namespace VMSService.Core.Models.CfbReports
         public string CreatedBy { get; set; } = string.Empty;
         public DateTime CreatedDate { get; set; }
 
-        public IEnumerable<CfbReportTransaction> Transactions { get; set; } = [];
+        public IEnumerable<BoardSessionSurplusShortage> Transactions { get; set; } = [];
         public ICollection<WorkflowTransitionDto> AvailableTransitions { get; set; } = new List<WorkflowTransitionDto>();
-        public IEnumerable<CfbReportStatusHistoryViewModel> StatusHistory { get; set; } = [];
+        public IEnumerable<EodDiscrepancyReportStatusHistoryViewModel> StatusHistory { get; set; } = [];
     }
 
-    public class CfbReportStatusHistoryViewModel
+    public class EodDiscrepancyReportStatusHistoryViewModel
     {
         public int OldStatusId { get; set; }
         public string OldStatusName { get; set; } = string.Empty;

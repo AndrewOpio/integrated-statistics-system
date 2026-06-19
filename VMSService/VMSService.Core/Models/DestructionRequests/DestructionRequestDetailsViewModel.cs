@@ -1,3 +1,5 @@
+using VMSService.Core.Models.Attachments;
+using VMSService.Core.Models.Shared;
 using VMSService.Data.Entities;
 using WorkflowService.Client.Dto;
 
@@ -24,17 +26,7 @@ namespace VMSService.Core.Models.DestructionRequests
         public IEnumerable<DestructionRequestMember> Witnesses { get; set; } = [];
 
         public ICollection<WorkflowTransitionDto> AvailableTransitions { get; set; } = new List<WorkflowTransitionDto>();
-        public IEnumerable<DestructionRequestStatusHistoryViewModel> StatusHistory { get; set; } = [];
-    }
-
-    public class DestructionRequestStatusHistoryViewModel
-    {
-        public int OldStatusId { get; set; }
-        public string OldStatusName { get; set; } = string.Empty;
-        public int NewStatusId { get; set; }
-        public string NewStatusName { get; set; } = string.Empty;
-        public string ChangedBy { get; set; } = string.Empty;
-        public DateTime ChangedAt { get; set; }
-        public string? Remarks { get; set; }
+        public IEnumerable<StatusHistoryViewModel> StatusHistory { get; set; } = [];
+        public IEnumerable<AttachmentViewModel> AllAttachments { get; set; } = [];
     }
 }
