@@ -17,7 +17,6 @@ namespace VMSService.Core.Models.Bags
         public string? CbCode { get; set; }
         public DateTime CreatedDate { get; set; }
         public string CreatedBy { get; set; } = string.Empty;
-        public int NumberOfBundlesOrBoxes { get; set; }
         public List<BagDenomination> Items { get; set; } = [];
     }
 }

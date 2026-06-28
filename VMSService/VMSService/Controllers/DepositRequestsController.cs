@@ -120,7 +120,9 @@ namespace VMSService.Web.Controllers
             else if (!canViewAllLocations && userBranches.Any())
             {
                 // If no branch selected and user is not RemittancesOfficer, show only their branches
-                List<int> userBranchIds = userBranches.Select(b => b.Id).ToList();
+                BranchDto selectBranch = userBranches.FirstOrDefault();
+                List<int> userBranchIds = [ selectBranch?.Id ?? 0 ];
+                branchCode = selectBranch?.BranchCode;
                 visibleRequests = (await _uow.Requests.FindByBouBranchIds(userBranchIds)).Where(r => r.StatusTypeId != draftStatus.Id && r.StatusTypeId != draftStatusSpecial.Id).ToList();
             }
 
@@ -996,36 +998,6 @@ namespace VMSService.Web.Controllers
 
             int createdBagsSequence = createdBags.Where(b => b.DenominationId == denominationId && b.CbCode == cbCode).Count();
             return dbSequence + createdBagsSequence;
-
-            //var allBags = await _bagRepository.GetAllBagsAsync();
-
-            //string dateStr = date.ToString("ddMMyy");
-            //string denomShortForm = GetDenominationShortForm(denominationValue);
-            //string prefix = $"{cbCode}-{dateStr}-{denomShortForm}-";
-
-            //var matchingBags = allBags
-            //    .Where(b => b.ReferenceNumber.StartsWith(prefix))
-            //    .ToList();
-
-            //if (!matchingBags.Any())
-            //{
-            //    return 1;
-            //}
-
-            //// Extract sequence numbers and find the maximum
-            //var sequenceNumbers = matchingBags
-            //    .Select(b =>
-            //    {
-            //        var parts = b.ReferenceNumber.Split('-');
-            //        if (parts.Length >= 4 && int.TryParse(parts[3], out int seq))
-            //        {
-            //            return seq;
-            //        }
-            //        return 0;
-            //    })
-            //    .ToList();
-
-            //return sequenceNumbers.Max() + 1;
         }
 
         /// <summary>
@@ -1097,6 +1069,7 @@ namespace VMSService.Web.Controllers
                         Bag = bag,
                         DepositRequestDenominationId = denomination.Id,
                         IsDeleted = false,
+                        NumberOfBundlesOrBoxes = bundlesInThisBag,
                         //CreatedBy = username,
                         //CreatedDate = DateTime.Now,
                         //ModifiedBy = username,

@@ -44,7 +44,7 @@
 </style>
 
 @*Hero Header*@
-<div class="rounded-2 p-4 mb-3" style="background:linear-gradient(135deg, #0d6e3e 15%, #BA7517 100%);">
+<div class="rounded-2 p-4 mb-3" style="background:linear-gradient(135deg, #b31b34 15%, #c9973a 100%);">
 
     @*Top row: ref + amount*@
     <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
@@ -308,12 +308,12 @@
                 @if (Model.FitNotes.Any())
                 {
                     <div class="denom-sec border rounded-top">
-                        <div class="d-flex align-items-center justify-content-between px-4 py-2 bg-success bg-opacity-10 rounded">
+                        <div class="d-flex align-items-center justify-content-between px-4 py-2 bg-gray-200 rounded">
                             <div class="d-flex align-items-center gap-2 text-uppercase fw-bold">
-                                <i class="ti ti-check text-success"></i>
-                                <span class="text-success small">Fit Banknotes</span>
+                                <i class="ti ti-check text-dark"></i>
+                                <span class="text-dark small">Fit Banknotes</span>
                             </div>
-                            <span class="fw-bold small text-success">UGX @Model.FitNotes.Sum(d => d.Amount).ToString("N0")</span>
+                            <span class="fw-bold small text-dark">UGX @Model.FitNotes.Sum(d => d.Amount).ToString("N0")</span>
                         </div>
                         <div class="table-responsive">
                             <table class="table mb-0">
@@ -348,12 +348,12 @@
                 @if (Model.UnfitNotes.Any())
                 {
                     <div class="denom-sec mt-3 border rounded-top">
-                        <div class="d-flex align-items-center justify-content-between px-4 py-2 bg-danger bg-opacity-10 rounded">
+                        <div class="d-flex align-items-center justify-content-between px-4 py-2 bg-gray-200 rounded">
                             <div class="d-flex align-items-center gap-2 text-uppercase fw-bold">
-                                <i class="ti ti-x text-danger"></i>
-                                <span class="text-danger small">Unfit Banknotes</span>
+                                <i class="ti ti-x text-dark"></i>
+                                <span class="text-dark small">Unfit Banknotes</span>
                             </div>
-                            <span class="fw-bold small text-danger">UGX @Model.UnfitNotes.Sum(d => d.Amount).ToString("N0")</span>
+                            <span class="fw-bold small text-dark">UGX @Model.UnfitNotes.Sum(d => d.Amount).ToString("N0")</span>
                         </div>
                         <div class="table-responsive">
                             <table class="table mb-0">
@@ -388,12 +388,12 @@
                 @if (Model.NANotes.Any())
                 {
                     <div class="denom-sec mt-3 border rounded-top">
-                        <div class="d-flex align-items-center justify-content-between px-4 py-2 bg-secondary bg-opacity-10 rounded">
+                        <div class="d-flex align-items-center justify-content-between px-4 py-2 bg-gray-200 rounded">
                             <div class="d-flex align-items-center gap-2 text-uppercase fw-bold">
-                                <i class="ti ti-minus text-secondary"></i>
-                                <span class="text-secondary small">N/A Banknotes</span>
+                                <i class="ti ti-minus text-dark"></i>
+                                <span class="text-dark small">N/A Banknotes</span>
                             </div>
-                            <span class="fw-bold small text-secondary">UGX @Model.NANotes.Sum(d => d.Amount).ToString("N0")</span>
+                            <span class="fw-bold small text-dark">UGX @Model.NANotes.Sum(d => d.Amount).ToString("N0")</span>
                         </div>
                         <div class="table-responsive">
                             <table class="table mb-0">
@@ -428,13 +428,13 @@
                 @if (Model.Coins.Any())
                 {
                     <div class="denom-sec mt-3 border rounded-top">
-                        <div class="d-flex align-items-center justify-content-between px-4 py-2 bg-warning bg-opacity-10 rounded">
+                        <div class="d-flex align-items-center justify-content-between px-4 py-2 bg-gray-200 rounded">
                             <div class="d-flex align-items-center gap-2 text-uppercase fw-bold">
-                                <i class="ti ti-circle-letter-c-filled text-warning"></i>
-                                <span class="text-warning small">Coins</span>
-                                <span class="badge bg-secondary bg-opacity-10 text-secondary small ms-2">Always N/A</span>
+                                <i class="ti ti-circle-letter-c-filled text-dark"></i>
+                                <span class="text-dark small">Coins</span>
+                                <span class="badge bg-secondary text-dark small ms-2">Always N/A</span>
                             </div>
-                            <span class="fw-bold small text-warning">UGX @Model.Coins.Sum(d => d.Amount).ToString("N0")</span>
+                            <span class="fw-bold small text-dark">UGX @Model.Coins.Sum(d => d.Amount).ToString("N0")</span>
                         </div>
                         <div class="table-responsive">
                             <table class="table mb-0">
@@ -443,7 +443,7 @@
                                     <col style="width:25%">
                                     <col style="width:40%">
                                 </colgroup>
-                                <thead class="small text-secondary">
+                                <thead class="small">
                                     <tr>
                                         <th class="px-4 py-2">DENOMINATION</th>
                                         <th class="px-4 py-2 text-end">NO. OF BOXES</th>

@@ -406,6 +406,9 @@ namespace VMSService.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("BagId")
+                        .HasColumnType("int");
+
                     b.Property<int>("BranchId")
                         .HasColumnType("int");
 
@@ -425,18 +428,15 @@ namespace VMSService.Data.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsProcessed")
+                        .HasColumnType("bit");
+
                     b.Property<string>("ModifiedBy")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("ModifiedDate")
                         .HasColumnType("datetime2");
-
-                    b.Property<int>("NumberOfBundlesOrBoxes")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ParentBagId")
-                        .HasColumnType("int");
 
                     b.Property<string>("ReferenceNumber")
                         .IsRequired()
@@ -447,7 +447,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ParentBagId");
+                    b.HasIndex("BagId");
 
                     b.HasIndex("VaultSectionId");
 
@@ -484,6 +484,9 @@ namespace VMSService.Data.Migrations
 
                     b.Property<DateTime>("ModifiedDate")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("NumberOfBundlesOrBoxes")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -2886,15 +2889,13 @@ namespace VMSService.Data.Migrations
 
             modelBuilder.Entity("VMSService.Data.Entities.Bag", b =>
                 {
-                    b.HasOne("VMSService.Data.Entities.Bag", "ParentBag")
+                    b.HasOne("VMSService.Data.Entities.Bag", null)
                         .WithMany("ChildBags")
-                        .HasForeignKey("ParentBagId");
+                        .HasForeignKey("BagId");
 
                     b.HasOne("VMSService.Data.Entities.VaultSection", "VaultSection")
                         .WithMany()
                         .HasForeignKey("VaultSectionId");
-
-                    b.Navigation("ParentBag");
 
                     b.Navigation("VaultSection");
                 });

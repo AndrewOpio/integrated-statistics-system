@@ -24,7 +24,7 @@ namespace VMSService.Core.Repositories.Bags
         public async Task<ICollection<Bag>> FindAll()
         {
             return await _db.Bags
-                .Where(x => x.IsDeleted == false)
+                .Where(x => !x.IsDeleted && !x.IsProcessed)
                 .Include(x => x.VaultSection)
                 .Include(x => x.BagDenominations)
                     .ThenInclude(bd => bd.DepositRequestDenomination)
@@ -57,10 +57,12 @@ namespace VMSService.Core.Repositories.Bags
             return await Save();
         }
 
-        public async Task<List<BagViewModel>> GetAllBagsAsync()
+        public async Task<List<BagViewModel>> GetAllBagsAsync(int? branchId = null)
         {
             return await _db.Bags
-                .Where(b => !b.IsDeleted)
+                .Where(b => !b.IsDeleted && !b.IsProcessed
+                    && (!branchId.HasValue || b.BranchId == branchId.Value)
+                    && !_db.BaggedBags.Any(bb => bb.ChildBagId == b.Id && !bb.IsDeleted))
                 .Include(b => b.BagDenominations)
                     .ThenInclude(bd => bd.DepositRequestDenomination)
                 .Select(b => new BagViewModel
@@ -84,19 +86,44 @@ namespace VMSService.Core.Repositories.Bags
         public async Task<BagDetailsViewModel?> GetBagByIdAsync(int bagId)
         {
             var bag = await _db.Bags
-                .Where(b => b.Id == bagId && !b.IsDeleted)
+                .Where(b => b.Id == bagId && !b.IsDeleted && !b.IsProcessed)
                 .Include(b => b.BagDenominations.Where(bd => !bd.IsDeleted))
                     .ThenInclude(bd => bd.DepositRequestDenomination)
                         .ThenInclude(d => d.DepositRequest)
+                .Include(b => b.VaultSection)
+                    .ThenInclude(vs => vs!.Vault)
                 .FirstOrDefaultAsync();
 
             if (bag == null) return null;
+
+            var nestedBags = await _db.BaggedBags
+                .Where(bb => bb.ParentBagId == bagId && !bb.IsDeleted)
+                .Include(bb => bb.ChildBag)
+                    .ThenInclude(cb => cb!.BagDenominations)
+                .ToListAsync();
+
+            var nestedBagViewModels = nestedBags.Select(bb => new NestedBagViewModel
+            {
+                BaggedBagId = bb.Id,
+                ChildBagId = bb.ChildBagId,
+                ReferenceNumber = bb.ChildBag!.ReferenceNumber,
+                TotalBundles = bb.ChildBag.BagDenominations.Where(bd => !bd.IsDeleted).Sum(bd => bd.NumberOfBundlesOrBoxes),
+                CreatedDate = bb.ChildBag.CreatedDate,
+            }).ToList();
+
+            int ownBundles = bag.BagDenominations.Sum(bd => bd.NumberOfBundlesOrBoxes);
+
+            bool isChildBag = await _db.BaggedBags
+                .AnyAsync(bb => bb.ChildBagId == bagId && !bb.IsDeleted);
 
             return new BagDetailsViewModel
             {
                 Id = bag.Id,
                 ReferenceNumber = bag.ReferenceNumber,
                 DenominationId = bag.DenominationId,
+                IsChildBag = isChildBag,
+                VaultSectionName = bag.VaultSection?.Name,
+                VaultName = bag.VaultSection?.Vault?.Name,
                 Items = bag.BagDenominations
                     .Select(bd => new DepositRequestDenominationViewModel
                     {
@@ -112,10 +139,13 @@ namespace VMSService.Core.Repositories.Bags
                         Origin = bd.DepositRequestDenomination.Origin,
                         SubCategoryId = bd.DepositRequestDenomination.SubCategoryId,
                         DepositDate = bd.DepositRequestDenomination.DepositRequest.DepositDate,
-                        CbId = bd.DepositRequestDenomination.DepositRequest.CbId
+                        CbId = bd.DepositRequestDenomination.DepositRequest.CbId,
+                        NumberOfBundlesOrBoxes = bd.NumberOfBundlesOrBoxes,
                     })
                     .ToList(),
-                TotalAmount = bag.BagDenominations.Sum(bd => bd.DepositRequestDenomination.Amount),
+                NestedBags = nestedBagViewModels,
+                OwnBundles = ownBundles,
+                TotalBundles = ownBundles + nestedBagViewModels.Sum(nb => nb.TotalBundles),
                 CreatedDate = bag.CreatedDate,
                 CreatedBy = bag.CreatedBy
             };
@@ -129,7 +159,8 @@ namespace VMSService.Core.Repositories.Bags
                 DenominationId = model.DenominationId,
                 BranchId = model.BranchId,
                 CbCode = model.CbCode,
-                IsDeleted = false
+                IsDeleted = false,
+                IsProcessed = false,
             };
 
             _db.Bags.Add(bag);
@@ -295,19 +326,142 @@ namespace VMSService.Core.Repositories.Bags
                         .Select(bd => bd.DepositRequestDenomination.DenominationValue)
                         .FirstOrDefault(),
                     TotalAmount = activeItems.Sum(bd => bd.DepositRequestDenomination.Amount),
-                    NumberOfBundlesOrBoxes = b.NumberOfBundlesOrBoxes,
+                    NumberOfBundlesOrBoxes = activeItems.Sum(bd => bd.NumberOfBundlesOrBoxes),
                     TotalBundles = activeItems.Sum(bd =>
                         bd.DepositRequestDenomination.Bundles ?? bd.DepositRequestDenomination.Boxes ?? 0),
                     Items = activeItems.Select(bd => new BagItemLineViewModel
                     {
                         CbName = bd.DepositRequestDenomination.DepositRequest.CbCode ?? string.Empty,
                         DepositDate = bd.DepositRequestDenomination.DepositRequest.DepositDate,
-                        Bundles = bd.DepositRequestDenomination.Bundles
-                            ?? bd.DepositRequestDenomination.Boxes
-                            ?? 0
+                        Bundles = bd.NumberOfBundlesOrBoxes
                     }).ToList()
                 };
             })];
+        }
+
+        public async Task<int> BagSequence(DateTime date, int denominationId)
+        {
+            var bags = await _db.Bags
+                .Where(b => b.DenominationId == denominationId && b.CbCode == null)
+                .Where(b => !b.IsDeleted)
+                .Where(b => b.CreatedDate.Date == date.Date)
+                .ToListAsync();
+            return bags.Count + 1;
+        }
+
+        public async Task<List<NestedBagViewModel>> GetAvailableBagsForMergingAsync(int parentBagId)
+        {
+            var parentBag = await _db.Bags
+                .Include(b => b.BagDenominations.Where(bd => !bd.IsDeleted))
+                .FirstOrDefaultAsync(b => b.Id == parentBagId && !b.IsDeleted);
+
+            if (parentBag == null) return [];
+
+            var alreadyChildBagIds = await _db.BaggedBags
+                .Where(bb => !bb.IsDeleted)
+                .Select(bb => bb.ChildBagId)
+                .ToListAsync();
+
+            var existingChildBagIds = await _db.BaggedBags
+                .Where(bb => bb.ParentBagId == parentBagId && !bb.IsDeleted)
+                .Select(bb => bb.ChildBagId)
+                .ToListAsync();
+
+            int parentOwnBundles = parentBag.BagDenominations.Sum(bd => bd.NumberOfBundlesOrBoxes);
+
+            int existingChildBundleSum = existingChildBagIds.Count > 0
+                ? await _db.BagDenominations
+                    .Where(bd => existingChildBagIds.Contains(bd.BagId) && !bd.IsDeleted)
+                    .SumAsync(bd => (int?)bd.NumberOfBundlesOrBoxes) ?? 0
+                : 0;
+
+            int remainingCapacity = 50 - parentOwnBundles - existingChildBundleSum;
+            if (remainingCapacity <= 0) return [];
+
+            var candidates = await _db.Bags
+                .Where(b => !b.IsDeleted && !b.IsProcessed
+                    && b.Id != parentBagId
+                    && b.DenominationId == parentBag.DenominationId
+                    && !alreadyChildBagIds.Contains(b.Id))
+                .Include(b => b.BagDenominations.Where(bd => !bd.IsDeleted))
+                .ToListAsync();
+
+            return candidates
+                .Select(b => new { Bag = b, Bundles = b.BagDenominations.Sum(bd => bd.NumberOfBundlesOrBoxes) })
+                .Where(x => x.Bundles < 50 && x.Bundles <= remainingCapacity)
+                .Select(x => new NestedBagViewModel
+                {
+                    ChildBagId = x.Bag.Id,
+                    ReferenceNumber = x.Bag.ReferenceNumber,
+                    TotalBundles = x.Bundles,
+                    CreatedDate = x.Bag.CreatedDate,
+                })
+                .ToList();
+        }
+
+        public async Task<bool> AddBagToBagAsync(AddBagToBagViewModel model)
+        {
+            var parentBag = await _db.Bags
+                .Include(b => b.BagDenominations.Where(bd => !bd.IsDeleted))
+                .FirstOrDefaultAsync(b => b.Id == model.ParentBagId && !b.IsDeleted);
+
+            var childBag = await _db.Bags
+                .Include(b => b.BagDenominations.Where(bd => !bd.IsDeleted))
+                .FirstOrDefaultAsync(b => b.Id == model.ChildBagId && !b.IsDeleted);
+
+            if (parentBag == null || childBag == null) return false;
+
+            if (parentBag.DenominationId != childBag.DenominationId)
+                throw new InvalidOperationException("Both bags must have the same denomination.");
+
+            var alreadyNested = await _db.BaggedBags
+                .AnyAsync(bb => bb.ChildBagId == model.ChildBagId && !bb.IsDeleted);
+
+            if (alreadyNested)
+                throw new InvalidOperationException("This bag is already nested inside another bag.");
+
+            int childBundles = childBag.BagDenominations.Sum(bd => bd.NumberOfBundlesOrBoxes);
+
+            if (childBundles >= 50)
+                throw new InvalidOperationException("The child bag must have fewer than 50 bundles.");
+
+            int parentOwnBundles = parentBag.BagDenominations.Sum(bd => bd.NumberOfBundlesOrBoxes);
+
+            var existingChildBagIds = await _db.BaggedBags
+                .Where(bb => bb.ParentBagId == model.ParentBagId && !bb.IsDeleted)
+                .Select(bb => bb.ChildBagId)
+                .ToListAsync();
+
+            int existingChildBundleSum = existingChildBagIds.Count > 0
+                ? await _db.BagDenominations
+                    .Where(bd => existingChildBagIds.Contains(bd.BagId) && !bd.IsDeleted)
+                    .SumAsync(bd => (int?)bd.NumberOfBundlesOrBoxes) ?? 0
+                : 0;
+
+            if (parentOwnBundles + existingChildBundleSum + childBundles > 50)
+                throw new InvalidOperationException($"Adding this bag would exceed the maximum of 50 bundles for the parent bag.");
+
+            _db.BaggedBags.Add(new BaggedBag
+            {
+                ParentBagId = model.ParentBagId,
+                ChildBagId = model.ChildBagId,
+                IsDeleted = false,
+            });
+
+            await _db.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> RemoveBagFromBagAsync(int baggedBagId)
+        {
+            var baggedBag = await _db.BaggedBags
+                .FirstOrDefaultAsync(bb => bb.Id == baggedBagId && !bb.IsDeleted);
+
+            if (baggedBag == null) return false;
+
+            baggedBag.IsDeleted = true;
+            await _db.SaveChangesAsync();
+            return true;
         }
     }
 }

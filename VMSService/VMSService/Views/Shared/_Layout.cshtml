@@ -155,51 +155,107 @@
                             <span class="sidebar-text">Stock Movement</span>
                         </a>
                     </li>
-
                     <li class="nav-item">
-                        <a asp-controller="WithdrawalRequests" asp-action="Index" class="nav-link d-flex align-items-center">
+                        <a asp-controller="Logistics" asp-action="Index" class="nav-link d-flex align-items-center">
                             <span class="sidebar-icon fs-5 me-4">
-                                <i class="ti ti-circle-arrow-up-right-filled"></i>
+                                <i class="ti ti-truck-delivery"></i>
                             </span>
-                            <span class="sidebar-text">Withdrawal Requests</span>
+                            <span class="sidebar-text">Logistics</span>
                         </a>
                     </li>
 
                     <li class="nav-item">
-                        <a asp-controller="DepositRequests" asp-action="Index" class="nav-link d-flex align-items-center">
-                            <span class="sidebar-icon fs-5 me-4">
-                                <i class="ti ti-circle-arrow-down-left-filled"></i>
+                        <span class="nav-link collapsed d-flex justify-content-between align-items-center"
+                              data-bs-toggle="collapse" data-bs-target="#submenucb-app">
+                            <span class="d-flex align-items-center">
+                                <span class="sidebar-icon fs-5 me-4">
+                                    <i class="ti ti-building-bank"></i>
+                                </span>
+                                <span class="sidebar-text">Commercial Banks</span>
                             </span>
-                            <span class="sidebar-text">Deposit Requests</span>
-                        </a>
+                            <span class="link-arrow">
+                                <svg class="icon icon-sm" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                    <path fill-rule="evenodd"
+                                          d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                                          clip-rule="evenodd"></path>
+                                </svg>
+                            </span>
+                        </span>
+                        <div class="multi-level collapse" role="list" id="submenucb-app" aria-expanded="false">
+                            <ul class="flex-column nav">
+                                <li class="nav-item">
+                                    <a asp-controller="WithdrawalRequests" asp-action="Index" class="nav-link d-flex align-items-center">
+                                        @* <span class="sidebar-icon fs-5 me-4">
+                                            <i class="ti ti-circle-arrow-up-right-filled"></i>
+                                        </span> *@
+                                        <span class="sidebar-text">Withdrawal Requests</span>
+                                    </a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a asp-controller="DepositRequests" asp-action="Index" class="nav-link d-flex align-items-center">
+                                        @* <span class="sidebar-icon fs-5 me-4">
+                                            <i class="ti ti-circle-arrow-down-left-filled"></i>
+                                        </span> *@
+                                        <span class="sidebar-text">Deposit Requests</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a asp-controller="AgentDetailsInternal" asp-action="Index" class="nav-link d-flex align-items-center">
+                                        @* <span class="sidebar-icon fs-5 me-4">
+                                            <i class="ti ti-user-square-rounded"></i>
+                                        </span> *@
+                                        <span class="sidebar-text">Agent Details</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
                     </li>
+
                     <li class="nav-item">
-                        <a asp-controller="AgentDetailsInternal" asp-action="Index" class="nav-link d-flex align-items-center">
-                            <span class="sidebar-icon fs-5 me-4">
-                                <i class="ti ti-user-square-rounded"></i>
+                        <span class="nav-link collapsed d-flex justify-content-between align-items-center"
+                              data-bs-toggle="collapse" data-bs-target="#submenuprocessing-app">
+                            <span class="d-flex align-items-center">
+                                <span class="sidebar-icon fs-5 me-4">
+                                    <i class="ti ti-package-export"></i>
+                                </span>
+                                <span class="sidebar-text">Processing</span>
                             </span>
-                            <span class="sidebar-text">Agent Details</span>
-                        </a>
+                            <span class="link-arrow">
+                                <svg class="icon icon-sm" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                    <path fill-rule="evenodd"
+                                          d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                                          clip-rule="evenodd"></path>
+                                </svg>
+                            </span>
+                        </span>
+                        <div class="multi-level collapse" role="list" id="submenuprocessing-app" aria-expanded="false">
+                            <ul class="flex-column nav">
+                                <li class="nav-item">
+                                    <a asp-controller="Bagging" asp-action="Index" class="nav-link d-flex align-items-center">
+                                        @* <span class="sidebar-icon fs-5 me-4">
+                                            <i class="ti ti-package"></i>
+                                        </span> *@
+                                        <span class="sidebar-text">Bagging</span>
+                                    </a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a asp-controller="Vault" asp-action="Index" class="nav-link d-flex align-items-center">
+                                        @* <span class="sidebar-icon fs-5 me-4">
+                                            <i class="ti ti-building-bank"></i>
+                                        </span> *@
+                                        <span class="sidebar-text">Vault</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
                     </li>
                 }
 
-                <li class="nav-item">
-                    <a asp-controller="Logistics" asp-action="Index" class="nav-link d-flex align-items-center">
-                        <span class="sidebar-icon fs-5 me-4">
-                            <i class="ti ti-truck-delivery"></i>
-                        </span>
-                        <span class="sidebar-text">Logistics</span>
-                    </a>
-                </li>
+                
 
-                <li class="nav-item">
-                    <a asp-controller="Bagging" asp-action="Index" class="nav-link d-flex align-items-center">
-                        <span class="sidebar-icon fs-5 me-4">
-                            <i class="ti ti-package"></i>
-                        </span>
-                        <span class="sidebar-text">Bagging</span>
-                    </a>
-                </li>
+                
 
                 @if (isAdmin)
                 {
@@ -247,11 +303,11 @@
                                         <span class="sidebar-text">Currency Sub Categories</span>
                                     </a>
                                 </li>
-                                <li class="nav-item">
+                                @* <li class="nav-item">
                                     <a asp-controller="BranchCategories" asp-action="Index" class="nav-link">
                                         <span class="sidebar-text">Vault Stores</span>
                                     </a>
-                                </li>
+                                </li> *@
                             </ul>
                         </div>
                     </li>

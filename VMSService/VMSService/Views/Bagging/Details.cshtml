@@ -4,128 +4,287 @@
     ViewData["Title"] = $"Bag Details - {Model.ReferenceNumber}";
 }
 
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center py-4">
-    <div class="d-block mb-4 mb-md-0">
-        <h2 class="h4">Bag Details</h2>
-        <p class="mb-0">Reference: <strong>@Model.ReferenceNumber</strong></p>
-    </div>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <a asp-action="AddItems" asp-route-id="@Model.Id" class="btn btn-sm btn-success me-2">
-            <i class="ti ti-plus me-2"></i>
-            Add Items
-        </a>
-        <a asp-action="Index" class="btn btn-sm btn-secondary">
-            <i class="ti ti-arrow-left me-2"></i>
-            Back to List
-        </a>
-    </div>
-</div>
+@* Hero Card *@
+<div class="rounded-3 p-3 mb-3" style="background:linear-gradient(135deg,#31316A 30%,#BA7517 100%);">
 
-<div class="row">
-    <div class="col-12 col-xl-8">
-        <div class="card border-0 shadow mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">Bag Items</h5>
-            </div>
-            <div class="card-body">
-                @if (Model.Items.Any())
+    @* Top row: identifier + action buttons *@
+    <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap mb-3">
+        <div>
+            <p class="text-uppercase mb-1" style="font-size:10px;letter-spacing:.08em;color:rgba(255,255,255,.7);">
+                <i class="ti ti-package me-1"></i>Bag Details
+            </p>
+            <h4 class="fw-semibold text-white mb-1">@Model.ReferenceNumber</h4>
+            <div class="d-flex flex-wrap gap-2 mt-1">
+                <span class="badge rounded-pill px-2 py-1" style="background:rgba(255,255,255,.2);color:#fff;font-size:.75rem;">
+                    <i class="ti ti-coins me-1"></i>@Model.DenominationName
+                </span>
+                @if (Model.VaultName != null)
                 {
-                    <div class="table-responsive">
-                        <table class="table table-sm" id="itemsTable">
-                            <thead>
-                                <tr>
-                                    <th>Transaction Ref</th>
-                                    <th>Denomination</th>
-                                    <th>Bundles/Boxes</th>
-                                    <th>Amount</th>
-                                    <th>Commercial Bank</th>
-                                    <th>Deposit Date</th>
-                                    <th>Sub-Category</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var item in Model.Items)
-                                {
-                                    <tr>
-                                        <td>@item.TransactionRefNumber</td>
-                                        <td>@item.DenominationName</td>
-                                        <td>@(item.Bundles ?? item.Boxes)</td>
-                                        <td>@item.Amount.ToString("N0")</td>
-                                        <td>@item.CommercialBankName</td>
-                                        <td>@item.DepositDate.ToString("dd MMM yyyy")</td>
-                                        <td>
-                                            <span class="badge bg-info">
-                                                @item.SubCategoryName
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <form asp-action="RemoveItem" asp-route-bagId="@Model.Id" asp-route-itemId="@item.Id" method="post" class="d-inline" onsubmit="return confirm('Remove this item from the bag?');">
-                                                @Html.AntiForgeryToken()
-                                                <button type="submit" class="btn btn-sm btn-danger" title="Remove">
-                                                    <i class="ti ti-x"></i>
-                                                </button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
+                    <span class="badge rounded-pill px-2 py-1" style="background:rgba(255,255,255,.2);color:#fff;font-size:.75rem;">
+                        <i class="ti ti-building-bank me-1"></i>@Model.VaultName &middot; @Model.VaultSectionName
+                    </span>
                 }
                 else
                 {
-                    <div class="alert alert-info">
-                        <i class="ti ti-info-circle me-2"></i>
-                        No items in this bag yet. Click "Add Items" to start adding deposit request denominations.
-                    </div>
+                    <span class="badge rounded-pill px-2 py-1" style="background:rgba(255,255,255,.08);color:rgba(255,255,255,.5);font-size:.75rem;">
+                        <i class="ti ti-building-bank me-1"></i>Not in vault
+                    </span>
                 }
             </div>
         </div>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            @if (!Model.IsChildBag)
+            {
+                <a asp-action="AddItems" asp-route-id="@Model.Id" class="btn btn-sm btn-tertiary">
+                    <i class="ti ti-plus me-1"></i>Add Items
+                </a>
+                @if (Model.TotalBundles < 50)
+                {
+                    <a asp-action="AddBag" asp-route-id="@Model.Id" class="btn btn-sm btn-tertiary">
+                        <i class="ti ti-stack me-1"></i>Add Bag
+                    </a>
+                }
+                <form asp-action="Delete" asp-route-id="@Model.Id" method="post" onsubmit="return confirm('Are you sure you want to delete this bag? All items will be released.');">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-sm btn-danger">
+                        <i class="ti ti-trash me-1"></i>Delete
+                    </button>
+                </form>
+            }
+            <a asp-action="Index" class="btn btn-sm btn-secondary">
+                <i class="ti ti-arrow-left me-1"></i>Back
+            </a>
+        </div>
     </div>
 
-    <div class="col-12 col-xl-4">
-        <div class="card border-0 shadow mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">Bag Information</h5>
-            </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <label class="form-label text-muted">Reference Number</label>
-                    <p class="fw-bold">@Model.ReferenceNumber</p>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label text-muted">Denomination</label>
-                    <p class="fw-bold">@Model.DenominationName</p>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label text-muted">Total Items</label>
-                    <p class="fw-bold">@Model.Items.Count</p>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label text-muted">Total Amount</label>
-                    <p class="fw-bold">@Model.TotalAmount.ToString("N0")</p>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label text-muted">Created Date</label>
-                    <p>@Model.CreatedDate.ToString("dd MMM yyyy HH:mm")</p>
-                </div>
+    @* Stats tiles *@
+    <div class="row g-2">
+        <div class="col-6 col-md-3">
+            <div class="rounded-3 p-2" style="background:rgba(255,255,255,.12);">
+                <p class="text-uppercase mb-1" style="font-size:10px;letter-spacing:.1em;color:rgba(255,255,255,.7);">Bundles</p>
+                <p class="fw-bold mb-0 text-white">@Model.TotalBundles <span class="small fw-normal" style="color:rgba(255,255,255,.6);">/ 50</span></p>
             </div>
         </div>
-
-        <form asp-action="Delete" asp-route-id="@Model.Id" method="post" onsubmit="return confirm('Are you sure you want to delete this bag? All items will be released.');">
-            @Html.AntiForgeryToken()
-            <button type="submit" class="btn btn-danger w-100">
-                <i class="ti ti-trash me-2"></i>
-                Delete Bag
-            </button>
-        </form>
+        <div class="col-6 col-md-3">
+            <div class="rounded-3 p-2" style="background:rgba(255,255,255,.12);">
+                <p class="text-uppercase mb-1" style="font-size:10px;letter-spacing:.1em;color:rgba(255,255,255,.7);">Denomination</p>
+                <p class="fw-bold mb-0 small text-white">@Model.DenominationName</p>
+                <p class="mb-0" style="font-size:11px;color:rgba(255,255,255,.65);">UGX @Model.DenominationValue.ToString("N0")</p>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="rounded-3 p-2" style="background:rgba(255,255,255,.12);">
+                <p class="text-uppercase mb-1" style="font-size:10px;letter-spacing:.1em;color:rgba(255,255,255,.7);">Created</p>
+                <p class="fw-bold mb-0 small text-white">@Model.CreatedDate.ToString("dd MMM yyyy")</p>
+                <p class="mb-0" style="font-size:11px;color:rgba(255,255,255,.65);">by @Model.CreatedBy</p>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="rounded-3 p-2" style="background:rgba(255,255,255,.12);">
+                <p class="text-uppercase mb-1" style="font-size:10px;letter-spacing:.1em;color:rgba(255,255,255,.7);">Amount In Bag</p>
+                <p class="fw-bold mb-0 small text-white">UGX @Model.TotalAmount.ToString("N0")</p>
+            </div>
+        </div>
     </div>
 </div>
 
+
+@* Nested Bags Card *@
+@if (!(Model.TotalBundles == 50 && Model.NestedBags.Count() == 0))
+{
+    <div class="card border-0 shadow mb-4">
+        <div class="card-header bg-white d-flex align-items-center justify-content-between">
+            <h5 class="mb-0 fw-bold">
+                <i class="ti ti-stack me-2"></i>Bags in this Bag
+            </h5>
+            <div class="d-flex align-items-center gap-2">
+                @if (Model.NestedBags.Any())
+                {
+                    <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25">
+                        @Model.NestedBags.Count bag@(Model.NestedBags.Count == 1 ? "" : "s")
+                    </span>
+                }
+                @if (!Model.IsChildBag && Model.TotalBundles < 50)
+                {
+                    <a asp-action="AddBag" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-tertiary">
+                        <i class="ti ti-plus me-1"></i>Add Bag
+                    </a>
+                }
+            </div>
+        </div>
+        <div class="card-body @(!Model.NestedBags.Any() ? "p-4" : "p-1")">
+            @if (Model.NestedBags.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead style="background-color:#f8fafc;border-bottom:2px solid #e9ecef;">
+                            <tr>
+                                <th class="px-3 py-2 small fw-semibold">Bag Reference</th>
+                                <th class="px-3 py-2 small fw-semibold text-center">Bundles</th>
+                                <th class="px-3 py-2 small fw-semibold text-end">Amount (UGX)</th>
+                                <th class="px-3 py-2 small fw-semibold">Added Date</th>
+                                <th class="px-3 py-2 small fw-semibold text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var nested in Model.NestedBags)
+                            {
+                                <tr style="border-bottom:1px solid #f0f2f5;">
+                                    <td class="px-3 small fw-bold">
+                                        <a asp-action="Details" asp-route-id="@nested.ChildBagId">@nested.ReferenceNumber</a>
+                                    </td>
+                                    <td class="px-3 small fw-semibold text-center">@nested.TotalBundles</td>
+                                    <td class="px-3 small fw-semibold text-end text-primary">UGX @nested.TotalAmount.ToString("N0")</td>
+                                    <td class="px-3 small">@nested.CreatedDate.ToString("dd MMM yyyy")</td>
+                                    <td class="px-3 text-center">
+                                        <form asp-action="RemoveBag" method="post" class="d-inline"
+                                              onsubmit="return confirm('Remove this bag from the current bag?');">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="baggedBagId" value="@nested.BaggedBagId" />
+                                            <input type="hidden" name="parentBagId" value="@Model.Id" />
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove nested bag">
+                                                <i class="ti ti-x"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center">
+                    <i class="ti ti-package d-block mb-2 text-secondary" style="font-size:2.5rem;opacity:.4;"></i>
+                    <p class="fw-semibold text-muted mb-1">No bags nested in this bag</p>
+                    <p class="text-muted small mb-3">You can add an existing partial bag (fewer than 50 bundles) of the same denomination.</p>
+                    @if (!Model.IsChildBag && Model.TotalBundles < 50)
+                    {
+                        <a asp-action="AddBag" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-tertiary">
+                            <i class="ti ti-plus me-1"></i>Add Bag
+                        </a>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@* Bag Items Card *@
+@if (!(Model.TotalBundles == 50 && Model.Items.Count() == 0))
+{
+    <div class="card border-0 shadow mb-4">
+        <div class="card-header bg-white d-flex align-items-center justify-content-between">
+            <h5 class="mb-0 fw-bold">
+                <i class="ti ti-list me-2"></i>Deposited Items
+            </h5>
+            <div class="d-flex align-items-center gap-2">
+                @if (Model.Items.Any())
+                {
+                    <span class="badge bg-tertiary bg-opacity-10 text-tertiary border border-tertiary border-opacity-25">
+                        @Model.Items.Count item@(Model.Items.Count == 1 ? "" : "s")
+                    </span>
+                }
+                @if (Model.TotalBundles < 50)
+                {
+                    <a asp-action="AddItems" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-tertiary">
+                        <i class="ti ti-plus me-1"></i>Add Items
+                    </a>
+                }
+            </div>
+            
+        </div>
+        <div class="card-body @(!Model.Items.Any() ? "p-4" : "p-1")">
+            @if (Model.Items.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0" id="itemsTable">
+                        <thead style="background-color:#f8fafc;border-bottom:2px solid #e9ecef;">
+                            <tr>
+                                <th class="px-3 py-2 small fw-semibold">Transaction Ref</th>
+                                <th class="px-3 py-2 small fw-semibold">Denomination</th>
+                                <th class="px-3 py-2 small fw-semibold text-center">Bundles/Boxes</th>
+                                <th class="px-3 py-2 small fw-semibold text-end">Amount (UGX)</th>
+                                <th class="px-3 py-2 small fw-semibold">Commercial Bank</th>
+                                <th class="px-3 py-2 small fw-semibold">Deposit Date</th>
+                                <th class="px-3 py-2 small fw-semibold">Sub-Category</th>
+                                <th class="px-3 py-2 small fw-semibold text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.Items)
+                            {
+                                <tr style="border-bottom:1px solid #f0f2f5;">
+                                    <td class="px-3 small fw-bold">@item.TransactionRefNumber</td>
+                                    <td class="px-3 small">
+                                        <span class="badge" style="background-color:#e7f5ff;color:#0b5394;">
+                                            <i class="ti ti-coins me-1"></i>@item.DenominationName
+                                        </span>
+                                    </td>
+                                    <td class="px-3 small fw-semibold text-center">@item.NumberOfBundlesOrBoxes</td>
+                                    <td class="px-3 small fw-semibold text-end text-primary">UGX @item.Amount.ToString("N0")</td>
+                                    <td class="px-3 small">@item.CommercialBankName</td>
+                                    <td class="px-3 small">@item.DepositDate.ToString("dd MMM yyyy")</td>
+                                    <td class="px-3">
+                                        <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">
+                                            @item.SubCategoryName
+                                        </span>
+                                    </td>
+                                    <td class="px-3 text-center">
+                                        <div class="btn-group">
+                                            <a asp-controller="DepositRequests" asp-action="Details" asp-route-id="@item.DepositRequestId" class="btn btn-sm btn-outline-success" title="View Details">
+                                                <i class="ti ti-eye"></i>
+                                            </a>
+                                            @if (!Model.IsChildBag)
+                                            {
+                                                <form asp-action="RemoveItem" asp-route-bagId="@Model.Id" asp-route-itemId="@item.Id" method="post" class="d-inline" onsubmit="return confirm('Remove this item from the bag?');">
+                                                    @Html.AntiForgeryToken()
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove item">
+                                                        <i class="ti ti-x"></i>
+                                                    </button>
+                                                </form>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center">
+                    <i class="ti ti-inbox d-block mb-2 text-secondary" style="font-size:2.5rem;opacity:.4;"></i>
+                    <p class="fw-semibold text-muted mb-1">No items in this bag yet</p>
+                    <p class="text-muted small mb-3">Click "Add Items" to start adding deposit request denominations.</p>
+                    <a asp-action="AddItems" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-tertiary">
+                        <i class="ti ti-plus me-1"></i>Add Items
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+
+@* Footer Actions *@
+@* <div class="d-flex justify-content-between align-items-center mb-5">
+    <a asp-action="Index" class="btn btn-secondary">
+        <i class="ti ti-arrow-left me-1"></i>Back to List
+    </a>
+    <form asp-action="Delete" asp-route-id="@Model.Id" method="post" onsubmit="return confirm('Are you sure you want to delete this bag? All items will be released.');">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="btn btn-danger">
+            <i class="ti ti-trash me-1"></i>Delete Bag
+        </button>
+    </form>
+</div> *@
+
 @section Scripts {
     <script>
-        $(document).ready(function() {
+        $(document).ready(function () {
             $('#itemsTable').DataTable({
                 pageLength: 25
             });

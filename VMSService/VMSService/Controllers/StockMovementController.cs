@@ -336,6 +336,7 @@ namespace VMSService.Web.Controllers
                 foreach (var userRole in userRoles)
                 {
                     var transitions = await _workflowServiceClient.GetAvailableTransitionsAsync(
+                        SystemPolicy.SystemSettings.AppAcronym,
                         StatusConstants.Entity.StockMovement,
                         movement.CurrentStatusId ?? 0, 
                         userRole);
@@ -400,6 +401,7 @@ namespace VMSService.Web.Controllers
                 foreach (var userRole in userRoles)
                 {
                     var transitions = await _workflowServiceClient.GetAvailableTransitionsAsync(
+                        SystemPolicy.SystemSettings.AppAcronym,
                         StatusConstants.Entity.StockMovementDiscrepancy,
                         currentDiscrepancy.CurrentStatusId,
                         userRole);
