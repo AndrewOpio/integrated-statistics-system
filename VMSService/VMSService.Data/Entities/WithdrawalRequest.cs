@@ -28,6 +28,11 @@ namespace VMSService.Data.Entities
         public decimal TotalCoinsAmount { get; set; }
         public decimal TotalAmount { get; set; }
         public bool IsLumpSum { get; set; } = false;
+        public string RtgsVerificationStatus { get; set; } = "Pending";
+        public DateOnly? RtgsVerifiedDate { get; set; }
+        public bool RecallRtgsPending { get; set; } = false;
+        public string? RecallRtgsCode { get; set; }
+        public DateOnly? RecallRtgsDate { get; set; }
 
         public bool IsDeleted { get; set; } = false;
         public ICollection<WithdrawalRequestAgent> WithdrawalRequestAgents { get; set; } = [];

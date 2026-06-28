@@ -16,7 +16,7 @@ namespace VMSService.Core.Models.CbWithdrawRequest
         public int BouBranchId { get; set; }
         public string BouBranchCode{ get; set; }
 
-        public DateOnly CollectionDate { get; set; }
+        public DateOnly? CollectionDate { get; set; }
         public DateOnly? RtgsDate { get; set; }
         public string? RtgsCode { get; set; }
         public bool RequiresSpecialApproval { get; set; }

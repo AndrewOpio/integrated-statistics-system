@@ -4,11 +4,14 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using System.Text.Json;
 using VMSService.Core.Models.AgentDetails;
+using VMSService.Core.Models.Attachments;
+using VMSService.Core.Models.CbDepositRequests;
 using VMSService.Core.Models.CbRequests;
 using VMSService.Core.Models.CbWithdrawRequest;
 using VMSService.Core.Models.WithdrawalRequestDenominations;
 using VMSService.Core.Models.WithdrawalRequests;
 using VMSService.Core.Repositories.AgentDetails;
+using VMSService.Core.Repositories.Attachments;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.WithdrawalRequestDenominations;
 using VMSService.Core.Repositories.WithdrawalRequests;
@@ -18,6 +21,7 @@ using VMSService.Core.Static;
 using VMSService.Data.Entities;
 using VMSService.Web.Extensions;
 using WorkflowService.Client;
+using WorkflowService.Client.Dto;
 using static VMSService.Core.Static.WithdrawStatuses;
 
 namespace VMSService.Web.Controllers
@@ -30,14 +34,18 @@ namespace VMSService.Web.Controllers
         IConfigurationsServiceClient _configServiceClient,
         IDenominationRepository _denomRepo,
         IWithdrawalRequestDenominationRepository _wrDenomRepo,
+        IAttachmentRepository _attachmentRepository,
         IWithdrawalUnitOfWork _uow,
+        IWithdrawalStatusResolver _statusResolver,
         ILogger<WithdrawalRequestsController> _logger,
         IMapper _mapper) : Controller
     {
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string? branchCode = null)
         {
             //var all = (await _uow.Requests.FindAll()
             //    ).Where(x => !x.IsDeleted);
+
+            ICollection<WithdrawalRequest> visibleRequests = Array.Empty<WithdrawalRequest>();
 
             var allRequests = await _withdrawalRequestRepo.FindAll();
 
@@ -47,18 +55,44 @@ namespace VMSService.Web.Controllers
 
             allStatuses = [.. allStatuses.Where(x => x.EntityType.Name == StatusConstants.Entity.WithdrawalRequest)];
 
-            // dictionary for O(1) lookup
             var statusMap = allStatuses.ToDictionary(s => s.Id, s => s.Name);
 
             var allCbs = await _configServiceClient.GetAllCommercialBankAsync();
 
-            // dictionary for O(1) lookup
             var cbMap = allCbs.ToDictionary(s => s.Id, s => s.Name);
 
             var now = DateTime.Now;
             var startOfMonth = new DateTime(now.Year, now.Month, 1);
 
             var allBouBranches = await _configServiceClient.GetAllBouBranchesAsync();
+
+            // Get user roles
+            var userRoles = User.FindAll("appRole")
+                .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
+                .Select(c => c.Value.Split(":")[1])
+                .ToList();
+
+            // Determine if user can view all locations
+            bool canViewAllLocations = userRoles.Contains(SystemPolicy.Roles.RemittancesOfficer);
+
+            // Filter branches based on user roles
+            var userBranches = new List<BranchDto>();
+            var draftStatus = await GetStatusByNameAsync(DepositStatuses.DepositStatusNames.Draft);
+            var draftStatusSpecial = await GetStatusByNameExceptionalAsync(DepositStatuses.DepositStatusNames.Draft);
+
+            if (canViewAllLocations)
+            {
+                // Remittances Officer can see all branches
+                userBranches = allBouBranches.ToList();
+                visibleRequests = (await _uow.Requests.FindAll()).Where(r => r.StatusTypeId != draftStatus.Id && r.StatusTypeId != draftStatusSpecial.Id).ToList();
+            }
+            else
+            {
+                // Filter branches based on role names matching branch names
+                userBranches = allBouBranches
+                    .Where(branch => userRoles.Any(role => role.Contains(branch.Name)))
+                    .ToList();
+            }
 
             // ── Counts ───────────────────────────────────────────────────────────────
 
@@ -72,15 +106,15 @@ namespace VMSService.Web.Controllers
                 !r.IsDeleted &&
                 r.RequiresSpecialApproval);
 
-            // Under bank processing (submitted to bank, recommended — not yet approved)
+            // Under bank processing (pending recommendation or pending confirmation — not yet confirmed)
             var underBankProcessing = allRequests.Count(r =>
                 !r.IsDeleted &&
-                (r.StatusTypeName == StatusConstants.WithdrawalRequest.PendingDisbursement
-                 || r.StatusTypeName == StatusConstants.WithdrawalRequest.Recommended));
+                (r.StatusTypeName == StatusConstants.WithdrawalRequest.PendingRecommendation
+                 || r.StatusTypeName == StatusConstants.WithdrawalRequest.PendingConfirmation));
 
             // All ever processed by bank (all approved, all time)
             var totalProcessed = allRequests
-                .Where(r => !r.IsDeleted && r.StatusTypeName == StatusConstants.WithdrawalRequest.Authorized)
+                .Where(r => !r.IsDeleted && r.StatusTypeName == StatusConstants.WithdrawalRequest.WithdrawalConfirmed)
                 .Sum(r => r.TotalAmount);
 
             // ── Requests table ───────────────────────────────────────────────────────
@@ -95,7 +129,7 @@ namespace VMSService.Web.Controllers
                 CreationDate = r.CreatedDate,
                 RequiresSpecialApproval = r.RequiresSpecialApproval,
                 RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "—" : r.RtgsCode,
-                BouBranchCode = r.BouBranchCode
+                BouBranchCode = r.BouBranchCode,
             }).ToList();
 
 
@@ -107,7 +141,8 @@ namespace VMSService.Web.Controllers
                 TotalProcessed = totalProcessed,
                 Requests = rows,
                 BouBranches = allBouBranches,
-
+                SelectedBranch = branchCode,
+                CanViewAllLocations = canViewAllLocations,
 
             };
 
@@ -139,8 +174,8 @@ namespace VMSService.Web.Controllers
                     agentDetails.Add(_mapper.Map<AgentDetailViewModel>(agent));
             }
 
-            var canEdit = (request.StatusTypeId == WithdrawalStatusIds.Draft
-              || request.StatusTypeId == WithdrawalStatusIds.ReturnedForRevision);
+            var canEdit = (request.StatusTypeName == WithdrawalStatusNames.Draft
+              || request.StatusTypeName == WithdrawalStatusNames.ReturnedForRevision);
 
             var allDenoms = await _denomRepo.FindAll();
 
@@ -158,9 +193,6 @@ namespace VMSService.Web.Controllers
                 .Where(d => d.Origin == WithdrawalOrigin.Cb)
                 .ToList();
 
-            //var displayLines = request.WithdrawalRequestDenominations
-            //    .Where(d => d.Origin == WithdrawalOrigin.Bou)
-            //    .ToList();
 
             var notes = cbDisplayLines
                 .Where(d => d.Bundles.HasValue)
@@ -186,23 +218,8 @@ namespace VMSService.Web.Controllers
 
             var canEditDispatch =
                 request.StatusTypeName == StatusConstants.WithdrawalRequest.PendingRecommendation
-                || request.StatusTypeName == StatusConstants.WithdrawalRequest.Returned;
+                || request.StatusTypeName == StatusConstants.WithdrawalRequest.WithdrawalReturned;
 
-            //var bankRows = request.WithdrawalRequestDenominations
-            //        .Where(d => d.Origin == WithdrawalOrigin.Bou)
-            //        .Select(d => new BouDenominationEditRowViewModel
-            //        {
-            //            Id = d.Id,
-            //            DenominationId = d.DenominationId,
-            //            DenominationValue = d.DenominationValue,
-            //            DenominationTypeId = d.DenominationTypeId,
-            //            BundleType = d.BundleType,
-            //            Bundles = d.Bundles,
-            //            Boxes = d.Boxes,
-            //            Amount = d.Amount,
-            //            BoxNumbers = d.DispatchedBoxes?.Select(b => b.CaseNumber).ToList() ?? new(),
-            //        })
-            //        .ToList();
             var bankRows = request.WithdrawalRequestDenominations
                 .Where(d => d.Origin == WithdrawalOrigin.Bou)
                 .Select(d => new BouDenominationEditRowViewModel
@@ -227,7 +244,7 @@ namespace VMSService.Web.Controllers
                 })
                 .ToList();
 
-            // Only expose them as "editable" when the status permits editing
+            // Only expose them as "editable"
             var editableBankRows = canEditDispatch ? bankRows : new List<BouDenominationEditRowViewModel>();
 
             // Display lists — always populated from bankRows
@@ -235,79 +252,7 @@ namespace VMSService.Web.Controllers
             var dispatchedReissueBanknotes = new List<BouDispatchSimpleViewModel>();
             var dispatchedCoins = new List<BouDispatchSimpleViewModel>();
 
-            //foreach (var row in bankRows)
-            //{
-            //    if (string.Equals(row.BundleType, BundleTypes.New, StringComparison.OrdinalIgnoreCase))
-            //    {
-            //        var boxNumbers = (row.BoxNumbers ?? new List<string>())
-            //            .Select(b => int.TryParse(b, out var n) ? n : 0)
-            //            .Where(n => n > 0)
-            //            .OrderBy(n => n)
-            //            .ToList();
 
-            //        if (!boxNumbers.Any()) continue;
-
-            //        var bundlesTotal = row.Bundles ?? 0;
-            //        var expectedFullBundles = boxNumbers.Count * 50;
-            //        var isFull = bundlesTotal == expectedFullBundles;
-
-            //        if (isFull)
-            //        {
-            //            // Collapse contiguous ascending box numbers into ranges
-            //            var segStart = boxNumbers[0];
-            //            var segEnd = boxNumbers[0];
-            //            for (int i = 1; i < boxNumbers.Count; i++)
-            //            {
-            //                if (boxNumbers[i] == segEnd + 1)
-            //                {
-            //                    segEnd = boxNumbers[i];
-            //                }
-            //                else
-            //                {
-            //                    dispatchedNewBanknotes.Add(BuildFullCard(row, segStart, segEnd));
-            //                    segStart = boxNumbers[i];
-            //                    segEnd = boxNumbers[i];
-            //                }
-            //            }
-            //            dispatchedNewBanknotes.Add(BuildFullCard(row, segStart, segEnd));
-            //        }
-            //        else
-            //        {
-            //            // Partial: must be exactly one box, with Bundles < 50
-            //            if (boxNumbers.Count != 1)
-            //            {
-            //                // Data integrity issue — log and skip, or treat as Full
-            //                _logger.LogWarning(
-            //                    "Dispatch row {RowId} has {BoxCount} boxes but bundles {Bundles} != {Expected}. Expected single box for partial.",
-            //                    row.Id, boxNumbers.Count, bundlesTotal, expectedFullBundles);
-            //                continue;
-            //            }
-            //            dispatchedNewBanknotes.Add(BuildPartialCard(row, boxNumbers[0], bundlesTotal));
-            //        }
-            //    }
-            //    else if (string.Equals(row.BundleType, BundleTypes.Reissue, StringComparison.OrdinalIgnoreCase))
-            //    {
-            //        dispatchedReissueBanknotes.Add(new BouDispatchSimpleViewModel
-            //        {
-            //            Id = row.Id ?? Guid.Empty,
-            //            DenominationId = row.DenominationId,
-            //            Denomination = row.DenominationValue,
-            //            Quantity = row.Bundles ?? 0,
-            //            Amount = row.Amount,
-            //        });
-            //    }
-            //    else if (string.Equals(row.BundleType, BundleTypes.Coin, StringComparison.OrdinalIgnoreCase))
-            //    {
-            //        dispatchedCoins.Add(new BouDispatchSimpleViewModel
-            //        {
-            //            Id = row.Id ?? Guid.Empty,
-            //            DenominationId = row.DenominationId,
-            //            Denomination = row.DenominationValue,
-            //            Quantity = row.Boxes ?? 0,
-            //            Amount = row.Amount,
-            //        });
-            //    }
-            //}
             foreach (var row in bankRows)
             {
                 if (string.Equals(row.BundleType, BundleTypes.New, StringComparison.OrdinalIgnoreCase))
@@ -381,9 +326,60 @@ namespace VMSService.Web.Controllers
 
             var currentStatus = await _workflowServiceClient.FindStatusById(request.StatusTypeId);
 
+            var Steps = BuildStepViewModel(request.StatusTypeName,
+                           request.StatusTypeName == WithdrawalStatusNames.WithdrawalConfirmed, request.RequiresSpecialApproval);
 
-            var Steps = BuildStepViewModel(request.StatusTypeId,
-                           request.StatusTypeId == WithdrawalStatusIds.Approved, request.RequiresSpecialApproval);
+            //Status history
+            var statusHistoryList = _mapper.Map<IEnumerable<WithdrawalRequestStatusHistoryViewModel>>(request.WithdrawalRequestStatusHistory);
+            foreach (var history in statusHistoryList)
+            {
+                history.NewStatusName = (await _workflowServiceClient.FindStatusById(history.NewStatusId)).Name;
+                history.OldStatusName = (await _workflowServiceClient.FindStatusById(history.OldStatusId)).Name;
+
+                // Load attachments for this status history entry
+                if (!string.IsNullOrEmpty(history.AttachmentIds))
+                {
+                    var attachmentIds = history.AttachmentIds.Split(',')
+                        .Where(id => int.TryParse(id.Trim(), out _))
+                        .Select(id => int.Parse(id.Trim()))
+                        .ToList();
+
+                    var attachments = new List<AttachmentViewModel>();
+                    foreach (var attachmentId in attachmentIds)
+                    {
+                        var attachment = await _attachmentRepository.FindById(attachmentId);
+                        if (attachment != null && !attachment.IsDeleted)
+                        {
+                            attachments.Add(new AttachmentViewModel
+                            {
+                                Id = attachment.Id,
+                                FileName = attachment.FileName,
+                                FilePath = attachment.FilePath,
+                                FileType = attachment.FileType,
+                                FileSize = attachment.FileSize,
+                                UploadedDate = attachment.CreatedDate
+                            });
+                        }
+                    }
+                    history.Attachments = attachments;
+                }
+            }
+
+            // Load all attachments for this deposit request
+            var allAttachments = await _attachmentRepository.FindByEntityId(id.ToString());
+            var withdrawalAttachments = allAttachments
+                .Where(a => !a.IsDeleted &&
+                           a.EntityType == StatusConstants.Entity.WithdrawalRequest)
+                .Select(a => new AttachmentViewModel
+                {
+                    Id = a.Id,
+                    FileName = a.FileName,
+                    FilePath = a.FilePath,
+                    FileType = a.FileType,
+                    FileSize = a.FileSize,
+                    UploadedDate = a.CreatedDate
+                })
+                .ToList();
 
             // ── Build ViewModel ───────────────────────────────────────────────────
             var vm = new BouWithdrawalRequestDetailsViewModel
@@ -412,13 +408,22 @@ namespace VMSService.Web.Controllers
                 //CanEdit = canEdit,
                 IsLumpSum = request.IsLumpSum,
                 IsPostApprovalView = displayOrigin == WithdrawalOrigin.Bou,
-                Steps = BuildStepViewModel(request.StatusTypeId,
-                           request.StatusTypeId == WithdrawalStatusIds.Approved, request.RequiresSpecialApproval),
+                Steps = BuildStepViewModel(request.StatusTypeName,
+                           request.StatusTypeName == WithdrawalStatusNames.WithdrawalConfirmed, request.RequiresSpecialApproval),
+                RtgsVerificationStatus = request.RtgsVerificationStatus,
+                RtgsVerifiedDate = request.RtgsVerifiedDate,
+                CanVerifyRtgs = (string.IsNullOrEmpty(request.RtgsVerificationStatus) || request.RtgsVerificationStatus == RtgsVerification.Pending)
+                    && request.RtgsDate.HasValue
+                    && !string.IsNullOrEmpty(request.RtgsCode),
+                RecallRtgsPending = request.RecallRtgsPending,
+                RecallRtgsCode = request.RecallRtgsCode,
+                RecallRtgsDate = request.RecallRtgsDate,
                 CanEditDispatch = canEditDispatch,
                 EditableBankRows = editableBankRows,
                 DispatchedNewBanknotes = dispatchedNewBanknotes,
                 DispatchedReissueBanknotes = dispatchedReissueBanknotes,
                 DispatchedCoins = dispatchedCoins,
+                AllAttachments = withdrawalAttachments
             };
             vm.AvailableTransitions = (await _workflowService.GetAvailableTransitionsAsync(
                 StatusConstants.Entity.WithdrawalRequest,
@@ -428,7 +433,14 @@ namespace VMSService.Web.Controllers
                 {
                     "Exceptional Approval" => request.RequiresSpecialApproval,
                     "Request Withdraw" => !request.RequiresSpecialApproval,
-                    _ => true  // return and any others always show
+                    "Pending_Exceptional_Approval" => request.RequiresSpecialApproval,
+                    "Pending_Recommendation" => !request.RequiresSpecialApproval,
+                    "Verified" => !request.RequiresSpecialApproval && request.RtgsVerificationStatus is RtgsVerification.Confirmed or RtgsVerification.DateMismatch,
+                    "Verified Exceptional" => request.RequiresSpecialApproval && request.RtgsVerificationStatus is RtgsVerification.Confirmed or RtgsVerification.DateMismatch,
+                    "Verification Failed" => request.RtgsVerificationStatus is RtgsVerification.AmountMismatch or RtgsVerification.NotFound,
+                    "Reject Recall" => !request.RequiresSpecialApproval,
+                    "Reject Recall Exceptional" => request.RequiresSpecialApproval,
+                    _ => true
                 })
                 .ToList();
 
@@ -466,7 +478,7 @@ namespace VMSService.Web.Controllers
                 }
 
                 if (request.StatusTypeName != StatusConstants.WithdrawalRequest.PendingRecommendation
-                    && request.StatusTypeName != StatusConstants.WithdrawalRequest.Returned)
+                    && request.StatusTypeName != StatusConstants.WithdrawalRequest.WithdrawalReturned)
                 {
                     TempData["Error"] = "This request is not editable in its current status.";
                     return RedirectToAction(nameof(Details), new { id });
@@ -477,7 +489,7 @@ namespace VMSService.Web.Controllers
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
                     ?? new();
 
-                // ── Step 2: Reverse BoxState changes for THIS request's existing dispatch rows ──
+                // ── Step 2: Reverse BoxState changes for request's existing dispatch rows ──
                 await ReverseBoxStateForRequestAsync(id, ct);
 
                 // ── Step 3: Wipe existing Bank-origin denomination rows + their box children ──
@@ -513,8 +525,7 @@ namespace VMSService.Web.Controllers
 
                         foreach (var boxNo in r.BoxNumbers)
                         {
-                            //var boxState = await _uow.BoxStates
-                            //    .FindByBoxAndDenominationAsync(boxNo, r.DenominationId, ct);
+
                             var (boxState, serialPrefix) = await _uow.BoxStates
                                 .FindByBoxAndDenominationWithPrefixAsync(boxNo, r.DenominationId, ct);
 
@@ -566,7 +577,6 @@ namespace VMSService.Web.Controllers
                         // Reissue or Coin: no boxes, just persist as-is
                         if (r.BoxNumbers?.Any() == true)
                         {
-                            // Defensive: payload shouldn't carry box numbers for non-New rows
                             _logger.LogWarning(
                                 "Bank dispatch row of type {Type} for denomination {Denom} has unexpected box numbers; ignoring.",
                                 r.BundleType, r.DenominationValue);
@@ -579,30 +589,10 @@ namespace VMSService.Web.Controllers
                 await _uow.SaveAsync(ct);
                 await transaction.CommitAsync(ct);
 
-                // ── Step 5: Workflow transition (same as before) ────────────
-                //var username = User.FindFirst(ClaimTypes.Name)?.Value ?? "System";
-                //var userRoles = User.FindAll("appRoleId")
-                //    .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
-                //    .Select(c => int.TryParse(c.Value.Split(":")[1], out var roleId) ? roleId : (int?)null)
-                //    .Where(r => r.HasValue).Select(r => r!.Value).ToList();
-                //var username = User.GetUsernameOrSystem();
-                //var userRoles = User.GetAppRoleIds();
-
-                //var executed = await _workflowService.ExecuteTransition(
-                //    entityType: StatusConstants.Entity.WithdrawalRequest,
-                //    entityId: id,
-                //    currentStatusId: request.StatusTypeId,
-                //    actionName: actionName,
-                //    username: username,
-                //    userRoles: userRoles,
-                //    remarks: remarks,
-                //    ct: ct);
-
                 TempData["Success"] = "Saved denominations successfully.";
             }
             catch (InvalidOperationException ex)
             {
-                // User-facing validation errors — show the message
                 await transaction.RollbackAsync(ct);
                 _logger.LogWarning(ex, "Validation failed saving bank denominations for {Id}", id);
                 TempData["Error"] = ex.Message;
@@ -619,16 +609,15 @@ namespace VMSService.Web.Controllers
 
         private async Task ReverseBoxStateForRequestAsync(Guid requestId, CancellationToken ct)
         {
-            // Pull this request's dispatched box rows, grouped by (BoxNo, DenominationId)
+            // Pull this request's dispatched box rows
             var heldByBox = await _wrDenomRepo.GetHeldByBoxAsync(requestId);
 
             if (heldByBox.Count == 0) return;
 
-            // Bulk-load all the BoxState rows we need to reverse, in one query
+            // Bulk-load all the BoxState rows we need to reverse
             var keys = heldByBox.Select(h => (h.CaseNumber, h.DenominationId)).ToList();
             var boxStates = await _uow.BoxStates.FindManyForReversalAsync(keys, ct);
 
-            // Index for fast lookup during the loop
             var stateByKey = boxStates.ToDictionary(b => (b.CaseNumber, b.DenominationId));
 
             foreach (var held in heldByBox)
@@ -655,89 +644,7 @@ namespace VMSService.Web.Controllers
 
             await _uow.SaveAsync(ct);
         }
-        //[HttpPost]
-        //[ValidateAntiForgeryToken]
-        //public async Task<IActionResult> SaveBankDenominations(Guid id, string payload, string actionName, string remarks, CancellationToken ct)
-        //{
-        //    try
-        //    {
-        //        var request = await _uow.Requests.FindById(id);
-        //        if (request is null)
-        //        {
-        //            TempData["Error"] = "Withdrawal request not found.";
-        //            return RedirectToAction(nameof(Index));
-        //        }
-
-        //        // Only editable in these statuses
-        //        if (request.StatusTypeName != StatusConstants.WithdrawalRequest.PendingDisbursement
-        //            && request.StatusTypeName != StatusConstants.WithdrawalRequest.Returned)
-        //        {
-        //            TempData["Error"] = "This request is not editable in its current status.";
-        //            return RedirectToAction(nameof(Details), new { id });
-        //        }
-
-        //        var rows = JsonSerializer.Deserialize<List<BouDenominationEditRowViewModel>>(
-        //            payload ?? "[]",
-        //            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-        //            ?? new();
-
-        //        // Wipe + recreate Bank-origin rows
-        //        await _uow.Denominations.DeleteBouRowsWithChildrenAsync(id, ct);
-
-        //        foreach (var r in rows)
-        //        {
-        //            var newRow = new WithdrawalRequestDenomination
-        //            {
-        //                WithdrawalRequestId = id,
-        //                DenominationId = r.DenominationId,
-        //                DenominationValue = r.DenominationValue,
-        //                DenominationTypeId = r.DenominationTypeId,
-        //                Bundles = r.Bundles,
-        //                Boxes = r.Boxes,
-        //                Amount = r.Amount,
-        //                Origin = "BOU",
-        //                BundleType = r.BundleType ?? BundleTypes.NotApplicable,
-        //                DispatchedBoxes = r.BoxNumbers
-        //                    .Select(bn => new WithdrawalRequestDenominationBox { CaseNumber = bn })
-        //                    .ToList()
-        //            };
-        //            await _uow.Denominations.Create(newRow);
-        //        }
-
-        //        await _uow.SaveAsync(ct);
-
-        //        // Now fire the workflow transition
-        //        var username = User.FindFirst(ClaimTypes.Name)?.Value ?? "System";
-        //        var userRoles = User.FindAll("appRoleId")
-        //            .Where(c => c.Value.StartsWith("VMS:"))
-        //            .Select(c => int.TryParse(c.Value.Split(":")[1], out var roleId) ? roleId : (int?)null)
-        //            .Where(r => r.HasValue).Select(r => r!.Value).ToList();
-
-
-        //        var executed = await _workflowService.ExecuteTransition(
-        //            entityType: StatusConstants.Entity.WithdrawalRequest,
-        //            entityId: id,
-        //            currentStatusId: request.StatusTypeId,
-        //            actionName: actionName,
-        //            username: username,
-        //            userRoles: userRoles,
-        //            remarks: remarks,
-        //            ct: ct);
-
-        //        TempData[executed ? "Success" : "Error"] = executed
-        //            ? "Dispatch saved successfully."
-        //            : "Saved denominations, but could not transition the workflow.";
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Error saving bank denominations for {Id}", id);
-        //        TempData["Error"] = "An error occurred while saving.";
-        //    }
-
-        //    return RedirectToAction(nameof(Details), new { id });
-        //}
-
-        // generic transition action
+        
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ExecuteAction(Guid id, string actionName, string remarks, CancellationToken ct)
@@ -751,15 +658,7 @@ namespace VMSService.Web.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
-                //var username = User.FindFirst(ClaimTypes.Name)?.Value ?? "System";
-                //var userRoles = User.FindAll("appRoleId")
-                //    .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
-                //    .Select(c => int.TryParse(c.Value.Split(":")[1], out var roleId)
-                //        ? roleId
-                //        : (int?)null)
-                //    .Where(r => r.HasValue)
-                //    .Select(r => r!.Value)
-                //    .ToList();
+
                 var username = User.GetUsernameOrSystem();
                 var userRoles = User.GetAppRoleIds();
 
@@ -775,7 +674,17 @@ namespace VMSService.Web.Controllers
                     ct: ct);
 
                 if (isExecuted)
+                {
+                    if (actionName == "Approve Recall")
+                    {
+                        request.RecallRtgsPending = request.RtgsVerificationStatus is RtgsVerification.Confirmed or RtgsVerification.DateMismatch;
+                        request.ModifiedBy = username;
+                        request.ModifiedDate = DateTime.Now;
+                        await _uow.SaveAsync(ct);
+                    }
+
                     TempData["Success"] = "Action completed successfully.";
+                }
                 else
                     TempData["Error"] = "Could not execute action. You may not have permission or the action is invalid for the current status.";
             }
@@ -790,29 +699,134 @@ namespace VMSService.Web.Controllers
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        //private WithdrawalStepViewModel BuildStepViewModel(int statusId, bool isApproved)
-        //    => WithdrawalStepViewModelFactory.Build(
-        //        currentStepKey: GetCurrentStepKey(statusId),
-        //        isRequestApproved: isApproved,
-        //        user: User);
-        private WithdrawalStepViewModel BuildStepViewModel(int statusId, bool isApproved, bool requiresSpecialApproval)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> VerifyRtgs(Guid id, string verificationStatus, DateOnly? rtgsVerifiedDate, CancellationToken ct)
+        {
+            var request = await _uow.Requests.FindById(id);
+            if (request is null) return NotFound();
+
+            var validStatuses = new[] { RtgsVerification.Confirmed, RtgsVerification.AmountMismatch, RtgsVerification.DateMismatch, RtgsVerification.NotFound };
+            if (!validStatuses.Contains(verificationStatus))
+            {
+                TempData["Error"] = "Invalid verification status.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (verificationStatus == RtgsVerification.DateMismatch && !rtgsVerifiedDate.HasValue)
+            {
+                TempData["Error"] = "Please provide the correct RTGS date.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            request.RtgsVerificationStatus = verificationStatus;
+            request.ModifiedBy = User.GetUsernameOrSystem();
+            request.ModifiedDate = DateTime.Now;
+
+            if (verificationStatus == RtgsVerification.DateMismatch)
+                request.RtgsVerifiedDate = rtgsVerifiedDate;
+
+            await _uow.SaveAsync(ct);
+
+            var message = verificationStatus switch
+            {
+                RtgsVerification.Confirmed => "RTGS verified successfully.",
+                RtgsVerification.DateMismatch => "RTGS date mismatch recorded. Correct date saved.",
+                RtgsVerification.AmountMismatch => "RTGS amount mismatch recorded.",
+                RtgsVerification.NotFound => "RTGS not found recorded.",
+                _ => "Verification status updated."
+            };
+            TempData["Success"] = message;
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CompleteRecall(Guid id, DateOnly recallRtgsDate, string recallRtgsCode, CancellationToken ct)
+        {
+            var request = await _uow.Requests.FindById(id);
+            if (request is null) return NotFound();
+
+            if (request.StatusTypeName != WithdrawalStatusNames.Recalled)
+            {
+                TempData["Error"] = "Recall can only be completed when the request is in Recalled status.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (string.IsNullOrEmpty(recallRtgsCode))
+            {
+                TempData["Error"] = "Recall RTGS code is required.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            var username = User.GetUsernameOrSystem();
+            var userRoles = User.GetAppRoleIds();
+
+            request.RecallRtgsCode = recallRtgsCode;
+            request.RecallRtgsDate = recallRtgsDate;
+            request.RecallRtgsPending = false;
+            request.ModifiedBy = username;
+            request.ModifiedDate = DateTime.Now;
+
+            bool isExecuted = await _workflowService.ExecuteTransition(
+                entityType: StatusConstants.Entity.WithdrawalRequest,
+                entityId: id,
+                currentStatusId: request.StatusTypeId,
+                actionName: "Complete Recall",
+                username: username,
+                userRoles: userRoles,
+                remarks: string.Empty,
+                ct: ct);
+
+            if (isExecuted)
+                TempData["Success"] = "Recall completed successfully. Reverse RTGS details recorded.";
+            else
+                TempData["Error"] = "Failed to complete recall. You may not have permission for this action.";
+
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        private async Task<StatusTypeDto> GetStatusByNameAsync(string statusName)
+        {
+            return await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                StatusName = statusName,
+                EntityTypeName = StatusConstants.Entity.DepositRequest,
+            });
+        }
+
+        private async Task<StatusTypeDto> GetStatusByNameExceptionalAsync(string statusName)
+        {
+            return await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                StatusName = statusName,
+                EntityTypeName = StatusConstants.Entity.DepositRequestExceptional,
+            });
+        }
+
+        private WithdrawalStepViewModel BuildStepViewModel(string statusName, bool isApproved, bool requiresSpecialApproval)
             => WithdrawalStepViewModelFactory.Build(
-                currentStepKey: GetCurrentStepKey(statusId),
+                currentStepKey: GetCurrentStepKey(statusName),
                 isRequestApproved: isApproved,
                 requiresSpecialApproval: requiresSpecialApproval,
                 user: User);
 
 
-        private static string GetCurrentStepKey(int statusId) => statusId switch
+        private static string GetCurrentStepKey(string statusName) => statusName switch
         {
-            WithdrawalStatusIds.Draft => "CbMaker",
-            WithdrawalStatusIds.ReturnedForRevision => "CbMaker",
-            WithdrawalStatusIds.SubmittedToSupervisor => "CbApprover",
-            WithdrawalStatusIds.PendingSpecialApproval => "Remittance",
-            WithdrawalStatusIds.PendingRecommendation => "PanelA",
-            WithdrawalStatusIds.Recommended => "PanelB",
-            WithdrawalStatusIds.Approved => "BOU",
-            WithdrawalStatusIds.Rejected => "BOU",
+            WithdrawalStatusNames.Draft => "CbMaker",
+            WithdrawalStatusNames.ReturnedForRevision => "CbMaker",
+            WithdrawalStatusNames.PendingInternalApproval => "CbApprover",
+            WithdrawalStatusNames.PendingExceptionalApproval or
+            WithdrawalStatusNames.PendingWithdrawalConfirmation => "Remittance",
+            WithdrawalStatusNames.PendingRecommendation => "PanelA",
+            WithdrawalStatusNames.PendingConfirmation => "PanelB",
+            WithdrawalStatusNames.WithdrawalConfirmed => "BOU",
+            WithdrawalStatusNames.RejectExceptionalApproval => "BOU",
+            WithdrawalStatusNames.RecallRequested or
+            WithdrawalStatusNames.Recalled => "Remittance",
             _ => "CbMaker",
         };
         private int GetUserRole()

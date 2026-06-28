@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using VMSService.Core.Models.AgentDetails;
+using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.CbRequests;
 using VMSService.Core.Models.WithdrawalRequestDenominations;
 using VMSService.Data.Entities;
@@ -36,7 +37,13 @@ namespace VMSService.Core.Models.WithdrawalRequests
         public bool IsLumpSum { get; set; } = false;
         public string? CurrentStatusName { get; set; }
         public bool CanEditDispatch { get; set; }
-
+        public string RtgsVerificationStatus { get; init; } = "Pending";
+        public DateOnly? RtgsVerifiedDate { get; init; }
+        public bool CanVerifyRtgs { get; init; }
+        public bool RecallRtgsPending { get; init; }
+        public string? RecallRtgsCode { get; init; }
+        public DateOnly? RecallRtgsDate { get; init; }
+        public IEnumerable<AttachmentViewModel> AllAttachments { get; set; } = [];
         public DenomTableViewModel Denoms { get; init; } = null!;
         public WithdrawalStepViewModel Steps { get; init; } = null!;
         public IEnumerable<AgentDetailViewModel> WithdrawAgents { get; init; } = [];

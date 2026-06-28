@@ -14,24 +14,26 @@ namespace VMSService.Core.Static
             public const string PendingInternalApproval = "Pending Internal Approval";
             public const string ReturnedForRevision = "Returned for Internal Revision";
             public const string PendingRecommendation = "Pending Recommendation";
-            public const string PendingDisbursement = "Pending Disbursement";
             public const string PendingExceptionalApproval = "Pending Exceptional Approval";
-            public const string Recommended = "Recommended";
-            public const string Approved = "Approved";
-            public const string Rejected = "Rejected";
-            public const string Cancelled = "Cancelled";
+            public const string PendingConfirmation = "Pending Confirmation";
+            public const string WithdrawalConfirmed = "Withdrawal Confirmed";
+            public const string WithdrawalReturned = "Withdrawal Returned";
+            public const string RejectExceptionalApproval = "Reject Exceptional Approval";
+            public const string BouDraft = "BOU Draft";
+            public const string PendingWithdrawalConfirmation = "Pending Withdrawal Confirmation";
+            public const string RecallRequested = "Recall Requested";
+            public const string Recalled = "Recalled";
+            public const string RecallComplete = "Recall Complete";
+            public const string VerificationFailed = "Verification Failed";
         }
-        public static class WithdrawalStatusIds
+
+        public static class RtgsVerification
         {
-            public const int Draft = 24;
-            public const int SubmittedToSupervisor = 25;
-            public const int ReturnedForRevision = 26;
-            public const int PendingRecommendation = 27;
-            public const int PendingSpecialApproval = 28;
-            public const int Recommended = 29;
-            public const int Approved = 30;
-            public const int Rejected = 31;
-            public const int Cancelled = 32;
+            public const string Pending = "Pending";
+            public const string Confirmed = "Confirmed";
+            public const string AmountMismatch = "AmountMismatch";
+            public const string DateMismatch = "DateMismatch";
+            public const string NotFound = "NotFound";
         }
         public static string ResolveDisplayOrigin(string statusName)
         {

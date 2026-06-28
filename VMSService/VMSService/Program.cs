@@ -218,6 +218,7 @@ builder.Services.AddScoped<IReceivedStockRepository, ReceivedStockRepository>();
 builder.Services.AddScoped<IReceivedStockDetailsRepository, ReceivedStockDetailsRepository>();
 builder.Services.AddScoped<IPackingListDetailService, PackingListDetailService>();
 builder.Services.AddScoped<IWorkflowService, WorkflowServices>();
+builder.Services.AddScoped<IWithdrawalStatusResolver, WithdrawalStatusResolver>();
 builder.Services.AddScoped<IReceivedStockStatusHistoryRepository, ReceivedStockStatusHistoryRepository>();
 builder.Services.AddScoped<IStockMovementStatusHistoryRepository, StockMovementStatusHistoryRepository>();
 builder.Services.AddScoped<IStockLedgerRepository, StockLedgerRepository>();

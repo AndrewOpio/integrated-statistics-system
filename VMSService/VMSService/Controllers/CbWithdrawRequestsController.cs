@@ -2,15 +2,15 @@
 using ConfigurationsService.Client;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using System.Reflection.Emit;
 using System.Security.Claims;
-using System.Threading.Channels;
+using VMSService.Core.Authorization;
 using VMSService.Core.Models.AgentDetails;
+using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.CbRequests;
 using VMSService.Core.Models.CbWithdrawRequest;
 using VMSService.Core.Models.WithdrawalRequestDenominations;
 using VMSService.Core.Repositories.AgentDetails;
+using VMSService.Core.Repositories.Attachments;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.WithdrawalRequestAgents;
 using VMSService.Core.Repositories.WithdrawalRequestDenominations;
@@ -24,8 +24,6 @@ using VMSService.Data.Entities;
 using VMSService.Web.Helpers;
 using WorkflowService.Client;
 using WorkflowService.Client.Dto;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 using static VMSService.Core.Static.WithdrawStatuses;
 
 namespace VMSService.Web.Controllers
@@ -41,9 +39,10 @@ namespace VMSService.Web.Controllers
     IWithdrawalRequestRepository _withdrawalRequestRepo,
     IWithdrawalRequestAgentRepository _withdrawalRequestAgentRepo,
     IWithdrawalRequestDenominationRepository _withdrawalRequestDenomRepo,
-    //IWithdrawalRequestStatusHistoryRepository _withdrawalRequestStatusHistRepo,
     IWorkflowServiceClient _workflowServiceClient,
     IWorkflowService _workflowService,
+    IWithdrawalStatusResolver _statusResolver,
+    IAttachmentRepository _attachmentRepository,
     ILogger<CbWithdrawRequestsController> _logger,
     IMapper _mapper) : BaseWithdrawController(authorizationService)
     {
@@ -55,45 +54,36 @@ namespace VMSService.Web.Controllers
         // ── Create ───────────────────────────────
         public async Task<IActionResult> Create(CancellationToken ct)
         {
-            //var stepVm = WithdrawalStepViewModelFactory.Build(
-            //    currentStepKey: "CbMaker",
-            //    isRequestApproved: false,
-            //    user: User);
+            var cbId = GetCbIdFromClaims();
 
-            var branchVm = new FromToSelectionViewModel
-            {
-                Cb = await _configServiceClient.GetCbIdAsync(2),
-                BouBranches = await _configServiceClient.GetAllBouBranchesAsync(),
-            };
+            var bouBranches = await _configServiceClient.GetAllBouBranchesAsync();
+            var cb = await _configServiceClient.GetCbIdAsync(cbId);
 
-            var agentDetails = (await _agentRepo.FindAll())
-                .Where(a => a.IsDeleted == false);
+            var agents = await _agentRepo.FindAll();
+            var denoms = await _denomRepo.FindAll();
+            var denomList = denoms.ToList();
 
-            var agentDetailsVm = _mapper.Map<List<AgentDetailViewModel>>(agentDetails);
-
-            var allDenoms = await _denomRepo.FindAll();
-
-            var denomList = allDenoms.ToList();
-
-            var denomVm = new DenomTableViewModel
-            {
-                Notes = denomList.Where(d => d.DenominationType.Name.Equals("Note")),
-                Coins = denomList.Where(d => d.DenominationType.Name.Equals("Coin")),
-            };
-
-            var agentVm = new AgentSelectionViewModel
-            {
-                Agents = agentDetailsVm,
-            };
             return View(new CreateWithdrawViewModel
             {
-                Steps = BuildStepViewModel(WithdrawalStatusIds.Draft, false, false),
-                Branches = branchVm,
-                Agents = agentVm,
-                Denoms = denomVm,
-                AvailableTransitions = new List<WorkflowTransitionDto>(),
+                Steps = BuildStepViewModel(WithdrawalStatusNames.Draft, false, false),
+                Branches = new FromToSelectionViewModel
+                {
+                    Cb = cb,
+                    BouBranches = bouBranches,
+                },
+                Agents = new AgentSelectionViewModel
+                {
+                    Agents = agents
+                        .Where(a => a.CommercialBankId == cbId)
+                        .Select(a => _mapper.Map<AgentDetailViewModel>(a))
+                        .ToList(),
+                },
+                Denoms = new DenomTableViewModel
+                {
+                    Notes = denomList.Where(d => d.DenominationType?.Name?.Equals("Note") ?? false),
+                    Coins = denomList.Where(d => d.DenominationType?.Name?.Equals("Coin") ?? false),
+                },
             });
-
         }
 
         [HttpGet]
@@ -104,14 +94,9 @@ namespace VMSService.Web.Controllers
             //if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
 
             // Only allow editing in Draft or ReturnedForRevision
-            if (request.StatusTypeId != WithdrawalStatusIds.Draft
-                && request.StatusTypeId != WithdrawalStatusIds.ReturnedForRevision)
+            if (request.StatusTypeName != WithdrawalStatusNames.Draft
+                && request.StatusTypeName != WithdrawalStatusNames.ReturnedForRevision)
                 return RedirectToAction("Details", new { id });
-
-            //var stepVm = WithdrawalStepViewModelFactory.Build(
-            //    currentStepKey: "CbMaker",
-            //    isRequestApproved: false,
-            //    user: User);
 
             var branchVm = new FromToSelectionViewModel
             {
@@ -155,7 +140,7 @@ namespace VMSService.Web.Controllers
             return View(new EditWithdrawViewModel
             {
                 Request = request,
-                Steps = BuildStepViewModel(request.StatusTypeId, false, request.RequiresSpecialApproval),
+                Steps = BuildStepViewModel(request.StatusTypeName, false, request.RequiresSpecialApproval),
                 Branches = branchVm,
                 Agents = agentVm,
                 Denoms = denomVm,
@@ -215,14 +200,12 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryTokenFromHeader]
         public async Task<IActionResult> SaveDraft([FromBody] SaveWithdrawalRequestViewModel vm, CancellationToken ct)
         {
+            if (vm is null)
+                return BadRequest(new { errors = new[] { "Request body is missing or invalid." } });
+
             var userId = GetUserId();
 
             WithdrawalRequest request;
-
-            //if (vm.CollectionDate < DateOnly.FromDateTime(DateTime.Today))
-            //{
-            //    return BadRequest(new { errors = new[] { "Collection date cannot be in the past." } });
-            //}
 
             // Guard: lump sum must be a whole bundle (multiple of 1,000)
             if (vm.IsLumpSum)
@@ -280,13 +263,13 @@ namespace VMSService.Web.Controllers
                     CbCode = vm.CbCode,
                     BouBranchId = vm.BouBranchId,
                     BouBranchCode = vm.BouBranchCode,
-                    CollectionDate = vm.CollectionDate,
+                    CollectionDate = vm.CollectionDate ?? default,
                     RtgsDate = vm.RtgsDate,
                     RtgsCode = vm.RtgsCode,
-                    //request.RequiresSpecialApproval = request.CollectionDate == DateOnly.FromDateTime(request.CreatedDate),
-                    RequiresSpecialApproval = vm.CollectionDate == DateOnly.FromDateTime(DateTime.Now),
+                    RequiresSpecialApproval = vm.CollectionDate.HasValue && vm.CollectionDate.Value == DateOnly.FromDateTime(DateTime.Now),
                     SpecialApprovalReason = vm.SpecialApprovalReason,
-                    StatusTypeId = WithdrawalStatusIds.Draft,
+                    StatusTypeId = await _statusResolver.GetStatusIdAsync(WithdrawalStatusNames.Draft),
+                    StatusTypeName = WithdrawalStatusNames.Draft,
                     CreatedBy = userId,
                     CreatedDate = DateTime.Now,
                     //TotalAmount = vm.Denominations.Sum(d => d.Amount),
@@ -313,11 +296,12 @@ namespace VMSService.Web.Controllers
             // On edit the status doesn't change, so no history entry is needed.
             if (!vm.Id.HasValue)
             {
+                var draftStatusId = await _statusResolver.GetStatusIdAsync(WithdrawalStatusNames.Draft);
                 await AddStatusHistoryAsync(
                     request.Id,
                     oldStatusId: 0, oldStatusName: string.Empty,
-                    WithdrawalStatusIds.Draft,
-                    WithdrawStatuses.WithdrawalStatusNames.Draft,
+                    draftStatusId,
+                    WithdrawalStatusNames.Draft,
                     userId, "Saved as draft", ct);
             }
 
@@ -333,11 +317,25 @@ namespace VMSService.Web.Controllers
 
 
 
-        //[HttpGet("{id}")]
         public async Task<IActionResult> Details(Guid id, CancellationToken ct)
         {
             var request = await _uow.Requests.GetWithDetailsAsync(id, ct);
             if (request is null) return NotFound();
+
+            // ── Current status ────────────────────────────────────────────────────
+            var currentStatus = await _workflowServiceClient.FindStatusById(request.StatusTypeId);
+
+            // ── BOU vs CB user detection ──────────────────────────────────────────
+            var userRoleNames = User.FindAll("appRole")
+                .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
+                .Select(c => c.Value.Split(":")[1])
+                .ToList();
+            var isBouUser = userRoleNames.Any(r => RolePolicy.BouRoles.Contains(r));
+
+            // ── Step key (differs for BOU vs CB perspective) ──────────────────────
+            var stepKey = isBouUser
+                ? GetCurrentStepKeyBOU(request.StatusTypeName)
+                : GetCurrentStepKey(request.StatusTypeName);
 
             // ── Display names from microservice ───────────────────────────────────
             var cb = await _configServiceClient.GetCbIdAsync(request.CbId);
@@ -357,10 +355,7 @@ namespace VMSService.Web.Controllers
                     agentDetails.Add(_mapper.Map<AgentDetailViewModel>(agent));
             }
 
-            var canEdit = (request.StatusTypeId == WithdrawalStatusIds.Draft
-              || request.StatusTypeId == WithdrawalStatusIds.ReturnedForRevision);
-
-
+            // ── Denominations ─────────────────────────────────────────────────────
             var cbLines = request.WithdrawalRequestDenominations
                 .Where(d => d.Origin == WithdrawalOrigin.Cb)
                 .ToList();
@@ -383,9 +378,74 @@ namespace VMSService.Web.Controllers
                     Amount = d.Amount,
                 });
 
-            var currentStatus = await _workflowServiceClient.FindStatusById(request.StatusTypeId);
+            // ── canEdit requires Draft/Returned status AND CB Maker role ──────────
+            var canEdit = (request.StatusTypeName == WithdrawalStatusNames.Draft
+                || request.StatusTypeName == WithdrawalStatusNames.ReturnedForRevision)
+                && userRoleNames.Contains(RolePolicy.CbMaker);
 
+            var canEditRtgs = !canEdit
+                && request.StatusTypeName == WithdrawalStatusNames.PendingInternalApproval
+                && (!request.RtgsDate.HasValue || string.IsNullOrEmpty(request.RtgsCode))
+                && userRoleNames.Contains(RolePolicy.CbApprover);
 
+            // ── Status history ────────────────────────────────────────────────────
+            var statusHistory = request.WithdrawalRequestStatusHistory
+                .Where(h => !h.IsDeleted)
+                .OrderBy(h => h.ChangedAt)
+                .Select(h => new WithdrawalRequestStatusHistoryViewModel
+                {
+                    Id = h.Id,
+                    OldStatusId = h.OldStatusId,
+                    OldStatusName = h.OldStatusName,
+                    NewStatusId = h.NewStatusId,
+                    NewStatusName = h.NewStatusName,
+                    ChangedBy = h.ChangedBy,
+                    ChangedAt = h.ChangedAt,
+                    Remarks = h.Remarks,
+                })
+                .ToList();
+
+            // ── Global attachments for this request ───────────────────────────────
+            var allAttachmentsRaw = await _attachmentRepository.FindByEntityId(id.ToString());
+            var allAttachments = allAttachmentsRaw
+                .Where(a => !a.IsDeleted && a.EntityType == StatusConstants.Entity.WithdrawalRequest)
+                .Select(a => new AttachmentViewModel
+                {
+                    Id = a.Id,
+                    FileName = a.FileName,
+                    FilePath = a.FilePath,
+                    FileType = a.FileType,
+                    FileSize = a.FileSize,
+                    UploadedDate = a.CreatedDate,
+                })
+                .ToList();
+
+            // ── Available transitions (all user roles, filtered by special approval)
+            var userRoleIds = GetUserRoles();
+            var availableTransitions = new List<WorkflowTransitionDto>();
+            foreach (var roleId in userRoleIds)
+            {
+                var transitions = await _workflowServiceClient.GetAvailableTransitions(
+                    new GetAvailableTransitionsRequestDto
+                    {
+                        ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                        EntityTypeName = StatusConstants.Entity.WithdrawalRequest,
+                        CurrentStatusId = request.StatusTypeId,
+                        AppRole = roleId,
+                    });
+
+                if (transitions != null)
+                    availableTransitions.AddRange(transitions);
+            }
+
+            availableTransitions = availableTransitions
+                .Where(t => t.ActionName switch
+                {
+                    "Exceptional Approval" => request.RequiresSpecialApproval,
+                    "Request Withdraw" => !request.RequiresSpecialApproval,
+                    _ => true,
+                })
+                .ToList();
 
             // ── Build ViewModel ───────────────────────────────────────────────────
             var vm = new WithdrawalRequestDetailsViewModel
@@ -398,6 +458,7 @@ namespace VMSService.Web.Controllers
                 RtgsDate = request.RtgsDate,
                 RtgsCode = request.RtgsCode,
                 RequiresSpecialApproval = request.RequiresSpecialApproval,
+                SpecialApprovalReason = request.SpecialApprovalReason,
                 CbName = cb?.Name ?? "—",
                 CbCode = cb?.Code ?? "—",
                 BouBranchName = bankBranch?.Name ?? "—",
@@ -410,22 +471,17 @@ namespace VMSService.Web.Controllers
                 TotalAmount = request.TotalAmount,
                 CurrentStatusName = currentStatus.Name,
                 CanEdit = canEdit,
+                CanEditRtgs = canEditRtgs,
+                RtgsVerificationStatus = request.RtgsVerificationStatus,
+                RecallRtgsPending = request.RecallRtgsPending,
+                RecallRtgsCode = request.RecallRtgsCode,
+                RecallRtgsDate = request.RecallRtgsDate,
                 IsLumpSum = request.IsLumpSum,
-                Steps = BuildStepViewModel(request.StatusTypeId,
-                           request.StatusTypeId == WithdrawalStatusIds.Approved, request.RequiresSpecialApproval),
+                Steps = WithdrawalStepViewModelFactory.Build(stepKey, request.StatusTypeName == WithdrawalStatusNames.WithdrawalConfirmed, request.RequiresSpecialApproval, User),
+                AvailableTransitions = availableTransitions,
+                StatusHistory = statusHistory,
+                AllAttachments = allAttachments,
             };
-            vm.AvailableTransitions = (await _workflowService.GetAvailableTransitionsAsync(
-                StatusConstants.Entity.WithdrawalRequest,
-                request.StatusTypeId,
-                GetUserRole()))
-                .Where(t => t.ActionName switch
-                {
-                    "Exceptional Approval" => request.RequiresSpecialApproval,
-                    "Request Withdraw" => !request.RequiresSpecialApproval,
-                    _ => true  // return and any others always show
-                })
-                .ToList();
-
 
             return View(vm);
         }
@@ -516,8 +572,8 @@ namespace VMSService.Web.Controllers
             //if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
 
             // Only allow delete in Draft or ReturnedForRevision
-            if (request.StatusTypeId != WithdrawalStatusIds.Draft
-                && request.StatusTypeId != WithdrawalStatusIds.ReturnedForRevision)
+            if (request.StatusTypeName != WithdrawalStatusNames.Draft
+                && request.StatusTypeName != WithdrawalStatusNames.ReturnedForRevision)
             {
                 TempData["Error"] = "Only draft requests can be deleted.";
                 return RedirectToAction(nameof(Details), new { id });
@@ -531,6 +587,30 @@ namespace VMSService.Web.Controllers
 
             TempData["Success"] = "Request deleted successfully.";
             return RedirectToAction("Index", "CbRequests");
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateRtgs(Guid id, DateOnly? rtgsDate, string? rtgsCode, CancellationToken ct)
+        {
+            var request = await _uow.Requests.FindById(id);
+            if (request is null) return NotFound();
+
+            if (request.StatusTypeName != WithdrawalStatusNames.PendingInternalApproval)
+            {
+                TempData["Error"] = "RTGS details can only be updated while pending internal approval.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            request.RtgsDate = rtgsDate;
+            request.RtgsCode = rtgsCode;
+            request.ModifiedBy = GetUserId();
+            request.ModifiedDate = DateTime.Now;
+
+            await _uow.SaveAsync(ct);
+
+            TempData["Success"] = "RTGS details updated successfully.";
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         // ── Helpers ───────────────────────────────
@@ -584,21 +664,41 @@ namespace VMSService.Web.Controllers
         //    return request;
         //}
 
-        private static string GetCurrentStepKey(int statusId) => statusId switch
+        private static string GetCurrentStepKey(string statusName) => statusName switch
         {
-            WithdrawalStatusIds.Draft => "CbMaker",
-            WithdrawalStatusIds.ReturnedForRevision => "CbMaker",
-            WithdrawalStatusIds.SubmittedToSupervisor => "CbApprover",
-            WithdrawalStatusIds.PendingSpecialApproval => "BOU",
-            WithdrawalStatusIds.SubmittedToBank => "Remittance",
-            WithdrawalStatusIds.Recommended => "PanelA",
-            WithdrawalStatusIds.Approved => "PanelB",
-            WithdrawalStatusIds.Rejected => "PanelB",
+            WithdrawalStatusNames.Draft => "CbMaker",
+            WithdrawalStatusNames.ReturnedForRevision => "CbMaker",
+            WithdrawalStatusNames.PendingInternalApproval => "CbApprover",
+            WithdrawalStatusNames.PendingExceptionalApproval => "BOU",
+            WithdrawalStatusNames.PendingWithdrawalConfirmation => "Remittance",
+            WithdrawalStatusNames.PendingRecommendation => "Remittance",
+            WithdrawalStatusNames.PendingConfirmation => "PanelA",
+            WithdrawalStatusNames.WithdrawalConfirmed => "PanelB",
+            WithdrawalStatusNames.RejectExceptionalApproval => "PanelB",
+            WithdrawalStatusNames.RecallRequested => "Remittance",
+            WithdrawalStatusNames.Recalled => "Remittance",
             _ => "CbMaker",
         };
-        private WithdrawalStepViewModel BuildStepViewModel(int statusId, bool isApproved, bool requiresSpecialApproval)
+
+        private static string GetCurrentStepKeyBOU(string statusName) => statusName switch
+        {
+            WithdrawalStatusNames.Draft or
+            WithdrawalStatusNames.ReturnedForRevision or
+            WithdrawalStatusNames.PendingInternalApproval => "CB",
+            WithdrawalStatusNames.PendingExceptionalApproval or
+            WithdrawalStatusNames.PendingWithdrawalConfirmation => "Remittance",
+            WithdrawalStatusNames.PendingRecommendation => "PanelA",
+            WithdrawalStatusNames.PendingConfirmation or
+            WithdrawalStatusNames.WithdrawalConfirmed or
+            WithdrawalStatusNames.RejectExceptionalApproval => "PanelB",
+            WithdrawalStatusNames.RecallRequested or
+            WithdrawalStatusNames.Recalled => "Remittance",
+            _ => "CB",
+        };
+
+        private WithdrawalStepViewModel BuildStepViewModel(string statusName, bool isApproved, bool requiresSpecialApproval)
             => WithdrawalStepViewModelFactory.Build(
-                currentStepKey: GetCurrentStepKey(statusId),
+                currentStepKey: GetCurrentStepKey(statusName),
                 isRequestApproved: isApproved,
                 requiresSpecialApproval: requiresSpecialApproval,
                 user: User);
@@ -606,17 +706,14 @@ namespace VMSService.Web.Controllers
         private string GetUserId()
             => User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
 
-        public static class WithdrawalStatusIds
+        private List<int> GetUserRoles()
         {
-            public const int Draft = 24;
-            public const int SubmittedToSupervisor = 25;
-            public const int ReturnedForRevision = 26;
-            public const int SubmittedToBank = 27;
-            public const int PendingSpecialApproval = 28;
-            public const int Recommended = 29;
-            public const int Approved = 30;
-            public const int Rejected = 31;
-            public const int Cancelled = 32;
+            return User.FindAll("appRoleId")
+                    .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
+                    .Select(c => int.TryParse(c.Value.Split(":")[1], out var appRoleId) ? appRoleId : (int?)null)
+                    .Where(id => id.HasValue)
+                    .Select(id => id!.Value)
+                    .ToList();
         }
 
         //private bool ValidateSubmit(SaveWithdrawalRequestViewModel vm, out List<string> errors)

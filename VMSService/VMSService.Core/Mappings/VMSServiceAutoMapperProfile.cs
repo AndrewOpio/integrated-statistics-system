@@ -30,6 +30,7 @@ using VMSService.Core.Models.StockLedgers;
 using VMSService.Core.Models.SubCategories;
 using VMSService.Core.Models.Vaults;
 using VMSService.Core.Models.VaultSections;
+using VMSService.Core.Models.CbWithdrawRequest;
 using VMSService.Core.Models.VendorTypes;
 using VMSService.Core.Services.Identity.IdentityEntities;
 using VMSService.Core.Services.Stocks.StockEntities;
@@ -81,6 +82,7 @@ namespace VMSService.Core.Mappings
             CreateMap<AgentDetailStatusHistory, AgentDetailStatusHistoryViewModel>().ReverseMap();
             CreateMap<DepositRequest, DepositRequestDetailsViewModel>().ReverseMap();
             CreateMap<DepositRequestStatusHistory, DepositRequestStatusHistoryViewModel>().ReverseMap();
+            CreateMap<WithdrawalRequestStatusHistory, WithdrawalRequestStatusHistoryViewModel>().ReverseMap();
             CreateMap<MinDepositStandard, MinDepositStandardViewModel>().ReverseMap();
             CreateMap<DepositProcessingFee, DepositProcessingFeeViewModel>().ReverseMap();
             CreateMap<DepositFee, DepositFeeViewModel>().ReverseMap();

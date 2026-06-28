@@ -53,7 +53,7 @@ namespace WorkflowService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("EntityTypes");
+                    b.ToTable("EntityTypes", (string)null);
                 });
 
             modelBuilder.Entity("WorkflowService.Data.Entities.StatusType", b =>
@@ -89,7 +89,7 @@ namespace WorkflowService.Data.Migrations
 
                     b.HasIndex("EntityTypeId");
 
-                    b.ToTable("StatusTypes");
+                    b.ToTable("StatusTypes", (string)null);
                 });
 
             modelBuilder.Entity("WorkflowService.Data.Entities.TransitionAttachmentRequirement", b =>
@@ -138,7 +138,7 @@ namespace WorkflowService.Data.Migrations
 
                     b.HasIndex("WorkflowTransitionId");
 
-                    b.ToTable("TransitionAttachmentRequirements");
+                    b.ToTable("TransitionAttachmentRequirements", (string)null);
                 });
 
             modelBuilder.Entity("WorkflowService.Data.Entities.WorkflowTransition", b =>
@@ -216,7 +216,7 @@ namespace WorkflowService.Data.Migrations
 
                     b.HasIndex("ToStatusId");
 
-                    b.ToTable("WorkflowTransitions");
+                    b.ToTable("WorkflowTransitions", (string)null);
                 });
 
             modelBuilder.Entity("WorkflowService.Data.Entities.StatusType", b =>

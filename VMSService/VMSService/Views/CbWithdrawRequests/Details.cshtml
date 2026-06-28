@@ -26,8 +26,8 @@
                 </span>
                 @if (Model.RequiresSpecialApproval)
                 {
-                    <span class="badge bg-danger-lt text-danger more-rounded border border-danger px-3 py-2">
-                        <i class="ti ti-star me-1"></i>Special Approval Required
+                    <span class="badge bg-warning text-brown more-rounded bg-opacity-10 px-3 py-2">
+                        <i class="ti ti-star me-1"></i>Exceptional Approval Required
                     </span>
                 }
             </div>
@@ -64,12 +64,12 @@
     <div class="col-md-8">
 
         @* Special Approval Reason *@
-        @if (Model.RequiresSpecialApproval)
+        @if (Model.RequiresSpecialApproval && !string.IsNullOrEmpty(Model.SpecialApprovalReason))
         {
             <div class="alert alert-warning d-flex align-items-start gap-3 mb-3">
                 <i class="ti ti-alert-triangle fs-4 text-warning flex-shrink-0 mt-1"></i>
                 <div>
-                    <p class="fw-bold mb-1">Special Approval Required</p>
+                    <p class="fw-bold mb-1">Exceptional Approval Required</p>
                     <p class="mb-0 text-muted" style="font-size:9px;">REASON PROVIDED</p>
                     <p class="mb-0 fw-semibold">@Model.SpecialApprovalReason</p>
                 </div>
@@ -117,19 +117,73 @@
                             @Model.CollectionDate.ToString("dd MMM yyyy")
                         </p>
                     </div>
-                    <div class="col-md-4">
-                        <p class="text-muted mb-0" style="font-size:9px;">RTGS DATE</p>
-                        <p class="fw-semibold small mb-0">
-                            @(Model.RtgsDate.HasValue? Model.RtgsDate.Value.ToString("dd MMM yyyy") : "—")
-                        </p>
-                    </div>
-                    <div class="col-md-4">
-                        <p class="text-muted mb-0" style="font-size:9px;">RTGS CODE</p>
-                        <p class="fw-semibold small mb-0">
-                            @(string.IsNullOrEmpty(Model.RtgsCode) ? "—" : Model.RtgsCode)
-                        </p>
-                    </div>
+                    @if (Model.CanEditRtgs)
+                    {
+                        <form method="post" asp-action="UpdateRtgs" asp-route-id="@Model.Id" class="col-md-8">
+                            @Html.AntiForgeryToken()
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-4">
+                                    <label class="text-muted mb-1" style="font-size:9px;">RTGS DATE</label>
+                                    <input type="date" name="rtgsDate" class="form-control form-control-sm"
+                                           value="@(Model.RtgsDate?.ToString("yyyy-MM-dd"))" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="text-muted mb-1" style="font-size:9px;">RTGS CODE</label>
+                                    <input type="text" name="rtgsCode" class="form-control form-control-sm"
+                                           value="@Model.RtgsCode" placeholder="Enter RTGS code" />
+                                </div>
+                                <div class="col-md-4">
+                                    <button type="submit" class="btn btn-sm btn-primary">
+                                        <i class="ti ti-check me-1"></i> Save RTGS
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    }
+                    else
+                    {
+                        <div class="col-md-4">
+                            <p class="text-muted mb-0" style="font-size:9px;">RTGS DATE</p>
+                            <p class="fw-semibold small mb-0">
+                                @(Model.RtgsDate.HasValue ? Model.RtgsDate.Value.ToString("dd MMM yyyy") : "—")
+                            </p>
+                        </div>
+                        <div class="col-md-4">
+                            <p class="text-muted mb-0" style="font-size:9px;">RTGS CODE</p>
+                            <p class="fw-semibold small mb-0">
+                                @(string.IsNullOrEmpty(Model.RtgsCode) ? "—" : Model.RtgsCode)
+                            </p>
+                        </div>
+                    }
                 </div>
+
+                @if (Model.RecallRtgsDate.HasValue)
+                {
+                    <div class="row g-3 mt-2 pt-2 border-top">
+                        <div class="col-md-12">
+                            <p class="text-uppercase text-muted fw-semibold mb-2" style="font-size:9px;">RECALL RTGS</p>
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="badge bg-success rounded-pill px-3 py-2">
+                                    <i class="ti ti-circle-check me-1"></i> Reverse RTGS Completed
+                                </span>
+                                <span class="small text-muted">
+                                    @Model.RecallRtgsDate.Value.ToString("dd MMM yyyy") — @Model.RecallRtgsCode
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                }
+                else if (Model.RecallRtgsPending)
+                {
+                    <div class="row g-3 mt-2 pt-2 border-top">
+                        <div class="col-md-12">
+                            <p class="text-uppercase text-muted fw-semibold mb-2" style="font-size:9px;">RECALL RTGS</p>
+                            <span class="badge bg-warning text-dark rounded-pill px-3 py-2">
+                                <i class="ti ti-clock me-1"></i> Reverse RTGS Pending
+                            </span>
+                        </div>
+                    </div>
+                }
             </div>
         </div>
 
@@ -388,6 +442,60 @@
             </div>
         </div>
 
+        @* ── Comments / Status History ── *@
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-2 fw-bolder mb-3">
+                    <i class="ti ti-message"></i>
+                    <span class="text-uppercase">Comments</span>
+                </div>
+                @if (Model.StatusHistory != null && Model.StatusHistory.Any())
+                {
+                    <div class="timeline">
+                        @foreach (var history in Model.StatusHistory)
+                        {
+                            <div class="timeline-item mb-4">
+                                <div class="d-flex gap-3">
+                                    <div class="timeline-marker">
+                                        <i class="ti ti-circle-check text-success"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h6 class="mb-1 small">
+                                                    <strong>@history.OldStatusName</strong>
+                                                    <i class="ti ti-arrow-right text-muted"></i>
+                                                    <strong>@history.NewStatusName</strong>
+                                                </h6>
+                                                <small class="text-muted">
+                                                    By: <strong>@history.ChangedBy</strong>
+                                                </small>
+                                            </div>
+                                            <small class="text-muted">
+                                                @history.ChangedAt.ToString("dd/MMM/yyyy HH:mm:ss")
+                                            </small>
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(history.Remarks))
+                                        {
+                                            <div class="mt-2 p-2 bg-white rounded border">
+                                                <span class="d-block">@history.Remarks</span>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted text-center">
+                        <i class="ti ti-inbox me-2"></i>No comments yet.
+                    </p>
+                }
+            </div>
+        </div>
+
         @* ── Delete Confirmation Modal ── *@
         <div class="modal fade" id="deleteModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
             <div class="modal-dialog modal-dialog-centered">
@@ -494,131 +602,158 @@
                         <span class="badge bg-info p-2 more-rounded">@Model.CurrentStatusName</span>
                     </div>
 
+                    @* Attachments *@
+                    @if (Model.AllAttachments.Any())
+                    {
+                        <div class="border-top pt-3 mt-1">
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <h6 class="mb-0 fw-bold text-uppercase small">
+                                    <i class="ti ti-paperclip me-1"></i>Attachments
+                                </h6>
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary">
+                                    @Model.AllAttachments.Count()
+                                </span>
+                            </div>
+                            <div class="d-flex flex-column gap-2">
+                                @foreach (var attachment in Model.AllAttachments.OrderByDescending(a => a.UploadedDate))
+                                {
+                                    <div class="border rounded p-2 bg-light">
+                                        <div class="d-flex align-items-start gap-2 mb-2">
+                                            <i class="ti @attachment.FileIcon @attachment.FileColor fs-4 flex-shrink-0"></i>
+                                            <div class="flex-grow-1 overflow-hidden">
+                                                <p class="mb-0 small fw-semibold text-truncate" title="@attachment.FileName">
+                                                    @attachment.FileName
+                                                </p>
+                                                <small class="text-muted d-block">@attachment.FileSizeFormatted</small>
+                                                <small class="text-muted d-block">@attachment.UploadedDate.ToString("dd MMM yyyy HH:mm")</small>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex gap-1">
+                                            @if (attachment.IsPreviewable)
+                                            {
+                                                <a href="/@attachment.FilePath" target="_blank"
+                                                   class="btn btn-sm btn-outline-info flex-fill">
+                                                    <i class="ti ti-external-link me-1"></i>
+                                                    @(attachment.IsPdf ? "Open PDF" : "Open")
+                                                </a>
+                                            }
+                                            <a asp-action="DownloadAttachment" asp-route-id="@attachment.Id"
+                                               class="btn btn-sm btn-outline-primary flex-fill">
+                                                <i class="ti ti-download me-1"></i>Download
+                                            </a>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+
                     @* Workflow Actions *@
-                    @* @if (Model.AvailableTransitions.Any())
+                    @if (Model.CanEditRtgs)
                     {
-                        @if (string.IsNullOrEmpty(Model.RtgsCode) || !Model.RtgsDate.HasValue)
-                        {
-                            <div class="border-top pt-3">
-                                <div class="alert alert-warning py-2 mb-0">
-                                    <i class="ti ti-alert-triangle me-1"></i>
-                                    <span class="small">Please provide the RTGS code and date before proceeding.</span>
-                                </div>
+                        <div class="border-top mt-2 pt-3">
+                            <div class="alert alert-warning mb-0">
+                                <i class="ti ti-alert-triangle me-1"></i>
+                                Please enter RTGS Date and RTGS Code above before proceeding.
                             </div>
-                        }
-                        else
-                        {
-                            <div class="border-top mt-2 pt-3">
+                        </div>
+                    }
+                    else if (Model.AvailableTransitions.Any() && Model.AvailableTransitions.All(t => t.ActionName == "Request Recall"))
+                    {
+                        <div class="border-top mt-2 pt-3">
+                            <div class="d-grid mb-2">
+                                <button type="button" class="btn btn-sm btn-warning"
+                                        onclick="document.getElementById('recallSection').style.display =
+                                                 document.getElementById('recallSection').style.display === 'none' ? 'block' : 'none'">
+                                    <i class="ti ti-arrow-back-up me-1"></i> Request Recall
+                                </button>
+                            </div>
+                            <div id="recallSection" style="display:none;">
+                                @{var recall = Model.AvailableTransitions.First();}
                                 <form method="post"
                                       asp-action="ExecuteAction"
-                                      asp-route-id="@Model.Id"
-                                      id="workflowForm">
+                                      asp-route-id="@Model.Id">
                                     @Html.AntiForgeryToken()
+                                    <input type="hidden" name="actionName" value="@recall.ActionName" />
                                     <div class="mb-3">
                                         <label class="form-label small text-uppercase text-muted fw-semibold">
-                                            Comment <span id="commentRequired" class="text-danger" style="display:none;">*</span>
+                                            Reason for Recall <span class="text-danger">*</span>
                                         </label>
-                                        <textarea id="remarksTextarea"
-                                          class="form-control form-control-sm"
-                                          name="remarks"
-                                          rows="5"
-                                          style="min-height: 150px;"
-                                          placeholder="Add a comment ... "></textarea>
-                                        <small id="commentHint" class="text-muted d-block mt-1"></small>
+                                        <textarea name="remarks" class="form-control form-control-sm" rows="3"
+                                                  placeholder="Please explain why you are recalling this request..." required></textarea>
                                     </div>
-                                    <input type="hidden" id="selectedAction" name="actionName" value="" />
+                                    <div class="d-grid">
+                                        <button type="submit" class="btn btn-warning btn-sm">
+                                            <i class="ti ti-arrow-back-up me-1"></i> Submit Recall Request
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    }
+                    else if (Model.AvailableTransitions.Any())
+                    {
+                        <div class="border-top mt-2 pt-3">
+                            <form method="post"
+                                  asp-action="ExecuteAction"
+                                  asp-route-id="@Model.Id"
+                                  id="workflowForm">
+
+                                <div class="mb-3">
+                                    <label class="form-label small text-uppercase text-muted fw-semibold">
+                                        Comment <span id="commentRequired" class="text-danger" style="display:none;">*</span>
+                                    </label>
+                                    <textarea id="remarksTextarea"
+                                              class="form-control form-control-sm"
+                                              name="remarks"
+                                              rows="5"
+                                              style="min-height:150px;"
+                                              placeholder="Add a comment ..."></textarea>
+                                    <small id="commentHint" class="text-muted d-block mt-1"></small>
+                                </div>
+
+                                @if (Model.AvailableTransitions.Count == 1)
+                                {
+                                    var t = Model.AvailableTransitions.First();
+                                    <input name="actionName" id="soloActionName" value="@t.ActionName"
+                                           data-requires-comments="@t.RequiresComments.ToString().ToLower()" hidden />
                                     <div class="d-grid gap-2">
-                                        @foreach (var transition in Model.AvailableTransitions)
-                                        {
-                                            <button type="submit"
-                                                    class="btn @transition.ButtonClass text-white"
-                                                    onclick="onTransitionClick(this, '@transition.ActionName', @transition.RequiresComments.ToString().ToLower())">
-                                                <i class="ti ti-check me-1"></i>@transition.DisplayLabel
-                                            </button>
-                                        }
+                                        <button type="submit" id="submitBtn" class="btn @t.ButtonClass text-white">
+                                            <i class="ti ti-check me-1"></i>
+                                            <span id="submitBtnLabel">@t.DisplayLabel</span>
+                                        </button>
                                     </div>
-                                </form>
-                            </div>
-                        }
-                    } *@
-                    @if (Model.AvailableTransitions.Any())
-                    {
-                        @if (string.IsNullOrEmpty(Model.RtgsCode) || !Model.RtgsDate.HasValue)
-                        {
-                            <div class="border-top pt-3">
-                                <div class="alert alert-warning py-2 mb-0">
-                                    <i class="ti ti-alert-triangle me-1"></i>
-                                    <span class="small">Please provide the RTGS code and date before proceeding.</span>
-                                </div>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="border-top mt-2 pt-3">
-                                <form method="post"
-                                      asp-action="ExecuteAction"
-                                      asp-route-id="@Model.Id"
-                                      id="workflowForm">
-                                    @Html.AntiForgeryToken()
-                                    <input type="hidden" id="selectedAction" name="actionName" value="" />
-
+                                }
+                                else
+                                {
                                     <div class="mb-3">
                                         <label class="form-label small text-uppercase text-muted fw-semibold">
-                                            Comment <span id="commentRequired" class="text-danger" style="display:none;">*</span>
+                                            Select Action <span class="text-danger">*</span>
                                         </label>
-                                        <textarea id="remarksTextarea"
-                                          class="form-control form-control-sm"
-                                          name="remarks"
-                                          rows="5"
-                                          style="min-height: 150px;"
-                                          placeholder="Add a comment ..."></textarea>
-                                        <small id="commentHint" class="text-muted d-block mt-1"></small>
+                                        <select id="actionSelect" name="actionName" class="form-select form-select-sm" required>
+                                            <option value="">— Choose an action —</option>
+                                            @foreach (var transition in Model.AvailableTransitions)
+                                            {
+                                                <option value="@transition.ActionName"
+                                                        data-requires-comments="@transition.RequiresComments.ToString().ToLower()"
+                                                        data-button-class="@transition.ButtonClass"
+                                                        data-display-label="@transition.DisplayLabel">
+                                                    @transition.DisplayLabel
+                                                </option>
+                                            }
+                                        </select>
                                     </div>
+                                    <div class="d-grid">
+                                        <button type="submit" id="submitBtn" class="btn btn-primary" disabled>
+                                            <i class="ti ti-check me-1"></i>
+                                            <span id="submitBtnLabel">Confirm Action</span>
+                                        </button>
+                                    </div>
+                                }
 
-                                    @if (Model.AvailableTransitions.Count == 1)
-                                    {
-                                        @* ── Single transition — show button directly ── *@
-                                        var t = Model.AvailableTransitions.First();
-                                        <div class="d-grid gap-2">
-                                            <button type="submit"
-                                                    class="btn @t.ButtonClass text-white"
-                                                    onclick="onTransitionClick(this, '@t.ActionName', @t.RequiresComments.ToString().ToLower())">
-                                                <i class="ti ti-check me-1"></i>
-                                                @t.DisplayLabel
-                                            </button>
-                                        </div>
-                                    }
-                                    else
-                                    {
-                                        @* ── Multiple transitions — dropdown + confirm ── *@
-                                        <div class="mb-3">
-                                            <label class="form-label small text-uppercase text-muted fw-semibold">
-                                                Select Action <span class="text-danger">*</span>
-                                            </label>
-                                            <select id="transitionSelect" class="form-select form-select-sm">
-                                                <option value="">— Choose an action —</option>
-                                                @foreach (var transition in Model.AvailableTransitions)
-                                                {
-                                                    <option value="@transition.ActionName"
-                                                            data-requires-comments="@transition.RequiresComments.ToString().ToLower()">
-                                                        @transition.DisplayLabel
-                                                    </option>
-                                                }
-                                            </select>
-                                        </div>
-                                        <div class="d-grid">
-                                            <button type="submit"
-                                                    class="btn btn-primary"
-                                                    onclick="var sel = document.getElementById('transitionSelect');
-                                                                 onTransitionClick(this, sel.value, sel.selectedOptions[0]?.dataset.requiresComments === 'true')">
-                                                <i class="ti ti-check me-1"></i> Submit
-                                            </button>
-                                        </div>
-                                    }
-
-                                </form>
-                            </div>
-                        }
+                                @Html.AntiForgeryToken()
+                            </form>
+                        </div>
                     }
                 </div>
             </div>
@@ -635,23 +770,57 @@
     <script>
         document.getElementById('denom-g-words').textContent = toWords(@Model.TotalAmount);
 
-        function onTransitionClick(btn, actionName, requiresComments) {
-            const remarks  = document.getElementById('remarksTextarea').value.trim();
-            const hint     = document.getElementById('commentHint');
-            const required = document.getElementById('commentRequired');
+        document.addEventListener('DOMContentLoaded', function () {
+            const actionSelect    = document.getElementById('actionSelect');
+            const remarksTextarea = document.getElementById('remarksTextarea');
+            const commentRequired = document.getElementById('commentRequired');
+            const commentHint     = document.getElementById('commentHint');
+            const submitBtn       = document.getElementById('submitBtn');
+            const submitBtnLabel  = document.getElementById('submitBtnLabel');
+            const workflowForm    = document.getElementById('workflowForm');
+            const soloActionName  = document.getElementById('soloActionName');
 
-            if (requiresComments && !remarks) {
-                hint.textContent       = 'Comments are required for this action.';
-                hint.className         = 'text-danger d-block mt-1';
-                required.style.display = 'inline';
-                event.preventDefault();
-                return;
+            // Wire up comment requirement for single-transition case
+            if (soloActionName) {
+                if (soloActionName.dataset.requiresComments === 'true') {
+                    commentRequired.style.display = 'inline';
+                    remarksTextarea.required = true;
+                }
             }
 
-            document.getElementById('selectedAction').value = actionName;
-            hint.textContent       = '';
-            required.style.display = 'none';
+            // Wire up action select for multi-transition case
+            if (actionSelect && workflowForm) {
+                actionSelect.addEventListener('change', function () {
+                    const opt = this.options[this.selectedIndex];
+                    const requiresComments = opt.dataset.requiresComments === 'true';
+                    const actionName = opt.value;
 
-        }
+                    if (actionName) {
+                        commentRequired.style.display = requiresComments ? 'inline' : 'none';
+                        remarksTextarea.required = requiresComments;
+                        submitBtn.disabled = false;
+                        submitBtnLabel.textContent = opt.dataset.displayLabel;
+                        submitBtn.className = `text-white btn ${opt.dataset.buttonClass}`;
+                    } else {
+                        commentRequired.style.display = 'none';
+                        remarksTextarea.required = false;
+                        commentHint.textContent = '';
+                        submitBtn.disabled = true;
+                        submitBtnLabel.textContent = 'Confirm Action';
+                        submitBtn.className = 'text-white btn btn-primary';
+                    }
+                });
+
+                workflowForm.addEventListener('submit', function (e) {
+                    const opt = actionSelect.options[actionSelect.selectedIndex];
+                    if (opt.dataset.requiresComments === 'true' && !remarksTextarea.value.trim()) {
+                        e.preventDefault();
+                        commentHint.textContent = 'Comments are required for this action.';
+                        commentHint.className = 'text-danger d-block mt-1';
+                        remarksTextarea.focus();
+                    }
+                });
+            }
+        });
     </script>
 }

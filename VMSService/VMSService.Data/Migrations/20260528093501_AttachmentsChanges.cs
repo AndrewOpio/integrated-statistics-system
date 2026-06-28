@@ -29,13 +29,15 @@ namespace VMSService.Data.Migrations
                 table: "Attachments",
                 newName: "FileType");
 
-            migrationBuilder.AlterColumn<Guid>(
+            migrationBuilder.DropColumn(
+                name: "DepositRequestDenominationId",
+                table: "StockProcessingSessions");
+
+            migrationBuilder.AddColumn<Guid>(
                 name: "DepositRequestDenominationId",
                 table: "StockProcessingSessions",
                 type: "uniqueidentifier",
-                nullable: true,
-                oldClrType: typeof(int),
-                oldType: "int");
+                nullable: true);
 
             migrationBuilder.AddColumn<int>(
                 name: "BagId",
@@ -123,6 +125,13 @@ namespace VMSService.Data.Migrations
                 column: "BagId",
                 principalTable: "Bags",
                 principalColumn: "Id");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_StockProcessingSessions_DepositRequestDenominations_DepositRequestDenominationId",
+                table: "StockProcessingSessions",
+                column: "DepositRequestDenominationId",
+                principalTable: "DepositRequestDenominations",
+                principalColumn: "Id");
         }
 
         /// <inheritdoc />
@@ -181,15 +190,16 @@ namespace VMSService.Data.Migrations
                 table: "Attachments",
                 newName: "ContentType");
 
-            migrationBuilder.AlterColumn<int>(
+            migrationBuilder.DropColumn(
+                name: "DepositRequestDenominationId",
+                table: "StockProcessingSessions");
+
+            migrationBuilder.AddColumn<int>(
                 name: "DepositRequestDenominationId",
                 table: "StockProcessingSessions",
                 type: "int",
                 nullable: false,
-                defaultValue: 0,
-                oldClrType: typeof(Guid),
-                oldType: "uniqueidentifier",
-                oldNullable: true);
+                defaultValue: 0);
 
             migrationBuilder.AddColumn<string>(
                 name: "AssistantSupervisorUserId",
