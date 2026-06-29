@@ -224,8 +224,7 @@ namespace IdentityService.Controllers
                     _logger.LogWarning("Second factor attempt for inactive user: {Username}", request.Username);
                     return Unauthorized(new { message = "User account is inactive. Please contact administrator." });
                 }
-
-                _logger.LogInformation("Processing RSA 2FA verification for user: {Username}", request.Username);
+               _logger.LogInformation("Processing RSA 2FA verification for user: {Username}", request.Username);
 
                 // Verify RSA SecurID passcode
                 //var rsaVerifyResponse = await _rsaService.VerifyAuthenticationAsync(
@@ -234,7 +233,8 @@ namespace IdentityService.Controllers
                 //    request.InResponseTo ?? string.Empty
                 //);
 
-                RsaAuthenticationResponse rsaVerifyResponse = new() {
+                RsaAuthenticationResponse rsaVerifyResponse = new()
+                {
                     AttemptResponseCode = RsaResponseCodes.Success,
                     Context = new RsaContext()
                     {
@@ -254,7 +254,8 @@ namespace IdentityService.Controllers
 
                     if (dbUser.IsStaff)
                     {
-                        var ldapUser = await _ldapService.GetUserDetails(request.Username);
+                        //var ldapUser = await _ldapService.GetUserDetails(request.Username);
+                        LdapUser ldapUser = new();
                         displayName = ldapUser?.DisplayName ?? $"{dbUser.FirstName} {dbUser.LastName}";
                         email = ldapUser?.Email ?? dbUser.Email;
                     }

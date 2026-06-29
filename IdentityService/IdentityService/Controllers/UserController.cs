@@ -83,6 +83,32 @@ namespace IdentityService.Web.Controllers
             }
         }
 
+        [HttpGet("get-by-rolename/{roleName}")]
+        public async Task<ActionResult<List<UserDto>>> GetUsersByRoleName(string roleName)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(roleName))
+                {
+                    return BadRequest("Role name is required.");
+                }
+
+                var userRoles = await _userApplicationRoleRepository.GetUsersByRoleName(roleName);
+                var users = userRoles
+                    .Select(x => x.User)
+                    .DistinctBy(u => u.Id)
+                    .Select(_mapper.Map<UserDto>)
+                    .ToList();
+
+                return Ok(users);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving users by role name: {RoleName}", roleName);
+                return StatusCode(500, "An error occurred while retrieving users by role name.");
+            }
+        }
+
         [HttpGet("get-by-username/{username}")]
         public async Task<ActionResult<UserDto>> GetUserByUsername(string username)
         {

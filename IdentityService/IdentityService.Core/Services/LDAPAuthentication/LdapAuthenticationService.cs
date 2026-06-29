@@ -25,10 +25,11 @@ namespace IdentityService.Core.Services.LDAPAuthentication
         {
             try
             {
-                //using (var context = new PrincipalContext(ContextType.Domain, _settings.Server, _settings.SearchBase))
-                //{
-                //    return context.ValidateCredentials(username, password);//}
-                return true;
+                using (var context = new PrincipalContext(ContextType.Domain, _settings.Server, _settings.SearchBase))
+                {
+                    return context.ValidateCredentials(username, password);
+                }
+                //return true;
             }
             catch (PrincipalServerDownException ex)
             {
