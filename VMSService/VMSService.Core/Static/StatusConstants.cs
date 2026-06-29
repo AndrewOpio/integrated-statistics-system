@@ -82,6 +82,21 @@
             public const string Approved = "Approved";
         }
 
+        public static class StockProcessingPlan
+        {
+            public const string Draft = "Draft";
+            public const string PendingVerification = "Pending Verification";
+            public const string IssuedToBoards = "Issued To Boards";
+            public const string Processed = "Processed";
+        }
+
+        public static class StockProcessingSession
+        {
+            public const string Draft = "Draft";
+            public const string Open = "Open";
+            public const string Closed = "Closed";
+        }
+
         public static class Entity
         {
             public const string ApprovedCurrencyProcurement = "ApprovedCurrencyProcurement";
@@ -94,6 +109,8 @@
             public const string AgentDetail = "AgentDetail";
             public const string DepositRequest = "DepositRequest";
             public const string DepositRequestExceptional = "DepositRequestExceptional";
+            public const string StockProcessingPlan = "StockProcessingPlan";
+            public const string StockProcessingSession = "StockProcessingSession";
         }
     }
 }

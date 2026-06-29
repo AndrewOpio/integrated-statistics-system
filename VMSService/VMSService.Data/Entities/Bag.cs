@@ -15,5 +15,7 @@ namespace VMSService.Data.Entities
         public ICollection<BagDenomination> BagDenominations { get; set; } = [];
         public ICollection<Bag> ChildBags { get; set; } = [];
         public bool IsProcessed { get; set; }
+        public int? CategoryId { get; set; }
+        public int? SubCategoryId { get; set; }
     }
 }

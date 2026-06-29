@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Mvc.Rendering;
+using System.ComponentModel.DataAnnotations;
 using VMSService.Core.Models.Vaults;
 
 namespace VMSService.Core.Models.VaultSections
@@ -5,7 +7,11 @@ namespace VMSService.Core.Models.VaultSections
     public class VaultSectionViewModel
     {
         public int Id { get; set; }
+
+        [Required]
         public string Name { get; set; } = string.Empty;
+
+        [Required]
         public int VaultId { get; set; }
         public VaultViewModel? Vault { get; set; }
         public string? VaultName { get; set; }
@@ -16,5 +22,7 @@ namespace VMSService.Core.Models.VaultSections
         public DateTime CreatedDate { get; set; }
         public string ModifiedBy { get; set; } = string.Empty;
         public DateTime ModifiedDate { get; set; }
+
+        public List<SelectListItem> VaultList { get; set; } = new();
     }
 }

@@ -412,6 +412,9 @@ namespace VMSService.Data.Migrations
                     b.Property<int>("BranchId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("CategoryId")
+                        .HasColumnType("int");
+
                     b.Property<string>("CbCode")
                         .HasColumnType("nvarchar(max)");
 
@@ -441,6 +444,9 @@ namespace VMSService.Data.Migrations
                     b.Property<string>("ReferenceNumber")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("SubCategoryId")
+                        .HasColumnType("int");
 
                     b.Property<int?>("VaultSectionId")
                         .HasColumnType("int");
@@ -637,6 +643,86 @@ namespace VMSService.Data.Migrations
                     b.HasIndex("ParentBagId");
 
                     b.ToTable("BaggedBags");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.CountingRoom", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BranchId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("CountingRooms");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.CountingRoomSession", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BoardSupervisorUserId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("CountingRoomId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("StockProcessingPlanId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CountingRoomId");
+
+                    b.HasIndex("StockProcessingPlanId");
+
+                    b.ToTable("CountingRoomSessions");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.CurrencyVendor", b =>
@@ -1722,6 +1808,9 @@ namespace VMSService.Data.Migrations
                     b.Property<int>("BranchId")
                         .HasColumnType("int");
 
+                    b.Property<int>("CountingRoomId")
+                        .HasColumnType("int");
+
                     b.Property<string>("CreatedBy")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -1746,6 +1835,8 @@ namespace VMSService.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("BPSMachineId");
+
+                    b.HasIndex("CountingRoomId");
 
                     b.ToTable("ProcessingBoards");
                 });
@@ -1966,6 +2057,51 @@ namespace VMSService.Data.Migrations
                     b.HasIndex("ReceivedStockId");
 
                     b.ToTable("ReceivedStockStatusHistory");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.SessionBag", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BagId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("ProcessingBoardId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StockProcessingPlanId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BagId");
+
+                    b.HasIndex("ProcessingBoardId");
+
+                    b.HasIndex("StockProcessingPlanId");
+
+                    b.ToTable("SessionBags");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.StockMovement", b =>
@@ -2241,7 +2377,7 @@ namespace VMSService.Data.Migrations
                     b.Property<DateTime>("ProcessingDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("StockMovementId")
+                    b.Property<int?>("StockMovementId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
@@ -2366,9 +2502,6 @@ namespace VMSService.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("BagId")
-                        .HasColumnType("int");
-
                     b.Property<int>("CategoryId")
                         .HasColumnType("int");
 
@@ -2384,9 +2517,6 @@ namespace VMSService.Data.Migrations
 
                     b.Property<int>("CurrentStatusId")
                         .HasColumnType("int");
-
-                    b.Property<Guid?>("DepositRequestDenominationId")
-                        .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
@@ -2412,10 +2542,6 @@ namespace VMSService.Data.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("BagId");
-
-                    b.HasIndex("DepositRequestDenominationId");
 
                     b.HasIndex("ProcessingBoardId");
 
@@ -2976,6 +3102,25 @@ namespace VMSService.Data.Migrations
                     b.Navigation("ParentBag");
                 });
 
+            modelBuilder.Entity("VMSService.Data.Entities.CountingRoomSession", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.CountingRoom", "CountingRoom")
+                        .WithMany()
+                        .HasForeignKey("CountingRoomId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("VMSService.Data.Entities.StockProcessingPlan", "StockProcessingPlan")
+                        .WithMany()
+                        .HasForeignKey("StockProcessingPlanId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CountingRoom");
+
+                    b.Navigation("StockProcessingPlan");
+                });
+
             modelBuilder.Entity("VMSService.Data.Entities.CurrencyVendor", b =>
                 {
                     b.HasOne("VMSService.Data.Entities.VendorType", "VendorType")
@@ -3180,7 +3325,15 @@ namespace VMSService.Data.Migrations
                         .WithMany()
                         .HasForeignKey("BPSMachineId");
 
+                    b.HasOne("VMSService.Data.Entities.CountingRoom", "CountingRoom")
+                        .WithMany()
+                        .HasForeignKey("CountingRoomId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("BPSMachine");
+
+                    b.Navigation("CountingRoom");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ReceivedStock", b =>
@@ -3226,6 +3379,33 @@ namespace VMSService.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("ReceivedStock");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.SessionBag", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.Bag", "Bag")
+                        .WithMany()
+                        .HasForeignKey("BagId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("VMSService.Data.Entities.ProcessingBoard", "ProcessingBoard")
+                        .WithMany()
+                        .HasForeignKey("ProcessingBoardId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("VMSService.Data.Entities.StockProcessingPlan", "StockProcessingPlan")
+                        .WithMany()
+                        .HasForeignKey("StockProcessingPlanId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Bag");
+
+                    b.Navigation("ProcessingBoard");
+
+                    b.Navigation("StockProcessingPlan");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.StockMovement", b =>
@@ -3286,8 +3466,7 @@ namespace VMSService.Data.Migrations
                     b.HasOne("VMSService.Data.Entities.StockMovement", "StockMovement")
                         .WithMany()
                         .HasForeignKey("StockMovementId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("StockMovement");
                 });
@@ -3316,14 +3495,6 @@ namespace VMSService.Data.Migrations
 
             modelBuilder.Entity("VMSService.Data.Entities.StockProcessingSession", b =>
                 {
-                    b.HasOne("VMSService.Data.Entities.Bag", "Bag")
-                        .WithMany()
-                        .HasForeignKey("BagId");
-
-                    b.HasOne("VMSService.Data.Entities.DepositRequestDenomination", "DepositRequestDenomination")
-                        .WithMany()
-                        .HasForeignKey("DepositRequestDenominationId");
-
                     b.HasOne("VMSService.Data.Entities.ProcessingBoard", "ProcessingBoard")
                         .WithMany()
                         .HasForeignKey("ProcessingBoardId");
@@ -3333,10 +3504,6 @@ namespace VMSService.Data.Migrations
                         .HasForeignKey("StockProcessingPlanId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.Navigation("Bag");
-
-                    b.Navigation("DepositRequestDenomination");
 
                     b.Navigation("ProcessingBoard");
 

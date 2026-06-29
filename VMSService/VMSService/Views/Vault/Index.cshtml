@@ -78,11 +78,11 @@
                 }
             </p>
         </div>
-        <button type="button" class="btn btn-sm align-self-start"
+        @*<button type="button" class="btn btn-sm align-self-start"
                 style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3);"
                 data-bs-toggle="modal" data-bs-target="#createVaultModal">
             <i class="ti ti-plus me-1"></i>New Vault
-        </button>
+        </button>*@
     </div>
     <div class="row g-2">
         <div class="col-6 col-md-4">
@@ -150,13 +150,13 @@
                         <p class="fw-bold mb-0 small" style="color:#31316A;">UGX @vault.TotalAmount.ToString("N0")</p>
                     </div>
                 }
-                <button type="button" class="btn btn-sm btn-outline-tertiary"
+                @*<button type="button" class="btn btn-sm btn-outline-tertiary"
                         data-bs-toggle="modal" data-bs-target="#addSectionModal"
                         data-vault-id="@vault.Id" data-vault-name="@vault.Name"
                         title="Add section to this vault">
                     <i class="ti ti-layout-grid-add me-1"></i>Add Section
-                </button>
-                @if (vault.TotalBags == 0)
+                </button>*@
+                @*@if (vault.TotalBags == 0)
                 {
                     <form asp-action="DeleteVault" asp-route-id="@vault.Id" method="post" class="d-inline"
                           onsubmit="return confirm('Delete vault \'@vault.Name\'? This will also remove its empty sections.');">
@@ -172,7 +172,7 @@
                             title="Vault has bags — remove all bags before deleting">
                         <i class="ti ti-trash"></i>
                     </button>
-                }
+                }*@
             </div>
         </div>
 
@@ -182,12 +182,12 @@
                 <div class="text-center py-4 text-muted">
                     <i class="ti ti-layout-grid-remove d-block mb-2" style="font-size:2rem;opacity:.4;"></i>
                     <p class="small mb-2">No sections in this vault</p>
-                    <button type="button" class="btn btn-xs btn-outline-secondary"
+                    @*<button type="button" class="btn btn-xs btn-outline-secondary"
                             style="padding:.2rem .6rem;font-size:.75rem;"
                             data-bs-toggle="modal" data-bs-target="#addSectionModal"
                             data-vault-id="@vault.Id" data-vault-name="@vault.Name">
                         <i class="ti ti-plus me-1"></i>Add First Section
-                    </button>
+                    </button>*@
                 </div>
             }
             else
@@ -222,7 +222,7 @@
                                            title="Manage section">
                                             <i class="ti ti-external-link"></i>
                                         </a>
-                                        @if (sec.TotalBags == 0)
+                                        @*@if (sec.TotalBags == 0)
                                         {
                                             <form asp-action="DeleteSection" asp-route-id="@sec.Id" method="post" class="d-inline"
                                                   onsubmit="return confirm('Delete section \'@sec.Name\'?');">
@@ -241,7 +241,7 @@
                                                     title="Section has bags — remove them first">
                                                 <i class="ti ti-trash"></i>
                                             </button>
-                                        }
+                                        }*@
                                     </div>
                                 </div>
 

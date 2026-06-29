@@ -75,6 +75,9 @@ namespace VMSService.Data.Configurations
         public DbSet<BaggedBag> BaggedBags { get; set; }
         public DbSet<BagMovement> BagMovements { get; set; }
         public DbSet<BagMovementStatusHistory> BagMovementStatusHistory { get; set; }
+        public DbSet<SessionBag> SessionBags { get; set; }
+        public DbSet<CountingRoom> CountingRooms { get; set; }
+        public DbSet<CountingRoomSession> CountingRoomSessions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -1,0 +1,94 @@
+@model List<VMSService.Core.Models.VaultSections.VaultSectionViewModel>
+
+@{
+    ViewData["Title"] = "Vault Sections";
+}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h2 class="fs-5 fw-bold mb-0">Vault Sections</h2>
+                    </div>
+                    <div class="col text-end">
+                        <a asp-action="Create" class="btn btn-sm btn-primary">
+                            <i class="ti ti-plus me-1"></i>Add Vault Section
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-centered table-nowrap mb-0 rounded" id="vaultSectionsTable">
+                        <thead class="thead-light">
+                            <tr>
+                                <th class="border-0 rounded-start">#</th>
+                                <th class="border-0">Name</th>
+                                <th class="border-0">Vault</th>
+                                <th class="border-0">Status</th>
+                                <th class="border-0 rounded-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                int rowNumber = 1;
+                            }
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td><span class="text-primary fw-bold">@rowNumber</span></td>
+                                    <td class="fw-bold">@item.Name</td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(item.VaultName))
+                                        {
+                                            <div class="d-inline-flex align-items-center gap-2" style="width: fit-content;">
+                                                <span class="badge bg-primary">
+                                                    <i class="ti ti-building-bank me-1"></i>@item.VaultName
+                                                </span>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (item.IsActive)
+                                        {
+                                            <span class="badge bg-success">Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">Inactive</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
+                                                <i class="ti ti-edit"></i>
+                                            </a>
+                                            <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger" title="Delete">
+                                                <i class="ti ti-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                    @{ rowNumber++; }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            $('#vaultSectionsTable').DataTable({ order: [[1, 'asc']] });
+        });
+    </script>
+}
