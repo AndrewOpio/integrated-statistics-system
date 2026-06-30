@@ -59,28 +59,72 @@ namespace VMSService.Core.Repositories.Bags
 
         public async Task<List<BagViewModel>> GetAllBagsAsync(int? branchId = null)
         {
-            return await _db.Bags
+            var bags = await _db.Bags
                 .Where(b => !b.IsDeleted && !b.IsProcessed
                     && (!branchId.HasValue || b.BranchId == branchId.Value)
                     && !_db.BaggedBags.Any(bb => bb.ChildBagId == b.Id && !bb.IsDeleted))
                 .Include(b => b.BagDenominations)
                     .ThenInclude(bd => bd.DepositRequestDenomination)
+                .Include(b => b.VaultSection)
+                    .ThenInclude(vs => vs!.Vault)
                 .Select(b => new BagViewModel
                 {
                     Id = b.Id,
                     ReferenceNumber = b.ReferenceNumber,
                     DenominationId = b.DenominationId,
+                    DenominationValue = b.BagDenominations
+                        .Where(bd => !bd.IsDeleted)
+                        .Select(bd => bd.DepositRequestDenomination.DenominationValue)
+                        .FirstOrDefault(),
                     ItemCount = b.BagDenominations.Count(bd => !bd.IsDeleted),
+                    TotalBundles = b.BagDenominations
+                        .Where(bd => !bd.IsDeleted)
+                        .Sum(bd => bd.NumberOfBundlesOrBoxes),
                     TotalAmount = b.BagDenominations
                         .Where(bd => !bd.IsDeleted)
                         .Sum(bd => bd.DepositRequestDenomination.Amount),
                     IsDeleted = b.IsDeleted,
+                    BranchId = b.BranchId,
+                    CbCode = b.CbCode,
                     CreatedDate = b.CreatedDate,
                     CreatedBy = b.CreatedBy,
+                    VaultSectionId = b.VaultSectionId,
+                    VaultSectionName = b.VaultSection != null ? b.VaultSection.Name : null,
+                    VaultId = b.VaultSection != null ? (int?)b.VaultSection.VaultId : null,
+                    VaultName = b.VaultSection != null ? b.VaultSection.Vault.Name : null,
                     Items = b.BagDenominations.ToList(),
+                    CommercialBankIds = b.BagDenominations
+                        .Where(bd => !bd.IsDeleted)
+                        .Select(bd => bd.DepositRequestDenomination.DepositRequest.CbId)
+                        .Distinct()
+                        .ToList(),
                 })
                 .OrderByDescending(b => b.CreatedDate)
                 .ToListAsync();
+
+            // Merge in CbIds from child bags (bags merged into these parent bags)
+            var bagIds = bags.Select(b => b.Id).ToList();
+            if (bagIds.Count > 0)
+            {
+                var childBankRows = await _db.BaggedBags
+                    .Where(bb => bagIds.Contains(bb.ParentBagId) && !bb.IsDeleted)
+                    .SelectMany(bb => bb.ChildBag!.BagDenominations
+                        .Where(bd => !bd.IsDeleted)
+                        .Select(bd => new { bb.ParentBagId, bd.DepositRequestDenomination.DepositRequest.CbId }))
+                    .ToListAsync();
+
+                var childBanksByParent = childBankRows
+                    .GroupBy(x => x.ParentBagId)
+                    .ToDictionary(g => g.Key, g => g.Select(x => x.CbId).ToList());
+
+                foreach (var bag in bags)
+                {
+                    if (childBanksByParent.TryGetValue(bag.Id, out var childCbIds))
+                        bag.CommercialBankIds = bag.CommercialBankIds.Union(childCbIds).Distinct().ToList();
+                }
+            }
+
+            return bags;
         }
 
         public async Task<BagDetailsViewModel?> GetBagByIdAsync(int bagId)

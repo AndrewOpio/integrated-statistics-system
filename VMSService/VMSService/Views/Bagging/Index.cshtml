@@ -6,6 +6,27 @@
     var branches = ViewBag.Branches as ICollection<BranchDto> ?? new List<BranchDto>();
     int? selectedBranchId = ViewBag.SelectedBranchId as int?;
     var selectedBranch = branches.FirstOrDefault(b => b.Id == selectedBranchId);
+
+    var denomOptions = Model.Select(b => b.DenominationName)
+        .Where(d => !string.IsNullOrEmpty(d))
+        .Distinct().OrderBy(d => d).ToList();
+
+    var bankOptions = Model.SelectMany(b => b.CommercialBankNames)
+        .Distinct().OrderBy(b => b).ToList();
+
+    var vaultOptions = Model
+        .Where(b => b.VaultId.HasValue && !string.IsNullOrEmpty(b.VaultName))
+        .GroupBy(b => b.VaultId)
+        .Select(g => new { g.First().VaultId, g.First().VaultName })
+        .OrderBy(v => v.VaultName)
+        .ToList();
+
+    var vaultSectionOptions = Model
+        .Where(b => b.VaultSectionId.HasValue && !string.IsNullOrEmpty(b.VaultSectionName))
+        .GroupBy(b => b.VaultSectionId)
+        .Select(g => new { g.First().VaultSectionId, g.First().VaultSectionName, g.First().VaultId })
+        .OrderBy(vs => vs.VaultSectionName)
+        .ToList();
 }
 
 <style>
@@ -57,6 +78,72 @@
     }
 </div>
 
+@* Table Filters *@
+<div class="card border-0 shadow mb-3">
+    <div class="card-body py-3">
+        <div class="row g-2 align-items-end mb-2">
+            <div class="col-sm-6 col-md-3">
+                <label class="form-label small fw-semibold mb-1">Denomination</label>
+                <select id="filterDenomination" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    @foreach (var d in denomOptions)
+                    {
+                        <option value="@d">@d</option>
+                    }
+                </select>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <label class="form-label small fw-semibold mb-1">Commercial Bank</label>
+                <select id="filterBank" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    @foreach (var b in bankOptions)
+                    {
+                        <option value="@b">@b</option>
+                    }
+                </select>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <label class="form-label small fw-semibold mb-1">Vault</label>
+                <select id="filterVault" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    @foreach (var v in vaultOptions)
+                    {
+                        <option value="@v.VaultId">@v.VaultName</option>
+                    }
+                </select>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <label class="form-label small fw-semibold mb-1">Vault Section</label>
+                <select id="filterVaultSection" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    @foreach (var vs in vaultSectionOptions)
+                    {
+                        <option value="@vs.VaultSectionId" data-vault-id="@vs.VaultId">@vs.VaultSectionName</option>
+                    }
+                </select>
+            </div>
+        </div>
+        <div class="row g-2 align-items-end">
+            <div class="col-sm-6 col-md-3">
+                <label class="form-label small fw-semibold mb-1">Start Date</label>
+                <input type="date" id="filterStartDate" class="form-control form-control-sm" />
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <label class="form-label small fw-semibold mb-1">End Date</label>
+                <input type="date" id="filterEndDate" class="form-control form-control-sm" />
+            </div>
+            <div class="col-sm-12 col-md-auto d-flex gap-2">
+                <button id="btnFilter" class="btn btn-sm btn-tertiary">
+                    <i class="ti ti-filter me-1"></i>Filter
+                </button>
+                <button id="btnClearFilter" class="btn btn-sm btn-outline-secondary">
+                    <i class="ti ti-x me-1"></i>Clear
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card border-0 shadow mb-4">
     <div class="card-header">
         <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center">
@@ -84,26 +171,25 @@
             <table class="table table-centered table-nowrap mb-0 rounded" id="bagsTable">
                 <thead class="thead-light">
                     <tr>
-                        <th class="border-0 rounded-start">#</th>
-                        <th class="border-0">Bag Reference Number</th>
-                        <th class="border-0">Denomination</th>
-                        <th class="border-0">Number of Bundles/Boxes</th>
-                        <th class="border-0">Amount in Bag (UGX)</th>
-                        <th class="border-0">Created Date</th>
-                        <th class="border-0 rounded-end">Actions</th>
+                        <th class="border-0 rounded-start p-1 pe-4">Bag Reference Number</th>
+                        <th class="border-0 p-1 pe-4">Denomination</th>
+                        <th class="border-0 p-1 pe-4">Bundles/ Boxes</th>
+                        <th class="border-0 p-1 pe-4">Amount in Bag (UGX)</th>
+                        <th class="border-0 p-1 pe-4">Commercial Bank</th>
+                        <th class="border-0 p-1 pe-4">Deposit/ Create Date</th>
+                        <th class="border-0 rounded-end p-1 pe-4">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @{
-                        int rowNumber = 1;
-                    }
-
                     @foreach (var bag in Model)
                     {
-                        <tr>
-                            <td><span>@rowNumber</span></td>
+                        <tr data-denomination="@bag.DenominationName"
+                            data-bank-names="@string.Join(",", bag.CommercialBankNames)"
+                            data-vault-id="@bag.VaultId"
+                            data-vault-section-id="@bag.VaultSectionId"
+                            data-created-date="@bag.CreatedDate.ToString("yyyy-MM-dd")">
                             <td>
-                                <a asp-action="Details" asp-route-id="@bag.Id" class="fw-bold">
+                                <a asp-action="Details" asp-route-id="@bag.Id" class="fw-bold text-nowrap">
                                     @bag.ReferenceNumber
                                 </a>
                             </td>
@@ -114,6 +200,23 @@
                             </td>
                             <td>@bag.Items.Sum(x => x.NumberOfBundlesOrBoxes)</td>
                             <td>@bag.TotalAmount.ToString("N0")</td>
+                            <td>
+                                @if (bag.CommercialBankNames.Any())
+                                {
+                                    <div class="d-flex flex-wrap gap-1">
+                                        @foreach (var bankName in bag.CommercialBankNames)
+                                        {
+                                            <span class="badge bg-info">
+                                                <i class="ti ti-building me-1"></i>@bankName
+                                            </span>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
                             <td>@bag.CreatedDate.ToString("dd MMM yyyy HH:mm")</td>
                             <td>
                                 <form asp-action="Delete" asp-route-id="@bag.Id" method="post" onsubmit="return confirm('Are you sure you want to delete this bag? All items will be released.');">
@@ -131,9 +234,6 @@
                                     </div>
                                 </form>
                             </td>
-                            @{
-                                rowNumber++;
-                            }
                         </tr>
                     }
                 </tbody>
@@ -144,9 +244,86 @@
 
 @section Scripts {
     <script>
-        $(document).ready(function() {
-            $('#bagsTable').DataTable({
+        $(document).ready(function () {
+
+            // Build vault-id → [{val, text}] map from the initial options
+            var vaultSectionMap = {};
+            $('#filterVaultSection option[data-vault-id]').each(function () {
+                var vaultId = String($(this).data('vault-id'));
+                if (!vaultSectionMap[vaultId]) vaultSectionMap[vaultId] = [];
+                vaultSectionMap[vaultId].push({ val: $(this).val(), text: $(this).text(), vaultId: vaultId });
+            });
+
+            // Custom row-level filter registered with DataTables
+            $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+                if (settings.nTable.id !== 'bagsTable') return true;
+
+                var api = new $.fn.dataTable.Api(settings);
+                var $row = $(api.row(dataIndex).node());
+
+                var denom = $('#filterDenomination').val();
+                var bank = $('#filterBank').val();
+                var vaultId = $('#filterVault').val();
+                var vaultSectionId = $('#filterVaultSection').val();
+                var startDate = $('#filterStartDate').val();
+                var endDate = $('#filterEndDate').val();
+
+                if (denom && $row.data('denomination') !== denom) return false;
+
+                if (bank) {
+                    var banks = String($row.data('bank-names') || '').split(',').map(function (s) { return s.trim(); });
+                    if (banks.indexOf(bank) === -1) return false;
+                }
+
+                if (vaultId && String($row.data('vault-id')) !== vaultId) return false;
+                if (vaultSectionId && String($row.data('vault-section-id')) !== vaultSectionId) return false;
+
+                if (startDate || endDate) {
+                    var rowDate = String($row.data('created-date') || '');
+                    if (startDate && rowDate < startDate) return false;
+                    if (endDate && rowDate > endDate) return false;
+                }
+
+                return true;
+            });
+
+            var table = $('#bagsTable').DataTable({
                 order: [[5, 'desc']]
+            });
+
+            // Apply filter on button click
+            $('#btnFilter').on('click', function () {
+                table.draw();
+            });
+
+            // Clear all filters
+            $('#btnClearFilter').on('click', function () {
+                $('#filterDenomination, #filterBank, #filterVault').val('');
+                $('#filterStartDate, #filterEndDate').val('');
+                populateVaultSections('');
+                table.draw();
+            });
+
+            // Vault → VaultSection dependency
+            function populateVaultSections(selectedVaultId) {
+                var $vs = $('#filterVaultSection');
+                $vs.empty().append('<option value="">All</option>');
+                if (!selectedVaultId) {
+                    $.each(vaultSectionMap, function (vaultId, sections) {
+                        $.each(sections, function (i, s) {
+                            $vs.append('<option value="' + s.val + '" data-vault-id="' + s.vaultId + '">' + s.text + '</option>');
+                        });
+                    });
+                } else {
+                    var sections = vaultSectionMap[selectedVaultId] || [];
+                    $.each(sections, function (i, s) {
+                        $vs.append('<option value="' + s.val + '">' + s.text + '</option>');
+                    });
+                }
+            }
+
+            $('#filterVault').on('change', function () {
+                populateVaultSections($(this).val());
             });
         });
     </script>

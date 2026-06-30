@@ -13,9 +13,7 @@ namespace VMSService.Core.Models.AgentDetails
         [Display(Name = "Commercial Bank")]
         public int CommercialBankId { get; set; }
 
-        [Required(ErrorMessage = "Commercial Bank Branch is required")]
-        [Display(Name = "Commercial Bank Branch")]
-        public int CommercialBankBranchId { get; set; }
+        public int? CommercialBankBranchId { get; set; }
 
         [Required(ErrorMessage = "BOU Branch is required")]
         [Display(Name = "BOU Branch")]
@@ -58,8 +56,9 @@ namespace VMSService.Core.Models.AgentDetails
         [Display(Name = "Approval Attachment")]
         public IFormFile ApprovalAttachmentFile { get; set; }
 
-        // Navigation property
+        // Navigation properties
         public string? BranchName { get; set; }
+        public string? CommercialBankName { get; set; }
 
         public int CurrentStatusId { get; set; }
 

@@ -41,7 +41,7 @@ namespace VMSService.Data.Migrations
                     b.Property<int>("BranchId")
                         .HasColumnType("int");
 
-                    b.Property<int>("CommercialBankBranchId")
+                    b.Property<int?>("CommercialBankBranchId")
                         .HasColumnType("int");
 
                     b.Property<int>("CommercialBankId")
@@ -1841,6 +1841,46 @@ namespace VMSService.Data.Migrations
                     b.ToTable("ProcessingBoards");
                 });
 
+            modelBuilder.Entity("VMSService.Data.Entities.ProcessingSessionBag", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BagId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("StockProcessingSessionId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BagId");
+
+                    b.HasIndex("StockProcessingSessionId");
+
+                    b.ToTable("ProcessingSessionBags");
+                });
+
             modelBuilder.Entity("VMSService.Data.Entities.ReceivedStatusTypes", b =>
                 {
                     b.Property<int>("Id")
@@ -3336,6 +3376,25 @@ namespace VMSService.Data.Migrations
                     b.Navigation("CountingRoom");
                 });
 
+            modelBuilder.Entity("VMSService.Data.Entities.ProcessingSessionBag", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.Bag", "Bag")
+                        .WithMany()
+                        .HasForeignKey("BagId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("VMSService.Data.Entities.StockProcessingSession", "StockProcessingSession")
+                        .WithMany("ProcessingSessionBags")
+                        .HasForeignKey("StockProcessingSessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Bag");
+
+                    b.Navigation("StockProcessingSession");
+                });
+
             modelBuilder.Entity("VMSService.Data.Entities.ReceivedStock", b =>
                 {
                     b.HasOne("VMSService.Data.Entities.ExPrintMint", "ExPrintMint")
@@ -3465,8 +3524,7 @@ namespace VMSService.Data.Migrations
                 {
                     b.HasOne("VMSService.Data.Entities.StockMovement", "StockMovement")
                         .WithMany()
-                        .HasForeignKey("StockMovementId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("StockMovementId");
 
                     b.Navigation("StockMovement");
                 });
@@ -3654,6 +3712,11 @@ namespace VMSService.Data.Migrations
             modelBuilder.Entity("VMSService.Data.Entities.StockMovementDenomination", b =>
                 {
                     b.Navigation("BoxNumberRanges");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.StockProcessingSession", b =>
+                {
+                    b.Navigation("ProcessingSessionBags");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.WithdrawalRequest", b =>

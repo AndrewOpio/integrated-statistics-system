@@ -78,6 +78,7 @@ namespace VMSService.Data.Configurations
         public DbSet<SessionBag> SessionBags { get; set; }
         public DbSet<CountingRoom> CountingRooms { get; set; }
         public DbSet<CountingRoomSession> CountingRoomSessions { get; set; }
+        public DbSet<ProcessingSessionBag> ProcessingSessionBags { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

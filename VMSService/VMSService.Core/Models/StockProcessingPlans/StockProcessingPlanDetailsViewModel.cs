@@ -10,6 +10,7 @@ namespace VMSService.Core.Models.StockProcessingPlans
         public string? BranchName { get; set; }
         public string CurrentStatusName { get; set; } = string.Empty;
         public List<CountingRoomWithBagsViewModel> CountingRooms { get; set; } = new();
+        public List<ProcessingSessionViewModel> Sessions { get; set; } = new();
     }
 
     public class CountingRoomWithBagsViewModel
@@ -25,5 +26,16 @@ namespace VMSService.Core.Models.StockProcessingPlans
         public string Name { get; set; } = string.Empty;
         public string? MachineName { get; set; }
         public List<BagViewModel> Bags { get; set; } = new();
+    }
+
+    public class ProcessingSessionViewModel
+    {
+        public int Id { get; set; }
+        public string ReferenceNumber { get; set; } = string.Empty;
+        public string? BoardName { get; set; }
+        public string? MachineName { get; set; }
+        public string? CommercialBankName { get; set; }
+        public string CurrentStatusName { get; set; } = string.Empty;
+        public List<string> BagReferenceNumbers { get; set; } = new();
     }
 }

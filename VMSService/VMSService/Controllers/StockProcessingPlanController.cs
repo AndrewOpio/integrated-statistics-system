@@ -10,7 +10,9 @@ using VMSService.Core.Models.StockProcessingPlans;
 using VMSService.Core.Repositories.Bags;
 using VMSService.Core.Repositories.CountingRooms;
 using VMSService.Core.Repositories.ProcessingBoards;
+using VMSService.Core.Repositories.CommercialBanks;
 using VMSService.Core.Repositories.StockProcessingPlans;
+using VMSService.Core.Repositories.StockProcessingSessions;
 using VMSService.Core.Static;
 using VMSService.Data.Configurations;
 using VMSService.Data.Entities;
@@ -26,6 +28,8 @@ namespace VMSService.Web.Controllers
         ICountingRoomRepository _countingRoomRepository,
         IProcessingBoardRepository _processingBoardRepository,
         IBagRepository _bagRepository,
+        IStockProcessingSessionRepository _sessionRepository,
+        ICommercialBankRepository _commercialBankRepository,
         VMSServiceDbContext _context,
         IMapper _mapper,
         ILogger<StockProcessingPlanController> _logger,
@@ -170,6 +174,7 @@ namespace VMSService.Web.Controllers
                     var assignments = System.Text.Json.JsonSerializer.Deserialize<List<BoardBagAssignment>>(assignmentsJson, options);
                     if (assignments != null)
                     {
+                        // Step 1: save all SessionBag records
                         foreach (var assignment in assignments)
                         {
                             foreach (var bagId in assignment.BagIds)
@@ -181,6 +186,93 @@ namespace VMSService.Web.Controllers
                                     ProcessingBoardId = assignment.ProcessingBoardId,
                                     IsDeleted = false
                                 });
+                            }
+                        }
+                        await _context.SaveChangesAsync();
+
+                        // Step 2: create sessions grouped by denomination + commercial bank per board
+                        var sessionDraftStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+                        {
+                            ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                            StatusName = StatusConstants.StockProcessingSession.Draft,
+                            EntityTypeName = StatusConstants.Entity.StockProcessingSession
+                        });
+
+                        int sessionCounter = 0;
+                        foreach (var assignment in assignments)
+                        {
+                            if (assignment.BagIds.Count == 0) continue;
+
+                            // Load parent→child mappings for bags on this board
+                            var baggedBags = await _context.BaggedBags
+                                .Where(bb => assignment.BagIds.Contains(bb.ParentBagId) && !bb.IsDeleted)
+                                .ToListAsync();
+
+                            var allBagIds = assignment.BagIds
+                                .Concat(baggedBags.Select(bb => bb.ChildBagId))
+                                .ToHashSet();
+
+                            // Load denominations for own + child bags in one query
+                            var denominations = await _context.BagDenominations
+                                .Include(bd => bd.DepositRequestDenomination)
+                                    .ThenInclude(drd => drd.DepositRequest)
+                                .Where(bd => allBagIds.Contains(bd.BagId) && !bd.IsDeleted)
+                                .ToListAsync();
+
+                            var denomsByBagId = denominations.ToLookup(bd => bd.BagId);
+
+                            // Load CategoryId for each assigned bag
+                            var bagCategories = await _context.Bags
+                                .Where(b => assignment.BagIds.Contains(b.Id))
+                                .Select(b => new { b.Id, b.CategoryId })
+                                .ToDictionaryAsync(b => b.Id, b => b.CategoryId);
+
+                            // Resolve (DenomValue, CbId) for each assigned bag:
+                            // prefer own denominations; fall back to child bag denominations
+                            var bagKeys = assignment.BagIds.Select(bagId =>
+                            {
+                                var primary = denomsByBagId[bagId].FirstOrDefault()
+                                    ?? baggedBags
+                                        .Where(bb => bb.ParentBagId == bagId)
+                                        .SelectMany(bb => denomsByBagId[bb.ChildBagId])
+                                        .FirstOrDefault();
+
+                                return new
+                                {
+                                    BagId    = bagId,
+                                    DenomValue = primary?.DepositRequestDenomination?.DenominationValue ?? 0m,
+                                    CbId     = primary?.DepositRequestDenomination?.DepositRequest?.CbId ?? 0,
+                                    CategoryId = bagCategories.GetValueOrDefault(bagId) ?? 0
+                                };
+                            });
+
+                            // One StockProcessingSession per (DenominationValue, CommercialBank) group
+                            foreach (var group in bagKeys.GroupBy(x => (x.DenomValue, x.CbId)))
+                            {
+                                sessionCounter++;
+                                var session = new StockProcessingSession
+                                {
+                                    ReferenceNumber = $"SPS-{plan.Id:D4}-{sessionCounter:D3}",
+                                    StockProcessingPlanId = plan.Id,
+                                    ProcessingBoardId = assignment.ProcessingBoardId,
+                                    CommercialBankId = group.Key.CbId,
+                                    CategoryId = group.First().CategoryId,
+                                    CurrentStatusId = sessionDraftStatus.Id,
+                                    IsManual = false,
+                                    IsDeleted = false
+                                };
+
+                                await _sessionRepository.Create(session);
+
+                                foreach (var bagInfo in group)
+                                {
+                                    _context.ProcessingSessionBags.Add(new ProcessingSessionBag
+                                    {
+                                        BagId = bagInfo.BagId,
+                                        StockProcessingSessionId = session.Id,
+                                        IsDeleted = false
+                                    });
+                                }
                             }
                         }
                         await _context.SaveChangesAsync();
@@ -213,6 +305,8 @@ namespace VMSService.Web.Controllers
 
                 var sessionBags = await _context.SessionBags
                     .Include(sb => sb.Bag)
+                        .ThenInclude(b => b.BagDenominations.Where(bd => !bd.IsDeleted))
+                            .ThenInclude(bd => bd.DepositRequestDenomination)
                     .Where(sb => sb.StockProcessingPlanId == id && !sb.IsDeleted)
                     .ToListAsync();
 
@@ -221,6 +315,20 @@ namespace VMSService.Web.Controllers
 
                 var allBoards = await _processingBoardRepository.FindAll();
                 var branchBoards = allBoards.Where(b => b.BranchId == plan.BranchId && !b.IsDeleted).ToList();
+
+                var planSessions = await _sessionRepository.GetByPlanIdAsync(id);
+
+                // Resolve unique status names for sessions in one pass
+                var sessionStatusIds = planSessions.Select(s => s.CurrentStatusId).Distinct().ToList();
+                var sessionStatusNames = new Dictionary<int, string>();
+                foreach (var statusId in sessionStatusIds)
+                {
+                    var st = await _workflowServiceClient.FindStatusById(statusId);
+                    sessionStatusNames[statusId] = st.Name;
+                }
+
+                var allBanks = await _commercialBankRepository.FindAll();
+                var bankDict = allBanks.ToDictionary(b => b.Id, b => b.Name);
 
                 var model = new StockProcessingPlanDetailsViewModel
                 {
@@ -246,10 +354,30 @@ namespace VMSService.Web.Controllers
                                     {
                                         Id = sb.Bag.Id,
                                         ReferenceNumber = sb.Bag.ReferenceNumber,
-                                        BranchId = sb.Bag.BranchId
+                                        BranchId = sb.Bag.BranchId,
+                                        DenominationValue = sb.Bag.BagDenominations
+                                            .Select(bd => bd.DepositRequestDenomination.DenominationValue)
+                                            .FirstOrDefault(),
+                                        TotalBundles = sb.Bag.BagDenominations
+                                            .Sum(bd => bd.NumberOfBundlesOrBoxes),
+                                        TotalAmount = sb.Bag.BagDenominations
+                                            .Sum(bd => bd.DepositRequestDenomination.DenominationValue * bd.NumberOfBundlesOrBoxes)
                                     })
                                     .ToList()
                             })
+                            .ToList()
+                    }).ToList(),
+                    Sessions = planSessions.Select(s => new ProcessingSessionViewModel
+                    {
+                        Id = s.Id,
+                        ReferenceNumber = s.ReferenceNumber,
+                        BoardName = s.ProcessingBoard?.Name,
+                        MachineName = s.ProcessingBoard?.BPSMachine?.Name,
+                        CommercialBankName = bankDict.GetValueOrDefault(s.CommercialBankId),
+                        CurrentStatusName = sessionStatusNames.GetValueOrDefault(s.CurrentStatusId, string.Empty),
+                        BagReferenceNumbers = s.ProcessingSessionBags
+                            .Where(psb => !psb.IsDeleted)
+                            .Select(psb => psb.Bag.ReferenceNumber)
                             .ToList()
                     }).ToList()
                 };

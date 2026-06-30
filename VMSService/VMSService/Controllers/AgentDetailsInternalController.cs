@@ -41,12 +41,16 @@ namespace VMSService.Controllers
                 var agentDetails = (await _agentDetailRepository.FindAll()).Where(a => a.IsDeleted == false);
                 var model = _mapper.Map<List<AgentDetailViewModel>>(agentDetails);
 
-                // Populate branch names and status names
+                // Populate branch names, commercial bank names and status names
                 var branches = await _configService.GetAllBranches();
+                var commercialBanks = await _configService.GetAllCommercialBanks();
+                var bankDict = commercialBanks.ToDictionary(b => b.Id, b => b.Name);
+
                 foreach (var agent in model)
                 {
                     var branch = branches.FirstOrDefault(b => b.Id == agent.BranchId);
                     agent.BranchName = branch?.Name ?? "Unknown";
+                    agent.CommercialBankName = bankDict.GetValueOrDefault(agent.CommercialBankId);
 
                     var statusType = await _workflowServiceClient.FindStatusById(agent.CurrentStatusId);
                     agent.CurrentStatusName = statusType.Name;
@@ -124,10 +128,13 @@ namespace VMSService.Controllers
                     item.NewStatusName = (await _workflowServiceClient.FindStatusById(item.NewStatusId)).Name;
                 }
 
-                // Populate branch name
+                // Populate branch name and commercial bank name
                 var branches = await _configService.GetAllBranches();
                 var branch = branches.FirstOrDefault(b => b.Id == model.BranchId);
                 model.BranchName = branch?.Name ?? "Unknown";
+
+                var commercialBank = await _configService.GetCommercialBankById(model.CommercialBankId);
+                model.CommercialBankName = commercialBank?.Name;
 
                 var statusType = await _workflowServiceClient.FindStatusById(model.CurrentStatusId);
                 model.CurrentStatusName = statusType.Name;

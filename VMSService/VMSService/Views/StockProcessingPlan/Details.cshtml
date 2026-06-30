@@ -3,13 +3,6 @@
 
 @{
     ViewData["Title"] = "Processing Plan Details";
-    string badgeClass = Model.CurrentStatusName switch
-    {
-        "Draft" => "bg-secondary",
-        "Issued To Boards" => "bg-primary",
-        "Processed" => "bg-success",
-        _ => "bg-info"
-    };
 }
 
 <style>
@@ -19,13 +12,15 @@
         border-top: 3px solid #31316A;
         border-radius: .5rem .5rem 0 0;
     }
-    .bag-chip-ro {
-        display: inline-flex; align-items: center; gap: 4px;
-        padding: .22rem .55rem; border-radius: 999px;
-        font-size: .72rem; font-weight: 600;
-        background: #e3f2fd; color: #0d47a1;
-        border: 1.5px solid #90caf9;
+    .board-chip-ro {
+        display: inline-flex; flex-direction: column;
+        padding: .2rem .5rem; border-radius: .4rem; font-size: .72rem;
+        background: #e3f2fd; color: #0d47a1; border: 1.5px solid #90caf9;
+        vertical-align: top;
     }
+    .board-chip-ro.bag-full { background: #fff3cd; color: #664d03; border-color: rgba(102,77,3,.2); }
+    .board-chip-ref { font-weight: 700; font-size: .73rem; }
+    .board-chip-meta { font-size: .63rem; opacity: .75; }
 </style>
 
 @* Page Header *@
@@ -40,9 +35,9 @@
         </div>
         @if (!string.IsNullOrEmpty(Model.BranchName))
         {
-            <span class="badge bg-primary"><i class="ti ti-building me-1"></i>@Model.BranchName</span>
+            <span class="badge bg-primary p-2 more-rounded"><i class="ti ti-building me-1"></i>@Model.BranchName</span>
         }
-        <span class="badge @badgeClass">@Model.CurrentStatusName</span>
+        <span class="badge bg-info p-2 more-rounded"><i class="ti ti-badge me-1"></i>@Model.CurrentStatusName</span>
     </div>
 </div>
 
@@ -56,6 +51,8 @@
         </div>
     </div>
 }
+
+
 
 @foreach (var room in Model.CountingRooms)
 {
@@ -85,8 +82,8 @@
                     {
                         <div class="col-12 col-md-6 col-xl-4">
                             <div class="border rounded-3 h-100" style="border-color:#e9ecef!important;">
-                                <div class="p-3 border-bottom d-flex align-items-center"
-                                     style="background:#f8fafc;border-radius:.75rem .75rem 0 0;">
+                                <div class="p-1 ps-3 border-bottom d-flex align-items-center"
+                                     style="background:#f8fafc;border-radius:1rem 1rem 0 0;">
                                     <i class="ti ti-cpu me-2" style="color:#31316A;"></i>
                                     <div>
                                         <span class="fw-semibold small">@board.Name</span>
@@ -111,9 +108,16 @@
                                         <div class="d-flex flex-wrap gap-1">
                                             @foreach (var bag in board.Bags)
                                             {
-                                                <span class="bag-chip-ro">
-                                                    <i class="ti ti-package" style="font-size:.65rem;"></i>@bag.ReferenceNumber
-                                                </span>
+                                                <div class="board-chip-ro">
+                                                    <span class="board-chip-ref">
+                                                        <i class="ti ti-package" style="font-size:.65rem;"></i> @bag.ReferenceNumber
+                                                    </span>
+                                                    @if (bag.DenominationValue > 0)
+                                                    {
+                                                        <span class="board-chip-meta">UGX @bag.DenominationValue.ToString("N0")</span>
+                                                    }
+                                                    <span class="board-chip-meta">@bag.TotalBundles bdls · @bag.TotalAmount.ToString("N0")</span>
+                                                </div>
                                             }
                                         </div>
                                     }
@@ -123,6 +127,86 @@
                     }
                 </div>
             }
+        </div>
+    </div>
+}
+
+@* Processing Sessions *@
+@if (Model.Sessions.Any())
+{
+    <div class="card border-0 shadow mb-4">
+        <div class="card-header bg-white border-bottom d-flex align-items-center py-2 px-3"
+             style="border-top:3px solid #31316A;border-radius:.5rem .5rem 0 0;">
+            <div class="rounded d-flex align-items-center justify-content-center me-2"
+                 style="width:32px;height:32px;background:rgba(49,49,106,.08);flex-shrink:0;">
+                <i class="ti ti-list-check" style="color:#31316A;font-size:.9rem;"></i>
+            </div>
+            <div>
+                <h6 class="fw-bold mb-0" style="color:#31316A;">Processing Sessions</h6>
+                <span class="small text-muted">@Model.Sessions.Count session@(Model.Sessions.Count == 1 ? "" : "s") generated</span>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 small">
+                    <thead style="background:#f8fafc;">
+                        <tr>
+                            <th class="ps-3 py-2 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">WASTE NUMBER</th>
+                            <th class="py-2 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">PROCESSING BOARD</th>
+                            <th class="py-2 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">COMMERCIAL BANK</th>
+                            <th class="py-2 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">BAG</th>
+                            <th class="py-2 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">STATUS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var session in Model.Sessions)
+                        {
+                            <tr>
+                                <td class="ps-3 py-2 fw-semibold" style="color:#31316A;font-size:.8rem;">
+                                    <i class="ti ti-hash me-1 text-muted" style="font-size:.7rem;"></i>@session.ReferenceNumber
+                                </td>
+                                <td class="py-2">
+                                    @if (!string.IsNullOrEmpty(session.BoardName))
+                                    {
+                                        <span class="fw-semibold">@session.BoardName</span>
+                                        @if (!string.IsNullOrEmpty(session.MachineName))
+                                        {
+                                            <br />
+                            
+                                            <span class="text-muted" style="font-size:.68rem;">@session.MachineName</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="py-2">
+                                    @if (!string.IsNullOrEmpty(session.CommercialBankName))
+                                    {
+                                        <span class="fw-semibold">@session.CommercialBankName</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="py-2">
+                                    @foreach (var bagRef in session.BagReferenceNumbers)
+                                    {
+                                        <span class="board-chip-ro me-1">
+                                            <span class="board-chip-ref"><i class="ti ti-package" style="font-size:.6rem;"></i> @bagRef</span>
+                                        </span>
+                                    }
+                                </td>
+                                <td class="py-2">
+                                    <span class="badge bg-info"><i class="ti ti-badge"></i>@session.CurrentStatusName</span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 }

@@ -79,7 +79,8 @@ namespace VMSService.Core.Repository.VaultSections
         public async Task<List<VaultBagViewModel>> GetAvailableBagsAsync()
         {
             var bags = await _db.Bags
-                .Where(b => !b.IsDeleted && !b.IsProcessed && b.VaultSectionId == null)
+                .Where(b => !b.IsDeleted && !b.IsProcessed && b.VaultSectionId == null
+                && !_db.BaggedBags.Any(bb => bb.ChildBagId == b.Id && !bb.IsDeleted))
                 .Include(b => b.BagDenominations.Where(bd => !bd.IsDeleted))
                 .OrderByDescending(b => b.CreatedDate)
                 .ToListAsync();

@@ -62,6 +62,23 @@ namespace VMSService.Controllers
                 bag.TotalAmount = bag.DenominationValue * 1000 * bag.Items.Sum(bd => bd.NumberOfBundlesOrBoxes);
             }
 
+            // Enrich with commercial bank names
+            var allCbIds = bags.SelectMany(b => b.CommercialBankIds).Distinct().Where(id => id > 0).ToList();
+            var bankNames = new Dictionary<int, string>();
+            foreach (var cbId in allCbIds)
+            {
+                var bank = await _configServiceClient.GetCbIdAsync(cbId);
+                if (bank != null) bankNames[cbId] = bank.Name;
+            }
+            foreach (var bag in bags)
+            {
+                bag.CommercialBankNames = bag.CommercialBankIds
+                    .Where(id => bankNames.ContainsKey(id))
+                    .Select(id => bankNames[id])
+                    .Distinct()
+                    .ToList();
+            }
+
             ViewBag.Branches = userBranches;
             ViewBag.SelectedBranchId = branchId;
 

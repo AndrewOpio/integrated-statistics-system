@@ -40,7 +40,11 @@ namespace VMSService.Controllers
         {
             try
             {
-                var agentDetails = (await _agentDetailRepository.FindAll()).Where(a => a.IsDeleted == false);
+                var cbIdClaim = User.FindFirst("cbId")?.Value;
+                int.TryParse(cbIdClaim, out var userCbId);
+
+                var agentDetails = (await _agentDetailRepository.FindAll())
+                    .Where(a => !a.IsDeleted && (userCbId == 0 || a.CommercialBankId == userCbId));
                 var model = _mapper.Map<List<AgentDetailViewModel>>(agentDetails);
 
                 // Populate branch names and status names

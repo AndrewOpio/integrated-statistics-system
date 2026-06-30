@@ -98,13 +98,13 @@
                             }
                             @foreach (var item in Model)
                             {
-                                string badgeClass = item.CurrentStatusName switch
-                                {
-                                    "Draft" => "bg-secondary",
-                                    "Issued To Boards" => "bg-primary",
-                                    "Processed" => "bg-success",
-                                    _ => "bg-info"
-                                };
+                                // string badgeClass = item.CurrentStatusName switch
+                                // {
+                                //     "Draft" => "bg-info",
+                                //     "Issued To Boards" => "bg-primary",
+                                //     "Processed" => "bg-success",
+                                //     _ => "bg-info"
+                                // };
                                 <tr>
                                     <td><span class="text-primary fw-bold">@rowNumber</span></td>
                                     <td class="fw-bold">@item.ProcessingDate.ToString("dd MMM yyyy")</td>
@@ -121,7 +121,7 @@
                                         }
                                     </td>
                                     <td>
-                                        <span class="badge @badgeClass">@item.CurrentStatusName</span>
+                                        <span class="badge bg-info"><i class="ti ti-badge me-1"></i>@item.CurrentStatusName</span>
                                     </td>
                                     <td>
                                         <a asp-action="Details" asp-route-id="@item.Id"

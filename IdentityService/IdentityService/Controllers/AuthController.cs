@@ -1,4 +1,6 @@
-﻿using IdentityService.Core.Models;
+﻿using ConfigurationsService.Client;
+using IdentityService.Core.Models;
+using IdentityService.Core.Repository.CommercialBankUsers;
 using IdentityService.Core.Repository.UserApplicationRoles;
 using IdentityService.Core.Repository.Users;
 using IdentityService.Core.Services.LDAPAuthentication;
@@ -20,7 +22,9 @@ namespace IdentityService.Controllers
         IConfiguration _config,
         IUserApplicationRoleRepository _userAppRoleRepo,
         IUserRepository _userRepo,
-        UserManager<User> _userManager) : ControllerBase
+        UserManager<User> _userManager,
+        IConfigurationsServiceClient _configServiceClient,
+        ICommercialBankUserRepository _commercialBankUserRepo) : ControllerBase
     {
         // ═══════════════════════════════════════════════════════════
         // STEP 1: First Factor Authentication (LDAP/AD or Local Password)
@@ -441,8 +445,11 @@ namespace IdentityService.Controllers
             
             if (!dbUser.IsStaff)
             {
-                claims.Add(new Claim("cbId", "2", ClaimValueTypes.Integer));
-                claims.Add(new Claim("cbName", "ABSA Bank Uganda Limited"));
+                CommercialBankUser commercialBankUser = await _commercialBankUserRepo.FindByUserId(dbUser.Id);
+                claims.Add(new Claim("cbId", commercialBankUser.CommercialBankId.ToString(), ClaimValueTypes.Integer));
+
+                CommercialBankDto commercialBank = await _configServiceClient.GetCbIdAsync(commercialBankUser.CommercialBankId);
+                claims.Add(new Claim("cbName", commercialBank.Name));
             }
 
             LdapUser user = new()

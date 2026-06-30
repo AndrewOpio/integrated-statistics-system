@@ -15,5 +15,6 @@ namespace VMSService.Data.Entities
         public int CurrentStatusId { get; set; }
         public bool IsManual { get; set; } = false;
         public bool IsDeleted { get; set; } = false;
+        public ICollection<ProcessingSessionBag> ProcessingSessionBags { get; set; } = [];
     }
 }
