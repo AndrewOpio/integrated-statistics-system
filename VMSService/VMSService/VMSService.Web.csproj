@@ -41,7 +41,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="wwwroot\uploads\approvalattachments\" />
     <Folder Include="wwwroot\uploads\deposits\" />
+    <Folder Include="wwwroot\uploads\deposits\193279ca-45f5-4f74-8183-ac59474ba494\" />
+    <Folder Include="wwwroot\uploads\deposits\aec9145c-67d0-49bc-b7de-8d23de4640e2\" />
+    <Folder Include="wwwroot\uploads\passportphotos\" />
+    <Folder Include="wwwroot\uploads\signaturescans\" />
+    <Folder Include="wwwroot\uploads\workidscans\" />
   </ItemGroup>
 
 </Project>

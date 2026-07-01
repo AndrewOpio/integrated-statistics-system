@@ -52,6 +52,10 @@ namespace VMSService.Controllers
             // Enrich with denomination names
             var denominations = await _stockService.GetAllDenominations();
             var denomMap = denominations.ToDictionary(d => d.Id);
+            var allCategories = await _stockService.GetAllCategories();
+            var categoryDict = allCategories.ToDictionary(c => c.Id, c => c.Name);
+            var allSubCategories = await _stockService.GetAllSubCategories();
+            var subCategoryDict = allSubCategories.ToDictionary(sc => sc.Id, sc => sc.Name);
             foreach (var bag in bags)
             {
                 if (denomMap.TryGetValue(bag.DenominationId, out var denom))
@@ -59,7 +63,11 @@ namespace VMSService.Controllers
                     bag.DenominationName = denom.Name;
                     bag.DenominationValue = denom.Value;
                 }
-                bag.TotalAmount = bag.DenominationValue * 1000 * bag.Items.Sum(bd => bd.NumberOfBundlesOrBoxes);
+                bag.TotalAmount = bag.DenominationValue * 1000 * bag.TotalBundles;
+                if (bag.CategoryId.HasValue)
+                    bag.CategoryName = categoryDict.GetValueOrDefault(bag.CategoryId.Value);
+                if (bag.SubCategoryId.HasValue)
+                    bag.SubCategoryName = subCategoryDict.GetValueOrDefault(bag.SubCategoryId.Value);
             }
 
             // Enrich with commercial bank names
@@ -101,6 +109,24 @@ namespace VMSService.Controllers
             bag.DenominationName = denomination?.Name;
             bag.DenominationValue = denomination?.Value ?? 0;
             bag.TotalAmount = bag.DenominationValue * 1000 * bag.TotalBundles;
+
+            var allCategories = await _stockService.GetAllCategories();
+            var categoryDict = allCategories.ToDictionary(c => c.Id, c => c.Name);
+            var allSubCategories = await _stockService.GetAllSubCategories();
+            var subCategoryDict = allSubCategories.ToDictionary(sc => sc.Id, sc => sc.Name);
+
+            if (bag.CategoryId.HasValue)
+                bag.CategoryName = categoryDict.GetValueOrDefault(bag.CategoryId.Value);
+            if (bag.SubCategoryId.HasValue)
+                bag.SubCategoryName = subCategoryDict.GetValueOrDefault(bag.SubCategoryId.Value);
+
+            foreach (var nested in bag.NestedBags)
+            {
+                if (nested.CategoryId.HasValue)
+                    nested.CategoryName = categoryDict.GetValueOrDefault(nested.CategoryId.Value);
+                if (nested.SubCategoryId.HasValue)
+                    nested.SubCategoryName = subCategoryDict.GetValueOrDefault(nested.SubCategoryId.Value);
+            }
 
             foreach (var item in bag.Items)
             {
@@ -333,7 +359,11 @@ namespace VMSService.Controllers
         {
             try
             {
-                await _bagRepository.AddBagToBagAsync(model);
+                var allSubCategories = await _stockService.GetAllSubCategories();
+                var mixedSubCategoryId = allSubCategories
+                    .FirstOrDefault(sc => sc.Name == StockConstants.SubCategories.Mixed)?.Id;
+
+                await _bagRepository.AddBagToBagAsync(model, mixedSubCategoryId);
                 TempData["Success"] = "Bag added successfully!";
                 return RedirectToAction(nameof(Details), new { id = model.ParentBagId });
             }

@@ -18,6 +18,18 @@
                 <span class="badge rounded-pill px-2 py-1" style="background:rgba(255,255,255,.2);color:#fff;font-size:.75rem;">
                     <i class="ti ti-coins me-1"></i>@Model.DenominationName
                 </span>
+                @if (!string.IsNullOrEmpty(Model.CategoryName))
+                {
+                    <span class="badge rounded-pill px-2 py-1" style="background:rgba(255,255,255,.2);color:#fff;font-size:.75rem;">
+                        <i class="ti ti-tag me-1"></i>@Model.CategoryName
+                    </span>
+                }
+                @if (!string.IsNullOrEmpty(Model.SubCategoryName))
+                {
+                    <span class="badge rounded-pill px-2 py-1" style="background:rgba(255,255,255,.2);color:#fff;font-size:.75rem;">
+                        <i class="ti ti-tags me-1"></i>@Model.SubCategoryName
+                    </span>
+                }
                 @if (Model.VaultName != null)
                 {
                     <span class="badge rounded-pill px-2 py-1" style="background:rgba(255,255,255,.2);color:#fff;font-size:.75rem;">
@@ -35,21 +47,24 @@
         <div class="d-flex flex-wrap gap-2 align-items-center">
             @if (!Model.IsChildBag)
             {
-                <a asp-action="AddItems" asp-route-id="@Model.Id" class="btn btn-sm btn-tertiary">
+                @* <a asp-action="AddItems" asp-route-id="@Model.Id" class="btn btn-sm btn-tertiary">
                     <i class="ti ti-plus me-1"></i>Add Items
-                </a>
-                @if (Model.TotalBundles < 50)
+                </a> *@
+                @if (!Model.Items.Any() && Model.TotalBundles < 50)
                 {
                     <a asp-action="AddBag" asp-route-id="@Model.Id" class="btn btn-sm btn-tertiary">
                         <i class="ti ti-stack me-1"></i>Add Bag
                     </a>
                 }
-                <form asp-action="Delete" asp-route-id="@Model.Id" method="post" onsubmit="return confirm('Are you sure you want to delete this bag? All items will be released.');">
-                    @Html.AntiForgeryToken()
-                    <button type="submit" class="btn btn-sm btn-danger">
-                        <i class="ti ti-trash me-1"></i>Delete
-                    </button>
-                </form>
+                @if (!Model.Items.Any() && !Model.NestedBags.Any())
+                {
+                    <form asp-action="Delete" asp-route-id="@Model.Id" method="post" onsubmit="return confirm('Are you sure you want to delete this bag?');">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-sm btn-danger">
+                            <i class="ti ti-trash me-1"></i>Delete
+                        </button>
+                    </form>
+                }
             }
             <a asp-action="Index" class="btn btn-sm btn-secondary">
                 <i class="ti ti-arrow-left me-1"></i>Back
@@ -90,7 +105,7 @@
 
 
 @* Nested Bags Card *@
-@if (!(Model.TotalBundles == 50 && Model.NestedBags.Count() == 0))
+@if (Model.NestedBags.Any() || (!Model.Items.Any() && Model.TotalBundles < 50))
 {
     <div class="card border-0 shadow mb-4">
         <div class="card-header bg-white d-flex align-items-center justify-content-between">
@@ -104,7 +119,7 @@
                         @Model.NestedBags.Count bag@(Model.NestedBags.Count == 1 ? "" : "s")
                     </span>
                 }
-                @if (!Model.IsChildBag && Model.TotalBundles < 50)
+                @if (!Model.IsChildBag && !Model.Items.Any() && Model.TotalBundles < 50)
                 {
                     <a asp-action="AddBag" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-tertiary">
                         <i class="ti ti-plus me-1"></i>Add Bag
@@ -122,6 +137,8 @@
                                 <th class="px-3 py-2 small fw-semibold">Bag Reference</th>
                                 <th class="px-3 py-2 small fw-semibold text-center">Bundles</th>
                                 <th class="px-3 py-2 small fw-semibold text-end">Amount (UGX)</th>
+                                <th class="px-3 py-2 small fw-semibold">Category</th>
+                                <th class="px-3 py-2 small fw-semibold">Sub-Category</th>
                                 <th class="px-3 py-2 small fw-semibold">Added Date</th>
                                 <th class="px-3 py-2 small fw-semibold text-center">Actions</th>
                             </tr>
@@ -135,6 +152,26 @@
                                     </td>
                                     <td class="px-3 small fw-semibold text-center">@nested.TotalBundles</td>
                                     <td class="px-3 small fw-semibold text-end text-primary">UGX @nested.TotalAmount.ToString("N0")</td>
+                                    <td class="px-3 small">
+                                        @if (!string.IsNullOrEmpty(nested.CategoryName))
+                                        {
+                                            <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25">@nested.CategoryName</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
+                                    <td class="px-3 small">
+                                        @if (!string.IsNullOrEmpty(nested.SubCategoryName))
+                                        {
+                                            <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">@nested.SubCategoryName</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
                                     <td class="px-3 small">@nested.CreatedDate.ToString("dd MMM yyyy")</td>
                                     <td class="px-3 text-center">
                                         <form asp-action="RemoveBag" method="post" class="d-inline"
@@ -142,9 +179,14 @@
                                             @Html.AntiForgeryToken()
                                             <input type="hidden" name="baggedBagId" value="@nested.BaggedBagId" />
                                             <input type="hidden" name="parentBagId" value="@Model.Id" />
-                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove nested bag">
-                                                <i class="ti ti-x"></i>
-                                            </button>
+                                            <div class="btn-group">
+                                                <a asp-controller="Bagging" asp-action="Details" asp-route-id="@nested.ChildBagId" class="btn btn-sm btn-outline-success" title="View Details">
+                                                    <i class="ti ti-eye"></i>
+                                                </a>
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove nested bag">
+                                                    <i class="ti ti-x"></i>
+                                                </button>
+                                            </div>
                                         </form>
                                     </td>
                                 </tr>
@@ -159,7 +201,7 @@
                     <i class="ti ti-package d-block mb-2 text-secondary" style="font-size:2.5rem;opacity:.4;"></i>
                     <p class="fw-semibold text-muted mb-1">No bags nested in this bag</p>
                     <p class="text-muted small mb-3">You can add an existing partial bag (fewer than 50 bundles) of the same denomination.</p>
-                    @if (!Model.IsChildBag && Model.TotalBundles < 50)
+                    @if (!Model.IsChildBag && !Model.Items.Any() && Model.TotalBundles < 50)
                     {
                         <a asp-action="AddBag" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-tertiary">
                             <i class="ti ti-plus me-1"></i>Add Bag
@@ -172,7 +214,7 @@
 }
 
 @* Bag Items Card *@
-@if (!(Model.TotalBundles == 50 && Model.Items.Count() == 0))
+@if (!((Model.TotalBundles == 50 && Model.Items.Count() == 0) || Model.NestedBags.Any() || Model.TotalBundles == 0))
 {
     <div class="card border-0 shadow mb-4">
         <div class="card-header bg-white d-flex align-items-center justify-content-between">
@@ -186,12 +228,12 @@
                         @Model.Items.Count item@(Model.Items.Count == 1 ? "" : "s")
                     </span>
                 }
-                @if (Model.TotalBundles < 50)
+                @* @if (Model.TotalBundles < 50)
                 {
                     <a asp-action="AddItems" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-tertiary">
                         <i class="ti ti-plus me-1"></i>Add Items
                     </a>
-                }
+                } *@
             </div>
             
         </div>
@@ -236,7 +278,7 @@
                                             <a asp-controller="DepositRequests" asp-action="Details" asp-route-id="@item.DepositRequestId" class="btn btn-sm btn-outline-success" title="View Details">
                                                 <i class="ti ti-eye"></i>
                                             </a>
-                                            @if (!Model.IsChildBag)
+                                            @* @if (!Model.IsChildBag)
                                             {
                                                 <form asp-action="RemoveItem" asp-route-bagId="@Model.Id" asp-route-itemId="@item.Id" method="post" class="d-inline" onsubmit="return confirm('Remove this item from the bag?');">
                                                     @Html.AntiForgeryToken()
@@ -244,7 +286,7 @@
                                                         <i class="ti ti-x"></i>
                                                     </button>
                                                 </form>
-                                            }
+                                            } *@
                                         </div>
                                     </td>
                                 </tr>
@@ -257,11 +299,11 @@
             {
                 <div class="text-center">
                     <i class="ti ti-inbox d-block mb-2 text-secondary" style="font-size:2.5rem;opacity:.4;"></i>
-                    <p class="fw-semibold text-muted mb-1">No items in this bag yet</p>
-                    <p class="text-muted small mb-3">Click "Add Items" to start adding deposit request denominations.</p>
+                    <p class="fw-semibold text-muted mb-1">No items in this bag</p>
+                    @* <p class="text-muted small mb-3">Click "Add Items" to start adding deposit request denominations.</p>
                     <a asp-action="AddItems" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-tertiary">
                         <i class="ti ti-plus me-1"></i>Add Items
-                    </a>
+                    </a> *@
                 </div>
             }
         </div>
@@ -281,13 +323,3 @@
         </button>
     </form>
 </div> *@
-
-@section Scripts {
-    <script>
-        $(document).ready(function () {
-            $('#itemsTable').DataTable({
-                pageLength: 25
-            });
-        });
-    </script>
-}

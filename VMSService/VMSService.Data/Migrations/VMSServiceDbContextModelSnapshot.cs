@@ -406,9 +406,6 @@ namespace VMSService.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("BagId")
-                        .HasColumnType("int");
-
                     b.Property<int>("BranchId")
                         .HasColumnType("int");
 
@@ -452,8 +449,6 @@ namespace VMSService.Data.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("BagId");
 
                     b.HasIndex("VaultSectionId");
 
@@ -2558,6 +2553,9 @@ namespace VMSService.Data.Migrations
                     b.Property<int>("CurrentStatusId")
                         .HasColumnType("int");
 
+                    b.Property<int>("DenominationId")
+                        .HasColumnType("int");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
@@ -3055,10 +3053,6 @@ namespace VMSService.Data.Migrations
 
             modelBuilder.Entity("VMSService.Data.Entities.Bag", b =>
                 {
-                    b.HasOne("VMSService.Data.Entities.Bag", null)
-                        .WithMany("ChildBags")
-                        .HasForeignKey("BagId");
-
                     b.HasOne("VMSService.Data.Entities.VaultSection", "VaultSection")
                         .WithMany()
                         .HasForeignKey("VaultSectionId");
@@ -3626,8 +3620,6 @@ namespace VMSService.Data.Migrations
             modelBuilder.Entity("VMSService.Data.Entities.Bag", b =>
                 {
                     b.Navigation("BagDenominations");
-
-                    b.Navigation("ChildBags");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.DepositRequest", b =>

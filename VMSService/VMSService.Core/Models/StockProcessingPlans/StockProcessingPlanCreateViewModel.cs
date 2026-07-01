@@ -1,4 +1,5 @@
 using VMSService.Core.Models.Bags;
+using VMSService.Core.Services.Identity.IdentityEntities;
 
 namespace VMSService.Core.Models.StockProcessingPlans
 {
@@ -9,6 +10,7 @@ namespace VMSService.Core.Models.StockProcessingPlans
         public string? BranchName { get; set; }
         public List<CountingRoomBoardsViewModel> CountingRooms { get; set; } = new();
         public List<BagViewModel> AvailableBags { get; set; } = new();
+        public List<UserDto> BoardSupervisors { get; set; } = new();
     }
 
     public class CountingRoomBoardsViewModel
@@ -29,5 +31,11 @@ namespace VMSService.Core.Models.StockProcessingPlans
     {
         public int ProcessingBoardId { get; set; }
         public List<int> BagIds { get; set; } = new();
+    }
+
+    public class RoomSupervisorAssignment
+    {
+        public int CountingRoomId { get; set; }
+        public string? BoardSupervisorUserId { get; set; }
     }
 }

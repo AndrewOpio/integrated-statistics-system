@@ -92,35 +92,76 @@ namespace VMSService.Core.Repositories.Bags
                     VaultSectionName = b.VaultSection != null ? b.VaultSection.Name : null,
                     VaultId = b.VaultSection != null ? (int?)b.VaultSection.VaultId : null,
                     VaultName = b.VaultSection != null ? b.VaultSection.Vault.Name : null,
+                    CategoryId = b.CategoryId,
+                    SubCategoryId = b.SubCategoryId,
                     Items = b.BagDenominations.ToList(),
                     CommercialBankIds = b.BagDenominations
                         .Where(bd => !bd.IsDeleted)
                         .Select(bd => bd.DepositRequestDenomination.DepositRequest.CbId)
                         .Distinct()
                         .ToList(),
+                    HasNestedBags = _db.BaggedBags.Any(bb => bb.ParentBagId == b.Id && !bb.IsDeleted),
                 })
                 .OrderByDescending(b => b.CreatedDate)
                 .ToListAsync();
 
-            // Merge in CbIds from child bags (bags merged into these parent bags)
+            // Merge in child-bag data: CbIds and bundle counts (two flat queries — avoids EF correlated SelectMany issues)
             var bagIds = bags.Select(b => b.Id).ToList();
             if (bagIds.Count > 0)
             {
-                var childBankRows = await _db.BaggedBags
+                // Query 1: parent → child bag id mappings
+                var childBagMaps = await _db.BaggedBags
                     .Where(bb => bagIds.Contains(bb.ParentBagId) && !bb.IsDeleted)
-                    .SelectMany(bb => bb.ChildBag!.BagDenominations
-                        .Where(bd => !bd.IsDeleted)
-                        .Select(bd => new { bb.ParentBagId, bd.DepositRequestDenomination.DepositRequest.CbId }))
+                    .Select(bb => new { bb.ParentBagId, bb.ChildBagId })
                     .ToListAsync();
 
-                var childBanksByParent = childBankRows
-                    .GroupBy(x => x.ParentBagId)
-                    .ToDictionary(g => g.Key, g => g.Select(x => x.CbId).ToList());
-
-                foreach (var bag in bags)
+                if (childBagMaps.Count > 0)
                 {
-                    if (childBanksByParent.TryGetValue(bag.Id, out var childCbIds))
-                        bag.CommercialBankIds = bag.CommercialBankIds.Union(childCbIds).Distinct().ToList();
+                    var childBagIds = childBagMaps.Select(x => x.ChildBagId).Distinct().ToList();
+
+                    // Query 2: denominations for all child bags (flat, no deep navigation)
+                    var childDenoms = await _db.BagDenominations
+                        .Where(bd => childBagIds.Contains(bd.BagId) && !bd.IsDeleted)
+                        .Select(bd => new
+                        {
+                            bd.BagId,
+                            bd.NumberOfBundlesOrBoxes,
+                            CbId = bd.DepositRequestDenomination.DepositRequest.CbId
+                        })
+                        .ToListAsync();
+
+                    // Index child denom data by child bag id
+                    var childDataByBagId = childDenoms
+                        .GroupBy(x => x.BagId)
+                        .ToDictionary(g => g.Key, g => new
+                        {
+                            CbIds = g.Select(x => x.CbId).Where(id => id > 0).Distinct().ToList(),
+                            Bundles = g.Sum(x => x.NumberOfBundlesOrBoxes)
+                        });
+
+                    // Build per-parent lookups using the mapping table
+                    var childCbIdsByParent = new Dictionary<int, List<int>>();
+                    var childBundlesByParent = new Dictionary<int, int>();
+
+                    foreach (var map in childBagMaps)
+                    {
+                        if (!childDataByBagId.TryGetValue(map.ChildBagId, out var childData)) continue;
+
+                        if (!childCbIdsByParent.ContainsKey(map.ParentBagId))
+                            childCbIdsByParent[map.ParentBagId] = [];
+                        childCbIdsByParent[map.ParentBagId].AddRange(childData.CbIds);
+
+                        childBundlesByParent.TryGetValue(map.ParentBagId, out var existing);
+                        childBundlesByParent[map.ParentBagId] = existing + childData.Bundles;
+                    }
+
+                    foreach (var bag in bags)
+                    {
+                        if (childCbIdsByParent.TryGetValue(bag.Id, out var childCbIds))
+                            bag.CommercialBankIds = bag.CommercialBankIds.Union(childCbIds).Distinct().ToList();
+                        if (childBundlesByParent.TryGetValue(bag.Id, out var childBundles))
+                            bag.TotalBundles += childBundles;
+                    }
                 }
             }
 
@@ -153,6 +194,8 @@ namespace VMSService.Core.Repositories.Bags
                 ReferenceNumber = bb.ChildBag!.ReferenceNumber,
                 TotalBundles = bb.ChildBag.BagDenominations.Where(bd => !bd.IsDeleted).Sum(bd => bd.NumberOfBundlesOrBoxes),
                 CreatedDate = bb.ChildBag.CreatedDate,
+                CategoryId = bb.ChildBag.CategoryId,
+                SubCategoryId = bb.ChildBag.SubCategoryId,
             }).ToList();
 
             int ownBundles = bag.BagDenominations.Sum(bd => bd.NumberOfBundlesOrBoxes);
@@ -165,6 +208,8 @@ namespace VMSService.Core.Repositories.Bags
                 Id = bag.Id,
                 ReferenceNumber = bag.ReferenceNumber,
                 DenominationId = bag.DenominationId,
+                CategoryId = bag.CategoryId,
+                SubCategoryId = bag.SubCategoryId,
                 IsChildBag = isChildBag,
                 VaultSectionName = bag.VaultSection?.Name,
                 VaultName = bag.VaultSection?.Vault?.Name,
@@ -443,7 +488,7 @@ namespace VMSService.Core.Repositories.Bags
                 .ToList();
         }
 
-        public async Task<bool> AddBagToBagAsync(AddBagToBagViewModel model)
+        public async Task<bool> AddBagToBagAsync(AddBagToBagViewModel model, int? mixedSubCategoryId)
         {
             var parentBag = await _db.Bags
                 .Include(b => b.BagDenominations.Where(bd => !bd.IsDeleted))
@@ -491,6 +536,27 @@ namespace VMSService.Core.Repositories.Bags
                 ChildBagId = model.ChildBagId,
                 IsDeleted = false,
             });
+
+            // Update parent bag category/subcategory
+            parentBag.CategoryId = childBag.CategoryId;
+
+            var existingChildSubCategoryIds = existingChildBagIds.Count > 0
+                ? await _db.Bags
+                    .Where(b => existingChildBagIds.Contains(b.Id) && !b.IsDeleted)
+                    .Select(b => b.SubCategoryId)
+                    .ToListAsync()
+                : new List<int?>();
+
+            var allSubCategoryIds = existingChildSubCategoryIds
+                .Append(childBag.SubCategoryId)
+                .Where(id => id.HasValue)
+                .Select(id => id!.Value)
+                .Distinct()
+                .ToList();
+
+            parentBag.SubCategoryId = allSubCategoryIds.Count == 1
+                ? allSubCategoryIds[0]
+                : mixedSubCategoryId;
 
             await _db.SaveChangesAsync();
             return true;

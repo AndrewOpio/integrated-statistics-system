@@ -1029,6 +1029,8 @@ namespace VMSService.Web.Controllers
                 int bundlesRemaining = totalBundles;
                 int bagCount = 0;
 
+                Category paids = (await _categoryRepository.FindAll()).FirstOrDefault(c => c.Name == StockConstants.StoreTypes.Paids);
+
                 while (bundlesRemaining > 0)
                 {
                     bagCount++;
@@ -1057,10 +1059,8 @@ namespace VMSService.Web.Controllers
                         BranchId = depositRequest.BouBranchId,
                         CbCode = depositRequest.CbCode,
                         IsDeleted = false,
-                        //CreatedBy = username,
-                        //CreatedDate = DateTime.Now,
-                        //ModifiedBy = username,
-                        //ModifiedDate = DateTime.Now
+                        SubCategoryId = denomination.SubCategoryId,
+                        CategoryId = paids?.Id
                     };
 
                     // Create bag denomination link
@@ -1069,11 +1069,7 @@ namespace VMSService.Web.Controllers
                         Bag = bag,
                         DepositRequestDenominationId = denomination.Id,
                         IsDeleted = false,
-                        NumberOfBundlesOrBoxes = bundlesInThisBag,
-                        //CreatedBy = username,
-                        //CreatedDate = DateTime.Now,
-                        //ModifiedBy = username,
-                        //ModifiedDate = DateTime.Now
+                        NumberOfBundlesOrBoxes = bundlesInThisBag
                     };
 
                     bag.BagDenominations.Add(bagDenomination);

@@ -92,7 +92,7 @@
                                 {
                                     <tr style="border-bottom:1px solid #f0f2f5;">
                                         <td class="px-3 small fw-bold">
-                                            <a asp-controller="Bagging" asp-action="Details" asp-route-id="@bag.Id">
+                                            <a asp-controller="Bagging" asp-action="Details" asp-route-id="@bag.Id" class="text-nowrap">
                                                 @bag.ReferenceNumber
                                             </a>
                                         </td>
@@ -121,9 +121,9 @@
                                                         class="btn btn-sm btn-outline-tertiary" title="View bag details">
                                                         <i class="ti ti-eye"></i>
                                                     </a>
-                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove from section">
+                                                    @* <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove from section">
                                                         <i class="ti ti-unlink"></i>
-                                                    </button>
+                                                    </button> *@
                                                 </div>
                                                     
                                             </form>
@@ -186,7 +186,7 @@
                                                        class="form-check-input" id="avail_@bag.Id" required />
                                             </td>
                                             <td class="px-3 small fw-bold">
-                                                <label for="avail_@bag.Id" style="cursor:pointer;" class="mb-0">
+                                                <label for="avail_@bag.Id" style="cursor:pointer;" class="mb-0 text-nowrap">
                                                     @bag.ReferenceNumber
                                                 </label>
                                             </td>

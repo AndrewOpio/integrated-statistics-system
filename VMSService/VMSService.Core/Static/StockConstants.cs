@@ -46,6 +46,7 @@
             public const string Fit = "Fit";
             public const string Unfit = "Unfit";
             public const string NA = "N/A";
+            public const string Mixed = "Mixed";
         }
     }
 }

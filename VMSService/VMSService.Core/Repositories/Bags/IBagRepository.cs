@@ -19,7 +19,7 @@ namespace VMSService.Core.Repositories.Bags
         Task<List<DepositRequestBagCardViewModel>> GetBagsByDepositRequestIdAsync(Guid depositRequestId);
         Task<int> BagSequence(DateTime date, int denominationId);
         Task<List<NestedBagViewModel>> GetAvailableBagsForMergingAsync(int parentBagId);
-        Task<bool> AddBagToBagAsync(AddBagToBagViewModel model);
+        Task<bool> AddBagToBagAsync(AddBagToBagViewModel model, int? mixedSubCategoryId);
         Task<bool> RemoveBagFromBagAsync(int baggedBagId);
     }
 }

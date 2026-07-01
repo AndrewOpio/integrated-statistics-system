@@ -22,8 +22,13 @@ namespace VMSService.Core.Models.Bags
         public string? VaultSectionName { get; set; }
         public int? VaultId { get; set; }
         public string? VaultName { get; set; }
+        public int? CategoryId { get; set; }
+        public string? CategoryName { get; set; }
+        public int? SubCategoryId { get; set; }
+        public string? SubCategoryName { get; set; }
         public List<BagDenomination> Items { get; set; } = [];
         public List<int> CommercialBankIds { get; set; } = [];
         public List<string> CommercialBankNames { get; set; } = [];
+        public bool HasNestedBags { get; set; }
     }
 }

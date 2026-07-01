@@ -16,5 +16,6 @@ namespace VMSService.Data.Entities
         public bool IsManual { get; set; } = false;
         public bool IsDeleted { get; set; } = false;
         public ICollection<ProcessingSessionBag> ProcessingSessionBags { get; set; } = [];
+        public int DenominationId { get; set; }
     }
 }

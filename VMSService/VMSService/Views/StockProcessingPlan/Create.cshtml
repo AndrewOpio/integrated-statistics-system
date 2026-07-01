@@ -83,6 +83,7 @@
     <input type="hidden" name="processingDate" value="@Model.ProcessingDate.ToString("yyyy-MM-dd")" />
     <input type="hidden" name="branchId" value="@Model.BranchId" />
     <input type="hidden" id="assignmentsJson" name="assignmentsJson" value="[]" />
+    <input type="hidden" id="roomSupervisorsJson" name="roomSupervisorsJson" value="[]" />
 </form>
 
 <div class="row g-4 align-items-start">
@@ -103,15 +104,32 @@
         @foreach (var room in Model.CountingRooms)
         {
             <div class="card border-0 shadow mb-4">
-                <div class="room-card-header d-flex align-items-center px-3 py-2">
-                    <div class="rounded d-flex align-items-center justify-content-center me-2"
-                         style="width:32px;height:32px;background:rgba(49,49,106,.08);flex-shrink:0;">
+                <div class="room-card-header d-flex align-items-center px-3 py-2 gap-3">
+                    <div class="rounded d-flex align-items-center justify-content-center flex-shrink-0"
+                         style="width:32px;height:32px;background:rgba(49,49,106,.08);">
                         <i class="ti ti-door" style="color:#31316A;font-size:.9rem;"></i>
                     </div>
-                    <div>
+                    <div class="flex-shrink-0">
                         <h6 class="fw-bold mb-0" style="color:#31316A;">@room.Name</h6>
                         <span class="small text-muted">@room.Boards.Count board@(room.Boards.Count == 1 ? "" : "s")</span>
                     </div>
+                    @if (Model.BoardSupervisors.Any())
+                    {
+                        <div class="ms-auto d-flex align-items-center gap-2 flex-shrink-0">
+                            <label class="small text-muted mb-0 text-nowrap" style="font-size:.72rem;">
+                                <i class="ti ti-user-check me-1"></i>Supervisor
+                            </label>
+                            <select class="form-select form-select-sm room-supervisor-select"
+                                    data-room-id="@room.Id"
+                                    style="min-width:180px;font-size:.75rem;">
+                                <option value="">— Optional —</option>
+                                @foreach (var supervisor in Model.BoardSupervisors)
+                                {
+                                    <option value="@supervisor.UserName">@supervisor.FirstName @supervisor.LastName</option>
+                                }
+                            </select>
+                        </div>
+                    }
                 </div>
                 <div class="card-body p-3">
                     @if (!room.Boards.Any())
@@ -128,7 +146,7 @@
                             {
                                 <div class="col-12 col-md-6">
                                     <div class="border rounded-3 h-100" style="border-color:#e9ecef!important;">
-                                        <div class="p-3 border-bottom d-flex align-items-center justify-content-between"
+                                        <div class="p-3 py-1 border-bottom d-flex align-items-center justify-content-between"
                                              style="background:#f8fafc;border-radius:1rem 1rem 0 0;">
                                             <div class="d-flex align-items-center gap-2">
                                                 <i class="ti ti-cpu" style="color:#31316A;"></i>
@@ -191,6 +209,13 @@
                             </select>
                         </div>
                         <div class="d-flex align-items-center gap-2">
+                            <i class="ti ti-building text-muted" style="font-size:.85rem;flex-shrink:0;"></i>
+                            <select id="filterBank" class="form-select form-select-sm"
+                                    onchange="applyFilters()">
+                                <option value="">All Commercial Banks</option>
+                            </select>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
                             <i class="ti ti-building-bank text-muted" style="font-size:.85rem;flex-shrink:0;"></i>
                             <select id="filterVault" class="form-select form-select-sm"
                                     onchange="onVaultFilterChange()">
@@ -228,13 +253,24 @@
                                              data-vault-name="@(bag.VaultName ?? "")"
                                              data-vault-section-id="@(bag.VaultSectionId?.ToString() ?? "0")"
                                              data-vault-section-name="@(bag.VaultSectionName ?? "")"
+                                             data-bank-names="@string.Join(",", bag.CommercialBankNames)"
                                              onclick="toggleSelectBag(this)">
                                             <span class="bag-ref">
                                                 <i class="ti ti-package" style="font-size:.7rem;"></i> @bag.ReferenceNumber
                                             </span>
-                                            @if (bag.DenominationValue > 0)
+                                            @if (bag.DenominationValue > 0 || !string.IsNullOrEmpty(bag.SubCategoryName))
                                             {
-                                                <span class="bag-denom">UGX @bag.DenominationValue.ToString("N0")</span>
+                                                <span class="bag-denom">
+                                                    @if (bag.DenominationValue > 0)
+                                                    {
+                                                        <text>UGX @bag.DenominationValue.ToString("N0")</text>
+                                                    }
+                                                    @if (!string.IsNullOrEmpty(bag.SubCategoryName))
+                                                    {
+                                                        if (bag.DenominationValue > 0) { <text> &middot; </text> }
+                                                        <text>@bag.SubCategoryName</text>
+                                                    }
+                                                </span>
                                             }
                                             <span class="bag-meta">
                                                 @bag.TotalBundles bundle@(bag.TotalBundles == 1 ? "" : "s")
@@ -274,6 +310,7 @@
     function populateFilters() {
         const cards = document.querySelectorAll('#bagPool .bag-card');
         const denomMap = new Map();
+        const bankSet = new Set();
         const vaultMap = new Map();
         const sectionMap = new Map();
 
@@ -283,6 +320,8 @@
                 const num = parseFloat(dv);
                 if (!denomMap.has(dv)) denomMap.set(dv, 'UGX ' + num.toLocaleString());
             }
+            (c.dataset.bankNames || '').split(',').map(s => s.trim()).filter(Boolean)
+                .forEach(name => bankSet.add(name));
             const vid = c.dataset.vaultId, vname = c.dataset.vaultName;
             if (vid && vid !== '0' && !vaultMap.has(vid)) vaultMap.set(vid, vname || 'Vault ' + vid);
             const sid = c.dataset.vaultSectionId, sname = c.dataset.vaultSectionName;
@@ -292,6 +331,9 @@
         const denomSel = document.getElementById('filterDenomination');
         [...denomMap.entries()].sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))
             .forEach(([v, label]) => denomSel.add(new Option(label, v)));
+
+        const bankSel = document.getElementById('filterBank');
+        [...bankSet].sort().forEach(name => bankSel.add(new Option(name, name)));
 
         const vaultSel = document.getElementById('filterVault');
         vaultMap.forEach((name, id) => vaultSel.add(new Option(name, id)));
@@ -319,15 +361,18 @@
     }
 
     function applyFilters() {
-        const dv  = document.getElementById('filterDenomination').value;
-        const vid = document.getElementById('filterVault').value;
-        const sid = document.getElementById('filterVaultSection').value;
+        const dv   = document.getElementById('filterDenomination').value;
+        const bank = document.getElementById('filterBank').value;
+        const vid  = document.getElementById('filterVault').value;
+        const sid  = document.getElementById('filterVaultSection').value;
         document.querySelectorAll('#bagPool .bag-card').forEach(c => {
             if (c.classList.contains('hidden-assigned')) return;
+            const banks = (c.dataset.bankNames || '').split(',').map(s => s.trim()).filter(Boolean);
             const match =
-                (!dv  || c.dataset.denominationValue  === dv)  &&
-                (!vid || c.dataset.vaultId             === vid) &&
-                (!sid || c.dataset.vaultSectionId      === sid);
+                (!dv   || c.dataset.denominationValue === dv)  &&
+                (!bank || banks.includes(bank))                 &&
+                (!vid  || c.dataset.vaultId            === vid) &&
+                (!sid  || c.dataset.vaultSectionId     === sid);
             c.classList.toggle('hidden-filter', !match);
         });
         updateCount();
@@ -335,6 +380,7 @@
 
     function clearFilters() {
         document.getElementById('filterDenomination').value = '';
+        document.getElementById('filterBank').value = '';
         document.getElementById('filterVault').value = '';
         onVaultFilterChange();
         document.getElementById('filterVaultSection').value = '';
@@ -433,13 +479,16 @@
     }
 
     function reFilterCard(card) {
-        const dv  = document.getElementById('filterDenomination').value;
-        const vid = document.getElementById('filterVault').value;
-        const sid = document.getElementById('filterVaultSection').value;
+        const dv   = document.getElementById('filterDenomination').value;
+        const bank = document.getElementById('filterBank').value;
+        const vid  = document.getElementById('filterVault').value;
+        const sid  = document.getElementById('filterVaultSection').value;
+        const banks = (card.dataset.bankNames || '').split(',').map(s => s.trim()).filter(Boolean);
         const match =
-            (!dv  || card.dataset.denominationValue === dv)  &&
-            (!vid || card.dataset.vaultId            === vid) &&
-            (!sid || card.dataset.vaultSectionId     === sid);
+            (!dv   || card.dataset.denominationValue === dv)  &&
+            (!bank || banks.includes(bank))                    &&
+            (!vid  || card.dataset.vaultId            === vid) &&
+            (!sid  || card.dataset.vaultSectionId     === sid);
         card.classList.toggle('hidden-filter', !match);
     }
 
@@ -453,6 +502,15 @@
             .filter(([, bags]) => bags.length > 0)
             .map(([boardId, bags]) => ({ processingBoardId: +boardId, bagIds: bags.map(b => b.id) }));
         document.getElementById('assignmentsJson').value = JSON.stringify(result);
+
+        const supervisors = [];
+        document.querySelectorAll('.room-supervisor-select').forEach(sel => {
+            if (sel.value) {
+                supervisors.push({ countingRoomId: +sel.dataset.roomId, boardSupervisorUserId: sel.value });
+            }
+        });
+        document.getElementById('roomSupervisorsJson').value = JSON.stringify(supervisors);
+
         document.getElementById('planForm').submit();
     }
 

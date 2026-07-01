@@ -87,7 +87,9 @@
             public const string Draft = "Draft";
             public const string PendingVerification = "Pending Verification";
             public const string IssuedToBoards = "Issued To Boards";
-            public const string Processed = "Processed";
+            public const string ResultsPendingVerification = "Results Pending Verification";
+            public const string ResultsPendingConfirmation = "Results Pending Confirmation";
+            public const string Completed = "Completed";
         }
 
         public static class StockProcessingSession
@@ -95,6 +97,12 @@
             public const string Draft = "Draft";
             public const string Open = "Open";
             public const string Closed = "Closed";
+        }
+
+        public static class BagMovement
+        {
+            public const string PendingVerification = "Pending Verification";
+            public const string Verified = "Verified";
         }
 
         public static class Entity
@@ -111,6 +119,7 @@
             public const string DepositRequestExceptional = "DepositRequestExceptional";
             public const string StockProcessingPlan = "StockProcessingPlan";
             public const string StockProcessingSession = "StockProcessingSession";
+            public const string BagMovement = "BagMovement";
         }
     }
 }

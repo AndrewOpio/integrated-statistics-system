@@ -58,6 +58,34 @@ namespace VMSService.Core.Repository.VaultSections
                 .OrderByDescending(b => b.CreatedDate)
                 .ToListAsync();
 
+            var bagIds = bags.Select(b => b.Id).ToList();
+            var childBundlesByParent = new Dictionary<int, int>();
+
+            if (bagIds.Count > 0)
+            {
+                var childBagMaps = await _db.BaggedBags
+                    .Where(bb => bagIds.Contains(bb.ParentBagId) && !bb.IsDeleted)
+                    .Select(bb => new { bb.ParentBagId, bb.ChildBagId })
+                    .ToListAsync();
+
+                if (childBagMaps.Count > 0)
+                {
+                    var childBagIds = childBagMaps.Select(x => x.ChildBagId).Distinct().ToList();
+                    var childBundlesByBagId = await _db.BagDenominations
+                        .Where(bd => childBagIds.Contains(bd.BagId) && !bd.IsDeleted)
+                        .GroupBy(bd => bd.BagId)
+                        .Select(g => new { BagId = g.Key, Bundles = g.Sum(bd => bd.NumberOfBundlesOrBoxes) })
+                        .ToDictionaryAsync(x => x.BagId, x => x.Bundles);
+
+                    foreach (var map in childBagMaps)
+                    {
+                        if (!childBundlesByBagId.TryGetValue(map.ChildBagId, out var bundles)) continue;
+                        childBundlesByParent.TryGetValue(map.ParentBagId, out var existing);
+                        childBundlesByParent[map.ParentBagId] = existing + bundles;
+                    }
+                }
+            }
+
             return new VaultSectionDetailViewModel
             {
                 Id = section.Id,
@@ -70,7 +98,8 @@ namespace VMSService.Core.Repository.VaultSections
                     Id = b.Id,
                     ReferenceNumber = b.ReferenceNumber,
                     DenominationId = b.DenominationId,
-                    TotalBundles = b.BagDenominations.Sum(bd => bd.NumberOfBundlesOrBoxes),
+                    TotalBundles = b.BagDenominations.Sum(bd => bd.NumberOfBundlesOrBoxes)
+                                 + childBundlesByParent.GetValueOrDefault(b.Id),
                     IsProcessed = b.IsProcessed,
                 }).ToList()
             };
@@ -85,12 +114,42 @@ namespace VMSService.Core.Repository.VaultSections
                 .OrderByDescending(b => b.CreatedDate)
                 .ToListAsync();
 
+            // Build child-bundle totals per parent (two flat queries, same pattern as BagRepository)
+            var bagIds = bags.Select(b => b.Id).ToList();
+            var childBundlesByParent = new Dictionary<int, int>();
+
+            if (bagIds.Count > 0)
+            {
+                var childBagMaps = await _db.BaggedBags
+                    .Where(bb => bagIds.Contains(bb.ParentBagId) && !bb.IsDeleted)
+                    .Select(bb => new { bb.ParentBagId, bb.ChildBagId })
+                    .ToListAsync();
+
+                if (childBagMaps.Count > 0)
+                {
+                    var childBagIds = childBagMaps.Select(x => x.ChildBagId).Distinct().ToList();
+                    var childBundlesByBagId = await _db.BagDenominations
+                        .Where(bd => childBagIds.Contains(bd.BagId) && !bd.IsDeleted)
+                        .GroupBy(bd => bd.BagId)
+                        .Select(g => new { BagId = g.Key, Bundles = g.Sum(bd => bd.NumberOfBundlesOrBoxes) })
+                        .ToDictionaryAsync(x => x.BagId, x => x.Bundles);
+
+                    foreach (var map in childBagMaps)
+                    {
+                        if (!childBundlesByBagId.TryGetValue(map.ChildBagId, out var bundles)) continue;
+                        childBundlesByParent.TryGetValue(map.ParentBagId, out var existing);
+                        childBundlesByParent[map.ParentBagId] = existing + bundles;
+                    }
+                }
+            }
+
             return bags.Select(b => new VaultBagViewModel
             {
                 Id = b.Id,
                 ReferenceNumber = b.ReferenceNumber,
                 DenominationId = b.DenominationId,
-                TotalBundles = b.BagDenominations.Sum(bd => bd.NumberOfBundlesOrBoxes),
+                TotalBundles = b.BagDenominations.Sum(bd => bd.NumberOfBundlesOrBoxes)
+                             + childBundlesByParent.GetValueOrDefault(b.Id),
                 IsProcessed = b.IsProcessed,
             }).ToList();
         }

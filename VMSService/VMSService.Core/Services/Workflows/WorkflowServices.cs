@@ -9,6 +9,8 @@ using VMSService.Core.Repositories.DepositUnitOfWorks;
 using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.ReceivedStocks;
+using VMSService.Core.Repositories.StockProcessingPlans;
+using VMSService.Core.Repositories.StockProcessingPlanStatusHistories;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
 using VMSService.Core.Repositories.StockMovementDiscrepancies;
 using VMSService.Core.Repositories.StockMovements;
@@ -30,6 +32,8 @@ namespace VMSService.Core.Services.Workflows
         IExPrintMintRepository _exPrintMintRepository,
         IReceivedStockRepository _receivedStockRepository,
         IExPrintMintStatusHistoryRepository _exPrintMintStatusHistoryRepository,
+        IStockProcessingPlanRepository _stockProcessingPlanRepository,
+        IStockProcessingPlanStatusHistoryRepository _stockProcessingPlanStatusHistoryRepository,
         IReceivedStockStatusHistoryRepository _receivedStockStatusHistoryRepository,
         IStockMovementRepository _stockMovementRepository,
         IStockMovementStatusHistoryRepository _stockMovementStatusHistoryRepository,
@@ -92,6 +96,9 @@ namespace VMSService.Core.Services.Workflows
 
                     case StatusConstants.Entity.AgentDetail:
                         return await HandleAgentDetailTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
+
+                    case StatusConstants.Entity.StockProcessingPlan:
+                        return await HandleStockProcessingPlanTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
 
                     default:
                         _logger.LogWarning("Unknown entity type: {EntityType}", entityType);
@@ -530,7 +537,7 @@ namespace VMSService.Core.Services.Workflows
                 return false;
             }
 
-            // Verify current status matches — prevents race conditions
+            // Verify current status matches ï¿½ prevents race conditions
             if (request.StatusTypeId != currentStatusId)
             {
                 _logger.LogWarning(
@@ -561,7 +568,7 @@ namespace VMSService.Core.Services.Workflows
             request.ModifiedBy = username;
             request.ModifiedDate = DateTime.Now;
 
-            // If supervisor is submitting to bank — generate ref number + copy denominations
+            // If supervisor is submitting to bank ï¿½ generate ref number + copy denominations
             //if (transition.ToStatusId == WithdrawStatuses.WithdrawalStatusIds.SubmittedToBOU)
             //{
             //    //request.SupervisorUserId = username;
@@ -679,6 +686,57 @@ namespace VMSService.Core.Services.Workflows
                     entityType, statusId);
                 return new List<WorkflowTransitionDto>();
             }
+        }
+
+        private async Task<bool> HandleStockProcessingPlanTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
+        {
+            var plan = await _stockProcessingPlanRepository.FindById(entityId);
+            if (plan == null)
+            {
+                _logger.LogWarning("Stock Processing Plan {Id} not found", entityId);
+                return false;
+            }
+
+            if (plan.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Stock Processing Plan {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, plan.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new StockProcessingPlanStatusHistory
+            {
+                StockProcessingPlanId = entityId,
+                OldStatusId = plan.CurrentStatusId,
+                NewStatusId = transition.ToStatusId,
+                ChangedBy = username,
+                ChangedAt = DateTime.Now,
+                Remarks = remarks,
+                Attachments = attachmentIds != null && attachmentIds.Any()
+                    ? string.Join(",", attachmentIds)
+                    : null,
+                IsDeleted = false
+            };
+
+            await _stockProcessingPlanStatusHistoryRepository.Create(statusHistory);
+
+            plan.CurrentStatusId = transition.ToStatusId;
+            await _stockProcessingPlanRepository.Update(plan);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"Stock Processing Plan #{entityId}",
+                    transition,
+                    transition.ToStatus.Name,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("Stock Processing Plan {Id} transitioned from status {From} to {To} by user {Username} with action {Action}. Attachments: {AttachmentCount}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName, attachmentIds?.Count ?? 0);
+
+            return true;
         }
 
         private async Task<bool> HandleAgentDetailTransitions(int entityId, int currentStatusId, string actionName,
