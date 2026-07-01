@@ -1,0 +1,85 @@
+@model IEnumerable<VMSService.Data.Entities.DestructionAuthorization>
+
+@{
+    ViewData["Title"] = "Destruction Authorizations";
+}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h2 class="fs-5 fw-bold mb-0">Destruction Authorizations</h2>
+                    </div>
+                    <div class="col text-end">
+                        <a asp-action="Create" class="btn btn-sm btn-primary">
+                            <i class="ti ti-plus me-1"></i>New Authorization
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-centered table-nowrap mb-0 rounded datatable">
+                        <thead class="thead-light">
+                            <tr>
+                                <th class="border-0 rounded-start">#</th>
+                                <th class="border-0">Reference Number</th>
+                                <th class="border-0">Date</th>
+                                <th class="border-0">Status</th>
+                                <th class="border-0">Grand Total Amount</th>
+                                <th class="border-0">Created By</th>
+                                <th class="border-0 rounded-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                int rowNumber = 1;
+                            }
+                            @foreach (var item in Model)
+                            {
+                                var grandTotal = item.DestructionAuthorizationDenominations?.Sum(d => d.Amount) ?? 0m;
+                                <tr>
+                                    <td><span class="text-primary fw-bold">@rowNumber</span></td>
+                                    <td class="fw-bold">@item.ReferenceNumber</td>
+                                    <td>@item.Date.ToString("dd/MMM/yyyy")</td>
+                                    <td>
+                                        @{
+                                            string badgeClass = item.CurrentStatusName switch
+                                            {
+                                                "Draft"            => "bg-secondary",
+                                                "Amendment Draft"  => "bg-warning text-dark",
+                                                "Pending Approval" => "bg-info text-dark",
+                                                "Approved"         => "bg-success",
+                                                "Rejected"         => "bg-danger",
+                                                _                  => "bg-secondary"
+                                            };
+                                        }
+                                        <span class="badge @badgeClass">@item.CurrentStatusName</span>
+                                    </td>
+                                    <td>@grandTotal.ToString("N0")</td>
+                                    <td>@item.CreatedBy</td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
+                                                <i class="ti ti-eye"></i>
+                                            </a>
+                                            @if (item.CurrentStatusName == "Draft" || item.CurrentStatusName == "Amendment Draft")
+                                            {
+                                                <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
+                                                    <i class="ti ti-edit"></i>
+                                                </a>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                                rowNumber++;
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

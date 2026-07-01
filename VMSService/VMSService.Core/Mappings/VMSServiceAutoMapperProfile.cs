@@ -20,6 +20,7 @@ using VMSService.Core.Models.CurrencyVendors;
 using VMSService.Core.Models.StockProcessingPlans;
 using VMSService.Core.Models.ProcessingBoards;
 using VMSService.Core.Models.Denominations;
+using VMSService.Core.Models.DestructionLocations;
 using VMSService.Core.Models.DenominationTypes;
 using VMSService.Core.Models.DepositFees;
 using VMSService.Core.Models.DepositProcessingFees;
@@ -35,6 +36,7 @@ using VMSService.Core.Models.SubCategories;
 using VMSService.Core.Models.Vaults;
 using VMSService.Core.Models.VaultSections;
 using VMSService.Core.Models.CbWithdrawRequest;
+using VMSService.Core.Models.DestructionTypes;
 using VMSService.Core.Models.VendorTypes;
 using VMSService.Core.Services.Identity.IdentityEntities;
 using VMSService.Core.Services.Stocks.StockEntities;
@@ -47,6 +49,8 @@ namespace VMSService.Core.Mappings
         public VMSServiceAutoMapperProfile()
         {
             CreateMap<VendorType, VendorTypeViewModel>().ReverseMap();
+            CreateMap<DestructionType, DestructionTypeViewModel>().ReverseMap();
+            CreateMap<DestructionLocation, DestructionLocationViewModel>().ReverseMap();
             CreateMap<CurrencyVendor, CurrencyVendorViewModel>().ReverseMap();
             CreateMap<BPSMachine, BPSMachineViewModel>().ReverseMap();
             CreateMap<CountingRoom, CountingRoomViewModel>().ReverseMap();

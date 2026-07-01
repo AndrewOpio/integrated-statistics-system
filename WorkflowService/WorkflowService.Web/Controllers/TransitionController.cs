@@ -26,6 +26,11 @@ namespace WorkflowService.Web.Controllers
         {
             try
             {
+                if (request.ApplicationAcronym == "Myapp")
+                {
+                    request.ApplicationAcronym = "CAS";
+                }
+                
                 // Validate input parameters
                 if (request == null)
                 {

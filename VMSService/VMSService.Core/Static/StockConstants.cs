@@ -6,12 +6,14 @@
         {
             public const string Vendor = "Vendor";
             public const string CommercialBank = "Commercial Bank";
+            public const string Branch = "Branch";
         }
 
         public static class StoreTypes
         {
             public const string New = "New";
             public const string Paids = "Paids";
+            public const string Cancelled = "Cancelled";
             public const string Reissue = "Reissue";
         }
 
@@ -19,6 +21,12 @@
         {
             public const string Note = "Note";
             public const string Coin = "Coin";
+        }
+
+        public static class DestructionTypes
+        {
+            public const string Online  = "Online";
+            public const string Offsite = "Offsite";
         }
 
         public static class StockMovementTypes

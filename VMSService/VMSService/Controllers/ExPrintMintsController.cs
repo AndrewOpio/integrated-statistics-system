@@ -69,7 +69,7 @@ namespace VMSService.Web.Controllers
                     exPrintMint.Denomination = _mapper.Map<DenominationViewModel>(await _denominationRepository.FindById(exPrintMint.DenominationId));
                     exPrintMint.Branch = _mapper.Map<BranchViewModel>(await _branchRepository.FindById(exPrintMint.BranchId));
                 }
-
+                
                 return View(model);
             }
             catch (Exception ex)
@@ -254,7 +254,7 @@ namespace VMSService.Web.Controllers
             ViewBag.Denominations = _mapper.Map<List<DenominationViewModel>>(await _denominationRepository.FindAll());
             ViewBag.VendorTypes = _mapper.Map<List<VendorType>>(await _vendorTypeRepository.FindAll());
             ViewBag.ApprovedCurrencyProcurements = _mapper.Map<List<ApprovedCurrencyProcurementsViewModel>>(await _approvedCurrencyProcurementRepo.FindVerified());
-            ViewBag.BranchList = _mapper.Map<List<BranchViewModel>>(await _branchRepository.FindAll());
+            ViewBag.BranchList = _mapper.Map<List<BranchDto>>(await _configServiceClient.GetAllBouBranchesAsync());
 
             if (!ModelState.IsValid)
             {
@@ -402,7 +402,7 @@ namespace VMSService.Web.Controllers
                 ViewBag.Denominations = _mapper.Map<List<DenominationViewModel>>(await _denominationRepository.FindAll());
                 ViewBag.VendorTypes = _mapper.Map<List<VendorType>>(await _vendorTypeRepository.FindAll());
                 ViewBag.ApprovedCurrencyProcurements = _mapper.Map<List<ApprovedCurrencyProcurementsViewModel>>(await _approvedCurrencyProcurementRepo.FindVerified());
-                ViewBag.BranchList = _mapper.Map<List<BranchViewModel>>(await _branchRepository.FindAll());
+                ViewBag.BranchList = _mapper.Map<List<BranchDto>>(await _configServiceClient.GetAllBouBranchesAsync());
 
                 var model = _mapper.Map<ExPrintMintViewModel>(exPrintMint);
                 
@@ -441,7 +441,7 @@ namespace VMSService.Web.Controllers
             ViewBag.Denominations = _mapper.Map<List<DenominationViewModel>>(await _denominationRepository.FindAll());
             ViewBag.VendorTypes = _mapper.Map<List<VendorType>>(await _vendorTypeRepository.FindAll());
             ViewBag.ApprovedCurrencyProcurements = _mapper.Map<List<ApprovedCurrencyProcurementsViewModel>>(await _approvedCurrencyProcurementRepo.FindVerified());
-            ViewBag.BranchList = _mapper.Map<List<BranchViewModel>>(await _branchRepository.FindAll());
+            ViewBag.BranchList = _mapper.Map<List<BranchDto>>(await _configServiceClient.GetAllBouBranchesAsync());
 
             if (!ModelState.IsValid && !(ModelState.ErrorCount == 1 && ModelState["AttachmentFile"]?.ValidationState == ModelValidationState.Invalid))
             {

@@ -40,6 +40,16 @@ namespace WorkflowService.Client.Dto
         /// Whether this transition requires comments/remarks
         /// </summary>
         public bool RequiresComments { get; set; }
+
+        /// <summary>
+        /// Whether this transition requires attachments
+        /// </summary>
+        public bool RequiresAttachments { get; set; }
+
+        /// <summary>
+        /// Collection of attachment requirements for this transition
+        /// </summary>
+        public ICollection<TransitionAttachmentRequirementDto> AttachmentRequirements { get; set; } = new List<TransitionAttachmentRequirementDto>();
         
         /// <summary>
         /// Display label for the button/action
@@ -65,16 +75,6 @@ namespace WorkflowService.Client.Dto
         /// Comma-separated list of email addresses that should receive the notification
         /// </summary>
         public string? NotificationEmails { get; set; }
-
-        /// <summary>
-        /// Whether this transition requires attachments
-        /// </summary>
-        public bool RequiresAttachments { get; set; }
-
-        /// <summary>
-        /// Collection of attachment requirements for this transition
-        /// </summary>
-        public ICollection<TransitionAttachmentRequirementDto> AttachmentRequirements { get; set; } = new List<TransitionAttachmentRequirementDto>();
 
         public bool IsActive { get; set; } = true;
         public bool IsDeleted { get; set; }

@@ -14,6 +14,7 @@ using System.Text;
 using VMSService.Core.Authorization;
 using VMSService.Core.Mappings;
 using VMSService.Core.Models.Authentication;
+using VMSService.Core.Repositories.Attachments;
 using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.AgentDetailStatusHistories;
 using VMSService.Core.Repositories.ApprovedCurrencyDenominations;
@@ -77,6 +78,21 @@ using VMSService.Core.Services.Workflows;
 using VMSService.Data;
 using WorkflowService.Client;
 using VMSService.Core.Repositories.BoxStates;
+using VMSService.Core.Repositories.DestructionRequests;
+using VMSService.Core.Repositories.DestructionRequestStatusHistories;
+using VMSService.Core.Repositories.DestructionTypes;
+using VMSService.Core.Repositories.DestructionAuthorizations;
+using VMSService.Core.Repositories.DestructionAuthorizationStatusHistories;
+using VMSService.Core.Repositories.DestructionLocations;
+using VMSService.Core.Repositories.EodDiscrepancyReports;
+using VMSService.Core.Repositories.EodDiscrepancyReportStatusHistories;
+using VMSService.Core.Repositories.MonthlySurpluses;
+using VMSService.Core.Repositories.MonthlySurplusStatusHistories;
+using VMSService.Core.Repositories.MonthlyShortages;
+using VMSService.Core.Repositories.MonthlyShortageStatusHistories;
+using VMSService.Core.Repositories.MonthlyCommercialBankSettlements;
+using VMSService.Core.Repositories.MonthlyCommercialBankSettlementStatusHistories;
+using VMSService.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -183,7 +199,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             },
             OnAuthenticationFailed = context =>
             {
-                // Handle specific authentication failures
                 context.NoResult();
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 context.Response.Redirect(authenticationSettings?.LoginPath ?? "/logout");
@@ -191,14 +206,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             },
             OnChallenge = async context =>
             {
-                // This event fires when authentication fails
                 context.HandleResponse();
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 context.Response.Redirect(authenticationSettings?.LoginPath ?? "/logout");
                 await context.Response.CompleteAsync();
             }
-            
-
         };
     });
 
@@ -262,12 +274,22 @@ builder.Services.AddScoped<IDepositUnitOfWork, DepositUnitOfWork>();
 builder.Services.AddScoped<IDepositTransactionRefNumberGenerator, DepositTransactionRefNumberGenerator>();
 builder.Services.AddScoped<IDepositRequestRepository, DepositRequestRepository>();
 builder.Services.AddScoped<IDepositRequestStatusHistoryRepository, DepositRequestStatusHistoryRepository>();
-builder.Services.AddScoped<IMinDepositStandardRepository, MinDepositStandardRepository>();
-builder.Services.AddScoped<IDepositProcessingFeeRepository, DepositProcessingFeeRepository>();
-builder.Services.AddScoped<IDepositFeeRepository, DepositFeeRepository>();
-builder.Services.AddScoped<IFeeTypeRepository, FeeTypeRepository>();
-builder.Services.AddScoped<ISubCategoryRepository, SubCategoryRepository>();
-builder.Services.AddScoped<IBoxStateRepository, BoxStateRepository>();
+builder.Services.AddScoped<IDestructionRequestRepository, DestructionRequestRepository>();
+builder.Services.AddScoped<IDestructionRequestStatusHistoryRepository, DestructionRequestStatusHistoryRepository>();
+builder.Services.AddScoped<IDestructionTypeRepository, DestructionTypeRepository>();
+builder.Services.AddScoped<IDestructionLocationRepository, DestructionLocationRepository>();
+builder.Services.AddScoped<IDestructionAuthorizationRepository, DestructionAuthorizationRepository>();
+builder.Services.AddScoped<IDestructionAuthorizationStatusHistoryRepository, DestructionAuthorizationStatusHistoryRepository>();
+builder.Services.AddScoped<IEodDiscrepancyReportRepository, EodDiscrepancyReportRepository>();
+builder.Services.AddScoped<IEodDiscrepancyReportStatusHistoryRepository, EodDiscrepancyReportStatusHistoryRepository>();
+builder.Services.AddScoped<IMonthlySurplusRepository, MonthlySurplusRepository>();
+builder.Services.AddScoped<IMonthlySurplusStatusHistoryRepository, MonthlySurplusStatusHistoryRepository>();
+builder.Services.AddScoped<IMonthlyShortageRepository, MonthlyShortageRepository>();
+builder.Services.AddScoped<IMonthlyShortageDetailRepository, MonthlyShortageDetailRepository>();
+builder.Services.AddScoped<IMonthlyShortageStatusHistoryRepository, MonthlyShortageStatusHistoryRepository>();
+builder.Services.AddScoped<IMonthlyCommercialBankSettlementRepository, MonthlyCommercialBankSettlementRepository>();
+builder.Services.AddScoped<IMonthlyCommercialBankSettlementStatusHistoryRepository, MonthlyCommercialBankSettlementStatusHistoryRepository>();
+builder.Services.AddScoped<IAttachmentRepository, AttachmentRepository>();
 
 // ── Resource-based ownership check ────────────────────────────
 builder.Services.AddSingleton<IAuthorizationHandler, CbOwnershipAuthorizationHandler>();
@@ -290,6 +312,16 @@ builder.Services.AddHttpClient<VMSService.Core.Services.Stocks.StockService>()
     {
         var configuration = sp.GetRequiredService<IConfiguration>();
         var baseUrl = configuration["StockApiSettings:BaseUrl"] ?? "https://localhost:7158";
+        client.BaseAddress = new Uri(baseUrl);
+        client.DefaultRequestHeaders.Add("Accept", "application/json");
+    });
+
+// Register Permission Service (cached lookup against IdentityService)
+builder.Services.AddHttpClient<IPermissionService, PermissionService>()
+    .ConfigureHttpClient((sp, client) =>
+    {
+        var configuration = sp.GetRequiredService<IConfiguration>();
+        var baseUrl = configuration["MicroServices:identityservice"] ?? "https://localhost:7026";
         client.BaseAddress = new Uri(baseUrl);
         client.DefaultRequestHeaders.Add("Accept", "application/json");
     });
