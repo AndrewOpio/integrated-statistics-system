@@ -1,0 +1,427 @@
+@model VMSService.Data.Entities.DestructionRequest
+
+@using ConfigurationsService.Client
+@using VMSService.Data.Entities
+@using VMSService.Core.Services.Stocks.StockEntities
+
+@{
+    ViewData["Title"] = "Edit Destruction Request";
+    var destructionTypes = ViewBag.DestructionTypes as List<DestructionType> ?? new List<DestructionType>();
+    var branches         = ViewBag.Branches as List<BranchDto>;
+    var authorizations   = ViewBag.Authorizations as List<DestructionAuthorization> ?? new();
+    var locations        = ViewBag.Locations as List<DestructionLocation> ?? new();
+}
+
+<div class="row">
+    <div class="col-12 col-lg-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header pb-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="d-flex flex-column">
+                        <span class="text-muted small mb-2">Destruction Management</span>
+                        <h2 class="fs-4 fw-bold mb-0">Edit — @Model.ReferenceNumber</h2>
+                    </div>
+                    <a asp-action="Index" class="btn btn-outline-secondary">
+                        <i class="ti ti-arrow-left me-1"></i> Back to List
+                    </a>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <div id="formAlerts"></div>
+
+                <form id="editRequestForm">
+                    <input type="hidden" id="requestId" value="@Model.Id" />
+
+                    <div class="row mb-3">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Destruction Authorization <span class="text-danger">*</span></label>
+                            <select class="form-select" id="destructionAuthorizationId">
+                                <option value="">-- Select Authorization --</option>
+                                @foreach (var a in authorizations)
+                                {
+                                    <option value="@a.Id" selected="@(a.Id == Model.DestructionAuthorizationId ? "selected" : null)">
+                                        @a.ReferenceNumber — @a.Date.ToString("dd/MMM/yyyy")
+                                    </option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Destruction Type <span class="text-danger">*</span></label>
+                            <select class="form-select" id="destructionTypeId">
+                                <option value="">-- Select Type --</option>
+                                @foreach (var dt in destructionTypes)
+                                {
+                                    <option value="@dt.Id" selected="@(dt.Id == Model.DestructionTypeId ? "selected" : null)">@dt.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Branch <span class="text-danger">*</span></label>
+                            <select class="form-select" id="branchId">
+                                <option value="">-- Select Branch --</option>
+                                @foreach (var b in branches)
+                                {
+                                    <option value="@b.Id" selected="@(b.Id == Model.BranchId ? "selected" : null)">@b.Name</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Reference Number <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="referenceNumber" value="@Model.ReferenceNumber" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="requestDate" value="@Model.Date.ToString("yyyy-MM-dd")" />
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Verification Officer <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="verificationOfficer" value="@Model.VerificationOfficer" />
+                        </div>
+                    </div>
+
+                    @{
+                        var isOffsite = ViewBag.DestructionTypes is List<VMSService.Data.Entities.DestructionType> dtList
+                            && dtList.FirstOrDefault(t => t.Id == Model.DestructionTypeId)?.Name == VMSService.Core.Static.StockConstants.DestructionTypes.Offsite;
+                    }
+                    <div class="row mb-3" id="locationRow" style="@(isOffsite ? "" : "display:none;")">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Location <span class="text-danger">*</span></label>
+                            <select class="form-select" id="destructionLocationId">
+                                <option value="">-- Select Location --</option>
+                                @foreach (var l in locations)
+                                {
+                                    <option value="@l.Id" selected="@(l.Id == Model.DestructionLocationId ? "selected" : null)">@l.Name</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Denomination Details</label>
+                        <table class="table table-bordered" id="denominationTable">
+                            <thead>
+                                <tr>
+                                    <th>Denomination</th>
+                                    <th>Number of Bags</th>
+                                    <th>Amount</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                            <tfoot style="background-color: #f8f9fa;">
+                                <tr>
+                                    <td colspan="2" class="text-end align-middle">Grand Total Amount</td>
+                                    <td style="min-width: 160px;">
+                                        <input type="text" class="form-control text-end" id="grandTotalAmount" readonly placeholder="0" />
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                        <div class="d-flex justify-content-end mt-3">
+                            <button type="button" class="btn btn-success btn-sm" id="addDenominationRow">
+                                <i class="ti ti-plus"></i> Add Row
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Members &amp; Witnesses</label>
+                        <table class="table table-bordered" id="membersTable">
+                            <thead>
+                                <tr>
+                                    <th>ID Number</th>
+                                    <th>Full Name</th>
+                                    <th>Role</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="d-flex justify-content-end gap-2 mt-3">
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="addMemberRow">
+                                <i class="ti ti-user-plus me-1"></i> Add Member
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="addWitnessRow">
+                                <i class="ti ti-eye me-1"></i> Add Witness
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            <i class="ti ti-check me-1"></i>Update
+                        </button>
+                        <a asp-action="Index" class="btn btn-secondary">
+                            <i class="ti ti-arrow-left me-1"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function () {
+
+    const denominationOptions = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(
+        ViewBag.Denominations != null
+            ? ((List<VMSService.Core.Services.Stocks.StockEntities.Denomination>)ViewBag.Denominations)
+                .Select(d => new { id = d.Id, name = d.Name, value = d.Value, piecesInBox = d.NumberOfPiecesInABox })
+            : Enumerable.Empty<object>()
+    ));
+
+    // Pre-populate from existing data
+    let denominationRows = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(
+        Model.DestructionRequestDenominations != null
+            ? Model.DestructionRequestDenominations.Select(d => new {
+                denominationId = d.DenominationId.ToString(),
+                numberOfBags   = d.NumberOfBags ?? "",
+                amount         = d.Amount
+              })
+            : Enumerable.Empty<object>()
+    ));
+
+    if (!denominationRows.length) {
+        denominationRows = [{ denominationId: '', numberOfBags: '', amount: '' }];
+    }
+
+    let memberRows = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(
+        Model.DestructionRequestMembers != null
+            ? Model.DestructionRequestMembers.Select(m => new {
+                idNumber  = m.IDNumber,
+                fullName  = m.FullName,
+                isWitness = m.IsWitness
+              })
+            : Enumerable.Empty<object>()
+    ));
+
+    if (!memberRows.length) {
+        memberRows = [{ idNumber: '', fullName: '', isWitness: false }];
+    }
+
+    // ─── Option builders ──────────────────────────────────────────────────────
+
+    function buildDenomOptions(selectedId) {
+        let html = '<option value="">-- Select Denomination --</option>';
+        denominationOptions.forEach(d => {
+            html += `<option value="${d.id}" data-value="${d.value}" data-pieces="${d.piecesInBox}" ${String(d.id) === String(selectedId) ? 'selected' : ''}>${d.name} (${Number(d.value).toLocaleString()})</option>`;
+        });
+        return html;
+    }
+
+    // ─── Render denomination table ────────────────────────────────────────────
+
+    function renderDenominationTable() {
+        const $tbody = $('#denominationTable tbody');
+        $tbody.empty();
+        denominationRows.forEach((row, idx) => {
+            $tbody.append(`
+                <tr data-idx="${idx}">
+                    <td><select class="form-select denom-id">${buildDenomOptions(row.denominationId)}</select></td>
+                    <td><input type="text" class="form-control denom-bags" value="${row.numberOfBags}" placeholder="e.g. 5" /></td>
+                    <td><input type="text" class="form-control text-end denom-amount" value="${formatAmount(row.amount)}" placeholder="0" readonly /></td>
+                    <td class="text-center align-middle">
+                        <button type="button" class="btn btn-danger btn-sm remove-denom-row"><i class="ti ti-trash"></i></button>
+                    </td>
+                </tr>
+            `);
+        });
+        recalculateGrandTotal();
+    }
+
+    // ─── Render members table ─────────────────────────────────────────────────
+
+    function renderMembersTable() {
+        const $tbody = $('#membersTable tbody');
+        $tbody.empty();
+        memberRows.forEach((row, idx) => {
+            const roleBadge = row.isWitness
+                ? '<span class="badge bg-secondary">Witness</span>'
+                : '<span class="badge bg-primary">Member</span>';
+            $tbody.append(`
+                <tr data-idx="${idx}">
+                    <td><input type="text" class="form-control member-id-number" value="${row.idNumber}" placeholder="National ID / Passport" /></td>
+                    <td><input type="text" class="form-control member-full-name" value="${row.fullName}" placeholder="Full name" /></td>
+                    <td class="align-middle">${roleBadge}</td>
+                    <td class="text-center align-middle">
+                        <button type="button" class="btn btn-danger btn-sm remove-member-row"><i class="ti ti-trash"></i></button>
+                    </td>
+                </tr>
+            `);
+        });
+    }
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+
+    function formatAmount(val) {
+        const n = parseFloat(val);
+        if (isNaN(n)) return '';
+        return n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+    function recalculateGrandTotal() {
+        const grand = denominationRows.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+        $('#grandTotalAmount').val(formatAmount(grand));
+    }
+
+    function calculateDenomRow(idx) {
+        const row  = denominationRows[idx];
+        const $row = $(`#denominationTable tbody tr[data-idx="${idx}"]`);
+        if (!$row.length) return;
+        const denom = denominationOptions.find(d => String(d.id) === String(row.denominationId));
+        const bags  = parseInt(row.numberOfBags) || 0;
+        if (!denom || bags === 0) {
+            denominationRows[idx].amount = '';
+            $row.find('.denom-amount').val('');
+            return;
+        }
+        const amount = denom.piecesInBox * denom.value * bags;
+        denominationRows[idx].amount = amount;
+        $row.find('.denom-amount').val(formatAmount(amount));
+    }
+
+    // ─── Denomination events ──────────────────────────────────────────────────
+
+    $('#denominationTable').on('change', '.denom-id', function () {
+        const idx = $(this).closest('tr').data('idx');
+        denominationRows[idx].denominationId = $(this).val();
+        calculateDenomRow(idx);
+        recalculateGrandTotal();
+    });
+
+    $('#denominationTable').on('input', '.denom-bags', function () {
+        const idx = $(this).closest('tr').data('idx');
+        denominationRows[idx].numberOfBags = $(this).val();
+        calculateDenomRow(idx);
+        recalculateGrandTotal();
+    });
+
+    $('#addDenominationRow').on('click', function () {
+        denominationRows.push({ denominationId: '', numberOfBags: '', amount: '' });
+        renderDenominationTable();
+    });
+
+    $('#denominationTable').on('click', '.remove-denom-row', function () {
+        const idx = $(this).closest('tr').data('idx');
+        if (denominationRows.length > 1) { denominationRows.splice(idx, 1); renderDenominationTable(); }
+    });
+
+    // ─── Member events ────────────────────────────────────────────────────────
+
+    $('#addMemberRow').on('click', function () {
+        memberRows.push({ idNumber: '', fullName: '', isWitness: false });
+        renderMembersTable();
+    });
+
+    $('#addWitnessRow').on('click', function () {
+        memberRows.push({ idNumber: '', fullName: '', isWitness: true });
+        renderMembersTable();
+    });
+
+    $('#membersTable').on('input', '.member-id-number', function () {
+        memberRows[$(this).closest('tr').data('idx')].idNumber = $(this).val();
+    });
+
+    $('#membersTable').on('input', '.member-full-name', function () {
+        memberRows[$(this).closest('tr').data('idx')].fullName = $(this).val();
+    });
+
+    $('#membersTable').on('click', '.remove-member-row', function () {
+        const idx = $(this).closest('tr').data('idx');
+        if (memberRows.length > 1) { memberRows.splice(idx, 1); renderMembersTable(); }
+    });
+
+    const OFFSITE_TYPE_NAME_EDIT = '@VMSService.Core.Static.StockConstants.DestructionTypes.Offsite';
+
+    $('#destructionTypeId').on('change', function () {
+        if ($('#destructionTypeId option:selected').text().trim() === OFFSITE_TYPE_NAME_EDIT) {
+            $('#locationRow').show();
+        } else {
+            $('#locationRow').hide().find('select').val('');
+        }
+    });
+
+    // ─── Submit ───────────────────────────────────────────────────────────────
+
+    $('#editRequestForm').on('submit', function (e) {
+        e.preventDefault();
+        const $btn = $('#submitBtn');
+
+        const payload = {
+            Id:                         parseInt($('#requestId').val()),
+            DestructionAuthorizationId: parseInt($('#destructionAuthorizationId').val()) || null,
+            DestructionTypeId:          parseInt($('#destructionTypeId').val()) || 0,
+            DestructionLocationId:      parseInt($('#destructionLocationId').val()) || null,
+            BranchId:             parseInt($('#branchId').val()) || 0,
+            ReferenceNumber:      $('#referenceNumber').val().trim(),
+            Date:                 $('#requestDate').val(),
+            VerificationOfficer:  $('#verificationOfficer').val().trim(),
+            Denominations: denominationRows
+                .filter(r => r.denominationId !== '')
+                .map(r => ({
+                    DenominationId: parseInt(r.denominationId) || 0,
+                    NumberOfBags:   r.numberOfBags || null,
+                    Amount:         parseFloat(r.amount) || 0
+                })),
+            Members: memberRows
+                .filter(r => r.idNumber !== '' || r.fullName !== '')
+                .map(r => ({
+                    IDNumber:  r.idNumber,
+                    FullName:  r.fullName,
+                    IsWitness: r.isWitness
+                }))
+        };
+
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Saving...');
+        $('#formAlerts').empty();
+
+        $.ajax({
+            url:         '@Url.Action("Edit")',
+            type:        'POST',
+            contentType: 'application/json',
+            data:        JSON.stringify(payload),
+            success: function (response) {
+                if (response && response.redirectUrl) {
+                    window.location.href = response.redirectUrl;
+                }
+            },
+            error: function (xhr) {
+                let msg = 'An unexpected error occurred.';
+                if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                $('#formAlerts').html(
+                    `<div class="alert alert-danger alert-dismissible fade show">
+                        <i class="ti ti-alert-triangle me-1"></i>${msg}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>`
+                );
+            },
+            complete: function () {
+                $btn.prop('disabled', false).html('<i class="ti ti-check me-1"></i>Update');
+            }
+        });
+    });
+
+    // ─── Init ─────────────────────────────────────────────────────────────────
+
+    renderDenominationTable();
+    renderMembersTable();
+});
+</script>
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

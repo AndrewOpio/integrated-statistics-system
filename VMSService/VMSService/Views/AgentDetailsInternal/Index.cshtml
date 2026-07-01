@@ -24,8 +24,9 @@
                                 <th class="border-0 rounded-start">#</th>
                                 <th class="border-0">Photo</th>
                                 <th class="border-0">Agent Names</th>
-                                <th class="border-0">NIN</th>
-                                <th class="border-0">Phone Number</th>
+                                @* <th class="border-0">NIN</th>
+                                <th class="border-0">Phone Number</th> *@
+                                <th class="border-0">Commercial Bank</th>
                                 <th class="border-0">BOU Branch</th>
                                 <th class="border-0">Status</th>
                                 <th class="border-0 rounded-end">Actions</th>
@@ -53,7 +54,7 @@
                                         }
                                     </td>
                                     <td class="fw-bold">@item.AgentNames</td>
-                                    <td>@item.NIN</td>
+                                    @* <td>@item.NIN</td>
                                     <td>
                                         @if (!string.IsNullOrEmpty(item.PhoneNumber))
                                         {
@@ -62,6 +63,18 @@
                                         else
                                         {
                                             <span class="text-muted">-</span>
+                                        }
+                                    </td> *@
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(item.CommercialBankName))
+                                        {
+                                            <span class="badge bg-info">
+                                                <i class="ti ti-building me-1"></i>@item.CommercialBankName
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
                                         }
                                     </td>
                                     <td>

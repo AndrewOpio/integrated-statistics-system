@@ -1,5 +1,6 @@
 using VMSService.Core.Models.AgentDetails;
 using VMSService.Core.Models.Attachments;
+using VMSService.Core.Models.Bags;
 using VMSService.Core.Models.CbDepositRequests;
 using WorkflowService.Client.Dto;
 
@@ -30,6 +31,7 @@ namespace VMSService.Core.Models.CbDepositRequest
         public string CbBicCode { get; init; } = string.Empty;
         public string CbCode { get; init; } = string.Empty;
         public int BouBranchId { get; init; } = 0;
+
         // Collectors
         public IEnumerable<AgentDetailViewModel> DepositAgents { get; init; } = [];
 
@@ -60,7 +62,7 @@ namespace VMSService.Core.Models.CbDepositRequest
 
         public IEnumerable<DepositRequestStatusHistoryViewModel> StatusHistory { get; set; } = [];
 
-        // Fees 
+        // Fees
         public decimal ProcessingFee { get; set; }
         public decimal MinimumDepositPenaltyFee { get; set; }
         public decimal TotalFees { get; set; }
@@ -73,5 +75,8 @@ namespace VMSService.Core.Models.CbDepositRequest
 
         // All attachments for this deposit request
         public IEnumerable<AttachmentViewModel> AllAttachments { get; set; } = [];
+
+        // Associated bags
+        public List<DepositRequestBagCardViewModel> Bags { get; set; } = [];
     }
 }

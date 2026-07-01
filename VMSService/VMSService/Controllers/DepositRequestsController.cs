@@ -3,6 +3,7 @@ using ConfigurationsService.Client;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartBreadcrumbs.Attributes;
+using System.Reflection.Emit;
 using System.Security.Claims;
 using VMSService.Controllers;
 using VMSService.Core.Authorization;
@@ -17,7 +18,6 @@ using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.Attachments;
 using VMSService.Core.Repositories.Bags;
 using VMSService.Core.Repositories.BranchCategories;
-using VMSService.Core.Repositories.Branches;
 using VMSService.Core.Repositories.Categories;
 using VMSService.Core.Repositories.CounterPartyTypes;
 using VMSService.Core.Repositories.DenominationTypes;
@@ -120,7 +120,9 @@ namespace VMSService.Web.Controllers
             else if (!canViewAllLocations && userBranches.Any())
             {
                 // If no branch selected and user is not RemittancesOfficer, show only their branches
-                List<int> userBranchIds = userBranches.Select(b => b.Id).ToList();
+                BranchDto selectBranch = userBranches.FirstOrDefault();
+                List<int> userBranchIds = [ selectBranch?.Id ?? 0 ];
+                branchCode = selectBranch?.BranchCode;
                 visibleRequests = (await _uow.Requests.FindByBouBranchIds(userBranchIds)).Where(r => r.StatusTypeId != draftStatus.Id && r.StatusTypeId != draftStatusSpecial.Id).ToList();
             }
 
@@ -283,8 +285,8 @@ namespace VMSService.Web.Controllers
             // Load all attachments for this deposit request
             var allAttachments = await _attachmentRepository.FindByEntityId(id.ToString());
             var depositAttachments = allAttachments
-                .Where(a => !a.IsDeleted && 
-                           (a.EntityType == StatusConstants.Entity.DepositRequest || 
+                .Where(a => !a.IsDeleted &&
+                           (a.EntityType == StatusConstants.Entity.DepositRequest ||
                             a.EntityType == StatusConstants.Entity.DepositRequestExceptional))
                 .Select(a => new AttachmentViewModel
                 {
@@ -365,6 +367,13 @@ namespace VMSService.Web.Controllers
                 }
             }
 
+            // Fetch bags associated with this deposit request
+            var depositBags = await _bagRepository.GetBagsByDepositRequestIdAsync(id);
+            var cbDisplayName = cb?.Name ?? string.Empty;
+            foreach (var bag in depositBags)
+                foreach (var item in bag.Items)
+                    item.CbName = cbDisplayName;
+
             var vm = new DepositRequestDetailsViewModel
             {
                 Id = request.Id,
@@ -431,7 +440,7 @@ namespace VMSService.Web.Controllers
                 TotalCoinsAmount = request.TotalCoinsAmount,
                 TotalAmount = request.TotalAmount,
                 Steps = DepositStepViewModelFactory.Build(currentStepKey,
-                    (request.StatusTypeId == approvedStatus.Id || request.StatusTypeId == completedStatus.Id), 
+                    (request.StatusTypeId == approvedStatus.Id || request.StatusTypeId == completedStatus.Id),
                     request.RequiresSpecialApproval, User),
                 StatusHistory = statusHistoryList,
                 AvailableTransitions = availableTransitions,
@@ -439,7 +448,8 @@ namespace VMSService.Web.Controllers
                 MinimumDepositPenaltyFee = penaltyFee,
                 TotalFees = processingFee + penaltyFee,
                 HasPenaltyViolations = penaltyFee > 0,
-                AllAttachments = depositAttachments
+                AllAttachments = depositAttachments,
+                Bags = depositBags,
             };
 
             return View(vm);
@@ -981,38 +991,13 @@ namespace VMSService.Web.Controllers
         /// <param name="date">Date for the bag</param>
         /// <param name="denominationValue">Denomination value</param>
         /// <returns>Next sequence number</returns>
-        private async Task<int> GetNextBagSequenceNumber(string cbCode, DateOnly date, decimal denominationValue)
+        private async Task<int> GetNextBagSequenceNumber(string cbCode, DateTime date, int denominationId, List<Bag> createdBags)
         {
             // Get all bags for this CB, date, and denomination
-            var allBags = await _bagRepository.GetAllBagsAsync();
-            
-            string dateStr = date.ToString("ddMMyy");
-            string denomShortForm = GetDenominationShortForm(denominationValue);
-            string prefix = $"{cbCode}-{dateStr}-{denomShortForm}-";
+            int dbSequence = await _bagRepository.BagSequence(date, denominationId, cbCode);
 
-            var matchingBags = allBags
-                .Where(b => b.ReferenceNumber.StartsWith(prefix))
-                .ToList();
-
-            if (!matchingBags.Any())
-            {
-                return 1;
-            }
-
-            // Extract sequence numbers and find the maximum
-            var sequenceNumbers = matchingBags
-                .Select(b =>
-                {
-                    var parts = b.ReferenceNumber.Split('-');
-                    if (parts.Length >= 4 && int.TryParse(parts[3], out int seq))
-                    {
-                        return seq;
-                    }
-                    return 0;
-                })
-                .ToList();
-
-            return sequenceNumbers.Max() + 1;
+            int createdBagsSequence = createdBags.Where(b => b.DenominationId == denominationId && b.CbCode == cbCode).Count();
+            return dbSequence + createdBagsSequence;
         }
 
         /// <summary>
@@ -1033,15 +1018,18 @@ namespace VMSService.Web.Controllers
 
             foreach (var denomination in depositRequestDenominations)
             {
-                // Skip if no bundles (e.g., coins)
+                // For coins
                 if (!denomination.Bundles.HasValue || denomination.Bundles.Value <= 0)
                 {
-                    continue;
+                    //continue;
+                    denomination.Bundles = denomination.Boxes;
                 }
 
                 int totalBundles = denomination.Bundles.Value;
                 int bundlesRemaining = totalBundles;
                 int bagCount = 0;
+
+                Category paids = (await _categoryRepository.FindAll()).FirstOrDefault(c => c.Name == StockConstants.StoreTypes.Paids);
 
                 while (bundlesRemaining > 0)
                 {
@@ -1052,8 +1040,9 @@ namespace VMSService.Web.Controllers
                     // Get next sequence number for this denomination
                     int sequence = await GetNextBagSequenceNumber(
                         depositRequest.CbCode,
-                        depositRequest.DepositDate,
-                        denomination.DenominationValue);
+                        depositRequest.DepositDate.ToDateTime(TimeOnly.MinValue),
+                        denomination.DenominationId,
+                        createdBags);
 
                     // Generate bag reference number
                     string bagReferenceNumber = GenerateBagReferenceNumber(
@@ -1068,11 +1057,10 @@ namespace VMSService.Web.Controllers
                         ReferenceNumber = bagReferenceNumber,
                         DenominationId = denomination.DenominationId,
                         BranchId = depositRequest.BouBranchId,
+                        CbCode = depositRequest.CbCode,
                         IsDeleted = false,
-                        //CreatedBy = username,
-                        //CreatedDate = DateTime.Now,
-                        //ModifiedBy = username,
-                        //ModifiedDate = DateTime.Now
+                        SubCategoryId = denomination.SubCategoryId,
+                        CategoryId = paids?.Id
                     };
 
                     // Create bag denomination link
@@ -1081,10 +1069,7 @@ namespace VMSService.Web.Controllers
                         Bag = bag,
                         DepositRequestDenominationId = denomination.Id,
                         IsDeleted = false,
-                        //CreatedBy = username,
-                        //CreatedDate = DateTime.Now,
-                        //ModifiedBy = username,
-                        //ModifiedDate = DateTime.Now
+                        NumberOfBundlesOrBoxes = bundlesInThisBag
                     };
 
                     bag.BagDenominations.Add(bagDenomination);
@@ -1115,7 +1100,8 @@ namespace VMSService.Web.Controllers
                         ReferenceNumber = bag.ReferenceNumber,
                         DenominationId = bag.DenominationId,
                         BranchId = bag.BranchId,
-                        VaultSectionId = bag.VaultSectionId
+                        VaultSectionId = bag.VaultSectionId,
+                        CbCode = bag.CbCode,
                     };
 
                     var createdBag = await _bagRepository.CreateBagAsync(createBagModel);

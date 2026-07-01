@@ -93,8 +93,8 @@
                                         <td>@item.StartCaseNumber</td>
                                         <td>@item.EndCaseNumber</td>
                                         <td>@item.SNPrefix</td>
-                                        <td>@item.SNRangeStart</td>
-                                        <td>@item.SNRangeEnd</td>
+                                        <td>@($"{item.SNRangeStart:D7}")</td>
+                                        <td>@($"{item.SNRangeEnd:D7}")</td>
                                         <td>
                                             <div class="btn-group" role="group">
                                                 @if (isVerified)

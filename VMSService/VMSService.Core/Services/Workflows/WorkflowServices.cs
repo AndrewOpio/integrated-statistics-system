@@ -5,10 +5,24 @@ using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.AgentDetailStatusHistories;
 using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
+using VMSService.Core.Repositories.EodDiscrepancyReportStatusHistories;
+using VMSService.Core.Repositories.EodDiscrepancyReports;
+using VMSService.Core.Repositories.MonthlySurpluses;
+using VMSService.Core.Repositories.MonthlySurplusStatusHistories;
+using VMSService.Core.Repositories.MonthlyShortages;
+using VMSService.Core.Repositories.MonthlyShortageStatusHistories;
+using VMSService.Core.Repositories.MonthlyCommercialBankSettlements;
+using VMSService.Core.Repositories.MonthlyCommercialBankSettlementStatusHistories;
+using VMSService.Core.Repositories.DestructionAuthorizationStatusHistories;
+using VMSService.Core.Repositories.DestructionAuthorizations;
+using VMSService.Core.Repositories.DestructionRequestStatusHistories;
+using VMSService.Core.Repositories.DestructionRequests;
 using VMSService.Core.Repositories.DepositUnitOfWorks;
 using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.ReceivedStocks;
+using VMSService.Core.Repositories.StockProcessingPlans;
+using VMSService.Core.Repositories.StockProcessingPlanStatusHistories;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
 using VMSService.Core.Repositories.StockMovementDiscrepancies;
 using VMSService.Core.Repositories.StockMovements;
@@ -30,6 +44,8 @@ namespace VMSService.Core.Services.Workflows
         IExPrintMintRepository _exPrintMintRepository,
         IReceivedStockRepository _receivedStockRepository,
         IExPrintMintStatusHistoryRepository _exPrintMintStatusHistoryRepository,
+        IStockProcessingPlanRepository _stockProcessingPlanRepository,
+        IStockProcessingPlanStatusHistoryRepository _stockProcessingPlanStatusHistoryRepository,
         IReceivedStockStatusHistoryRepository _receivedStockStatusHistoryRepository,
         IStockMovementRepository _stockMovementRepository,
         IStockMovementStatusHistoryRepository _stockMovementStatusHistoryRepository,
@@ -41,7 +57,19 @@ namespace VMSService.Core.Services.Workflows
         IWithdrawalUnitOfWork _uow,
         IAgentDetailRepository _agentDetailRepository,
         IAgentDetailStatusHistoryRepository _agentDetailStatusHistoryRepository,
-        IDepositUnitOfWork _duow) : IWorkflowService
+        IDepositUnitOfWork _duow,
+        IDestructionRequestRepository _destructionRequestRepository,
+        IDestructionRequestStatusHistoryRepository _destructionStatusHistoryRepository,
+        IDestructionAuthorizationRepository _destructionAuthorizationRepository,
+        IDestructionAuthorizationStatusHistoryRepository _destructionAuthorizationStatusHistoryRepository,
+        IEodDiscrepancyReportRepository _cfbReportRepository,
+        IEodDiscrepancyReportStatusHistoryRepository _cfbReportStatusHistoryRepository,
+        IMonthlySurplusRepository _monthlySurplusRepository,
+        IMonthlySurplusStatusHistoryRepository _monthlySurplusStatusHistoryRepository,
+        IMonthlyShortageRepository _monthlyShortageRepository,
+        IMonthlyShortageStatusHistoryRepository _monthlyShortageStatusHistoryRepository,
+        IMonthlyCommercialBankSettlementRepository _cbSettlementRepository,
+        IMonthlyCommercialBankSettlementStatusHistoryRepository _cbSettlementStatusHistoryRepository) : IWorkflowService
     {
 
 
@@ -92,6 +120,24 @@ namespace VMSService.Core.Services.Workflows
 
                     case StatusConstants.Entity.AgentDetail:
                         return await HandleAgentDetailTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
+
+                    case StatusConstants.Entity.DestructionRequest:
+                        return await HandleDestructionRequestTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
+
+                    case StatusConstants.Entity.DestructionAuthorization:
+                        return await HandleDestructionAuthorizationTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
+
+                    case StatusConstants.Entity.CfbReport:
+                        return await HandleCfbReportTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
+
+                    case StatusConstants.Entity.MonthlySurpluses:
+                        return await HandleMonthlySurplusTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
+
+                    case StatusConstants.Entity.MonthlyShortages:
+                        return await HandleMonthlyShortageTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
+
+                    case StatusConstants.Entity.MonthlyCommercialBankSettlements:
+                        return await HandleMonthlyCommercialBankSettlementTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
 
                     default:
                         _logger.LogWarning("Unknown entity type: {EntityType}", entityType);
@@ -452,8 +498,7 @@ namespace VMSService.Core.Services.Workflows
                     Recipients = recipients.ToList(),
                 };
 
-                //var notificationId = await _notificationServiceClient.SendAsync(notificationRequest);
-                var notificationId = new Guid();
+                var notificationId = await _notificationServiceClient.SendAsync(notificationRequest);
 
                 _logger.LogInformation("Notification sent successfully. NotificationId: {NotificationId} for entity {Entity}",
                     notificationId, entityDescription);
@@ -530,7 +575,7 @@ namespace VMSService.Core.Services.Workflows
                 return false;
             }
 
-            // Verify current status matches — prevents race conditions
+            // Verify current status matches ï¿½ prevents race conditions
             if (request.StatusTypeId != currentStatusId)
             {
                 _logger.LogWarning(
@@ -561,7 +606,7 @@ namespace VMSService.Core.Services.Workflows
             request.ModifiedBy = username;
             request.ModifiedDate = DateTime.Now;
 
-            // If supervisor is submitting to bank — generate ref number + copy denominations
+            // If supervisor is submitting to bank ï¿½ generate ref number + copy denominations
             //if (transition.ToStatusId == WithdrawStatuses.WithdrawalStatusIds.SubmittedToBOU)
             //{
             //    //request.SupervisorUserId = username;
@@ -643,11 +688,11 @@ namespace VMSService.Core.Services.Workflows
             // Send notifications
             if (transition.SendNotification)
             {
-                //await SendTransitionNotification(
-                //$"Deposit {deposit.TransactionRefNumber} (UGX {deposit.TotalAmount:N0})",
-                //transition,
-                //transition.ToStatus.Name,
-                //username, remarks);
+                await SendTransitionNotification(
+                $"Deposit {deposit.TransactionRefNumber} (UGX {deposit.TotalAmount:N0})",
+                transition,
+                transition.ToStatus.Name,
+                username, remarks);
             }
 
             _logger.LogInformation(
@@ -679,6 +724,57 @@ namespace VMSService.Core.Services.Workflows
                     entityType, statusId);
                 return new List<WorkflowTransitionDto>();
             }
+        }
+
+        private async Task<bool> HandleStockProcessingPlanTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
+        {
+            var plan = await _stockProcessingPlanRepository.FindById(entityId);
+            if (plan == null)
+            {
+                _logger.LogWarning("Stock Processing Plan {Id} not found", entityId);
+                return false;
+            }
+
+            if (plan.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Stock Processing Plan {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, plan.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new StockProcessingPlanStatusHistory
+            {
+                StockProcessingPlanId = entityId,
+                OldStatusId = plan.CurrentStatusId,
+                NewStatusId = transition.ToStatusId,
+                ChangedBy = username,
+                ChangedAt = DateTime.Now,
+                Remarks = remarks,
+                Attachments = attachmentIds != null && attachmentIds.Any()
+                    ? string.Join(",", attachmentIds)
+                    : null,
+                IsDeleted = false
+            };
+
+            await _stockProcessingPlanStatusHistoryRepository.Create(statusHistory);
+
+            plan.CurrentStatusId = transition.ToStatusId;
+            await _stockProcessingPlanRepository.Update(plan);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"Stock Processing Plan #{entityId}",
+                    transition,
+                    transition.ToStatus.Name,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("Stock Processing Plan {Id} transitioned from status {From} to {To} by user {Username} with action {Action}. Attachments: {AttachmentCount}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName, attachmentIds?.Count ?? 0);
+
+            return true;
         }
 
         private async Task<bool> HandleAgentDetailTransitions(int entityId, int currentStatusId, string actionName,
@@ -732,6 +828,324 @@ namespace VMSService.Core.Services.Workflows
 
             _logger.LogInformation("Agent Detail {Id} transitioned from status {From} to {To} by user {Username} with action {Action}. Attachments: {AttachmentCount}",
                 entityId, currentStatusId, transition.ToStatusId, username, actionName, attachmentIds?.Count ?? 0);
+
+            return true;
+        }
+
+        private async Task<bool> HandleDestructionRequestTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
+        {
+            var request = await _destructionRequestRepository.FindById(entityId);
+            if (request == null)
+            {
+                _logger.LogWarning("Destruction Request {Id} not found", entityId);
+                return false;
+            }
+
+            if (request.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Destruction Request {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, request.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new DestructionRequestStatusHistory
+            {
+                DestructionRequestId = entityId,
+                OldStatusId          = request.CurrentStatusId,
+                OldStatusName        = request.CurrentStatusName,
+                NewStatusId          = transition.ToStatusId,
+                NewStatusName        = transition.ToStatus.Name,
+                ChangedBy            = username,
+                ChangedAt            = DateTime.Now,
+                Remarks              = remarks,
+                AttachmentIds        = attachmentIds != null && attachmentIds.Any()
+                                           ? string.Join(",", attachmentIds)
+                                           : null,
+                IsDeleted            = false
+            };
+
+            await _destructionStatusHistoryRepository.Create(statusHistory);
+
+            request.CurrentStatusId = transition.ToStatusId;
+            request.CurrentStatusName = transition.ToStatus.Name;
+            await _destructionRequestRepository.Update(request);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"Destruction Request {request.ReferenceNumber}",
+                    transition,
+                    statusHistory.NewStatusName,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("Destruction Request {Id} transitioned from status {From} to {To} by user {Username} with action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
+        private async Task<bool> HandleCfbReportTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition)
+        {
+            var report = await _cfbReportRepository.FindById(entityId);
+            if (report == null)
+            {
+                _logger.LogWarning("CFB Report {Id} not found", entityId);
+                return false;
+            }
+
+            if (report.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("CFB Report {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, report.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new EodDiscrepancyReportStatusHistory
+            {
+                EodDiscrepancyReportId = entityId,
+                OldStatusId   = report.CurrentStatusId,
+                OldStatusName = report.CurrentStatusName,
+                NewStatusId   = transition.ToStatusId,
+                NewStatusName = transition.ToStatus.Name,
+                ChangedBy     = username,
+                ChangedAt     = DateTime.Now,
+                Remarks       = remarks,
+                IsDeleted     = false
+            };
+
+            await _cfbReportStatusHistoryRepository.Create(statusHistory);
+
+            report.CurrentStatusId   = transition.ToStatusId;
+            report.CurrentStatusName = transition.ToStatus.Name;
+            await _cfbReportRepository.Update(report);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"CFB Report {report.ReferenceNumber}",
+                    transition,
+                    statusHistory.NewStatusName,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("CFB Report {Id} transitioned from status {From} to {To} by user {Username} with action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
+        private async Task<bool> HandleMonthlySurplusTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
+        {
+            var settlement = await _monthlySurplusRepository.FindById(entityId);
+            if (settlement == null)
+            {
+                _logger.LogWarning("Monthly Settlement {Id} not found", entityId);
+                return false;
+            }
+
+            if (settlement.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Monthly Settlement {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, settlement.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new MonthlySurplusStatusHistory
+            {
+                MonthlySurplusId = entityId,
+                OldStatusId         = settlement.CurrentStatusId,
+                OldStatusName       = settlement.CurrentStatusName,
+                NewStatusId         = transition.ToStatusId,
+                NewStatusName       = transition.ToStatus.Name,
+                ChangedBy           = username,
+                ChangedAt           = DateTime.Now,
+                Remarks             = remarks,
+                AttachmentIds       = attachmentIds != null && attachmentIds.Any()
+                                          ? string.Join(",", attachmentIds)
+                                          : null,
+                IsDeleted           = false
+            };
+
+            await _monthlySurplusStatusHistoryRepository.Create(statusHistory);
+
+            settlement.CurrentStatusId   = transition.ToStatusId;
+            settlement.CurrentStatusName = transition.ToStatus.Name;
+            await _monthlySurplusRepository.Update(settlement);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"Monthly Settlement {settlement.ReferenceNumber}",
+                    transition,
+                    statusHistory.NewStatusName,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("Monthly Settlement {Id} transitioned from {From} to {To} by {Username} via action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
+        private async Task<bool> HandleMonthlyShortageTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
+        {
+            var shortage = await _monthlyShortageRepository.FindById(entityId);
+            if (shortage == null)
+            {
+                _logger.LogWarning("Monthly Shortage {Id} not found", entityId);
+                return false;
+            }
+
+            if (shortage.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Monthly Shortage {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, shortage.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new MonthlyShortageStatusHistory
+            {
+                MonthlyShortageId = entityId,
+                OldStatusId       = shortage.CurrentStatusId,
+                OldStatusName     = shortage.CurrentStatusName,
+                NewStatusId       = transition.ToStatusId,
+                NewStatusName     = transition.ToStatus.Name,
+                ChangedBy         = username,
+                ChangedAt         = DateTime.Now,
+                Remarks           = remarks,
+                AttachmentIds     = attachmentIds != null && attachmentIds.Count > 0
+                                        ? string.Join(",", attachmentIds)
+                                        : null,
+                IsDeleted         = false
+            };
+
+            await _monthlyShortageStatusHistoryRepository.Create(statusHistory);
+
+            shortage.CurrentStatusId   = transition.ToStatusId;
+            shortage.CurrentStatusName = transition.ToStatus.Name;
+            await _monthlyShortageRepository.Update(shortage);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"Monthly Shortage {shortage.ReferenceNumber}",
+                    transition,
+                    statusHistory.NewStatusName,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("Monthly Shortage {Id} transitioned from {From} to {To} by {Username} via action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
+        private async Task<bool> HandleMonthlyCommercialBankSettlementTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
+        {
+            var settlement = await _cbSettlementRepository.FindById(entityId);
+            if (settlement == null)
+            {
+                _logger.LogWarning("CB Settlement {Id} not found", entityId);
+                return false;
+            }
+
+            if (settlement.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("CB Settlement {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, settlement.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new MonthlyCommercialBankSettlementStatusHistory
+            {
+                MonthlyCommercialBankSettlementId = entityId,
+                OldStatusId   = settlement.CurrentStatusId,
+                OldStatusName = settlement.CurrentStatusName,
+                NewStatusId   = transition.ToStatusId,
+                NewStatusName = transition.ToStatus.Name,
+                ChangedBy     = username,
+                ChangedAt     = DateTime.Now,
+                Remarks       = remarks,
+                AttachmentIds = attachmentIds != null && attachmentIds.Count > 0
+                                    ? string.Join(",", attachmentIds)
+                                    : null,
+                IsDeleted     = false
+            };
+
+            await _cbSettlementStatusHistoryRepository.Create(statusHistory);
+
+            settlement.CurrentStatusId   = transition.ToStatusId;
+            settlement.CurrentStatusName = transition.ToStatus.Name;
+            await _cbSettlementRepository.Update(settlement);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"CB Settlement {settlement.ReferenceNumber}",
+                    transition,
+                    statusHistory.NewStatusName,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("CB Settlement {Id} transitioned from {From} to {To} by {Username} via action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
+        private async Task<bool> HandleDestructionAuthorizationTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition)
+        {
+            var authorization = await _destructionAuthorizationRepository.FindById(entityId);
+            if (authorization == null)
+            {
+                _logger.LogWarning("Destruction Authorization {Id} not found", entityId);
+                return false;
+            }
+
+            if (authorization.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Destruction Authorization {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, authorization.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new DestructionAuthorizationStatusHistory
+            {
+                DestructionAuthorizationId = entityId,
+                OldStatusId               = authorization.CurrentStatusId,
+                OldStatusName             = authorization.CurrentStatusName,
+                NewStatusId               = transition.ToStatusId,
+                NewStatusName             = transition.ToStatus.Name,
+                ChangedBy                 = username,
+                ChangedAt                 = DateTime.Now,
+                Remarks                   = remarks,
+                IsDeleted                 = false
+            };
+
+            await _destructionAuthorizationStatusHistoryRepository.Create(statusHistory);
+
+            authorization.CurrentStatusId   = transition.ToStatusId;
+            authorization.CurrentStatusName = transition.ToStatus.Name;
+            await _destructionAuthorizationRepository.Update(authorization);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"Destruction Authorization {authorization.ReferenceNumber}",
+                    transition,
+                    statusHistory.NewStatusName,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("Destruction Authorization {Id} transitioned from status {From} to {To} by user {Username} with action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
 
             return true;
         }

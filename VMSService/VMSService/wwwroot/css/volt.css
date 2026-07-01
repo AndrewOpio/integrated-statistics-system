@@ -27138,7 +27138,7 @@ label {
 
 .table td .progress {
     height: 3px;
-    width: 120px;
+    /*width: 120px;*/
     margin: 0
 }
 

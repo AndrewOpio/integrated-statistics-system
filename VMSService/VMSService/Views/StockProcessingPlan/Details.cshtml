@@ -1,0 +1,295 @@
+@using VMSService.Core.Models.StockProcessingPlans
+@using VMSService.Core.Models.Shared
+@model StockProcessingPlanDetailsViewModel
+
+@{
+    ViewData["Title"] = "Processing Plan Details";
+}
+
+<style>
+    .room-card-header {
+        background: #fff;
+        border-bottom: 1px solid #e9ecef;
+        border-top: 3px solid #31316A;
+        border-radius: .5rem .5rem 0 0;
+    }
+    .board-chip-ro {
+        display: inline-flex; flex-direction: column;
+        padding: .2rem .5rem; border-radius: .4rem; font-size: .72rem;
+        background: #e3f2fd; color: #0d47a1; border: 1.5px solid #90caf9;
+        vertical-align: top;
+        text-decoration: none;
+    }
+    .board-chip-ro.bag-full { background: #fff3cd; color: #664d03; border-color: rgba(102,77,3,.2); }
+    a.board-chip-ro:hover { filter: brightness(.95); text-decoration: none; }
+    .board-chip-ref { font-weight: 700; font-size: .73rem; }
+    .board-chip-meta { font-size: .63rem; opacity: .75; }
+</style>
+
+@* Page Header *@
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <div class="d-flex align-items-center gap-3">
+        <a asp-action="Index" class="btn btn-sm btn-outline-secondary">
+            <i class="ti ti-arrow-left me-1"></i>Back to List
+        </a>
+        <div>
+            <p class="text-muted small mb-0">Processing Plan Details</p>
+            <h4 class="fw-bold mb-0" style="color:#31316A;">@Model.ProcessingDate.ToString("dd MMMM yyyy")</h4>
+        </div>
+        @if (!string.IsNullOrEmpty(Model.BranchName))
+        {
+            <span class="badge bg-primary p-2 more-rounded"><i class="ti ti-building me-1"></i>@Model.BranchName</span>
+        }
+        <span class="badge bg-info p-2 more-rounded"><i class="ti ti-badge me-1"></i>@Model.CurrentStatusName</span>
+    </div>
+    @if (Model.CurrentStatusName == VMSService.Core.Static.StatusConstants.StockProcessingPlan.Draft ||
+         Model.CurrentStatusName == VMSService.Core.Static.StatusConstants.StockProcessingPlan.PendingVerification)
+    {
+        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary">
+            <i class="ti ti-edit me-1"></i>Edit Plan
+        </a>
+    }
+</div>
+
+@* Counting Rooms with Processing Boards *@
+@if (!Model.CountingRooms.Any())
+{
+    <div class="card border-0 shadow">
+        <div class="card-body text-center py-5">
+            <i class="ti ti-door d-block mb-3 text-secondary" style="font-size:3rem;opacity:.4;"></i>
+            <p class="fw-semibold text-muted mb-1">No Counting Rooms configured for this branch</p>
+        </div>
+    </div>
+}
+
+
+
+@foreach (var room in Model.CountingRooms)
+{
+    <div class="card border-0 shadow mb-4">
+        <div class="room-card-header d-flex align-items-center px-3 py-2 gap-3">
+            <div class="rounded d-flex align-items-center justify-content-center flex-shrink-0"
+                 style="width:32px;height:32px;background:rgba(49,49,106,.08);">
+                <i class="ti ti-door" style="color:#31316A;font-size:.9rem;"></i>
+            </div>
+            <div class="flex-shrink-0">
+                <h6 class="fw-bold mb-0" style="color:#31316A;">@room.Name</h6>
+                <span class="small text-muted">@room.Boards.Count board@(room.Boards.Count == 1 ? "" : "s")</span>
+            </div>
+            <div class="ms-auto d-flex align-items-center gap-2 flex-shrink-0">
+                <i class="ti ti-user-check" style="color:#31316A"></i> Supervisor:
+                @if (!string.IsNullOrEmpty(room.BoardSupervisorName))
+                {
+                    <span class="fw-semibold" style="color:#31316A;">@room.BoardSupervisorName</span>
+                }
+                else
+                {
+                    <span class="text-muted fst-italic">Not Assigned</span>
+                }
+            </div>
+        </div>
+        <div class="card-body p-3">
+            @if (!room.Boards.Any())
+            {
+                <div class="text-center py-4 text-muted">
+                    <i class="ti ti-layout-grid-remove d-block mb-2" style="font-size:2rem;opacity:.4;"></i>
+                    <p class="small mb-0">No Processing Boards in this room</p>
+                </div>
+            }
+            else
+            {
+                <div class="row g-3">
+                    @foreach (var board in room.Boards)
+                    {
+                        <div class="col-12 col-md-6 col-xl-4">
+                            <div class="border rounded-3 h-100" style="border-color:#e9ecef!important;">
+                                <div class="p-1 ps-3 border-bottom d-flex align-items-center"
+                                     style="background:#f8fafc;border-radius:1rem 1rem 0 0;">
+                                    <i class="ti ti-cpu me-2" style="color:#31316A;"></i>
+                                    <div>
+                                        <span class="fw-semibold small">@board.Name</span>
+                                        @if (!string.IsNullOrEmpty(board.MachineName))
+                                        {
+                                            <p class="mb-0" style="font-size:.68rem;color:#6c757d;">@board.MachineName</p>
+                                        }
+                                    </div>
+                                    <span class="ms-auto badge bg-light text-dark" style="font-size:.7rem;">
+                                        @board.Bags.Count bag@(board.Bags.Count == 1 ? "" : "s")
+                                    </span>
+                                </div>
+                                <div class="p-3">
+                                    @if (!board.Bags.Any())
+                                    {
+                                        <p class="small text-muted text-center mb-0" style="padding:.5rem 0;">
+                                            No bags assigned
+                                        </p>
+                                    }
+                                    else
+                                    {
+                                        <div class="d-flex flex-wrap gap-1">
+                                            @foreach (var bag in board.Bags)
+                                            {
+                                                <a asp-controller="Bagging" asp-action="Details" asp-route-id="@bag.Id" class="board-chip-ro" title="View bag details">
+                                                    <span class="board-chip-ref">
+                                                        <i class="ti ti-package" style="font-size:.65rem;"></i> @bag.ReferenceNumber
+                                                    </span>
+                                                    <span class="board-chip-meta">
+                                                        @if (bag.DenominationValue > 0)
+                                                        {
+                                                            <text>UGX @bag.DenominationValue.ToString("N0")</text>
+                                                        }
+                                                        @if (!string.IsNullOrEmpty(bag.SubCategoryName))
+                                                        {
+                                                            if (bag.DenominationValue > 0)
+                                                            {
+                                                                <text> &middot; </text>
+                                                            }
+                                                            <text>@bag.SubCategoryName</text>
+                                                        }
+                                                    </span>
+                                                    <span class="board-chip-meta">@bag.TotalBundles bdls · @bag.TotalAmount.ToString("N0")</span>
+                                                </a>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@* Processing Sessions *@
+@if (Model.Sessions.Any())
+{
+    <div class="card border-0 shadow mb-4">
+        <div class="card-header bg-white border-bottom d-flex align-items-center py-2 px-3"
+             style="border-top:3px solid #31316A;border-radius:.5rem .5rem 0 0;">
+            <div class="rounded d-flex align-items-center justify-content-center me-2"
+                 style="width:32px;height:32px;background:rgba(49,49,106,.08);flex-shrink:0;">
+                <i class="ti ti-list-check" style="color:#31316A;font-size:.9rem;"></i>
+            </div>
+            <div>
+                <h6 class="fw-bold mb-0" style="color:#31316A;">Processing Sessions</h6>
+                <span class="small text-muted">@Model.Sessions.Count session@(Model.Sessions.Count == 1 ? "" : "s") generated</span>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 small">
+                    <thead style="background:#f8fafc;">
+                        <tr>
+                            <th class="ps-3 py-2 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">WASTE NUMBER</th>
+                            <th class="py-2 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">PROCESSING BOARD</th>
+                            <th class="py-2 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">COMMERCIAL BANK</th>
+                            <th class="py-2 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">DENOMINATION</th>
+                            <th class="py-2 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">BAG</th>
+                            <th class="py-2 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">STATUS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var session in Model.Sessions)
+                        {
+                            <tr>
+                                <td class="ps-3 py-2 fw-semibold" style="color:#31316A;font-size:.8rem;">
+                                    <i class="ti ti-hash me-1 text-muted" style="font-size:.7rem;"></i>@session.ReferenceNumber
+                                </td>
+                                <td class="py-2">
+                                    @if (!string.IsNullOrEmpty(session.BoardName))
+                                    {
+                                        <span class="fw-semibold">@session.BoardName</span>
+                                        @if (!string.IsNullOrEmpty(session.MachineName))
+                                        {
+                                            <br />
+                            
+                                            <span class="text-muted" style="font-size:.68rem;">@session.MachineName</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="py-2">
+                                    @if (!string.IsNullOrEmpty(session.CommercialBankName))
+                                    {
+                                        <span class="fw-semibold">@session.CommercialBankName</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="py-2">
+                                    @if (session.DenominationValue > 0)
+                                    {
+                                        <span class="fw-semibold">UGX @session.DenominationValue.ToString("N0")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="py-2">
+                                    @foreach (var bagInfo in session.Bags)
+                                    {
+                                        <span class="board-chip-ro me-1 mb-1">
+                                            <span class="board-chip-ref"><i class="ti ti-package" style="font-size:.6rem;"></i> @bagInfo.ReferenceNumber</span>
+                                            @if (bagInfo.DenominationValue > 0)
+                                            {
+                                                <span class="board-chip-meta">UGX @bagInfo.DenominationValue.ToString("N0") &middot; @bagInfo.SubCategoryName</span>
+                                            }
+                                            @if (!string.IsNullOrEmpty(bagInfo.SubCategoryName))
+                                            {
+                                                <span class="board-chip-meta">@bagInfo.TotalBundles bdls &middot; @bagInfo.TotalAmount.ToString("N0")</span>
+                                            }
+                                        </span>
+                                    }
+                                </td>
+                                <td class="py-2">
+                                    <span class="badge bg-info"><i class="ti ti-badge"></i>@session.CurrentStatusName</span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+@* Workflow Attachments *@
+@await Html.PartialAsync("_WorkflowAttachments", Model.AllAttachments)
+
+@* Workflow Comments *@
+@{
+    var statusHistoryViewModel = Model.StatusHistory?.Select(h => new StatusHistoryViewModel
+    {
+        OldStatusName = h.OldStatusName,
+        NewStatusName = h.NewStatusName,
+        ChangedBy = h.ChangedBy,
+        ChangedAt = h.ChangedAt,
+        Remarks = h.Remarks,
+        Attachments = h.AttachmentFiles ?? new List<VMSService.Core.Models.Attachments.AttachmentViewModel>()
+    }).ToList() ?? new List<StatusHistoryViewModel>();
+}
+@await Html.PartialAsync("_WorkflowComments", statusHistoryViewModel)
+
+@* Workflow Actions *@
+@{
+    var workflowActionsViewModel = new WorkflowActionsViewModel
+    {
+        EntityId = Model.Id,
+        ControllerName = "StockProcessingPlan",
+        AvailableTransitions = Model.AvailableTransitions ?? new List<WorkflowService.Client.Dto.WorkflowTransitionDto>(),
+        IsValid = true
+    };
+}
+@await Html.PartialAsync("_WorkflowActions", workflowActionsViewModel)
+
+@section Scripts {
+    @await Html.PartialAsync("_WorkflowActionsScript")
+}

@@ -4,16 +4,16 @@
 
     @if (Model.IsInProgress)
     {
-        <div class="d-flex align-items-center gap-2 text-white-50 mb-3">
+        <div class="d-flex align-items-center gap-2 text-light mb-3">
             <i class="ti ti-clock-hour-4 fs-5"></i>
             <span>Your request has been submitted and is currently being processed by the BOU.</span>
         </div>
     }
     @if (Model.IsApproved)
     {
-        <div class="d-flex align-items-center gap-2 text-success mb-3">
+        <div class="d-flex align-items-center gap-2 mb-3" style="color: aquamarine;">
             <i class="ti ti-circle-check fs-5"></i>
-            <span>Your request has been approved.</span>
+            <span>Your withdrawal request has been approved.</span>
         </div>
     }
 
@@ -40,7 +40,7 @@
                 <div class="sp-icon">
                     @if (step.ShowCheckIcon)
                     {
-                        <i class="ti ti-check"></i>
+                        <i class="ti ti-circle-check"></i>
                     }
                     else
                     {

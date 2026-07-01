@@ -12,12 +12,10 @@ namespace VMSService.Data.Entities
         public int CategoryId { get; set; }
         public int? ProcessingBoardId { get; set; }
         public ProcessingBoard? ProcessingBoard { get; set; }
-        public Guid? DepositRequestDenominationId { get; set; }
-        public DepositRequestDenomination? DepositRequestDenomination { get; set; }
-        public int? BagId { get; set; }
-        public Bag? Bag { get; set; }
         public int CurrentStatusId { get; set; }
         public bool IsManual { get; set; } = false;
         public bool IsDeleted { get; set; } = false;
+        public ICollection<ProcessingSessionBag> ProcessingSessionBags { get; set; } = [];
+        public int DenominationId { get; set; }
     }
 }

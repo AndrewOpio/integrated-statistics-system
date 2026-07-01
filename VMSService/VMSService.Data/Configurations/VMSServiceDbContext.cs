@@ -39,6 +39,7 @@ namespace VMSService.Data.Configurations
         public DbSet<WithdrawalRequestDenomination> WithdrawalRequestDenominations { get; set; }
         public DbSet<WithdrawalRequestStatusHistory> WithdrawalRequestStatusHistory { get; set; }
         public DbSet<AgentDetailStatusHistory> AgentDetailStatusHistory { get; set; }
+        public DbSet<WithdrawalRequestDenominationBox> WithdrawalRequestDenominationBoxes => Set<WithdrawalRequestDenominationBox>();
 
         public DbSet<LogisticsStatusHistory> LogisticsStatusHistory { get; set; }
         public DbSet<ReceivedStatusTypes> ReceivedStatusTypes { get; set; }
@@ -49,7 +50,7 @@ namespace VMSService.Data.Configurations
         public DbSet<ReceivedStockDetails> ReceivedStockDetails { get; set; }
         public DbSet<NewStockAccountingStatus> NewStockAccountingStatuses { get; set; }
 
-                // Deposit
+        // Deposit
         public DbSet<DepositRequest> DepositRequests { get; set; }
         public DbSet<DepositRequestAgent> DepositRequestAgents { get; set; }
         public DbSet<DepositRequestDenomination> DepositRequestDenominations { get; set; }
@@ -60,6 +61,7 @@ namespace VMSService.Data.Configurations
         public DbSet<DepositFee> DepositFees { get; set; }
         public DbSet<Attachment> Attachments { get; set; }
 
+        public DbSet<BoxState> BoxStates { get; set; }
         // Processing
         public DbSet<ProcessingBoard> ProcessingBoards { get; set; }
         public DbSet<BPSMachine> BPSMachines { get; set; }
@@ -75,6 +77,41 @@ namespace VMSService.Data.Configurations
         public DbSet<BaggedBag> BaggedBags { get; set; }
         public DbSet<BagMovement> BagMovements { get; set; }
         public DbSet<BagMovementStatusHistory> BagMovementStatusHistory { get; set; }
+        public DbSet<SessionBag> SessionBags { get; set; }
+        public DbSet<CountingRoom> CountingRooms { get; set; }
+        public DbSet<CountingRoomSession> CountingRoomSessions { get; set; }
+        public DbSet<ProcessingSessionBag> ProcessingSessionBags { get; set; }
+
+        // End of Day Discrepancies
+        public DbSet<EodDiscrepancyReport> EodDiscrepancyReports { get; set; }
+        public DbSet<EodDiscrepancyReportEntry> EodDiscrepancyReportEntries { get; set; }
+        public DbSet<BoardSessionSurplusShortage> BoardSessionSurplusShortages { get; set; }
+        public DbSet<BoardSessionDifferentDenom> BoardSessionDifferentDenoms { get; set; }
+        public DbSet<EodDiscrepancyReportStatusHistory> EodDiscrepancyReportStatusHistories { get; set; }
+
+        // Monthly Surplus
+        public DbSet<MonthlySurplus> MonthlySurpluses { get; set; }
+        public DbSet<MonthlySurplusStatusHistory> MonthlySurplusStatusHistories { get; set; }
+
+        // Monthly Shortage
+        public DbSet<MonthlyShortage> MonthlyShortages { get; set; }
+        public DbSet<MonthlyShortageDetail> MonthlyShortageDetails { get; set; }
+        public DbSet<MonthlyShortageStatusHistory> MonthlyShortageStatusHistories { get; set; }
+
+        // Monthly Commercial Bank Settlement
+        public DbSet<MonthlyCommercialBankSettlement> MonthlyCommercialBankSettlements { get; set; }
+        public DbSet<MonthlyCommercialBankSettlementStatusHistory> MonthlyCommercialBankSettlementStatusHistories { get; set; }
+
+        // Destruction
+        public DbSet<DestructionRequest> DestructionRequests { get; set; }
+        public DbSet<DestructionRequestDenomination> DestructionRequestDenominations { get; set; }
+        public DbSet<DestructionRequestMember> DestructionRequestMembers { get; set; }
+        public DbSet<DestructionRequestStatusHistory> DestructionRequestStatusHistory { get; set; }
+        public DbSet<DestructionType> DestructionTypes { get; set; }
+        public DbSet<DestructionLocation> DestructionLocations { get; set; }
+        public DbSet<DestructionAuthorization> DestructionAuthorizations { get; set; }
+        public DbSet<DestructionAuthorizationDenomination> DestructionAuthorizationDenominations { get; set; }
+        public DbSet<DestructionAuthorizationStatusHistory> DestructionAuthorizationStatusHistory { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -101,7 +138,7 @@ namespace VMSService.Data.Configurations
                 .OnDelete(DeleteBehavior.NoAction);
 
             // Configure StockMovementStatusHistory foreign keys to prevent cascade delete conflicts
-        
+
             modelBuilder.Entity<StockMovementStatusHistory>()
                 .HasOne(x => x.StockMovement)
                 .WithMany(x => x.StatusHistory)
@@ -127,7 +164,12 @@ namespace VMSService.Data.Configurations
             modelBuilder.Entity<WithdrawalRequest>()
                 .HasIndex(r => r.TransactionRefNumber)
                 .IsUnique()
-                .HasFilter("[TransactionRefNumber] IS NOT NULL"); 
+                .HasFilter("[TransactionRefNumber] IS NOT NULL");
+
+            modelBuilder.Entity<BoxState>()
+                .HasIndex(bs => new { bs.CaseNumber, bs.DenominationId, bs.BranchIsAtId })
+                .IsUnique()
+                .HasDatabaseName("UQ_BoxState_Box_Denom_Branch");
 
             modelBuilder.Entity<WithdrawalRequest>().HasIndex(r => r.CbId);
             modelBuilder.Entity<WithdrawalRequest>().HasIndex(r => r.StatusTypeId);
@@ -150,6 +192,41 @@ namespace VMSService.Data.Configurations
             //    .WithMany()
             //    .HasForeignKey(l => l.NewStatusId)
             //    .OnDelete(DeleteBehavior.Restrict);
+
+            // ── WithdrawalRequestDenomination ─────────────────────
+            modelBuilder.Entity<WithdrawalRequestDenominationBox>(e =>
+            {
+                e.HasOne(x => x.WithdrawalRequestDenomination)
+                 .WithMany(x => x.DispatchedBoxes)
+                 .HasForeignKey(x => x.WithdrawalRequestDenominationId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasIndex(x => x.CaseNumber);
+            });
+
+            // ── BoardSessionSurplusShortage → DepositRequest ─────────────────────────
+            modelBuilder.Entity<BoardSessionSurplusShortage>()
+                .HasOne(s => s.DepositRequest)
+                .WithMany(d => d.BoardSessionSurplusShortages)
+                .HasForeignKey(s => s.DepositRequestId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // ── EodDiscrepancyReportEntry (junction) ──────────────────────────────────
+            modelBuilder.Entity<EodDiscrepancyReportEntry>(entity =>
+            {
+                entity.HasOne(e => e.EodDiscrepancyReport)
+                      .WithMany(r => r.Entries)
+                      .HasForeignKey(e => e.EodDiscrepancyReportId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.BoardSessionSurplusShortage)
+                      .WithMany()
+                      .HasForeignKey(e => e.BoardSessionSurplusShortageId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(e => e.BoardSessionSurplusShortageId).IsUnique();
+                entity.HasIndex(e => e.EodDiscrepancyReportId);
+            });
 
             // ✅ ADD THIS AT THE END — catches all remaining FKs not explicitly configured above
             foreach (var relationship in modelBuilder.Model.GetEntityTypes()
@@ -176,6 +253,7 @@ namespace VMSService.Data.Configurations
                     entity.ModifiedBy = user;
                     entity.ModifiedDate = now;
                 }
+
                 else if (entry.State == EntityState.Modified)
                 {
                     // Prevent overwriting creation audit fields
@@ -187,9 +265,9 @@ namespace VMSService.Data.Configurations
                     entity.ModifiedDate = now;
                 }
             }
-
             return await base.SaveChangesAsync(cancellationToken);
         }
     }
 }
+
 

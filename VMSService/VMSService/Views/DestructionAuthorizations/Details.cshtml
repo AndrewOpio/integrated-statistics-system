@@ -1,0 +1,226 @@
+@model VMSService.Core.Models.DestructionAuthorizations.DestructionAuthorizationDetailsViewModel
+
+@using VMSService.Core.Services.Stocks.StockEntities
+@using VMSService.Core.Static
+
+@{
+    ViewData["Title"] = "Destruction Authorization Details";
+    var denominations = ViewBag.Denominations as List<Denomination> ?? new List<Denomination>();
+    var grandTotal    = Model.Denominations.Sum(d => d.Amount);
+
+    var s = Model.CurrentStatusName;
+    string statusBadgeClass =
+        s == StatusConstants.DestructionAuthorization.Draft          ? "bg-secondary" :
+        s == StatusConstants.DestructionAuthorization.AmendmentDraft ? "bg-warning text-dark" :
+        s == StatusConstants.DestructionAuthorization.PendingApproval ? "bg-info text-dark" :
+        s == StatusConstants.DestructionAuthorization.Approved        ? "bg-success" :
+        s == StatusConstants.DestructionAuthorization.Rejected        ? "bg-danger" :
+        "bg-secondary";
+}
+
+<div class="row g-4">
+
+    @* ── Left column: details ──────────────────────────────── *@
+    <div class="col-12 col-xl-8">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header pb-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="text-muted small mb-1 d-block">Destruction Management</span>
+                        <h2 class="fs-4 fw-bold mb-0">@Model.ReferenceNumber</h2>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge @statusBadgeClass fs-6">@Model.CurrentStatusName</span>
+                        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+                            <i class="ti ti-arrow-left me-1"></i>Back
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body">
+
+                @if (TempData["Error"] != null)
+                {
+                    <div class="alert alert-danger alert-dismissible fade show">
+                        <i class="ti ti-alert-triangle me-1"></i>@TempData["Error"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                }
+
+                @* Summary *@
+                <div class="row mb-4">
+                    <div class="col-md-4 mb-3">
+                        <span class="text-muted small d-block">Reference Number</span>
+                        <span class="fw-bold">@Model.ReferenceNumber</span>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <span class="text-muted small d-block">Date</span>
+                        <span class="fw-bold">@Model.Date.ToString("dd MMM yyyy")</span>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <span class="text-muted small d-block">Grand Total Amount</span>
+                        <span class="fw-bold">@grandTotal.ToString("N0")</span>
+                    </div>
+                </div>
+
+                <hr />
+
+                @* Denominations *@
+                <h5 class="fw-bold mb-3">Denomination Details</h5>
+                <div class="table-responsive mb-4">
+                    <table class="table table-bordered">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Denomination</th>
+                                <th>Number of Bags</th>
+                                <th class="text-end">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{ int row = 1; }
+                            @foreach (var denom in Model.Denominations)
+                            {
+                                var denomName = denominations.FirstOrDefault(d => d.Id == denom.DenominationId)?.Name ?? $"ID {denom.DenominationId}";
+                                <tr>
+                                    <td>@row</td>
+                                    <td>@denomName</td>
+                                    <td>@(denom.NumberOfBags ?? "-")</td>
+                                    <td class="text-end">@denom.Amount.ToString("N0")</td>
+                                </tr>
+                                row++;
+                            }
+                        </tbody>
+                        <tfoot style="background-color: #f8f9fa;">
+                            <tr>
+                                <td colspan="3" class="text-end fw-bold">Grand Total</td>
+                                <td class="text-end fw-bold">@grandTotal.ToString("N0")</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <hr />
+
+                @* Status History *@
+                @if (Model.StatusHistory.Any())
+                {
+                    <div class="card border-0 shadow-sm mb-3">
+                        <div class="card-header bg-white border-bottom">
+                            <h6 class="card-title mb-0">
+                                <i class="ti ti-message me-2 text-secondary"></i>Comments
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="timeline">
+                                @foreach (var h in Model.StatusHistory.OrderBy(x => x.ChangedAt))
+                                {
+                                    <div class="timeline-item mb-4">
+                                        <div class="d-flex gap-3">
+                                            <div class="timeline-marker">
+                                                <i class="ti ti-circle-check text-success"></i>
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <div class="d-flex justify-content-between align-items-start">
+                                                    <div>
+                                                        <h6 class="mb-1 small">
+                                                            <strong>@h.OldStatusName</strong>
+                                                            <i class="ti ti-arrow-right text-muted"></i>
+                                                            <strong>@h.NewStatusName</strong>
+                                                        </h6>
+                                                        <small class="text-muted">By: <strong>@h.ChangedBy</strong></small>
+                                                    </div>
+                                                    <small class="text-muted">@h.ChangedAt.ToString("dd/MMM/yyyy HH:mm:ss")</small>
+                                                </div>
+                                                @if (!string.IsNullOrWhiteSpace(h.Remarks))
+                                                {
+                                                    <div class="mt-2 p-2 bg-white rounded border">
+                                                        <span class="d-block">@h.Remarks</span>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <hr />
+
+                @* Audit *@
+                <div class="row text-muted small">
+                    <div class="col-md-3">
+                        <span class="d-block">Created By</span>
+                        <span>@Model.CreatedBy</span>
+                    </div>
+                    <div class="col-md-3">
+                        <span class="d-block">Created Date</span>
+                        <span>@Model.CreatedDate.ToString("dd MMM yyyy HH:mm")</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    @* ── Right column: action panel ────────────────────────────────── *@
+    <div class="col-12 col-xl-4">
+        <div class="card border-0 shadow" style="position: sticky; top: 1.5rem;">
+            <div class="card-header">
+                <h5 class="fw-bold mb-0">Actions</h5>
+            </div>
+            <div class="card-body">
+
+                @if (Model.AvailableTransitions.Any())
+                {
+                    <form asp-action="ExecuteAction" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@Model.Id" />
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Select Action</label>
+                            <select class="form-select" name="actionName">
+                                <option value="">-- Choose action --</option>
+                                @foreach (var t in Model.AvailableTransitions)
+                                {
+                                    <option value="@t.ActionName">@t.DisplayLabel</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Remarks</label>
+                            <textarea class="form-control" name="remarks" rows="3"
+                                      placeholder="Add comments…"></textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="ti ti-check me-1"></i>Submit
+                        </button>
+                    </form>
+                }
+                else
+                {
+                    <div class="text-center text-muted py-3">
+                        <i class="ti ti-lock fs-3 d-block mb-2"></i>
+                        No actions available for your role at this stage.
+                    </div>
+                }
+
+                @if (Model.CurrentStatusName == StatusConstants.DestructionAuthorization.Draft ||
+                     Model.CurrentStatusName == StatusConstants.DestructionAuthorization.AmendmentDraft)
+                {
+                    <hr />
+                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-primary w-100">
+                        <i class="ti ti-edit me-1"></i>Edit Authorization
+                    </a>
+                }
+
+            </div>
+        </div>
+    </div>
+
+</div>

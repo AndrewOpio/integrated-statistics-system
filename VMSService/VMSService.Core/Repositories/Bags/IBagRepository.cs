@@ -7,7 +7,7 @@ namespace VMSService.Core.Repositories.Bags
 {
     public interface IBagRepository : IRepositoryBase<Bag, int>
     {
-        Task<List<BagViewModel>> GetAllBagsAsync();
+        Task<List<BagViewModel>> GetAllBagsAsync(int? branchId = null);
         Task<BagDetailsViewModel?> GetBagByIdAsync(int bagId);
         Task<BagViewModel?> CreateBagAsync(CreateBagViewModel model);
         Task<bool> AddItemsToBagAsync(AddItemsToBagViewModel model);
@@ -15,5 +15,11 @@ namespace VMSService.Core.Repositories.Bags
         Task<bool> DeleteBagAsync(int bagId);
         Task<List<DepositRequestDenominationViewModel>> GetAvailableItemsByDenominationAsync(int denominationId);
         Task<bool> CreateBagsAsync(List<Bag> bags);
+        Task<int> BagSequence(DateTime date, int denominationId, string CbCode);
+        Task<List<DepositRequestBagCardViewModel>> GetBagsByDepositRequestIdAsync(Guid depositRequestId);
+        Task<int> BagSequence(DateTime date, int denominationId);
+        Task<List<NestedBagViewModel>> GetAvailableBagsForMergingAsync(int parentBagId);
+        Task<bool> AddBagToBagAsync(AddBagToBagViewModel model, int? mixedSubCategoryId);
+        Task<bool> RemoveBagFromBagAsync(int baggedBagId);
     }
 }

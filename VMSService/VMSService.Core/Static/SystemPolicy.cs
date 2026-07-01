@@ -25,6 +25,8 @@
             public const string HeadBackOffice = "Head of Back Office";
             public const string AssistantBranchManager = "Assistant Branch Manager";
             public const string HeadOfBackOffice = "Head of Back Office";
+
+            public const string BoardSupervisor = "Board Supervisor";
         }
 
         public static class ClaimType
@@ -36,6 +38,7 @@
         public static class SystemSettings
         {
             public const string AppAcronym = "CAS";
+            public const string AppRoleClaimType = "appRoleId";
         }
 
         public static class Claims

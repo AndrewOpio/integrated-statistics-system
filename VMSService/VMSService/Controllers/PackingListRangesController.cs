@@ -195,6 +195,26 @@ namespace VMSService.Controllers
                 EntityTypeName = StatusConstants.Entity.ExPrintMint
             });
 
+            // Fetch the denominations for this batch
+            var details = await _exPrintMintDetailRepository.FindByExPrintMintId(model.ExStockId);
+            var denominations = new List<(int DetailId, string Name)>();
+            
+            if (details != null)
+            {
+                foreach (var detail in details.Where(d => !d.IsDeleted))
+                {
+                    var denomination = await _denominationRepository.FindById(detail.DenominationId);
+                    denominations.Add((detail.Id, denomination?.Name ?? $"Denomination {detail.DenominationId}"));
+                }
+            }
+
+            var viewModel = new PackingListRangeBatchCreateViewModel
+            {
+                ExStockId = model.ExStockId
+            };
+            
+            ViewBag.Denominations = denominations;
+            
             // Check if status is Draft or Returned
             if ((draftStatus == null || exPrintMint.CurrentStatusId != draftStatus.Id) && 
                 (returnedStatus == null || exPrintMint.CurrentStatusId != returnedStatus.Id))
@@ -226,6 +246,19 @@ namespace VMSService.Controllers
                     || !row.SNRangeEnd.HasValue)
                 {
                     ModelState.AddModelError(string.Empty, "Every entered row must have all table fields filled in.");
+                    break;
+                }
+
+                // Validate that Case Number Prefix and Serial Number Prefix contain only letters
+                if (!System.Text.RegularExpressions.Regex.IsMatch(row.CaseNumberPrefix, @"^[a-zA-Z]+$"))
+                {
+                    ModelState.AddModelError(string.Empty, $"Case Number Prefix '{row.CaseNumberPrefix}' must contain only letters.");
+                    break;
+                }
+
+                if (!System.Text.RegularExpressions.Regex.IsMatch(row.SNPrefix, @"^[a-zA-Z]+$"))
+                {
+                    ModelState.AddModelError(string.Empty, $"Serial Number Prefix '{row.SNPrefix}' must contain only letters.");
                     break;
                 }
             }
@@ -336,6 +369,17 @@ namespace VMSService.Controllers
 
             // Always set the correct ExStockId from the route parameter
             packingListRange.ExpectedStockId = exStockId;
+
+            // Validate that Case Number Prefix and Serial Number Prefix contain only letters
+            if (!System.Text.RegularExpressions.Regex.IsMatch(packingListRange.CaseNumberPrefix, @"^[a-zA-Z]+$"))
+            {
+                ModelState.AddModelError(nameof(packingListRange.CaseNumberPrefix), "Case Number Prefix must contain only letters.");
+            }
+
+            if (!System.Text.RegularExpressions.Regex.IsMatch(packingListRange.SNPrefix, @"^[a-zA-Z]+$"))
+            {
+                ModelState.AddModelError(nameof(packingListRange.SNPrefix), "Serial Number Prefix must contain only letters.");
+            }
 
             if (!ModelState.IsValid)
             {

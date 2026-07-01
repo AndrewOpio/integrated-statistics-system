@@ -17,6 +17,6 @@ namespace WorkflowService.Client
         Task<List<StatusTypeDto>> FindAllStatuses();
         Task<StatusTypeDto> FindStatusByName(GetStatusByNameRequestDto requestData);
         Task<StatusTypeDto> FindStatusById(int statusId);
-        Task<List<WorkflowTransitionDto>> GetAvailableTransitionsAsync(string entityType, int statusId, int userRole);
+        Task<List<WorkflowTransitionDto>> GetAvailableTransitionsAsync(string appAcronym, string entityType, int statusId, int userRole);
     }
 }

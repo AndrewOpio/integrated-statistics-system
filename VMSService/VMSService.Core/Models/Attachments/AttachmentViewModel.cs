@@ -59,7 +59,7 @@ namespace VMSService.Core.Models.Attachments
         {
             get
             {
-                return FileType.ToLower().Contains("pdf") || 
+                return FileType.ToLower().Contains("pdf") ||
                        System.IO.Path.GetExtension(FileName).ToLower() == ".pdf";
             }
         }
@@ -69,7 +69,7 @@ namespace VMSService.Core.Models.Attachments
             get
             {
                 var imageExtensions = new[] { ".png", ".jpg", ".jpeg", ".gif", ".bmp" };
-                return FileType.ToLower().Contains("image") || 
+                return FileType.ToLower().Contains("image") ||
                        imageExtensions.Contains(System.IO.Path.GetExtension(FileName).ToLower());
             }
         }

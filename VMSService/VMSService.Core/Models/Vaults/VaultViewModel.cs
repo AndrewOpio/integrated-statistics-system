@@ -1,9 +1,16 @@
+using Microsoft.AspNetCore.Mvc.Rendering;
+using System.ComponentModel.DataAnnotations;
+
 namespace VMSService.Core.Models.Vaults
 {
     public class VaultViewModel
     {
         public int Id { get; set; }
+
+        [Required]
         public string Name { get; set; } = string.Empty;
+
+        [Required]
         public int BranchId { get; set; }
         public string? BranchName { get; set; }
         public bool IsDeleted { get; set; } = false;
@@ -12,5 +19,7 @@ namespace VMSService.Core.Models.Vaults
         public DateTime CreatedDate { get; set; }
         public string ModifiedBy { get; set; } = string.Empty;
         public DateTime ModifiedDate { get; set; }
+
+        public List<SelectListItem> BranchList { get; set; } = new();
     }
 }

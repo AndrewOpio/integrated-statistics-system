@@ -1,0 +1,493 @@
+@model VMSService.Core.Models.MonthlyShortages.MonthlyShortageDetailsViewModel
+
+@using VMSService.Core.Static
+
+@{
+    ViewData["Title"] = "Monthly Shortage — " + Model.Period.ToString("MMMM yyyy");
+
+    string statusBadgeClass = Model.CurrentStatusName switch
+    {
+        "Draft"                => "bg-secondary",
+        "Pending Approval"     => "bg-warning text-dark",
+        "Pending Confirmation" => "bg-info text-dark",
+        "Confirmed"            => "bg-success",
+        _                      => "bg-secondary"
+    };
+
+    var stages = new[] { "Draft", "Pending Approval", "Pending Confirmation", "Confirmed" };
+    int currentStageIndex = Model.CurrentStatusName switch
+    {
+        "Draft"                => 0,
+        "Pending Approval"     => 1,
+        "Pending Confirmation" => 2,
+        "Confirmed"            => stages.Length,
+        _                      => 0
+    };
+}
+
+<div class="row g-4">
+
+    @* ── Left column ────────────────────────────────────────────── *@
+    <div class="col-12 col-xl-8">
+
+        @* ── Header card ── *@
+        <div class="card border-0 shadow mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                    <div>
+                        <span class="text-muted small">Monthly Shortages</span>
+                        <h2 class="fs-3 fw-bold mb-1 mt-1">@Model.ReferenceNumber</h2>
+                        <span class="text-muted">
+                            <i class="ti ti-calendar me-1"></i>@Model.Period.ToString("MMMM yyyy")
+                        </span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge @statusBadgeClass px-2 py-1">@Model.CurrentStatusName</span>
+                        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+                            <i class="ti ti-arrow-left me-1"></i>Back
+                        </a>
+                    </div>
+                </div>
+
+                @* Workflow progress *@
+                <div class="mt-4 pt-2">
+                    <div class="d-flex justify-content-between position-relative" style="z-index:1;">
+                        @for (int i = 0; i < stages.Length; i++)
+                        {
+                            bool done    = i < currentStageIndex;
+                            bool current = i == currentStageIndex;
+                            string circleClass = done    ? "bg-success text-white" :
+                                                 current ? "bg-primary text-white" :
+                                                           "bg-light text-muted border";
+                            string labelClass  = done    ? "text-success" :
+                                                 current ? "text-primary fw-bold" :
+                                                           "text-muted";
+                            <div class="text-center flex-fill">
+                                <div class="d-flex align-items-center justify-content-center mx-auto rounded-circle @circleClass"
+                                     style="width:2rem;height:2rem;font-size:.8rem;">
+                                    @if (done)
+                                    {
+                                        <i class="ti ti-check"></i>
+                                    }
+                                    else
+                                    {
+                                        <span>@(i + 1)</span>
+                                    }
+                                </div>
+                                <div class="small mt-1 @labelClass" style="font-size:.7rem;">@stages[i]</div>
+                            </div>
+                            @if (i < stages.Length - 1)
+                            {
+                                <div class="flex-fill d-flex align-items-center" style="margin-top:-1.2rem;">
+                                    <div class="w-100 @(i < currentStageIndex ? "bg-success" : "bg-light")" style="height:2px;"></div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* ── Summary stat cards ── *@
+        @{
+            bool netIsShortage = Model.NetShortage > 0;
+            bool netIsSurplus  = Model.NetShortage < 0;
+            string netLabel      = netIsShortage ? "Net Shortage" : netIsSurplus ? "Net Surplus" : "Balanced";
+            string netCardBorder = netIsShortage ? "border-danger" : netIsSurplus ? "border-success" : "border-secondary";
+            string netIconBg     = netIsShortage ? "bg-danger"     : netIsSurplus ? "bg-success"    : "bg-secondary";
+            string netValueColor = netIsShortage ? "text-danger"   : netIsSurplus ? "text-success"  : "text-secondary";
+            string netIcon       = netIsShortage ? "ti-alert-triangle" : netIsSurplus ? "ti-trending-up" : "ti-scale";
+        }
+        <div class="row g-3 mb-4">
+            <div class="col-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body text-center py-3">
+                        <div class="rounded-circle bg-success bg-opacity-10 d-flex align-items-center justify-content-center mx-auto mb-2" style="width:2.5rem;height:2.5rem;">
+                            <i class="ti ti-trending-up text-success fs-5"></i>
+                        </div>
+                        <div class="text-muted small">Total Surplus</div>
+                        <div class="fs-5 fw-bold text-success mt-1">@Model.TotalSurplus.ToString("N0")</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body text-center py-3">
+                        <div class="rounded-circle bg-danger bg-opacity-10 d-flex align-items-center justify-content-center mx-auto mb-2" style="width:2.5rem;height:2.5rem;">
+                            <i class="ti ti-trending-down text-danger fs-5"></i>
+                        </div>
+                        <div class="text-muted small">Total Shortage</div>
+                        <div class="fs-5 fw-bold text-danger mt-1">@Model.TotalShortage.ToString("N0")</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="card @netCardBorder border-2 shadow-sm h-100">
+                    <div class="card-body text-center py-3">
+                        <div class="rounded-circle @netIconBg d-flex align-items-center justify-content-center mx-auto mb-2" style="width:2.5rem;height:2.5rem;">
+                            <i class="ti @netIcon text-white fs-5"></i>
+                        </div>
+                        <div class="text-muted small">@netLabel</div>
+                        <div class="fs-4 fw-bold @netValueColor mt-1">@Math.Abs(Model.NetShortage).ToString("N0")</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* ── Branch breakdown ── *@
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="ti ti-building-bank text-primary fs-5"></i>
+                <h6 class="fw-bold mb-0">Branch Breakdown</h6>
+                <span class="badge bg-primary ms-auto">@Model.BranchDetails.Count branch(es)</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead style="background-color:#fafafa;">
+                            <tr>
+                                <th class="ps-3">Branch</th>
+                                <th class="text-end">Surplus</th>
+                                <th class="text-end">Shortage</th>
+                                <th class="text-end pe-3">Net Position</th>
+                                <th class="text-end pe-3">Share</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                decimal totalAbsNet = Model.BranchDetails.Sum(b => Math.Abs(b.NetShortage));
+                            }
+                            @foreach (var d in Model.BranchDetails.OrderByDescending(x => x.NetShortage))
+                            {
+                                decimal share         = totalAbsNet > 0 ? Math.Round(Math.Abs(d.NetShortage) / totalAbsNet * 100, 1) : 0;
+                                bool    branchShort   = d.NetShortage > 0;
+                                bool    branchSurplus = d.NetShortage < 0;
+                                string  badgeBg       = branchShort   ? "bg-danger bg-opacity-10 text-danger" :
+                                                        branchSurplus  ? "bg-success bg-opacity-10 text-success" :
+                                                                         "bg-secondary bg-opacity-10 text-secondary";
+                                string  barColor      = branchShort   ? "bg-danger" : branchSurplus ? "bg-success" : "bg-secondary";
+                                <tr>
+                                    <td class="ps-3 fw-semibold">
+                                        <i class="ti ti-building me-1 text-muted"></i>@d.BranchName
+                                    </td>
+                                    <td class="text-end text-success">@d.TotalSurplus.ToString("N0")</td>
+                                    <td class="text-end text-danger">@d.TotalShortage.ToString("N0")</td>
+                                    <td class="text-end pe-3">
+                                        <span class="badge @badgeBg fw-bold px-2"
+                                              role="button" style="cursor:pointer;"
+                                              data-bs-toggle="modal" data-bs-target="#branchBreakdownModal"
+                                              onclick="loadBranchBreakdown(@Model.Id, @d.BranchId, '@d.BranchName')">
+                                            @(branchSurplus ? "+" : "")@d.NetShortage.ToString("N0")
+                                            <i class="ti ti-chevron-right ms-1" style="font-size:.65rem;"></i>
+                                        </span>
+                                    </td>
+                                    <td class="text-end pe-3" style="min-width:120px;">
+                                        <div class="d-flex align-items-center justify-content-end gap-2">
+                                            <div class="progress flex-grow-1" style="height:6px;max-width:60px;">
+                                                <div class="progress-bar @barColor" style="width:@share%"></div>
+                                            </div>
+                                            <small class="text-muted">@share%</small>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot style="background-color:#fafafa;" class="fw-bold border-top border-2">
+                            <tr>
+                                <td class="ps-3">Total</td>
+                                <td class="text-end text-success">@Model.TotalSurplus.ToString("N0")</td>
+                                <td class="text-end text-danger">@Model.TotalShortage.ToString("N0")</td>
+                                <td class="text-end pe-3 @netValueColor">@(netIsSurplus ? "+" : "")@Model.NetShortage.ToString("N0")</td>
+                                <td class="text-end pe-3 text-muted small">100%</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        @* ── Attachments ── *@
+        @if (Model.Attachments.Any())
+        {
+            <div class="card border-0 shadow mb-4">
+                <div class="card-header d-flex align-items-center gap-2">
+                    <i class="ti ti-paperclip text-secondary fs-5"></i>
+                    <h6 class="fw-bold mb-0">Attachments</h6>
+                </div>
+                <div class="list-group list-group-flush">
+                    @foreach (var att in Model.Attachments)
+                    {
+                        <a asp-action="DownloadAttachment" asp-route-id="@att.Id"
+                           class="list-group-item list-group-item-action d-flex align-items-center gap-3 px-3 py-2">
+                            <i class="ti ti-file-description text-primary fs-5"></i>
+                            <span class="flex-grow-1 small fw-semibold">@att.FileName</span>
+                            <small class="text-muted">@((att.FileSize / 1024.0).ToString("F1")) KB</small>
+                            <i class="ti ti-download text-muted"></i>
+                        </a>
+                    }
+                </div>
+            </div>
+        }
+
+        @* ── Status history ── *@
+        @if (Model.StatusHistory.Any())
+        {
+            <div class="card border-0 shadow mb-4">
+                <div class="card-header d-flex align-items-center gap-2">
+                    <i class="ti ti-history text-secondary fs-5"></i>
+                    <h6 class="fw-bold mb-0">Comments &amp; History</h6>
+                </div>
+                <div class="card-body pb-1">
+                    @foreach (var h in Model.StatusHistory.OrderBy(x => x.ChangedAt))
+                    {
+                        string iconClass = h.NewStatusName == "Acknowledged"   ? "text-success" :
+                                           h.NewStatusName == "Draft"          ? "text-warning" :
+                                           h.NewStatusName.StartsWith("Pending") ? "text-primary" : "text-secondary";
+                        <div class="d-flex gap-3 mb-4">
+                            <div class="flex-shrink-0 pt-1">
+                                <i class="ti ti-circle-check fs-5 @iconClass"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-start flex-wrap gap-1">
+                                    <div class="fw-semibold small">
+                                        <span class="text-secondary">@h.OldStatusName</span>
+                                        <i class="ti ti-arrow-right mx-1 text-muted"></i>
+                                        <span class="text-dark">@h.NewStatusName</span>
+                                    </div>
+                                    <small class="text-muted">@h.ChangedAt.ToString("dd MMM yyyy HH:mm")</small>
+                                </div>
+                                <div class="small text-muted mt-1">by <strong>@h.ChangedBy</strong></div>
+                                @if (!string.IsNullOrWhiteSpace(h.Remarks))
+                                {
+                                    <div class="mt-2 p-2 bg-light rounded border-start border-3 border-primary small">
+                                        @h.Remarks
+                                    </div>
+                                }
+                                @if (h.Attachments.Any())
+                                {
+                                    <div class="mt-2 d-flex flex-wrap gap-1">
+                                        @foreach (var att in h.Attachments)
+                                        {
+                                            <a asp-action="DownloadAttachment" asp-route-id="@att.Id"
+                                               class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1 py-0 px-2">
+                                                <i class="ti ti-paperclip"></i>
+                                                <span class="small">@att.FileName</span>
+                                            </a>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        @* ── Meta ── *@
+        <div class="text-muted small d-flex gap-4 mb-3">
+            <div><i class="ti ti-user me-1"></i>Created by <strong>@Model.CreatedBy</strong></div>
+            <div><i class="ti ti-clock me-1"></i>@Model.CreatedDate.ToString("dd MMM yyyy HH:mm")</div>
+        </div>
+
+    </div>
+
+    @* ── Right column: actions ────────────────────────────────── *@
+    <div class="col-12 col-xl-4">
+        <div style="position: sticky; top: 1.5rem;">
+
+            @* Action panel *@
+            <div class="card border-0 shadow mb-3">
+                <div class="card-header d-flex align-items-center gap-2">
+                    <i class="ti ti-player-play text-primary fs-5"></i>
+                    <h5 class="fw-bold mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.AvailableTransitions.Any())
+                    {
+                        <form asp-action="ExecuteAction" method="post" enctype="multipart/form-data">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@Model.Id" />
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold small">Select Action</label>
+                                <select class="form-select" name="actionName" id="actionSelect" onchange="onActionChange(this)">
+                                    <option value="">-- Choose action --</option>
+                                    @foreach (var t in Model.AvailableTransitions)
+                                    {
+                                        <option value="@t.ActionName"
+                                                data-requires-attachments="@t.RequiresAttachments.ToString().ToLower()"
+                                                data-requirements="@System.Text.Json.JsonSerializer.Serialize(t.AttachmentRequirements)">
+                                            @t.DisplayLabel
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div id="attachmentFields"></div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold small">Remarks</label>
+                                <textarea class="form-control" name="remarks" rows="3"
+                                          placeholder="Add a comment..."></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="ti ti-check me-1"></i>Submit
+                            </button>
+                        </form>
+                    }
+                    else
+                    {
+                        <div class="text-center py-4">
+                            <div class="rounded-circle bg-light d-flex align-items-center justify-content-center mx-auto mb-3" style="width:3rem;height:3rem;">
+                                <i class="ti ti-lock text-muted fs-4"></i>
+                            </div>
+                            <p class="text-muted small mb-0">No actions available for your role at this stage.</p>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @* Quick info card *@
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="fw-bold text-muted small text-uppercase mb-3">Report Info</h6>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted small">Reference</span>
+                        <span class="fw-semibold small">@Model.ReferenceNumber</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted small">Period</span>
+                        <span class="fw-semibold small">@Model.Period.ToString("MMMM yyyy")</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted small">Branches</span>
+                        <span class="fw-semibold small">@Model.BranchDetails.Count</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted small">@netLabel</span>
+                        <span class="fw-bold @netValueColor small">@(netIsSurplus ? "+" : "")@Model.NetShortage.ToString("N0")</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted small">Status</span>
+                        <span class="badge @statusBadgeClass">@Model.CurrentStatusName</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+@* ── Branch Breakdown Modal ── *@
+<div class="modal fade" id="branchBreakdownModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="branchBreakdownTitle">
+                    <i class="ti ti-list-details me-2 text-primary"></i>Transaction Breakdown
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="branchBreakdownBody">
+                <div class="text-center py-4">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                    <span class="ms-2 text-muted small">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function fmt(n) {
+            return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0 });
+        }
+
+        function loadBranchBreakdown(shortageId, branchId, branchName) {
+            document.getElementById('branchBreakdownTitle').innerHTML =
+                '<i class="ti ti-list-details me-2 text-primary"></i>' + branchName + ' — Transaction Breakdown';
+            const body = document.getElementById('branchBreakdownBody');
+            body.innerHTML = `<div class="text-center py-4">
+                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                <span class="ms-2 text-muted small">Loading...</span>
+            </div>`;
+
+            fetch(`@Url.Action("BranchBreakdown")?shortageId=${shortageId}&branchId=${branchId}`)
+                .then(r => r.json())
+                .then(data => {
+                    const transactions = data.transactions || [];
+                    if (!transactions.length) {
+                        body.innerHTML = `<p class="text-muted text-center mb-0"><i class="ti ti-inbox me-1"></i>No transactions found.</p>`;
+                        return;
+                    }
+
+                    let totalSurplus = 0, totalShortage = 0, rows = '';
+                    transactions.forEach((t, i) => {
+                        if (t.isSurplus) totalSurplus  += t.amount;
+                        else             totalShortage += t.amount;
+                        rows += `<tr>
+                            <td>${i + 1}</td>
+                            <td>${t.sessionDate}</td>
+                            <td><span class="badge ${t.isSurplus ? 'bg-success' : 'bg-danger'}">${t.isSurplus ? 'Surplus' : 'Shortage'}</span></td>
+                            <td class="text-end fw-semibold ${t.isSurplus ? 'text-success' : 'text-danger'}">${fmt(t.amount)}</td>
+                        </tr>`;
+                    });
+
+                    const net      = totalShortage - totalSurplus;
+                    const netClass = net > 0 ? 'text-danger' : net < 0 ? 'text-success' : '';
+
+                    body.innerHTML = `
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead style="background-color:#f4f6f8">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Session Date</th>
+                                        <th>Type</th>
+                                        <th class="text-end">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${rows}</tbody>
+                                <tfoot class="fw-bold" style="background-color:#f4f6f8">
+                                    <tr>
+                                        <td colspan="2">Total (${transactions.length} transaction${transactions.length !== 1 ? 's' : ''})</td>
+                                        <td>
+                                            <span class="text-success me-2">S+ ${fmt(totalSurplus)}</span>
+                                            <span class="text-danger">S- ${fmt(totalShortage)}</span>
+                                        </td>
+                                        <td class="text-end ${netClass}">Net: ${fmt(net)}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>`;
+                })
+                .catch(() => {
+                    body.innerHTML = `<p class="text-danger text-center mb-0">Failed to load breakdown.</p>`;
+                });
+        }
+
+        function onActionChange(select) {
+            const option      = select.options[select.selectedIndex];
+            const requiresAtt = option.dataset.requiresAttachments === 'true';
+            const container   = document.getElementById('attachmentFields');
+            container.innerHTML = '';
+            if (!requiresAtt) return;
+            let requirements = [];
+            try { requirements = JSON.parse(option.dataset.requirements || '[]'); } catch { return; }
+            requirements.forEach(req => {
+                const div = document.createElement('div');
+                div.className = 'mb-3';
+                div.innerHTML =
+                    '<label class="form-label fw-semibold small">' + req.AttachmentName +
+                    (req.IsRequired ? ' <span class="text-danger">*</span>' : '') + '</label>' +
+                    '<input type="file" class="form-control form-control-sm" name="attachments_' + req.Id +
+                    '" accept="' + (req.AllowedFormats || '.pdf,.jpg,.jpeg,.png') + '"' +
+                    (req.IsRequired ? ' required' : '') + ' />';
+                container.appendChild(div);
+            });
+        }
+    </script>
+}

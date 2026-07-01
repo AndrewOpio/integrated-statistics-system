@@ -1,4 +1,6 @@
-﻿using IdentityService.Core.Models;
+﻿using ConfigurationsService.Client;
+using IdentityService.Core.Models;
+using IdentityService.Core.Repository.CommercialBankUsers;
 using IdentityService.Core.Repository.UserApplicationRoles;
 using IdentityService.Core.Repository.Users;
 using IdentityService.Core.Services.LDAPAuthentication;
@@ -20,7 +22,9 @@ namespace IdentityService.Controllers
         IConfiguration _config,
         IUserApplicationRoleRepository _userAppRoleRepo,
         IUserRepository _userRepo,
-        UserManager<User> _userManager) : ControllerBase
+        UserManager<User> _userManager,
+        IConfigurationsServiceClient _configServiceClient,
+        ICommercialBankUserRepository _commercialBankUserRepo) : ControllerBase
     {
         // ═══════════════════════════════════════════════════════════
         // STEP 1: First Factor Authentication (LDAP/AD or Local Password)
@@ -224,8 +228,7 @@ namespace IdentityService.Controllers
                     _logger.LogWarning("Second factor attempt for inactive user: {Username}", request.Username);
                     return Unauthorized(new { message = "User account is inactive. Please contact administrator." });
                 }
-
-                _logger.LogInformation("Processing RSA 2FA verification for user: {Username}", request.Username);
+               _logger.LogInformation("Processing RSA 2FA verification for user: {Username}", request.Username);
 
                 // Verify RSA SecurID passcode
                 //var rsaVerifyResponse = await _rsaService.VerifyAuthenticationAsync(
@@ -234,7 +237,8 @@ namespace IdentityService.Controllers
                 //    request.InResponseTo ?? string.Empty
                 //);
 
-                RsaAuthenticationResponse rsaVerifyResponse = new() {
+                RsaAuthenticationResponse rsaVerifyResponse = new()
+                {
                     AttemptResponseCode = RsaResponseCodes.Success,
                     Context = new RsaContext()
                     {
@@ -254,7 +258,8 @@ namespace IdentityService.Controllers
 
                     if (dbUser.IsStaff)
                     {
-                        var ldapUser = await _ldapService.GetUserDetails(request.Username);
+                        //var ldapUser = await _ldapService.GetUserDetails(request.Username);
+                        LdapUser ldapUser = new();
                         displayName = ldapUser?.DisplayName ?? $"{dbUser.FirstName} {dbUser.LastName}";
                         email = ldapUser?.Email ?? dbUser.Email;
                     }
@@ -440,8 +445,11 @@ namespace IdentityService.Controllers
             
             if (!dbUser.IsStaff)
             {
-                claims.Add(new Claim("cbId", "2", ClaimValueTypes.Integer));
-                claims.Add(new Claim("cbName", "ABSA Bank Uganda Limited"));
+                CommercialBankUser commercialBankUser = await _commercialBankUserRepo.FindByUserId(dbUser.Id);
+                claims.Add(new Claim("cbId", commercialBankUser.CommercialBankId.ToString(), ClaimValueTypes.Integer));
+
+                CommercialBankDto commercialBank = await _configServiceClient.GetCbIdAsync(commercialBankUser.CommercialBankId);
+                claims.Add(new Claim("cbName", commercialBank.Name));
             }
 
             LdapUser user = new()

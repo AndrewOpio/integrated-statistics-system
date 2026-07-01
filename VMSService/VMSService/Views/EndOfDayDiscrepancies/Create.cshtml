@@ -1,0 +1,262 @@
+@model dynamic
+
+@using ConfigurationsService.Client
+@using VMSService.Core.Services.Stocks.StockEntities
+
+@{
+    ViewData["Title"] = "New Discrepancy Report";
+    var branches      = ViewBag.Branches      as List<BranchDto>                      ?? new();
+    var denominations = ViewBag.Denominations as List<Denomination>                   ?? new();
+    var banks         = ViewBag.Banks         as List<CommercialBankDto> ?? new();
+}
+
+<div class="row">
+    <div class="col-12 col-lg-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header pb-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="d-flex flex-column">
+                        <span class="text-muted small mb-2">End of Day Discrepancies</span>
+                        <h2 class="fs-4 fw-bold mb-0">New Discrepancy Report</h2>
+                    </div>
+                    <a asp-action="Index" class="btn btn-outline-secondary">
+                        <i class="ti ti-arrow-left me-1"></i> Back to List
+                    </a>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <div id="formAlerts"></div>
+
+                <p class="text-muted small mb-4">
+                    Select the branch and session date. All unlinked shortage/surplus transactions
+                    recorded for that branch on that day will be automatically compiled into this report.
+                </p>
+
+                <form id="cfbReportForm">
+                    <div class="row mb-3">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Reference Number <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="referenceNumber" placeholder="e.g. EOD-2026-001" />
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Branch <span class="text-danger">*</span></label>
+                            <select class="form-select" id="branchId">
+                                <option value="">-- Select Branch --</option>
+                                @foreach (var b in branches)
+                                {
+                                    <option value="@b.Id">@b.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Session Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="sessionDate" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Remarks</label>
+                        <textarea class="form-control" id="remarks" rows="2" placeholder="Optional remarks"></textarea>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-2" id="previewSection" style="display:none;">
+    <div class="col-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0">
+                    <i class="ti ti-eye me-2 text-primary"></i>Transactions to be compiled
+                </h5>
+                <span id="previewCount" class="badge bg-primary fs-6"></span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm mb-0">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Date</th>
+                                <th>Deposit Branch</th>
+                                <th>Commercial Bank</th>
+                                <th>Denomination</th>
+                                <th>Type</th>
+                                <th class="text-end">Amount (UGX)</th>
+                                <th>Deposit Date</th>
+                                <th class="text-end">Deposit Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="previewBody"></tbody>
+                        <tfoot>
+                            <tr style="background-color: #f5f5f5;">
+                                <td colspan="7"></td>
+                                <td class="text-danger small">Shortage: <span id="previewShortage">0</span></td>
+                                <td class="text-success text-end small">Surplus: <span id="previewSurplus">0</span></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+            <button type="button" id="compileBtn" class="btn btn-primary" onclick="submitForm()" disabled>
+                <i class="ti ti-file-check me-1"></i>Compile Report
+            </button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    const denomMap = {
+        @foreach (var d in denominations)
+        {
+            @:@d.Id: '@d.Name',
+        }
+    };
+
+    const bankMap = {
+        @foreach (var b in banks)
+        {
+            @:@b.Id: '@b.Name',
+        }
+    };
+
+    const branchMap = {
+        @foreach (var b in branches)
+        {
+            @:@b.Id: '@b.Name',
+        }
+    };
+
+    let previewDebounce = null;
+
+    function onFilterChange() {
+        clearTimeout(previewDebounce);
+        previewDebounce = setTimeout(loadPreview, 400);
+    }
+
+    ['branchId', 'sessionDate'].forEach(id =>
+        document.getElementById(id).addEventListener('change', onFilterChange));
+
+    function loadPreview() {
+        const branchId    = document.getElementById('branchId').value;
+        const sessionDate = document.getElementById('sessionDate').value;
+
+        if (!branchId || !sessionDate) {
+            document.getElementById('previewSection').style.display = 'none';
+            document.getElementById('compileBtn').disabled = true;
+            return;
+        }
+
+        fetch(`@Url.Action("GetTransactionPreview")?branchId=${branchId}&sessionDate=${sessionDate}`, { credentials: 'same-origin' })
+            .then(r => {
+                if (r.status === 401 || r.redirected) {
+                    window.location.reload();
+                    return null;
+                }
+                return r.json();
+            })
+            .then(data => { if (data) renderPreview(data.transactions); })
+            .catch(() => {
+                showAlert('warning', 'Could not load transactions. Please <a href="" onclick="location.reload();return false;">refresh the page</a> and log in again.');
+            });
+    }
+
+    function renderPreview(transactions) {
+        const section    = document.getElementById('previewSection');
+        const tbody      = document.getElementById('previewBody');
+        const countEl    = document.getElementById('previewCount');
+        const compileBtn = document.getElementById('compileBtn');
+
+        section.style.display = 'block';
+
+        if (!transactions || transactions.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="9" class="text-center py-3 text-muted">
+                <i class="ti ti-info-circle me-1"></i>
+                No unlinked transactions found for this branch and period.
+                They may already be compiled into another report.
+            </td></tr>`;
+            countEl.textContent = '0 transactions';
+            document.getElementById('previewShortage').textContent = '0';
+            document.getElementById('previewSurplus').textContent  = '0';
+            compileBtn.disabled = true;
+            return;
+        }
+
+        let shortage = 0, surplus = 0, rows = '';
+        transactions.forEach((t, i) => {
+            const isShortage   = t.type === 'Shortage';
+            const branchName   = branchMap[t.depositBranchId] ?? '–';
+            const bankName     = bankMap[t.commercialBankId] ?? '–';
+            const denomName    = denomMap[t.denominationId] ?? t.denominationId;
+            const depositDate  = t.depositDate ?? '–';
+            const depositTotal = t.depositDenomAmount != null ? t.depositDenomAmount.toLocaleString() : '–';
+            if (isShortage) shortage += t.amount; else surplus += t.amount;
+            rows += `<tr>
+                <td>${i + 1}</td>
+                <td>${t.sessionDate}</td>
+                <td>${branchName}</td>
+                <td>${bankName}</td>
+                <td>${denomName}</td>
+                <td><span class="badge ${isShortage ? 'bg-danger' : 'bg-success'}">${t.type}</span></td>
+                <td class="text-end">${t.amount.toLocaleString()}</td>
+                <td>${depositDate}</td>
+                <td class="text-end">${depositTotal}</td>
+            </tr>`;
+        });
+
+        tbody.innerHTML = rows;
+        countEl.textContent = `${transactions.length} transaction${transactions.length !== 1 ? 's' : ''}`;
+        document.getElementById('previewShortage').textContent = shortage.toLocaleString();
+        document.getElementById('previewSurplus').textContent  = surplus.toLocaleString();
+        compileBtn.disabled = false;
+    }
+
+    function submitForm() {
+        const referenceNumber = document.getElementById('referenceNumber').value.trim();
+        const branchId        = parseInt(document.getElementById('branchId').value);
+        const sessionDate     = document.getElementById('sessionDate').value;
+        const remarks         = document.getElementById('remarks').value.trim();
+
+        if (!referenceNumber || !branchId || !sessionDate) {
+            showAlert('danger', 'Please fill in all required fields.');
+            return;
+        }
+
+        fetch('@Url.Action("Create")', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ referenceNumber, branchId, sessionDate, remarks: remarks || null })
+        })
+        .then(r => {
+            if (r.status === 401 || r.redirected) { window.location.reload(); return null; }
+            return r.json().catch(() => { throw new Error(`Server returned status ${r.status}`); });
+        })
+        .then(data => {
+            if (!data) return;
+            if (data.success) window.location.href = data.redirectUrl;
+            else showAlert('danger', data.message ?? 'An error occurred.');
+        })
+        .catch(err => showAlert('danger', err.message ?? 'Network error. Please try again.'));
+    }
+
+    function showAlert(type, message) {
+        document.getElementById('formAlerts').innerHTML =
+            `<div class="alert alert-${type} alert-dismissible fade show">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+             </div>`;
+    }
+</script>
+}

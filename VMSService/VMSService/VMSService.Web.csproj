@@ -29,7 +29,7 @@
 	<PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.0" />
 	<PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.23" />
 	<PackageReference Include="SmartBreadcrumbs" Version="3.6.1" />
-	<PackageReference Include="WorkflowService.Client" Version="1.0.3" />
+	<PackageReference Include="WorkflowService.Client" Version="1.0.4" />
   <PackageReference Include="BOU.NotificationService.Client" Version="1.0.4" />
   <PackageReference Include="BOU.ConfigurationsService.Client" Version="1.0.7" />
   <!--<PackageReference Include="BOU.StockService.Client" Version="1.0.2" />-->
@@ -38,6 +38,16 @@
   <ItemGroup>
     <ProjectReference Include="..\VMSService.Data\VMSService.Data.csproj" />
 	<ProjectReference Include="..\VMSService.Core\VMSService.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="wwwroot\uploads\approvalattachments\" />
+    <Folder Include="wwwroot\uploads\deposits\" />
+    <Folder Include="wwwroot\uploads\deposits\193279ca-45f5-4f74-8183-ac59474ba494\" />
+    <Folder Include="wwwroot\uploads\deposits\aec9145c-67d0-49bc-b7de-8d23de4640e2\" />
+    <Folder Include="wwwroot\uploads\passportphotos\" />
+    <Folder Include="wwwroot\uploads\signaturescans\" />
+    <Folder Include="wwwroot\uploads\workidscans\" />
   </ItemGroup>
 
 </Project>

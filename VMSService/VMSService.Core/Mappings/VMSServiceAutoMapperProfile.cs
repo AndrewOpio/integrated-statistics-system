@@ -14,8 +14,13 @@ using VMSService.Core.Models.CbDepositRequests;
 using VMSService.Core.Models.CommercialBanks;
 using VMSService.Core.Models.CommercialBankUser;
 using VMSService.Core.Models.CounterPartyTypes;
+using VMSService.Core.Models.BPSMachines;
+using VMSService.Core.Models.CountingRooms;
 using VMSService.Core.Models.CurrencyVendors;
+using VMSService.Core.Models.StockProcessingPlans;
+using VMSService.Core.Models.ProcessingBoards;
 using VMSService.Core.Models.Denominations;
+using VMSService.Core.Models.DestructionLocations;
 using VMSService.Core.Models.DenominationTypes;
 using VMSService.Core.Models.DepositFees;
 using VMSService.Core.Models.DepositProcessingFees;
@@ -30,6 +35,8 @@ using VMSService.Core.Models.StockLedgers;
 using VMSService.Core.Models.SubCategories;
 using VMSService.Core.Models.Vaults;
 using VMSService.Core.Models.VaultSections;
+using VMSService.Core.Models.CbWithdrawRequest;
+using VMSService.Core.Models.DestructionTypes;
 using VMSService.Core.Models.VendorTypes;
 using VMSService.Core.Services.Identity.IdentityEntities;
 using VMSService.Core.Services.Stocks.StockEntities;
@@ -42,7 +49,21 @@ namespace VMSService.Core.Mappings
         public VMSServiceAutoMapperProfile()
         {
             CreateMap<VendorType, VendorTypeViewModel>().ReverseMap();
+            CreateMap<DestructionType, DestructionTypeViewModel>().ReverseMap();
+            CreateMap<DestructionLocation, DestructionLocationViewModel>().ReverseMap();
             CreateMap<CurrencyVendor, CurrencyVendorViewModel>().ReverseMap();
+            CreateMap<BPSMachine, BPSMachineViewModel>().ReverseMap();
+            CreateMap<CountingRoom, CountingRoomViewModel>().ReverseMap();
+            CreateMap<StockProcessingPlan, StockProcessingPlanViewModel>()
+                .ForMember(dest => dest.StockMovementReference, opt => opt.MapFrom(src => src.StockMovement != null ? src.StockMovement.ReferenceNumber : null))
+                .ReverseMap()
+                .ForMember(dest => dest.StockMovement, opt => opt.Ignore());
+            CreateMap<ProcessingBoard, ProcessingBoardViewModel>()
+                .ForMember(dest => dest.BPSMachineName, opt => opt.MapFrom(src => src.BPSMachine != null ? src.BPSMachine.Name : null))
+                .ForMember(dest => dest.CountingRoomName, opt => opt.MapFrom(src => src.CountingRoom != null ? src.CountingRoom.Name : null))
+                .ReverseMap()
+                .ForMember(dest => dest.BPSMachine, opt => opt.Ignore())
+                .ForMember(dest => dest.CountingRoom, opt => opt.Ignore());
             CreateMap<DenominationType, DenominationTypeViewModel>().ReverseMap();
             CreateMap<Denomination, DenominationViewModel>().ReverseMap();
             CreateMap<ApprovedCurrencyProcurement, ApprovedCurrencyProcurementsViewModel>().ReverseMap();
@@ -81,6 +102,7 @@ namespace VMSService.Core.Mappings
             CreateMap<AgentDetailStatusHistory, AgentDetailStatusHistoryViewModel>().ReverseMap();
             CreateMap<DepositRequest, DepositRequestDetailsViewModel>().ReverseMap();
             CreateMap<DepositRequestStatusHistory, DepositRequestStatusHistoryViewModel>().ReverseMap();
+            CreateMap<WithdrawalRequestStatusHistory, WithdrawalRequestStatusHistoryViewModel>().ReverseMap();
             CreateMap<MinDepositStandard, MinDepositStandardViewModel>().ReverseMap();
             CreateMap<DepositProcessingFee, DepositProcessingFeeViewModel>().ReverseMap();
             CreateMap<DepositFee, DepositFeeViewModel>().ReverseMap();

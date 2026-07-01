@@ -1,0 +1,244 @@
+@model VMSService.Core.Models.Vaults.VaultSectionDetailViewModel
+
+@{
+    ViewData["Title"] = $"Vault Section — {Model.Name}";
+}
+
+@* Hero Card *@
+<div class="rounded-3 p-3 mb-3" style="background:linear-gradient(135deg,#31316A 30%,#BA7517 100%);">
+    <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap mb-3">
+        <div>
+            <p class="text-uppercase mb-1" style="font-size:10px;letter-spacing:.08em;color:rgba(255,255,255,.7);">
+                <i class="ti ti-archive me-1"></i>Vault Section
+            </p>
+            <h5 class="fw-semibold text-white mb-1">@Model.Name</h5>
+            <div class="d-flex flex-wrap gap-2 mt-1">
+                <span class="badge rounded-pill px-2 py-1" style="background:rgba(255,255,255,.2);color:#fff;font-size:.75rem;">
+                    <i class="ti ti-building-bank me-1"></i>@Model.VaultName
+                </span>
+                @if (!Model.IsActive)
+                {
+                    <span class="badge rounded-pill px-2 py-1" style="background:rgba(253,126,20,.3);color:#fff;font-size:.75rem;">
+                        Inactive
+                    </span>
+                }
+            </div>
+        </div>
+        <a asp-action="Index" class="btn btn-sm btn-secondary">
+            <i class="ti ti-arrow-left me-1"></i>Back to Vaults
+        </a>
+    </div>
+    <div class="row g-2">
+        <div class="col-6 col-md-3">
+            <div class="rounded-3 p-2" style="background:rgba(255,255,255,.12);">
+                <p class="text-uppercase mb-1" style="font-size:10px;letter-spacing:.1em;color:rgba(255,255,255,.7);">Bags</p>
+                <p class="fw-bold mb-0 text-white">@Model.TotalBags</p>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="rounded-3 p-2" style="background:rgba(255,255,255,.12);">
+                <p class="text-uppercase mb-1" style="font-size:10px;letter-spacing:.1em;color:rgba(255,255,255,.7);">Bundles</p>
+                <p class="fw-bold mb-0 text-white">@Model.TotalBundles</p>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="rounded-3 p-2" style="background:rgba(255,255,255,.12);">
+                <p class="text-uppercase mb-1" style="font-size:10px;letter-spacing:.1em;color:rgba(255,255,255,.7);">Amount</p>
+                <p class="fw-bold mb-0 small text-white">UGX @Model.TotalAmount.ToString("N0")</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 pb-4">
+    @* Left: Bags Currently in This Section *@
+    <div class="col-12 col-lg-7">
+        <div class="card border-0 shadow h-100">
+            <div class="card-header bg-white d-flex align-items-center justify-content-between">
+                <h5 class="mb-0 fw-bold">
+                    <i class="ti ti-package me-2"></i>Bags in This Section
+                </h5>
+                @if (Model.Bags.Any())
+                {
+                    <span class="badge bg-tertiary bg-opacity-10 text-tertiary border border-tertiary border-opacity-25">
+                        @Model.Bags.Count bag@(Model.Bags.Count == 1 ? "" : "s")
+                    </span>
+                }
+            </div>
+            <div class="card-body @(!Model.Bags.Any() ? "p-4" : "p-1")">
+                @if (!Model.Bags.Any())
+                {
+                    <div class="text-center py-5">
+                        <i class="ti ti-inbox d-block mb-3 text-secondary" style="font-size:3rem;opacity:.4;"></i>
+                        <p class="fw-semibold text-muted mb-1">No bags in this section</p>
+                        <p class="text-muted small">Attach bags from the list on the right.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0" id="bagsTable">
+                            <thead style="background-color:#f8fafc;border-bottom:2px solid #e9ecef;">
+                                <tr>
+                                    <th class="px-3 py-2 small fw-semibold">Bag Reference</th>
+                                    <th class="px-3 py-2 small fw-semibold">Denomination</th>
+                                    <th class="px-3 py-2 small fw-semibold text-center">Bundles</th>
+                                    <th class="px-3 py-2 small fw-semibold text-end">Amount (UGX)</th>
+                                    <th class="px-3 py-2 small fw-semibold text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var bag in Model.Bags)
+                                {
+                                    <tr style="border-bottom:1px solid #f0f2f5;">
+                                        <td class="px-3 small fw-bold">
+                                            <a asp-controller="Bagging" asp-action="Details" asp-route-id="@bag.Id" class="text-nowrap">
+                                                @bag.ReferenceNumber
+                                            </a>
+                                        </td>
+                                        <td class="px-3 small">
+                                            <span class="badge" style="background-color:#e7f5ff;color:#0b5394;">
+                                                <i class="ti ti-coins me-1"></i>@(bag.DenominationName ?? $"ID {bag.DenominationId}")
+                                            </span>
+                                        </td>
+                                        <td class="px-3 small fw-semibold text-center">
+                                            @bag.TotalBundles
+                                            <div class="progress mt-1" style="height:3px;">
+                                                <div class="progress-bar bg-success" style="width:@bag.FillPercent%;"></div>
+                                            </div>
+                                        </td>
+                                        <td class="px-3 small fw-semibold text-end text-primary">
+                                            UGX @bag.TotalAmount.ToString("N0")
+                                        </td>
+                                        <td class="px-3 text-center">
+                                            <form asp-action="DetachBag" method="post" class="d-inline"
+                                                    onsubmit="return confirm('Remove this bag from the section?');">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="bagId" value="@bag.Id" />
+                                                <input type="hidden" name="vaultSectionId" value="@Model.Id" />
+                                                <div class="btn-group">
+                                                    <a asp-controller="Bagging" asp-action="Details" asp-route-id="@bag.Id"
+                                                        class="btn btn-sm btn-outline-tertiary" title="View bag details">
+                                                        <i class="ti ti-eye"></i>
+                                                    </a>
+                                                    @* <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove from section">
+                                                        <i class="ti ti-unlink"></i>
+                                                    </button> *@
+                                                </div>
+                                                    
+                                            </form>
+                                            
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @* Right: Attach Available Bags *@
+    <div class="col-12 col-lg-5">
+        <div class="card border-0 shadow h-100">
+            <div class="card-header bg-white">
+                <h5 class="mb-0 fw-bold">
+                    <i class="ti ti-link me-2"></i>Attach a Bag
+                </h5>
+                <p class="text-muted small mb-0 mt-1">Bags not yet assigned to any vault section.</p>
+            </div>
+            <div class="card-body @(!Model.AvailableBags.Any() ? "p-4" : "p-1")">
+                @if (!Model.AvailableBags.Any())
+                {
+                    <div class="text-center py-5">
+                        <i class="ti ti-mood-empty d-block mb-3 text-secondary" style="font-size:2.5rem;opacity:.4;"></i>
+                        <p class="fw-semibold text-muted mb-1">No bags available</p>
+                        <p class="text-muted small">All bags are already assigned to vault sections.</p>
+                        <a asp-controller="Bagging" asp-action="Index" class="btn btn-sm btn-outline-tertiary mt-2">
+                            <i class="ti ti-package me-1"></i>Go to Bagging
+                        </a>
+                    </div>
+                }
+                else
+                {
+                    <form asp-action="AttachBag" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="VaultSectionId" value="@Model.Id" />
+
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0" id="availableTable">
+                                <thead style="background-color:#f8fafc;border-bottom:2px solid #e9ecef;">
+                                    <tr>
+                                        <th class="px-2 py-2" style="width:36px;"></th>
+                                        <th class="px-3 py-2 small fw-semibold">Reference</th>
+                                        <th class="px-3 py-2 small fw-semibold">Denomination</th>
+                                        <th class="px-3 py-2 small fw-semibold text-center">Bundles</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var bag in Model.AvailableBags)
+                                    {
+                                        <tr style="border-bottom:1px solid #f0f2f5;cursor:pointer;"
+                                            onclick="selectAvailableBag(@bag.Id, this)">
+                                            <td class="px-2 text-center">
+                                                <input type="radio" name="BagId" value="@bag.Id"
+                                                       class="form-check-input" id="avail_@bag.Id" required />
+                                            </td>
+                                            <td class="px-3 small fw-bold">
+                                                <label for="avail_@bag.Id" style="cursor:pointer;" class="mb-0 text-nowrap">
+                                                    @bag.ReferenceNumber
+                                                </label>
+                                            </td>
+                                            <td class="px-3 small">
+                                                <span class="badge" style="background-color:#e7f5ff;color:#0b5394;">
+                                                    @(bag.DenominationName ?? $"ID {bag.DenominationId}")
+                                                </span>
+                                            </td>
+                                            <td class="px-3 small fw-semibold text-center">@bag.TotalBundles</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="p-3 border-top">
+                            <button type="submit" class="btn btn-tertiary w-100" id="attachBtn" disabled>
+                                <i class="ti ti-link me-1"></i>Attach Selected Bag to Section
+                            </button>
+                        </div>
+                    </form>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function selectAvailableBag(bagId, row) {
+            document.querySelectorAll('#availableTable tbody tr').forEach(r => r.classList.remove('table-active'));
+            row.classList.add('table-active');
+            document.getElementById('avail_' + bagId).checked = true;
+            document.getElementById('attachBtn').disabled = false;
+        }
+
+        document.querySelectorAll('input[name="BagId"]').forEach(function (r) {
+            r.addEventListener('change', function () {
+                document.getElementById('attachBtn').disabled = false;
+            });
+        });
+
+        $(document).ready(function () {
+            if (document.getElementById('bagsTable')) {
+                $('#bagsTable').DataTable({ pageLength: 10, order: [] });
+            }
+            if (document.getElementById('availableTable')) {
+                $('#availableTable').DataTable({
+                    pageLength: 10,
+                    columnDefs: [{ orderable: false, targets: 0 }]
+                });
+            }
+        });
+    </script>
+}

@@ -1,3 +1,4 @@
+using ConfigurationsService.Client;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartBreadcrumbs.Attributes;
@@ -14,26 +15,80 @@ namespace VMSService.Controllers
     {
         private readonly IBagRepository _bagRepository;
         private readonly IStockService _stockService;
+        private readonly IConfigurationsServiceClient _configServiceClient;
 
-        public BaggingController(IBagRepository bagRepository, IStockService stockService)
+        public BaggingController(IBagRepository bagRepository, IStockService stockService, IConfigurationsServiceClient configServiceClient)
         {
             _bagRepository = bagRepository;
             _stockService = stockService;
+            _configServiceClient = configServiceClient;
         }
 
         // GET: Bagging
         [Breadcrumb("Bagging", FromController = typeof(HomeController), FromAction = nameof(Index))]
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(int? branchId = null)
         {
-            var bags = await _bagRepository.GetAllBagsAsync();
-            
+            var allBouBranches = await _configServiceClient.GetAllBouBranchesAsync();
+
+            // Get user roles
+            var userRoles = User.FindAll("appRole")
+                .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
+                .Select(c => c.Value.Split(":")[1])
+                .ToList();
+
+            // Filter branches based on user roles
+            // Filter branches based on role names matching branch names
+            List<BranchDto> userBranches = allBouBranches
+                .Where(branch => userRoles.Any(role => role.Contains(branch.Name)))
+                .ToList();
+
+            if (branchId == null)
+            {
+                branchId = userBranches.FirstOrDefault()?.Id ?? 0;
+            }
+
+            var bags = await _bagRepository.GetAllBagsAsync(branchId);
+
             // Enrich with denomination names
+            var denominations = await _stockService.GetAllDenominations();
+            var denomMap = denominations.ToDictionary(d => d.Id);
+            var allCategories = await _stockService.GetAllCategories();
+            var categoryDict = allCategories.ToDictionary(c => c.Id, c => c.Name);
+            var allSubCategories = await _stockService.GetAllSubCategories();
+            var subCategoryDict = allSubCategories.ToDictionary(sc => sc.Id, sc => sc.Name);
             foreach (var bag in bags)
             {
-                var denomination = await _stockService.GetDenominationById(bag.DenominationId);
-                bag.DenominationName = denomination?.Name;
-                bag.DenominationValue = denomination?.Value ?? 0;
+                if (denomMap.TryGetValue(bag.DenominationId, out var denom))
+                {
+                    bag.DenominationName = denom.Name;
+                    bag.DenominationValue = denom.Value;
+                }
+                bag.TotalAmount = bag.DenominationValue * 1000 * bag.TotalBundles;
+                if (bag.CategoryId.HasValue)
+                    bag.CategoryName = categoryDict.GetValueOrDefault(bag.CategoryId.Value);
+                if (bag.SubCategoryId.HasValue)
+                    bag.SubCategoryName = subCategoryDict.GetValueOrDefault(bag.SubCategoryId.Value);
             }
+
+            // Enrich with commercial bank names
+            var allCbIds = bags.SelectMany(b => b.CommercialBankIds).Distinct().Where(id => id > 0).ToList();
+            var bankNames = new Dictionary<int, string>();
+            foreach (var cbId in allCbIds)
+            {
+                var bank = await _configServiceClient.GetCbIdAsync(cbId);
+                if (bank != null) bankNames[cbId] = bank.Name;
+            }
+            foreach (var bag in bags)
+            {
+                bag.CommercialBankNames = bag.CommercialBankIds
+                    .Where(id => bankNames.ContainsKey(id))
+                    .Select(id => bankNames[id])
+                    .Distinct()
+                    .ToList();
+            }
+
+            ViewBag.Branches = userBranches;
+            ViewBag.SelectedBranchId = branchId;
 
             return View(bags);
         }
@@ -53,14 +108,43 @@ namespace VMSService.Controllers
             var denomination = await _stockService.GetDenominationById(bag.DenominationId);
             bag.DenominationName = denomination?.Name;
             bag.DenominationValue = denomination?.Value ?? 0;
+            bag.TotalAmount = bag.DenominationValue * 1000 * bag.TotalBundles;
+
+            var allCategories = await _stockService.GetAllCategories();
+            var categoryDict = allCategories.ToDictionary(c => c.Id, c => c.Name);
+            var allSubCategories = await _stockService.GetAllSubCategories();
+            var subCategoryDict = allSubCategories.ToDictionary(sc => sc.Id, sc => sc.Name);
+
+            if (bag.CategoryId.HasValue)
+                bag.CategoryName = categoryDict.GetValueOrDefault(bag.CategoryId.Value);
+            if (bag.SubCategoryId.HasValue)
+                bag.SubCategoryName = subCategoryDict.GetValueOrDefault(bag.SubCategoryId.Value);
+
+            foreach (var nested in bag.NestedBags)
+            {
+                if (nested.CategoryId.HasValue)
+                    nested.CategoryName = categoryDict.GetValueOrDefault(nested.CategoryId.Value);
+                if (nested.SubCategoryId.HasValue)
+                    nested.SubCategoryName = subCategoryDict.GetValueOrDefault(nested.SubCategoryId.Value);
+            }
 
             foreach (var item in bag.Items)
             {
                 var itemDenom = await _stockService.GetDenominationById(item.DenominationId);
                 item.DenominationName = itemDenom?.Name;
+                item.DenominationValue = itemDenom?.Value ?? 0;
+                item.Amount = item.DenominationValue * 1000 * item.NumberOfBundlesOrBoxes;
 
                 var subCat = await _stockService.GetSubCategoryById(item.SubCategoryId);
                 item.SubCategoryName = subCat?.Name;
+
+                var commercialBank = await _configServiceClient.GetCbIdAsync(item.CbId);
+                item.CommercialBankName = commercialBank.Name;
+            }
+
+            foreach (var nested in bag.NestedBags)
+            {
+                nested.TotalAmount = bag.DenominationValue * 1000 * nested.TotalBundles;
             }
 
             return View(bag);
@@ -68,10 +152,25 @@ namespace VMSService.Controllers
 
         // GET: Bagging/Create
         [Breadcrumb("Create", FromController = typeof(BaggingController), FromAction = nameof(Index))]
-        public async Task<IActionResult> Create()
+        public async Task<IActionResult> Create(int branchId = 0)
         {
-            ViewBag.Denominations = await _stockService.GetAllDenominations();
-            return View();
+            var denominations = await _stockService.GetAllDenominations();
+            var selectedDenomination = denominations.FirstOrDefault();
+            int bagSequence = await _bagRepository.BagSequence(DateTime.UtcNow, selectedDenomination?.Id ?? 0);
+
+            // Generate denomination short form
+            string denomShortForm = GetDenominationShortForm(selectedDenomination?.Value ?? 0);
+
+            ViewBag.Denominations = denominations;
+
+            CreateBagViewModel model = new CreateBagViewModel
+            {
+                ReferenceNumber = $"BAG-{DateTime.UtcNow:ddMMyy}-{denomShortForm}-{bagSequence}",
+                DenominationId = selectedDenomination?.Id ?? 0,
+                BranchId = branchId
+            };
+
+            return View(model);
         }
 
         // POST: Bagging/Create
@@ -90,7 +189,7 @@ namespace VMSService.Controllers
             {
                 var bag = await _bagRepository.CreateBagAsync(model);
                 TempData["Success"] = $"Bag '{model.ReferenceNumber}' created successfully!";
-                return RedirectToAction(nameof(AddItems), new { id = bag!.Id });
+                return RedirectToAction(nameof(Details), new { id = bag!.Id });
             }
             catch (Exception ex)
             {
@@ -98,6 +197,21 @@ namespace VMSService.Controllers
                 ViewBag.Denominations = await _stockService.GetAllDenominations();
                 return View(model);
             }
+        }
+
+        // GET: Bagging/GenerateReferenceNumber
+        [HttpGet]
+        public async Task<IActionResult> GenerateReferenceNumber(int denominationId)
+        {
+            var denomination = await _stockService.GetDenominationById(denominationId);
+            if (denomination == null)
+                return NotFound(new { error = "Denomination not found." });
+
+            int bagSequence = await _bagRepository.BagSequence(DateTime.UtcNow, denominationId);
+            string denomShortForm = GetDenominationShortForm(denomination.Value);
+            string referenceNumber = $"BAG-{DateTime.UtcNow:ddMMyy}-{denomShortForm}-{bagSequence}";
+
+            return Json(new { referenceNumber });
         }
 
         // GET: Bagging/AddItems/5
@@ -122,6 +236,9 @@ namespace VMSService.Controllers
                 var subCat = await _stockService.GetSubCategoryById(item.SubCategoryId);
                 item.SubCategoryName = subCat?.Name;
             }
+
+            var bagDenom = await _stockService.GetDenominationById(bag.DenominationId);
+            bag.DenominationName = bagDenom.Name;
 
             ViewBag.Bag = bag;
             ViewBag.AvailableItems = availableItems;
@@ -204,6 +321,93 @@ namespace VMSService.Controllers
             }
 
             return RedirectToAction(nameof(Index));
+        }
+
+        // GET: Bagging/AddBag/5
+        [Breadcrumb("Add Bag", FromController = typeof(BaggingController), FromAction = nameof(Index))]
+        public async Task<IActionResult> AddBag(int id)
+        {
+            var parentBag = await _bagRepository.GetBagByIdAsync(id);
+            if (parentBag == null)
+            {
+                TempData["Error"] = "Bag not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var denomination = await _stockService.GetDenominationById(parentBag.DenominationId);
+            parentBag.DenominationName = denomination?.Name;
+            parentBag.DenominationValue = denomination?.Value ?? 0;
+            parentBag.TotalAmount = parentBag.DenominationValue * 1000 * parentBag.TotalBundles;
+
+            var availableBags = await _bagRepository.GetAvailableBagsForMergingAsync(id);
+            foreach (var bag in availableBags)
+            {
+                bag.TotalAmount = parentBag.DenominationValue * 1000 * bag.TotalBundles;
+            }
+
+            ViewBag.ParentBag = parentBag;
+            ViewBag.AvailableBags = availableBags;
+
+            return View(new AddBagToBagViewModel { ParentBagId = id });
+        }
+
+        // POST: Bagging/AddBag
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Breadcrumb("Add Bag", FromController = typeof(BaggingController), FromAction = nameof(Index))]
+        public async Task<IActionResult> AddBag(AddBagToBagViewModel model)
+        {
+            try
+            {
+                var allSubCategories = await _stockService.GetAllSubCategories();
+                var mixedSubCategoryId = allSubCategories
+                    .FirstOrDefault(sc => sc.Name == StockConstants.SubCategories.Mixed)?.Id;
+
+                await _bagRepository.AddBagToBagAsync(model, mixedSubCategoryId);
+                TempData["Success"] = "Bag added successfully!";
+                return RedirectToAction(nameof(Details), new { id = model.ParentBagId });
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = $"Error adding bag: {ex.Message}";
+                return RedirectToAction(nameof(AddBag), new { id = model.ParentBagId });
+            }
+        }
+
+        // POST: Bagging/RemoveBag
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoveBag(int baggedBagId, int parentBagId)
+        {
+            try
+            {
+                var result = await _bagRepository.RemoveBagFromBagAsync(baggedBagId);
+                if (result)
+                    TempData["Success"] = "Bag removed successfully!";
+                else
+                    TempData["Error"] = "Nested bag record not found.";
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = $"Error removing bag: {ex.Message}";
+            }
+
+            return RedirectToAction(nameof(Details), new { id = parentBagId });
+        }
+
+        private string GetDenominationShortForm(decimal denominationValue)
+        {
+            if (denominationValue >= 1000)
+            {
+                // Convert to thousands and append 'K'
+                int thousands = (int)(denominationValue / 1000);
+                return $"{thousands}K";
+            }
+            else
+            {
+                // For values less than 1000, return as is
+                return denominationValue.ToString("0");
+            }
         }
     }
 }

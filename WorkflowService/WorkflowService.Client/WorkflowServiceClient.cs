@@ -227,13 +227,13 @@ namespace WorkflowService.Client
             }
         }
 
-        public async Task<List<WorkflowTransitionDto>> GetAvailableTransitionsAsync(string entityType, int statusId, int userRole)
+        public async Task<List<WorkflowTransitionDto>> GetAvailableTransitionsAsync(string appAcronym, string entityType, int statusId, int userRole)
         {
             try
             {
                 var requestData = new GetAvailableTransitionsRequestDto
                 {
-                    ApplicationAcronym = "Myapp",
+                    ApplicationAcronym = appAcronym,
                     EntityTypeName = entityType,
                     CurrentStatusId = statusId,
                     AppRole = userRole,

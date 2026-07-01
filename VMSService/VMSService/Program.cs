@@ -14,6 +14,7 @@ using System.Text;
 using VMSService.Core.Authorization;
 using VMSService.Core.Mappings;
 using VMSService.Core.Models.Authentication;
+using VMSService.Core.Repositories.Attachments;
 using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.AgentDetailStatusHistories;
 using VMSService.Core.Repositories.ApprovedCurrencyDenominations;
@@ -28,7 +29,15 @@ using VMSService.Core.Repositories.CommercialBankBranches;
 using VMSService.Core.Repositories.CommercialBanks;
 using VMSService.Core.Repositories.CommercialBankUsers;
 using VMSService.Core.Repositories.CounterPartyTypes;
+using VMSService.Core.Repositories.BPSMachines;
+using VMSService.Core.Repositories.CountingRooms;
+using VMSService.Core.Repositories.CountingRoomSessions;
+using VMSService.Core.Repositories.StockProcessingPlans;
+using VMSService.Core.Repositories.StockProcessingPlanStatusHistories;
+using VMSService.Core.Repositories.StockProcessingSessions;
+using VMSService.Core.Repositories.StockProcessingSessionStatusHistories;
 using VMSService.Core.Repositories.CurrencyVendors;
+using VMSService.Core.Repositories.ProcessingBoards;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.DenominationTypes;
 using VMSService.Core.Repositories.DepositFees;
@@ -68,6 +77,22 @@ using VMSService.Core.Services.Stocks;
 using VMSService.Core.Services.Workflows;
 using VMSService.Data;
 using WorkflowService.Client;
+using VMSService.Core.Repositories.BoxStates;
+using VMSService.Core.Repositories.DestructionRequests;
+using VMSService.Core.Repositories.DestructionRequestStatusHistories;
+using VMSService.Core.Repositories.DestructionTypes;
+using VMSService.Core.Repositories.DestructionAuthorizations;
+using VMSService.Core.Repositories.DestructionAuthorizationStatusHistories;
+using VMSService.Core.Repositories.DestructionLocations;
+using VMSService.Core.Repositories.EodDiscrepancyReports;
+using VMSService.Core.Repositories.EodDiscrepancyReportStatusHistories;
+using VMSService.Core.Repositories.MonthlySurpluses;
+using VMSService.Core.Repositories.MonthlySurplusStatusHistories;
+using VMSService.Core.Repositories.MonthlyShortages;
+using VMSService.Core.Repositories.MonthlyShortageStatusHistories;
+using VMSService.Core.Repositories.MonthlyCommercialBankSettlements;
+using VMSService.Core.Repositories.MonthlyCommercialBankSettlementStatusHistories;
+using VMSService.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -174,7 +199,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             },
             OnAuthenticationFailed = context =>
             {
-                // Handle specific authentication failures
                 context.NoResult();
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 context.Response.Redirect(authenticationSettings?.LoginPath ?? "/logout");
@@ -182,14 +206,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             },
             OnChallenge = async context =>
             {
-                // This event fires when authentication fails
                 context.HandleResponse();
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 context.Response.Redirect(authenticationSettings?.LoginPath ?? "/logout");
                 await context.Response.CompleteAsync();
             }
-            
-
         };
     });
 
@@ -213,10 +234,19 @@ builder.Services.AddScoped<IExPrintMintDetailRepository, ExPrintMintDetailReposi
 builder.Services.AddScoped<IApprovedCurrencyProcurementRepository, ApprovedCurrencyProcurementRepository>();
 builder.Services.AddScoped<IApprovedCurrencyDenominationRepository, ApprovedCurrencyDenominationRepository>();
 builder.Services.AddScoped<ICurrencyVendorRepository, CurrencyVendorRepository>();
+builder.Services.AddScoped<IBPSMachineRepository, BPSMachineRepository>();
+builder.Services.AddScoped<IProcessingBoardRepository, ProcessingBoardRepository>();
+builder.Services.AddScoped<ICountingRoomRepository, CountingRoomRepository>();
+builder.Services.AddScoped<IStockProcessingPlanRepository, StockProcessingPlanRepository>();
+builder.Services.AddScoped<ICountingRoomSessionRepository, CountingRoomSessionRepository>();
+builder.Services.AddScoped<IStockProcessingPlanStatusHistoryRepository, StockProcessingPlanStatusHistoryRepository>();
+builder.Services.AddScoped<IStockProcessingSessionRepository, StockProcessingSessionRepository>();
+builder.Services.AddScoped<IStockProcessingSessionStatusHistoryRepository, StockProcessingSessionStatusHistoryRepository>();
 builder.Services.AddScoped<IReceivedStockRepository, ReceivedStockRepository>();
 builder.Services.AddScoped<IReceivedStockDetailsRepository, ReceivedStockDetailsRepository>();
 builder.Services.AddScoped<IPackingListDetailService, PackingListDetailService>();
 builder.Services.AddScoped<IWorkflowService, WorkflowServices>();
+builder.Services.AddScoped<IWithdrawalStatusResolver, WithdrawalStatusResolver>();
 builder.Services.AddScoped<IReceivedStockStatusHistoryRepository, ReceivedStockStatusHistoryRepository>();
 builder.Services.AddScoped<IStockMovementStatusHistoryRepository, StockMovementStatusHistoryRepository>();
 builder.Services.AddScoped<IStockLedgerRepository, StockLedgerRepository>();
@@ -244,11 +274,22 @@ builder.Services.AddScoped<IDepositUnitOfWork, DepositUnitOfWork>();
 builder.Services.AddScoped<IDepositTransactionRefNumberGenerator, DepositTransactionRefNumberGenerator>();
 builder.Services.AddScoped<IDepositRequestRepository, DepositRequestRepository>();
 builder.Services.AddScoped<IDepositRequestStatusHistoryRepository, DepositRequestStatusHistoryRepository>();
-builder.Services.AddScoped<IMinDepositStandardRepository, MinDepositStandardRepository>();
-builder.Services.AddScoped<IDepositProcessingFeeRepository, DepositProcessingFeeRepository>();
-builder.Services.AddScoped<IDepositFeeRepository, DepositFeeRepository>();
-builder.Services.AddScoped<IFeeTypeRepository, FeeTypeRepository>();
-builder.Services.AddScoped<ISubCategoryRepository, SubCategoryRepository>();
+builder.Services.AddScoped<IDestructionRequestRepository, DestructionRequestRepository>();
+builder.Services.AddScoped<IDestructionRequestStatusHistoryRepository, DestructionRequestStatusHistoryRepository>();
+builder.Services.AddScoped<IDestructionTypeRepository, DestructionTypeRepository>();
+builder.Services.AddScoped<IDestructionLocationRepository, DestructionLocationRepository>();
+builder.Services.AddScoped<IDestructionAuthorizationRepository, DestructionAuthorizationRepository>();
+builder.Services.AddScoped<IDestructionAuthorizationStatusHistoryRepository, DestructionAuthorizationStatusHistoryRepository>();
+builder.Services.AddScoped<IEodDiscrepancyReportRepository, EodDiscrepancyReportRepository>();
+builder.Services.AddScoped<IEodDiscrepancyReportStatusHistoryRepository, EodDiscrepancyReportStatusHistoryRepository>();
+builder.Services.AddScoped<IMonthlySurplusRepository, MonthlySurplusRepository>();
+builder.Services.AddScoped<IMonthlySurplusStatusHistoryRepository, MonthlySurplusStatusHistoryRepository>();
+builder.Services.AddScoped<IMonthlyShortageRepository, MonthlyShortageRepository>();
+builder.Services.AddScoped<IMonthlyShortageDetailRepository, MonthlyShortageDetailRepository>();
+builder.Services.AddScoped<IMonthlyShortageStatusHistoryRepository, MonthlyShortageStatusHistoryRepository>();
+builder.Services.AddScoped<IMonthlyCommercialBankSettlementRepository, MonthlyCommercialBankSettlementRepository>();
+builder.Services.AddScoped<IMonthlyCommercialBankSettlementStatusHistoryRepository, MonthlyCommercialBankSettlementStatusHistoryRepository>();
+builder.Services.AddScoped<IAttachmentRepository, AttachmentRepository>();
 
 // ── Resource-based ownership check ────────────────────────────
 builder.Services.AddSingleton<IAuthorizationHandler, CbOwnershipAuthorizationHandler>();
@@ -275,6 +316,16 @@ builder.Services.AddHttpClient<VMSService.Core.Services.Stocks.StockService>()
         client.DefaultRequestHeaders.Add("Accept", "application/json");
     });
 
+// Register Permission Service (cached lookup against IdentityService)
+builder.Services.AddHttpClient<IPermissionService, PermissionService>()
+    .ConfigureHttpClient((sp, client) =>
+    {
+        var configuration = sp.GetRequiredService<IConfiguration>();
+        var baseUrl = configuration["MicroServices:identityservice"] ?? "https://localhost:7026";
+        client.BaseAddress = new Uri(baseUrl);
+        client.DefaultRequestHeaders.Add("Accept", "application/json");
+    });
+
 // Register Identity Service
 builder.Services.AddScoped<IIdentityService, IdentityService>();
 builder.Services.AddHttpClient<IdentityService>()
@@ -293,7 +344,7 @@ builder.Services.AddHttpClient<ConfigurationService>()
     .ConfigureHttpClient((sp, client) =>
     {
         var configuration = sp.GetRequiredService<IConfiguration>();
-        var baseUrl = configuration["MicroServices:configurationsservice"] ?? "https://localhost:7026";
+        var baseUrl = configuration["MicroServices:configurationsservice"] ?? "https://localhost:7089";
         client.BaseAddress = new Uri(baseUrl);
         client.DefaultRequestHeaders.Add("Accept", "application/json");
     });
@@ -303,9 +354,14 @@ var workflowServiceBaseUrl = builder.Configuration["MicroServices:workflowservic
 builder.Services.AddWorkflowServiceClient(workflowServiceBaseUrl);
 
 // Register ConfigurationsServiceClient Service
-builder.Services.AddConfigurationsServiceClient(builder.Configuration["MicroServices:configurationsservice"] ?? "https://localhost:7026");
+builder.Services.AddConfigurationsServiceClient(builder.Configuration["MicroServices:configurationsservice"] ?? "https://localhost:7089");
 
 // Register Notification Service
+builder.Services.AddNotificationServiceClient(builder.Configuration["MicroServices:notificationservice"] ?? "https://localhost:7129");
+var rabbitMqHost = builder.Configuration["RabbitMQ:Host"] ?? "localhost";
+var rabbitMqUsername = builder.Configuration["RabbitMQ:Username"] ?? "guest";
+var rabbitMqPassword = builder.Configuration["RabbitMQ:Password"] ?? "guest";
+builder.Services.AddNotificationEventPublisher(rabbitMqHost, rabbitMqUsername, rabbitMqPassword);
 builder.Services.AddNotificationServiceClient(builder.Configuration["MicroServices:notificationservice"] ?? "https://localhost:7026");
 
 // Configure LDAP settings

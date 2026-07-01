@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using SmartBreadcrumbs.Attributes;
+using System.Text.Json;
 using WorkflowService.Core.Models.WorkflowTransitions;
 using WorkflowService.Core.Repositories.EntityTypes;
 using WorkflowService.Core.Repositories.StatusTypes;
@@ -140,7 +141,7 @@ namespace WorkflowService.Web.Controllers
                 foreach (var transition in model)
                 {
                     var appRole = await _identityService.GetRoleByIdAsync(transition.RequiredRole);
-                    transition.RequiredRoleName = appRole.Role.Name;
+                    transition.RequiredRoleName = appRole?.Role?.Name ?? "Unknown";
                     await PopulateNotificationDetails(transition);
                 }
 
@@ -322,7 +323,7 @@ namespace WorkflowService.Web.Controllers
                 model.EntityTypeName = transition.EntityType?.Name;
 
                 var appRole = await _identityService.GetRoleByIdAsync(model.RequiredRole);
-                model.RequiredRoleName = appRole.Role.Name;
+                model.RequiredRoleName = appRole?.Role?.Name ?? "Unknown";
 
                 // Populate notification display fields
                 await PopulateNotificationDetails(model);
@@ -492,7 +493,7 @@ namespace WorkflowService.Web.Controllers
                 model.EntityTypeName = transition.EntityType?.Name;
 
                 var appRole = await _identityService.GetRoleByIdAsync(model.RequiredRole);
-                model.RequiredRoleName = appRole.Role.Name;
+                model.RequiredRoleName = appRole?.Role?.Name ?? "Unknown";
 
                 // Populate notification display fields
                 await PopulateNotificationDetails(model);
@@ -579,7 +580,7 @@ namespace WorkflowService.Web.Controllers
                 model.EntityTypeName = transition.EntityType?.Name;
 
                 var appRole = await _identityService.GetRoleByIdAsync(model.RequiredRole);
-                model.RequiredRoleName = appRole.Role.Name;
+                model.RequiredRoleName = appRole?.Role?.Name ?? "Unknown";
 
                 // Populate notification display fields
                 await PopulateNotificationDetails(model);

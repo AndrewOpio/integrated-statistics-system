@@ -17,7 +17,9 @@ namespace VMSService.Core.Models.CbDepositRequests
         public int SubCategoryId { get; set; }
         public string? SubCategoryName { get; set; }
         public bool IsInBag { get; set; }
-        public int? CurrentBagId { get; set; }
-        public string? CurrentBagReference { get; set; }
+        public DateOnly DepositDate { get; set; }
+        public int CbId { get; set; }
+        public string? CommercialBankName { get; set; }
+        public int NumberOfBundlesOrBoxes { get; set; }
     }
 }

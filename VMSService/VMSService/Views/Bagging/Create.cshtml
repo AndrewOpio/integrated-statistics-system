@@ -6,36 +6,31 @@
     var denominations = ViewBag.Denominations as List<Denomination> ?? new List<Denomination>();
 }
 
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center py-4">
-    <div class="d-block mb-4 mb-md-0">
-        <h2 class="h4">Create New Bag</h2>
-        <p class="mb-0">Create a new bag to organize deposit request denominations</p>
+<div class="card border-0 shadow mb-4">
+    <div class="card-header">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center">
+            <div class="d-block mb-4 mb-md-0">
+                <h2 class="h4 text-tertiary">Create New Bag</h2>
+                <p class="mb-0">Create a new bag to organize deposit request denominations</p>
+            </div>
+            <div class="btn-toolbar mb-2 mb-md-0">
+                <a asp-action="Index" class="btn btn-sm btn-secondary">
+                    <i class="ti ti-arrow-left me-2"></i>
+                    Back to List
+                </a>
+            </div>
+        </div>
     </div>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <a asp-action="Index" class="btn btn-sm btn-secondary">
-            <i class="ti ti-arrow-left me-2"></i>
-            Back to List
-        </a>
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-12 col-xl-6 mx-auto">
-        <div class="card border-0 shadow">
-            <div class="card-body">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-8">
                 <form asp-action="Create" method="post">
                     @Html.AntiForgeryToken()
-
-                    <div class="mb-3">
-                        <label asp-for="ReferenceNumber" class="form-label">Reference Number</label>
-                        <input asp-for="ReferenceNumber" class="form-control" placeholder="e.g., BAG-2026-001" required />
-                        <span asp-validation-for="ReferenceNumber" class="text-danger"></span>
-                    </div>
+                    <input asp-for="BranchId" type="hidden" />
 
                     <div class="mb-3">
                         <label asp-for="DenominationId" class="form-label">Denomination</label>
-                        <select asp-for="DenominationId" class="form-select" required>
-                            <option value="">-- Select Denomination --</option>
+                        <select asp-for="DenominationId" class="form-select" required id="denominationSelect">
                             @foreach (var denom in denominations.OrderBy(d => d.DenominationTypeId).ThenBy(d => d.Value))
                             {
                                 <option value="@denom.Id">@denom.Name</option>
@@ -45,10 +40,22 @@
                         <small class="form-text text-muted">Only items with this denomination can be added to this bag</small>
                     </div>
 
+                    <div class="mb-3">
+                        <label asp-for="ReferenceNumber" class="form-label">Reference Number</label>
+                        <div class="input-group">
+                            <input asp-for="ReferenceNumber" class="form-control text-tertiary" readonly id="referenceNumberInput" />
+                            <span class="input-group-text" id="refSpinner" style="display:none;">
+                                <span class="spinner-border spinner-border-sm text-secondary" role="status" aria-hidden="true"></span>
+                            </span>
+                        </div>
+                        <span asp-validation-for="ReferenceNumber" class="text-danger"></span>
+                        <small class="form-text text-muted">Auto-generated based on the selected denomination</small>
+                    </div>
+
                     <hr class="my-4" />
 
                     <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-tertiary">
                             <i class="ti ti-device-floppy me-2"></i>
                             Create Bag
                         </button>
@@ -64,4 +71,31 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        document.getElementById('denominationSelect').addEventListener('change', async function () {
+            const denominationId = this.value;
+            if (!denominationId) return;
+
+            const refInput = document.getElementById('referenceNumberInput');
+            const spinner = document.getElementById('refSpinner');
+
+            spinner.style.display = '';
+            refInput.classList.add('text-muted');
+
+            try {
+                const response = await fetch(`/Bagging/GenerateReferenceNumber?denominationId=${denominationId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    refInput.value = data.referenceNumber;
+                } else {
+                    console.error('Failed to generate reference number.');
+                }
+            } catch (e) {
+                console.error('Error fetching reference number:', e);
+            } finally {
+                spinner.style.display = 'none';
+                refInput.classList.remove('text-muted');
+            }
+        });
+    </script>
 }

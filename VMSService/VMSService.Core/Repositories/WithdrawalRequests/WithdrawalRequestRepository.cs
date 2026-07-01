@@ -38,10 +38,11 @@ namespace VMSService.Core.Repositories.WithdrawalRequests
         }
 
         public async Task<WithdrawalRequest?> GetWithDetailsAsync(Guid id, CancellationToken ct = default)
-        => await _db.WithdrawalRequests
+            => await _db.WithdrawalRequests
             .Include(r => r.WithdrawalRequestDenominations)
+            .ThenInclude(d => d.DispatchedBoxes)
             .Include(r => r.WithdrawalRequestAgents)
-            //.Include(r => r.WithdrawalRequestStatusHistory)
+            .Include(r => r.WithdrawalRequestStatusHistory)
             .FirstOrDefaultAsync(r => r.Id == id, ct);
         public async Task<IEnumerable<WithdrawalRequest>> FindAllBouRequestAsync(CancellationToken ct = default)
         {

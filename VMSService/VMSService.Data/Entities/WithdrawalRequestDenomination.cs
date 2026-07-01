@@ -15,7 +15,11 @@ namespace VMSService.Data.Entities
         public int? Bundles { get; set; }   // for notes
         public int? Boxes { get; set; }     // for coins
         public decimal Amount { get; set; } // (Bundles ?? Boxes) × 1,000 × DenominationValue
-        public string Origin { get; set; } = "Cb"; // "Cb" or "BOU"
+        public string Origin { get; set; } = "Cb";
+        public string BundleType { get; set; } = "NA";
+
+        public ICollection<WithdrawalRequestDenominationBox> DispatchedBoxes { get; set; }
+            = new List<WithdrawalRequestDenominationBox>();
 
     }
 }

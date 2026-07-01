@@ -10,28 +10,58 @@ namespace VMSService.Core.Static
     {
         public static class WithdrawalStatusNames
         {
-            public const string Draft = "Draft";
-            public const string SubmittedToSupervisor = "Pending Internal Approval";
+            public const string Draft = "Internal Draft";
+            public const string PendingInternalApproval = "Pending Internal Approval";
             public const string ReturnedForRevision = "Returned for Internal Revision";
-            public const string SubmittedToBank = "Pending Disbursement Confirmation";
-            public const string PendingSpecialApproval = "Pending Special Approval";
-            public const string Recommended = "Recommended";
+            public const string PendingRTGSVerification = "Pending RTGS Verification";
+            public const string VerificationFailed = "Verification Failed";
+            public const string PendingWithdrawalConfirmation = "Pending Withdrawal Confirmation";
+            public const string PendingExceptionalApproval = "Pending Exceptional Approval";
+            public const string RejectExceptionalApproval = "Reject Exceptional Approval";
+            public const string PendingVerification = "Pending Verification";
+            public const string PendingApproval = "Pending Approval";
+            public const string RecallRequested = "Recall Requested";
+            public const string RecallApproved = "Recall Approved";
+            public const string RecallComplete = "Recall Complete";
+            //public const string BouDraft = "BOU Draft";
             public const string Approved = "Approved";
             public const string Rejected = "Rejected";
-            public const string Cancelled = "Cancelled";
+            public const string Completed = "Completed";
+            public const string Expired = "Expired";
+            //public const string WithdrawalConfirmed = "Withdrawal Confirmed";
+            //public const string WithdrawalReturned = "Withdrawal Returned";
         }
-        public static class WithdrawalStatusIds
+
+        public static class RtgsVerification
         {
-            public const int Draft = 24;
-            public const int SubmittedToSupervisor = 25;
-            public const int ReturnedForRevision = 26;
-            public const int SubmittedToBOU = 27;
-            public const int PendingSpecialApproval = 28;
-            public const int Recommended = 29;
-            public const int Approved = 30;
-            public const int Rejected = 31;
-            public const int Cancelled = 32;
+            public const string Pending = "Pending";
+            public const string Confirmed = "Confirmed";
+            public const string AmountMismatch = "AmountMismatch";
+            public const string DateMismatch = "DateMismatch";
+            public const string NotFound = "NotFound";
         }
+        public static string ResolveDisplayOrigin(string statusName)
+        {
+            return statusName switch
+            {
+                WithdrawalStatusNames.Draft
+                or WithdrawalStatusNames.PendingInternalApproval
+                //or WithdrawalStatusNames.PendingExceptionalApproval
+                //or WithdrawalStatusNames.PendingRecommendation
+                //or WithdrawalStatusNames.PendingDisbursement
+                => WithdrawalOrigin.Cb,
+
+                _ => WithdrawalOrigin.Bou,
+            };
+        }
+        public static class BundleTypes
+        {
+            public const string New = "New";
+            public const string Reissue = "Reissue";
+            public const string Coin = "Coin";
+            public const string NotApplicable = "NA";
+        }
+
         public static class WithdrawalOrigin
         {
             public const string Cb = "Cb";
@@ -44,12 +74,5 @@ namespace VMSService.Core.Static
             public const string Bou = "BOU";
         }
 
-        public static class WithdrawalRemarks
-        {
-            public const string SavedAsDraft = "Saved as draft";
-            public const string SubmittedToSupervisor = "Submitted to supervisor";
-            public const string SubmittedToBOU = "Submitted to BOU";
-            public const string ReturnedForRevision = "Returned for revision";
-        }
     }
 }

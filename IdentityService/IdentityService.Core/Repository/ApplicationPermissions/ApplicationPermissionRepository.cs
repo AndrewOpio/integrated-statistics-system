@@ -60,9 +60,25 @@ namespace IdentityService.Core.Repository.ApplicationPermissions
                 .ToList();
         }
 
-        public Task<List<string>> GetAllUserPermissions(string userId)
+        public async Task<List<string>> GetAllUserPermissions(string userId)
         {
-            throw new NotImplementedException();
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) return [];
+
+            var roleNames = await _userManager.GetRolesAsync(user);
+            var permissions = new HashSet<string>();
+
+            foreach (var roleName in roleNames)
+            {
+                var role = await _roleManager.FindByNameAsync(roleName);
+                if (role == null) continue;
+
+                var claims = await _roleManager.GetClaimsAsync(role);
+                foreach (var c in claims.Where(c => c.Type == "Permission"))
+                    permissions.Add(c.Value);
+            }
+
+            return [.. permissions];
         }
 
         public async Task RemovePermissionsFromRole(string roleId, IEnumerable<string> permissions)
@@ -85,9 +101,10 @@ namespace IdentityService.Core.Repository.ApplicationPermissions
             }
         }
 
-        public Task<bool> UserHasPermission(string userId, string permission)
+        public async Task<bool> UserHasPermission(string userId, string permission)
         {
-            throw new NotImplementedException();
+            var permissions = await GetAllUserPermissions(userId);
+            return permissions.Contains(permission);
         }
     }
 }

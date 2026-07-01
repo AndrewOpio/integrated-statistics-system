@@ -16,7 +16,7 @@ namespace VMSService.Data.Entities
         public int BouBranchId { get; set; }
         public string BouBranchCode { get; set; } = string.Empty;
         public DateOnly CollectionDate { get; set; }
-        public DateOnly? RtgsDate { get; set; }
+        public DateOnly? FundSettlementValueDate { get; set; }
         public string? RtgsCode { get; set; }
 
         public bool RequiresSpecialApproval { get; set; } = false;
@@ -28,6 +28,11 @@ namespace VMSService.Data.Entities
         public decimal TotalCoinsAmount { get; set; }
         public decimal TotalAmount { get; set; }
         public bool IsLumpSum { get; set; } = false;
+        public string RtgsVerificationStatus { get; set; } = "Pending";
+        public DateOnly? RtgsVerifiedDate { get; set; }
+        public bool RecallRtgsPending { get; set; } = false;
+        public string? RecallRtgsCode { get; set; }
+        public DateOnly? RecallRtgsDate { get; set; }
 
         public bool IsDeleted { get; set; } = false;
         public ICollection<WithdrawalRequestAgent> WithdrawalRequestAgents { get; set; } = [];
