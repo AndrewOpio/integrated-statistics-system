@@ -76,6 +76,7 @@ using VMSService.Core.Services.Stocks;
 using VMSService.Core.Services.Workflows;
 using VMSService.Data;
 using WorkflowService.Client;
+using VMSService.Core.Repositories.BoxStates;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -233,6 +234,7 @@ builder.Services.AddScoped<IReceivedStockRepository, ReceivedStockRepository>();
 builder.Services.AddScoped<IReceivedStockDetailsRepository, ReceivedStockDetailsRepository>();
 builder.Services.AddScoped<IPackingListDetailService, PackingListDetailService>();
 builder.Services.AddScoped<IWorkflowService, WorkflowServices>();
+builder.Services.AddScoped<IWithdrawalStatusResolver, WithdrawalStatusResolver>();
 builder.Services.AddScoped<IReceivedStockStatusHistoryRepository, ReceivedStockStatusHistoryRepository>();
 builder.Services.AddScoped<IStockMovementStatusHistoryRepository, StockMovementStatusHistoryRepository>();
 builder.Services.AddScoped<IStockLedgerRepository, StockLedgerRepository>();
@@ -265,6 +267,7 @@ builder.Services.AddScoped<IDepositProcessingFeeRepository, DepositProcessingFee
 builder.Services.AddScoped<IDepositFeeRepository, DepositFeeRepository>();
 builder.Services.AddScoped<IFeeTypeRepository, FeeTypeRepository>();
 builder.Services.AddScoped<ISubCategoryRepository, SubCategoryRepository>();
+builder.Services.AddScoped<IBoxStateRepository, BoxStateRepository>();
 
 // ── Resource-based ownership check ────────────────────────────
 builder.Services.AddSingleton<IAuthorizationHandler, CbOwnershipAuthorizationHandler>();
@@ -309,7 +312,7 @@ builder.Services.AddHttpClient<ConfigurationService>()
     .ConfigureHttpClient((sp, client) =>
     {
         var configuration = sp.GetRequiredService<IConfiguration>();
-        var baseUrl = configuration["MicroServices:configurationsservice"] ?? "https://localhost:7026";
+        var baseUrl = configuration["MicroServices:configurationsservice"] ?? "https://localhost:7089";
         client.BaseAddress = new Uri(baseUrl);
         client.DefaultRequestHeaders.Add("Accept", "application/json");
     });
@@ -319,9 +322,14 @@ var workflowServiceBaseUrl = builder.Configuration["MicroServices:workflowservic
 builder.Services.AddWorkflowServiceClient(workflowServiceBaseUrl);
 
 // Register ConfigurationsServiceClient Service
-builder.Services.AddConfigurationsServiceClient(builder.Configuration["MicroServices:configurationsservice"] ?? "https://localhost:7026");
+builder.Services.AddConfigurationsServiceClient(builder.Configuration["MicroServices:configurationsservice"] ?? "https://localhost:7089");
 
 // Register Notification Service
+builder.Services.AddNotificationServiceClient(builder.Configuration["MicroServices:notificationservice"] ?? "https://localhost:7129");
+var rabbitMqHost = builder.Configuration["RabbitMQ:Host"] ?? "localhost";
+var rabbitMqUsername = builder.Configuration["RabbitMQ:Username"] ?? "guest";
+var rabbitMqPassword = builder.Configuration["RabbitMQ:Password"] ?? "guest";
+builder.Services.AddNotificationEventPublisher(rabbitMqHost, rabbitMqUsername, rabbitMqPassword);
 builder.Services.AddNotificationServiceClient(builder.Configuration["MicroServices:notificationservice"] ?? "https://localhost:7026");
 
 // Configure LDAP settings

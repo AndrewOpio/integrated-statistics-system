@@ -11,12 +11,12 @@
     string BadgeCss(string s) => s switch
     {
         StatusConstants.WithdrawalRequest.Draft => "text-bg-secondary",
-        WithdrawalStatusNames.SubmittedToBank => "text-bg-primary",
-        WithdrawalStatusNames.PendingSpecialApproval => "text-bg-info",
-        WithdrawalStatusNames.Recommended => "text-bg-warning",
+        WithdrawalStatusNames.PendingVerification => "text-bg-primary",
+        WithdrawalStatusNames.PendingExceptionalApproval => "text-bg-info",
+        WithdrawalStatusNames.PendingApproval => "text-bg-warning",
         WithdrawalStatusNames.Approved => "text-bg-success",
-        WithdrawalStatusNames.Rejected => "text-bg-danger",
-        WithdrawalStatusNames.Cancelled => "text-bg-secondary",
+        WithdrawalStatusNames.RejectExceptionalApproval => "text-bg-danger",
+        WithdrawalStatusNames.ReturnedForRevision => "text-bg-secondary",
         _ => "text-bg-secondary"
     };
     string BadgeLbl(string s) => s switch

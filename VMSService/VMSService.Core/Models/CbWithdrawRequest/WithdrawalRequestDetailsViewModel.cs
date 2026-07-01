@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using VMSService.Core.Models.AgentDetails;
+using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.CbRequests;
 using VMSService.Core.Models.WithdrawalRequestDenominations;
 using VMSService.Data.Entities;
@@ -23,7 +24,7 @@ namespace VMSService.Core.Models.CbWithdrawRequest
         public string? RtgsCode { get; init; }
         public bool RequiresSpecialApproval { get; set; }
         public string? SpecialApprovalReason { get; set; }
-
+        public bool IsPostApprovalView { get; set; }
         //public string InitiatorName { get; init; } = string.Empty;
 
         public string CbCode { get; init; } = string.Empty;
@@ -49,8 +50,14 @@ namespace VMSService.Core.Models.CbWithdrawRequest
         public WithdrawalStepViewModel Steps { get; init; } = null!;
 
         public bool CanEdit { get; init; }
+        public bool CanEditRtgs { get; init; }
+        public string RtgsVerificationStatus { get; init; } = "Pending";
+        public bool RecallRtgsPending { get; init; }
+        public string? RecallRtgsCode { get; init; }
+        public DateOnly? RecallRtgsDate { get; init; }
 
-        //public WithdrawalRequestStatusHistory WithdrawalRequestStatus { get; set; }
         public string? CurrentStatusName { get; set; }
+        public IEnumerable<WithdrawalRequestStatusHistoryViewModel> StatusHistory { get; set; } = [];
+        public IEnumerable<AttachmentViewModel> AllAttachments { get; set; } = [];
     }
 }

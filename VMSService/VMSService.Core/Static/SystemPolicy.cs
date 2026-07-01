@@ -38,6 +38,7 @@
         public static class SystemSettings
         {
             public const string AppAcronym = "CAS";
+            public const string AppRoleClaimType = "appRoleId";
         }
 
         public static class Claims

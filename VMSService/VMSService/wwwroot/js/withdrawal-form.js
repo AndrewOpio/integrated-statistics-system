@@ -78,6 +78,11 @@ function buildDenomLines() {
 function validateForm(isDraft) {
     const errors = [];
 
+    if (!formState.collectionDate)
+        errors.push('Please select a collection date.');
+    else if (formState.collectionDate < today)
+        errors.push('Collection date cannot be in the past.');
+
     if (!isDraft) {
 
         if (!formState.bouBranchId)
@@ -86,20 +91,14 @@ function validateForm(isDraft) {
         if (formState.agentIds.filter(Boolean).length !== 2)
             errors.push('Exactly 2 agents are required.');
 
-        //if (!window.dtHasValue())
-        //    errors.push('Please add at least one denomination.');
-             
-        if (!formState.collectionDate)
-            errors.push('Please select a collection date.');
-
         if (formState.rtgsCode && !formState.rtgsDate)
             errors.push('RTGS date is required when an RTGS code is provided.');
 
         if (formState.rtgsDate && !formState.rtgsCode)
             errors.push('RTGS code is required when an RTGS date is provided.');
 
-        //if (formState.rtgsDate && formState.rtgsDate >= today)
-        //    errors.push('RTGS date cannot be in the future.');
+        if (formState.rtgsDate && formState.rtgsDate > today)
+            errors.push('RTGS date cannot be in the future.');
 
         if (!window.dtHasValue())
             errors.push('Please add at least one denomination or enter a lump sum amount.');

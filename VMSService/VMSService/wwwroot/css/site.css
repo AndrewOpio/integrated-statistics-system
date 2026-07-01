@@ -890,3 +890,12 @@ input[type=number].form-control {
         opacity: .8;
         margin: 0;
     }
+}
+
+.ts-dropdown {
+    z-index: 10000 !important;
+}
+
+.cbtable * {
+    border-style: none !important;
+}

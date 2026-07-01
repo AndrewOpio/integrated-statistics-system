@@ -39,6 +39,7 @@ namespace VMSService.Data.Configurations
         public DbSet<WithdrawalRequestDenomination> WithdrawalRequestDenominations { get; set; }
         public DbSet<WithdrawalRequestStatusHistory> WithdrawalRequestStatusHistory { get; set; }
         public DbSet<AgentDetailStatusHistory> AgentDetailStatusHistory { get; set; }
+        public DbSet<WithdrawalRequestDenominationBox> WithdrawalRequestDenominationBoxes => Set<WithdrawalRequestDenominationBox>();
 
         public DbSet<LogisticsStatusHistory> LogisticsStatusHistory { get; set; }
         public DbSet<ReceivedStatusTypes> ReceivedStatusTypes { get; set; }
@@ -49,7 +50,7 @@ namespace VMSService.Data.Configurations
         public DbSet<ReceivedStockDetails> ReceivedStockDetails { get; set; }
         public DbSet<NewStockAccountingStatus> NewStockAccountingStatuses { get; set; }
 
-                // Deposit
+        // Deposit
         public DbSet<DepositRequest> DepositRequests { get; set; }
         public DbSet<DepositRequestAgent> DepositRequestAgents { get; set; }
         public DbSet<DepositRequestDenomination> DepositRequestDenominations { get; set; }
@@ -60,6 +61,7 @@ namespace VMSService.Data.Configurations
         public DbSet<DepositFee> DepositFees { get; set; }
         public DbSet<Attachment> Attachments { get; set; }
 
+        public DbSet<BoxState> BoxStates { get; set; }
         // Processing
         public DbSet<ProcessingBoard> ProcessingBoards { get; set; }
         public DbSet<BPSMachine> BPSMachines { get; set; }
@@ -105,7 +107,7 @@ namespace VMSService.Data.Configurations
                 .OnDelete(DeleteBehavior.NoAction);
 
             // Configure StockMovementStatusHistory foreign keys to prevent cascade delete conflicts
-        
+
             modelBuilder.Entity<StockMovementStatusHistory>()
                 .HasOne(x => x.StockMovement)
                 .WithMany(x => x.StatusHistory)
@@ -131,7 +133,12 @@ namespace VMSService.Data.Configurations
             modelBuilder.Entity<WithdrawalRequest>()
                 .HasIndex(r => r.TransactionRefNumber)
                 .IsUnique()
-                .HasFilter("[TransactionRefNumber] IS NOT NULL"); 
+                .HasFilter("[TransactionRefNumber] IS NOT NULL");
+
+            modelBuilder.Entity<BoxState>()
+                .HasIndex(bs => new { bs.CaseNumber, bs.DenominationId, bs.BranchIsAtId })
+                .IsUnique()
+                .HasDatabaseName("UQ_BoxState_Box_Denom_Branch");
 
             modelBuilder.Entity<WithdrawalRequest>().HasIndex(r => r.CbId);
             modelBuilder.Entity<WithdrawalRequest>().HasIndex(r => r.StatusTypeId);
@@ -155,13 +162,16 @@ namespace VMSService.Data.Configurations
             //    .HasForeignKey(l => l.NewStatusId)
             //    .OnDelete(DeleteBehavior.Restrict);
 
-            // ✅ ADD THIS AT THE END — catches all remaining FKs not explicitly configured above
-            foreach (var relationship in modelBuilder.Model.GetEntityTypes()
-                .SelectMany(e => e.GetForeignKeys())
-                .Where(fk => !fk.IsOwnership && fk.DeleteBehavior == DeleteBehavior.Cascade))
+            // ── WithdrawalRequestDenomination ─────────────────────
+            modelBuilder.Entity<WithdrawalRequestDenominationBox>(e =>
             {
-                relationship.DeleteBehavior = DeleteBehavior.Restrict;
-            }
+                e.HasOne(x => x.WithdrawalRequestDenomination)
+                 .WithMany(x => x.DispatchedBoxes)
+                 .HasForeignKey(x => x.WithdrawalRequestDenominationId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasIndex(x => x.CaseNumber);
+            });
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -180,6 +190,7 @@ namespace VMSService.Data.Configurations
                     entity.ModifiedBy = user;
                     entity.ModifiedDate = now;
                 }
+
                 else if (entry.State == EntityState.Modified)
                 {
                     // Prevent overwriting creation audit fields
@@ -191,9 +202,9 @@ namespace VMSService.Data.Configurations
                     entity.ModifiedDate = now;
                 }
             }
-
             return await base.SaveChangesAsync(cancellationToken);
         }
     }
 }
+
 

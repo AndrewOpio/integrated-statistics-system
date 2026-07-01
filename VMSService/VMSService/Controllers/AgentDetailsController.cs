@@ -167,7 +167,7 @@ namespace VMSService.Controllers
                 }
 
                 var branches = await _configService.GetAllBranches();
-                var model = new AgentDetailViewModel
+                 var model = new AgentDetailViewModel
                 {
                     CommercialBankId = cbId,
                     BranchList = [.. branches.Select(b => new SelectListItem

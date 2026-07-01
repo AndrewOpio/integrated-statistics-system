@@ -3,6 +3,7 @@ using NotificationService.Client;
 using NotificationService.Client.Dtos;
 using VMSService.Core.Models.CbRequests;
 using VMSService.Core.Repositories.DepositUnitOfWorks;
+using VMSService.Core.Repositories.WithdrawalRequests;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 using VMSService.Core.Services.Workflows;
 using WorkflowService.Client;
@@ -10,7 +11,10 @@ using WorkflowService.Client;
 namespace VMSService.Web.Controllers;
 public class CbRequestsController(
     IWorkflowServiceClient _workflowServiceClient,
-    IWithdrawalUnitOfWork _uow, IDepositUnitOfWork _duow) : Controller
+    IWithdrawalUnitOfWork _uow,
+    IDepositUnitOfWork _duow,
+    IWithdrawalRequestRepository _requestRepository
+    ) : Controller
 {
     public async Task<IActionResult> Index(CancellationToken ct)
     {
