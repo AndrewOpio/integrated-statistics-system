@@ -356,12 +356,72 @@
         @* ── Denominations ── *@
         @await Html.PartialAsync("~/Views/Shared/_Withdrawal/_BouDenominationSection.cshtml", Model)
 
+        @* ── Comments / Status History ── *@
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-2 fw-bolder mb-3">
+                    <i class="ti ti-message"></i>
+                    <span class="text-uppercase">Comments</span>
+                </div>
+                @if (Model.StatusHistory != null && Model.StatusHistory.Any())
+                {
+                    <div class="timeline">
+                        @foreach (var history in Model.StatusHistory)
+                        {
+                            <div class="timeline-item mb-4">
+                                <div class="d-flex gap-3">
+                                    <div class="timeline-marker">
+                                        <i class="ti ti-circle-check text-success"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h6 class="mb-1 small">
+                                                    <strong>@history.OldStatusName</strong>
+                                                    <i class="ti ti-arrow-right text-muted"></i>
+                                                    <strong>@history.NewStatusName</strong>
+                                                </h6>
+                                                <small class="text-muted">
+                                                    By: <strong>@history.ChangedBy</strong>
+                                                </small>
+                                            </div>
+                                            <small class="text-muted">
+                                                @history.ChangedAt.ToString("dd/MMM/yyyy HH:mm:ss")
+                                            </small>
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(history.Remarks))
+                                        {
+                                            <div class="mt-2 p-2 bg-white rounded border">
+                                                <span class="d-block">@history.Remarks</span>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted text-center">
+                        <i class="ti ti-inbox me-2"></i>No comments yet.
+                    </p>
+                }
+            </div>
+        </div>
 
         @* ── Bottom nav ── *@
         <div class="d-flex justify-content-between mb-5">
             <a asp-action="Index" asp-controller="WithdrawalRequests" class="btn btn-outline-secondary">
                 <i class="ti ti-arrow-left me-1"></i>Back to List
             </a>
+            @if (Model.StatusName == WithdrawalStatusNames.Completed || Model.StatusName == WithdrawalStatusNames.Approved)
+            {
+                <a asp-controller="CbWithdrawRequests" asp-action="PrintRequest" asp-route-id="@Model.Id"
+                   target="_blank" class="btn btn-outline-dark">
+                    <i class="ti ti-file-text me-1"></i> Print Slip
+                </a>
+            }
         </div>
 
     </div>
@@ -440,6 +500,15 @@
                                 RTGS details must be verified before proceeding. Verify above or wait for automatic verification.
                             </div>
                         }
+                        else if (!Model.HasDispatchData
+                                 && (Model.StatusName == WithdrawStatuses.WithdrawalStatusNames.PendingVerification
+                        || Model.StatusName == WithdrawStatuses.WithdrawalStatusNames.ReturnedForRevision))
+                        {
+                            <div class="alert alert-info d-flex gap-2 py-2 mb-0 small">
+                                <i class="ti ti-packages flex-shrink-0 mt-1"></i>
+                                Dispatch details must be entered before proceeding.
+                            </div>
+                        }
                         else
                         {
                             @* Your decision context box *@
@@ -454,9 +523,9 @@
                             <form method="post"
                                   asp-action="ExecuteAction"
                                   asp-route-id="@Model.Id"
-                                  id="workflowForm">
+                                  id="workflowForm"
+                                  enctype="multipart/form-data">
                                 @Html.AntiForgeryToken()
-                                <input type="hidden" id="selectedAction" name="actionName" value="" />
 
                                 <label class="form-label text-uppercase text-muted fw-semibold" style="font-size:10px;">
                                     Comment
@@ -469,14 +538,32 @@
                                   placeholder="Add a comment..."></textarea>
                                 <small id="commentHint" class="text-muted d-block mb-2"></small>
 
+                                @* Attachments Section *@
+                                <div id="attachmentsSection" style="display: none;">
+                                    <div class="border-top pt-3 mb-3">
+                                        <label class="form-label text-uppercase text-muted fw-semibold d-flex align-items-center gap-2" style="font-size:10px;">
+                                            <i class="ti ti-paperclip"></i>
+                                            Required Attachments
+                                            <span class="text-danger">*</span>
+                                        </label>
+                                        <small class="text-muted d-block mb-3">Please upload all required documents before submitting</small>
+                                        <div id="attachmentsList" class="d-flex flex-column gap-3"></div>
+                                    </div>
+                                </div>
+
                                 @if (Model.AvailableTransitions.Count == 1)
                                 {
                                     var t = Model.AvailableTransitions.First();
+                                    <input name="actionName" id="soloActionName" value="@t.ActionName"
+                                           data-requires-comments="@t.RequiresComments.ToString().ToLower()"
+                                           data-requires-attachments="@t.RequiresAttachments.ToString().ToLower()"
+                                           data-attachment-requirements='@System.Text.Json.JsonSerializer.Serialize(t.AttachmentRequirements)'
+                                           hidden />
                                     <div class="d-grid">
                                         <button type="submit"
-                                                class="btn @t.ButtonClass text-white"
-                                                onclick="onTransitionClick(this, '@t.ActionName', @t.RequiresComments.ToString().ToLower())">
-                                            <i class="ti ti-check me-1"></i>@t.DisplayLabel
+                                                id="submitBtn"
+                                                class="btn @t.ButtonClass text-white">
+                                            <i class="ti ti-check me-1"></i><span id="submitBtnLabel">@t.DisplayLabel</span>
                                         </button>
                                     </div>
                                 }
@@ -485,22 +572,26 @@
                                     <label class="form-label text-uppercase text-muted fw-semibold" style="font-size:10px;">
                                         Select Action <span class="text-danger">*</span>
                                     </label>
-                                    <select id="transitionSelect" class="form-select form-select-sm mb-3">
+                                    <select id="actionSelect" name="actionName" class="form-select form-select-sm mb-3" required>
                                         <option value="">— Choose an action —</option>
                                         @foreach (var transition in Model.AvailableTransitions)
                                         {
                                             <option value="@transition.ActionName"
-                                                    data-requires-comments="@transition.RequiresComments.ToString().ToLower()">
+                                                    data-requires-comments="@transition.RequiresComments.ToString().ToLower()"
+                                                    data-requires-attachments="@transition.RequiresAttachments.ToString().ToLower()"
+                                                    data-attachment-requirements='@System.Text.Json.JsonSerializer.Serialize(transition.AttachmentRequirements)'
+                                                    data-button-class="@transition.ButtonClass"
+                                                    data-display-label="@transition.DisplayLabel">
                                                 @transition.DisplayLabel
                                             </option>
                                         }
                                     </select>
                                     <div class="d-grid">
                                         <button type="submit"
+                                                id="submitBtn"
                                                 class="btn btn-primary"
-                                                onclick="var sel=document.getElementById('transitionSelect');
-                                                                                             onTransitionClick(this,sel.value,sel.selectedOptions[0]?.dataset.requiresComments==='true')">
-                                            <i class="ti ti-check me-1"></i>Confirm Action
+                                                disabled>
+                                            <i class="ti ti-check me-1"></i><span id="submitBtnLabel">Confirm Action</span>
                                         </button>
                                     </div>
                                 }
@@ -533,24 +624,190 @@
            };
 
         document.getElementById('hero-words').textContent  = toWords(@Model.TotalAmount);
-        // document.getElementById('denom-words').textContent = toWords(@Model.TotalAmount);
-        document.getElementById('bou-denom-words').textContent = toWords(@Model.TotalAmount);
+        var bouDenomWords = document.getElementById('bou-denom-words');
+        if (bouDenomWords) bouDenomWords.textContent = toWords(@Model.TotalAmount);
 
-        function onTransitionClick(btn, actionName, requiresComments) {
-            const remarks  = document.getElementById('remarksTextarea').value.trim();
-            const hint     = document.getElementById('commentHint');
-            const required = document.getElementById('commentRequired');
-            if (requiresComments && !remarks) {
-                hint.textContent       = 'A comment is required for this action.';
-                hint.className         = 'text-danger d-block mb-2';
-                required.style.display = 'inline';
-                event.preventDefault();
-                return;
+        document.addEventListener('DOMContentLoaded', function () {
+            const actionSelect = document.getElementById('actionSelect');
+            const remarksTextarea = document.getElementById('remarksTextarea');
+            const commentRequired = document.getElementById('commentRequired');
+            const commentHint = document.getElementById('commentHint');
+            const submitBtn = document.getElementById('submitBtn');
+            const submitBtnLabel = document.getElementById('submitBtnLabel');
+            const workflowForm = document.getElementById('workflowForm');
+            const soloActionName = document.getElementById('soloActionName');
+            const attachmentsSection = document.getElementById('attachmentsSection');
+            const attachmentsList = document.getElementById('attachmentsList');
+
+            let uploadedFiles = {};
+
+            if (soloActionName) {
+                const requiresComments = soloActionName.dataset.requiresComments === 'true';
+                const requiresAttachments = soloActionName.dataset.requiresAttachments === 'true';
+                const attachmentRequirements = JSON.parse(soloActionName.dataset.attachmentRequirements || '[]');
+
+                if (requiresComments) {
+                    commentRequired.style.display = 'inline';
+                    remarksTextarea.required = true;
+                }
+
+                if (requiresAttachments && attachmentRequirements.length > 0) {
+                    displayAttachmentFields(attachmentRequirements);
+                }
             }
-            document.getElementById('selectedAction').value = actionName;
-            hint.textContent       = '';
-            required.style.display = 'none';
-        }
+
+            if (actionSelect && workflowForm) {
+                actionSelect.addEventListener('change', function () {
+                    const selectedOption = this.options[this.selectedIndex];
+                    const requiresComments = selectedOption.dataset.requiresComments === 'true';
+                    const requiresAttachments = selectedOption.dataset.requiresAttachments === 'true';
+                    const attachmentRequirements = JSON.parse(selectedOption.dataset.attachmentRequirements || '[]');
+                    const actionName = selectedOption.value;
+                    const displayLabel = selectedOption.dataset.displayLabel;
+                    const buttonClass = selectedOption.dataset.buttonClass;
+
+                    if (actionName) {
+                        if (requiresComments) {
+                            commentRequired.style.display = 'inline';
+                            remarksTextarea.required = true;
+                        } else {
+                            commentRequired.style.display = 'none';
+                            remarksTextarea.required = false;
+                        }
+
+                        if (requiresAttachments && attachmentRequirements.length > 0) {
+                            displayAttachmentFields(attachmentRequirements);
+                        } else {
+                            attachmentsSection.style.display = 'none';
+                            attachmentsList.innerHTML = '';
+                            uploadedFiles = {};
+                        }
+
+                        submitBtn.disabled = false;
+                        submitBtnLabel.textContent = displayLabel;
+                        submitBtn.className = `text-white btn ${buttonClass}`;
+                    } else {
+                        commentRequired.style.display = 'none';
+                        remarksTextarea.required = false;
+                        commentHint.textContent = '';
+                        attachmentsSection.style.display = 'none';
+                        attachmentsList.innerHTML = '';
+                        uploadedFiles = {};
+                        submitBtn.disabled = true;
+                        submitBtnLabel.textContent = 'Confirm Action';
+                        submitBtn.className = 'text-white btn btn-primary';
+                    }
+                });
+
+                workflowForm.addEventListener('submit', function (e) {
+                    const selectedOption = actionSelect ? actionSelect.options[actionSelect.selectedIndex] : null;
+                    const requiresComments = selectedOption ? selectedOption.dataset.requiresComments === 'true' :
+                                           soloActionName ? soloActionName.dataset.requiresComments === 'true' : false;
+                    const requiresAttachments = selectedOption ? selectedOption.dataset.requiresAttachments === 'true' :
+                                              soloActionName ? soloActionName.dataset.requiresAttachments === 'true' : false;
+                    const attachmentRequirements = selectedOption ? JSON.parse(selectedOption.dataset.attachmentRequirements || '[]') :
+                                                 soloActionName ? JSON.parse(soloActionName.dataset.attachmentRequirements || '[]') : [];
+                    const remarksValue = remarksTextarea.value.trim();
+
+                    if (requiresComments && !remarksValue) {
+                        e.preventDefault();
+                        alert('Comments are required for this action.');
+                        remarksTextarea.focus();
+                        return false;
+                    }
+
+                    if (requiresAttachments) {
+                        const requiredAttachments = attachmentRequirements.filter(req => req.isRequired);
+                        const missingAttachments = [];
+                        requiredAttachments.forEach(req => {
+                            const fileInput = document.getElementById(`attachment_${req.id}`);
+                            if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+                                missingAttachments.push(req.attachmentName);
+                            }
+                        });
+                        if (missingAttachments.length > 0) {
+                            e.preventDefault();
+                            alert('Please upload the following required attachments:\n- ' + missingAttachments.join('\n- '));
+                            return false;
+                        }
+                    }
+                });
+            }
+
+            function displayAttachmentFields(requirements) {
+                attachmentsSection.style.display = 'block';
+                attachmentsList.innerHTML = '';
+                uploadedFiles = {};
+                const sortedRequirements = [...requirements].sort((a, b) => a.displayOrder - b.displayOrder);
+                sortedRequirements.forEach(req => {
+                    attachmentsList.appendChild(createAttachmentCard(req));
+                });
+            }
+
+            function createAttachmentCard(requirement) {
+                const card = document.createElement('div');
+                card.className = 'card border';
+                card.style.cssText = 'background: #f8f9fa;';
+                const allowedFormats = requirement.AllowedFormats || 'pdf,docx,xlsx,png,jpg';
+                const allowedFormatsArray = allowedFormats.split(',').map(f => f.trim());
+                const acceptAttribute = allowedFormatsArray.map(format => {
+                    const formatMap = { 'pdf':'.pdf','excel':'.xls,.xlsx','docx':'.doc,.docx','word':'.doc,.docx','png':'.png','jpg':'.jpg,.jpeg','jpeg':'.jpg,.jpeg' };
+                    return formatMap[format.toLowerCase()] || '.' + format;
+                }).join(',');
+
+                card.innerHTML = `
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-start justify-content-between mb-2">
+                            <div class="flex-grow-1">
+                                <label class="form-label fw-semibold mb-1 d-flex align-items-center gap-2">
+                                    <i class="ti ti-file-text text-primary"></i>
+                                    ${requirement.AttachmentName || 'Attachment'}
+                                    ${requirement.IsRequired ? '<span class="text-danger">*</span>' : '<span class="badge bg-secondary bg-opacity-10 text-secondary small">Optional</span>'}
+                                </label>
+                                <small class="text-muted d-block mb-2">
+                                    <i class="ti ti-info-circle"></i>
+                                    Allowed formats: <strong class="text-info">${allowedFormatsArray.join(', ').toUpperCase()}</strong>
+                                </small>
+                            </div>
+                        </div>
+                        <div class="position-relative">
+                            <input type="file" class="form-control form-control-sm"
+                                   id="attachment_${requirement.Id}" name="attachments_${requirement.Id}"
+                                   accept="${acceptAttribute}" ${requirement.IsRequired ? 'required' : ''}
+                                   data-attachment-id="${requirement.Id}" data-attachment-name="${requirement.AttachmentName || 'Attachment'}">
+                            <div id="preview_${requirement.Id}" class="mt-2" style="display: none;">
+                                <div class="alert alert-success py-2 mb-0 d-flex align-items-center gap-2">
+                                    <i class="ti ti-circle-check"></i>
+                                    <span class="small flex-grow-1" id="fileName_${requirement.Id}"></span>
+                                    <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="clearFile(${requirement.Id})"><i class="ti ti-x"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+
+                card.querySelector(`#attachment_${requirement.Id}`).addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    const preview = document.getElementById(`preview_${requirement.Id}`);
+                    const fileNameSpan = document.getElementById(`fileName_${requirement.Id}`);
+                    if (file) {
+                        const fileSizeKB = (file.size / 1024).toFixed(2);
+                        fileNameSpan.textContent = `${file.name} (${fileSizeKB} KB)`;
+                        preview.style.display = 'block';
+                        uploadedFiles[requirement.Id] = file;
+                    } else {
+                        preview.style.display = 'none';
+                        delete uploadedFiles[requirement.Id];
+                    }
+                });
+                return card;
+            }
+
+            window.clearFile = function(attachmentId) {
+                const fileInput = document.getElementById(`attachment_${attachmentId}`);
+                const preview = document.getElementById(`preview_${attachmentId}`);
+                if (fileInput) { fileInput.value = ''; preview.style.display = 'none'; delete uploadedFiles[attachmentId]; }
+            };
+        });
 
     </script>
 

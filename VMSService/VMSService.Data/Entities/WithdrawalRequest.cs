@@ -16,7 +16,7 @@ namespace VMSService.Data.Entities
         public int BouBranchId { get; set; }
         public string BouBranchCode { get; set; } = string.Empty;
         public DateOnly CollectionDate { get; set; }
-        public DateOnly? RtgsDate { get; set; }
+        public DateOnly? FundSettlementValueDate { get; set; }
         public string? RtgsCode { get; set; }
 
         public bool RequiresSpecialApproval { get; set; } = false;

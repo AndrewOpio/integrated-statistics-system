@@ -62,7 +62,7 @@ namespace VMSService.Core.Static
             public const string ReturnedForRevision = "Returned for Internal Revision";
             public const string PendingRecommendation = "Pending Recommendation";
             public const string PendingExceptionalApproval = "Pending Exceptional Approval";
-            public const string PendingConfirmation = "Pending Confirmation";
+            public const string PendingConfirmation = "Pending Approval";
             public const string WithdrawalConfirmed = "Withdrawal Confirmed";
             public const string WithdrawalReturned = "Withdrawal Returned";
             public const string RejectExceptionalApproval = "Reject Exceptional Approval";

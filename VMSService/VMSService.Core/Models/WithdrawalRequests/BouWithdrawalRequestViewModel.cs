@@ -12,12 +12,22 @@ namespace VMSService.Core.Models.WithdrawalRequests
 {
     public class BouWithdrawalRequestViewModel
     {
+        // Hero card aggregates
         public int PendingCbCount { get; set; }
         public int UnderBouProcessing { get; set; }
-        public int SpecialApprovalCount { get; set; } //
-        public int ApprovedCount { get; set; }
-        public int ApprovedCountDiff { get; set; }
+        public int RecallCount { get; set; }
         public decimal TotalProcessed { get; set; }
+
+        // Individual status counts
+        public int PendingInternalApprovalCount { get; set; }
+        public int PendingWithdrawalConfirmationCount { get; set; }
+        public int PendingExceptionalApprovalCount { get; set; }
+        public int PendingRecommendationCount { get; set; }
+        public int PendingConfirmationCount { get; set; }
+        public int WithdrawalConfirmedCount { get; set; }
+        public int RecallRequestedCount { get; set; }
+        public int RecalledCount { get; set; }
+
         public string? SelectedBranch { get; set; }
         public bool CanViewAllLocations { get; set; } = false;
         public BranchViewModel UserBranch { get; set; } = new();

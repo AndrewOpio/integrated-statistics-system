@@ -12,6 +12,7 @@
         {
             public const string New = "New";
             public const string Paids = "Paids";
+            public const string Reissue = "Reissue";
         }
 
         public static class DenominationTypes
@@ -26,6 +27,7 @@
             public const string BufferToOperational = "BufferToOperational";
             public const string OperationalToBuffer = "OperationalToBuffer";
             public const string CommBankToBranch = "Commercial Bank To Branch";
+            public const string BranchToCommBank = "BranchToCommercialBank";
         }
 
         public static readonly (string Key, string Value)[] MovementTypes = new[]

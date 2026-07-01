@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using VMSService.Core.Models.AgentDetails;
 using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.CbRequests;
+using VMSService.Core.Models.CbWithdrawRequest;
 using VMSService.Core.Models.WithdrawalRequestDenominations;
 using VMSService.Data.Entities;
 using WorkflowService.Client.Dto;
@@ -37,6 +38,7 @@ namespace VMSService.Core.Models.WithdrawalRequests
         public bool IsLumpSum { get; set; } = false;
         public string? CurrentStatusName { get; set; }
         public bool CanEditDispatch { get; set; }
+        public bool HasDispatchData { get; set; }
         public string RtgsVerificationStatus { get; init; } = "Pending";
         public DateOnly? RtgsVerifiedDate { get; init; }
         public bool CanVerifyRtgs { get; init; }
@@ -52,6 +54,7 @@ namespace VMSService.Core.Models.WithdrawalRequests
         public IEnumerable<DenominationLineViewModel> Coins { get; init; } = [];
         public IEnumerable<WithdrawalRequestDenomination> CbDenominations { get; init; } = [];
         public List<BouDenominationEditRowViewModel> EditableBankRows { get; set; } = new();
+        public IEnumerable<WithdrawalRequestStatusHistoryViewModel> StatusHistory { get; set; } = [];
         public ICollection<WorkflowTransitionDto> AvailableTransitions { get; set; } = new List<WorkflowTransitionDto>();
         public List<BouDispatchCardViewModel> DispatchedNewBanknotes { get; set; } = new();
         public List<BouDispatchSimpleViewModel> DispatchedReissueBanknotes { get; set; } = new();

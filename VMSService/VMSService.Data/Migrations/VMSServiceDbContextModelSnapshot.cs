@@ -2682,6 +2682,9 @@ namespace VMSService.Data.Migrations
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateOnly?>("FundSettlementValueDate")
+                        .HasColumnType("date");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
@@ -2709,9 +2712,6 @@ namespace VMSService.Data.Migrations
 
                     b.Property<string>("RtgsCode")
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateOnly?>("RtgsDate")
-                        .HasColumnType("date");
 
                     b.Property<string>("RtgsVerificationStatus")
                         .IsRequired()

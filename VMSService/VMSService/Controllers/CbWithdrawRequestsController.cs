@@ -9,6 +9,7 @@ using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.CbRequests;
 using VMSService.Core.Models.CbWithdrawRequest;
 using VMSService.Core.Models.WithdrawalRequestDenominations;
+using VMSService.Core.Models.WithdrawalRequests;
 using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.Attachments;
 using VMSService.Core.Repositories.Denominations;
@@ -18,6 +19,7 @@ using VMSService.Core.Repositories.WithdrawalRequests;
 using VMSService.Core.Repositories.WithdrawalRequestStatusHistories;
 using VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
+using VMSService.Core.Services.Identity;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
@@ -43,6 +45,7 @@ namespace VMSService.Web.Controllers
     IWorkflowService _workflowService,
     IWithdrawalStatusResolver _statusResolver,
     IAttachmentRepository _attachmentRepository,
+    IIdentityService _identityService,
     ILogger<CbWithdrawRequestsController> _logger,
     IMapper _mapper) : BaseWithdrawController(authorizationService)
     {
@@ -207,6 +210,20 @@ namespace VMSService.Web.Controllers
 
             WithdrawalRequest request;
 
+            // Guard: collection date must be present and not in the past
+            if (!vm.Id.HasValue)
+            {
+                if (!vm.CollectionDate.HasValue)
+                    return BadRequest(new { errors = new[] { "Please select a collection date." } });
+
+                if (vm.CollectionDate.Value < DateOnly.FromDateTime(DateTime.Now))
+                    return BadRequest(new { errors = new[] { "Collection date cannot be in the past." } });
+            }
+
+            // Guard: RTGS date cannot be in the future
+            if (vm.RtgsDate.HasValue && vm.RtgsDate.Value > DateOnly.FromDateTime(DateTime.Now))
+                return BadRequest(new { errors = new[] { "RTGS date cannot be in the future." } });
+
             // Guard: lump sum must be a whole bundle (multiple of 1,000)
             if (vm.IsLumpSum)
             {
@@ -230,7 +247,7 @@ namespace VMSService.Web.Controllers
                 //if (!await CanAccessRequestAsync(request.CbId))  // CbId not Id
                 //    return Forbid();
 
-                request.RtgsDate = vm.RtgsDate;
+                request.FundSettlementValueDate = vm.RtgsDate;
                 request.RtgsCode = vm.RtgsCode;
                 request.ModifiedDate = DateTime.Now;
                 request.ModifiedBy = userId;
@@ -264,7 +281,7 @@ namespace VMSService.Web.Controllers
                     BouBranchId = vm.BouBranchId,
                     BouBranchCode = vm.BouBranchCode,
                     CollectionDate = vm.CollectionDate ?? default,
-                    RtgsDate = vm.RtgsDate,
+                    FundSettlementValueDate = vm.RtgsDate,
                     RtgsCode = vm.RtgsCode,
                     RequiresSpecialApproval = vm.CollectionDate.HasValue && vm.CollectionDate.Value == DateOnly.FromDateTime(DateTime.Now),
                     SpecialApprovalReason = vm.SpecialApprovalReason,
@@ -383,9 +400,13 @@ namespace VMSService.Web.Controllers
                 || request.StatusTypeName == WithdrawalStatusNames.ReturnedForRevision)
                 && userRoleNames.Contains(RolePolicy.CbMaker);
 
-            var canEditRtgs = !canEdit
-                && request.StatusTypeName == WithdrawalStatusNames.PendingInternalApproval
-                && (!request.RtgsDate.HasValue || string.IsNullOrEmpty(request.RtgsCode))
+            var rtgsEditableStatuses = new[]
+            {
+                WithdrawalStatusNames.Draft,
+                WithdrawalStatusNames.PendingInternalApproval,
+                WithdrawalStatusNames.PendingWithdrawalConfirmation,
+            };
+            var canEditRtgs = rtgsEditableStatuses.Contains(request.StatusTypeName)
                 && userRoleNames.Contains(RolePolicy.CbApprover);
 
             // ── Status history ────────────────────────────────────────────────────
@@ -455,7 +476,7 @@ namespace VMSService.Web.Controllers
                 StatusId = request.StatusTypeId,
                 StatusName = request.StatusTypeName,
                 CollectionDate = request.CollectionDate,
-                RtgsDate = request.RtgsDate,
+                RtgsDate = request.FundSettlementValueDate,
                 RtgsCode = request.RtgsCode,
                 RequiresSpecialApproval = request.RequiresSpecialApproval,
                 SpecialApprovalReason = request.SpecialApprovalReason,
@@ -477,7 +498,7 @@ namespace VMSService.Web.Controllers
                 RecallRtgsCode = request.RecallRtgsCode,
                 RecallRtgsDate = request.RecallRtgsDate,
                 IsLumpSum = request.IsLumpSum,
-                Steps = WithdrawalStepViewModelFactory.Build(stepKey, request.StatusTypeName == WithdrawalStatusNames.WithdrawalConfirmed, request.RequiresSpecialApproval, User),
+                Steps = WithdrawalStepViewModelFactory.Build(stepKey, request.StatusTypeName == WithdrawalStatusNames.Approved, request.RequiresSpecialApproval, User),
                 AvailableTransitions = availableTransitions,
                 StatusHistory = statusHistory,
                 AllAttachments = allAttachments,
@@ -596,13 +617,25 @@ namespace VMSService.Web.Controllers
             var request = await _uow.Requests.FindById(id);
             if (request is null) return NotFound();
 
-            if (request.StatusTypeName != WithdrawalStatusNames.PendingInternalApproval)
+            var rtgsUpdateableStatuses = new[]
             {
-                TempData["Error"] = "RTGS details can only be updated while pending internal approval.";
+                WithdrawalStatusNames.Draft,
+                WithdrawalStatusNames.PendingInternalApproval,
+                WithdrawalStatusNames.PendingWithdrawalConfirmation,
+            };
+            if (!rtgsUpdateableStatuses.Contains(request.StatusTypeName))
+            {
+                TempData["Error"] = "RTGS details can no longer be updated at this stage.";
                 return RedirectToAction(nameof(Details), new { id });
             }
 
-            request.RtgsDate = rtgsDate;
+            if (rtgsDate.HasValue && rtgsDate.Value > DateOnly.FromDateTime(DateTime.Now))
+            {
+                TempData["Error"] = "RTGS date cannot be in the future.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            request.FundSettlementValueDate = rtgsDate;
             request.RtgsCode = rtgsCode;
             request.ModifiedBy = GetUserId();
             request.ModifiedDate = DateTime.Now;
@@ -611,6 +644,170 @@ namespace VMSService.Web.Controllers
 
             TempData["Success"] = "RTGS details updated successfully.";
             return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // ── Print Slip ────────────────────────────
+        public async Task<IActionResult> PrintRequest(Guid id, CancellationToken ct)
+        {
+            var request = await _uow.Requests.GetWithDetailsAsync(id, ct);
+            if (request is null) return NotFound();
+
+            if (request.StatusTypeName != WithdrawalStatusNames.Completed
+                && request.StatusTypeName != WithdrawalStatusNames.Approved)
+                return RedirectToAction(nameof(Details), new { id });
+
+            var cb = await _configServiceClient.GetCbIdAsync(request.CbId);
+            var bouBranch = await _configServiceClient.GetBouBranchByIdAsync(request.BouBranchId);
+
+            // Agents
+            var agentIds = request.WithdrawalRequestAgents
+                .Where(a => a.EnteredBy == WithdrawalEnteredBy.Cb)
+                .Select(a => a.AgentId)
+                .ToList();
+
+            var agents = new List<AgentDetailViewModel>();
+            foreach (var agentId in agentIds)
+            {
+                var agent = await _agentRepo.FindById(agentId);
+                if (agent is not null)
+                    agents.Add(_mapper.Map<AgentDetailViewModel>(agent));
+            }
+
+            // BOU dispatch denominations
+            var bankRows = request.WithdrawalRequestDenominations
+                .Where(d => d.Origin == WithdrawalOrigin.Bou)
+                .ToList();
+
+            var newBanknotes = new List<BouDispatchCardViewModel>();
+            var reissueNotes = new List<BouDispatchSimpleViewModel>();
+            var coins = new List<BouDispatchSimpleViewModel>();
+
+            foreach (var row in bankRows)
+            {
+                if (string.Equals(row.BundleType, BundleTypes.New, StringComparison.OrdinalIgnoreCase))
+                {
+                    var details = row.DispatchedBoxes?
+                        .OrderBy(b => int.TryParse(b.CaseNumber, out var n) ? n : int.MaxValue)
+                        .ToList() ?? [];
+
+                    if (!details.Any()) continue;
+
+                    var bundlesTotal = row.Bundles ?? 0;
+                    var isFull = bundlesTotal == details.Count * 50;
+                    var firstBox = int.TryParse(details.First().CaseNumber, out var fn) ? fn : 0;
+                    var lastBox = int.TryParse(details.Last().CaseNumber, out var ln) ? ln : 0;
+
+                    newBanknotes.Add(new BouDispatchCardViewModel
+                    {
+                        Id = row.Id,
+                        DenominationId = row.DenominationId,
+                        Denomination = row.DenominationValue,
+                        StartBox = firstBox,
+                        EndBox = lastBox,
+                        IsFull = isFull,
+                        Bundles = bundlesTotal,
+                        SerialStart = details.First().SerialStartTaken,
+                        SerialEnd = details.Last().SerialEndTaken,
+                        SerialPrefix = details.First().SerialPrefix,
+                        Amount = row.Amount,
+                    });
+                }
+                else if (string.Equals(row.BundleType, BundleTypes.Reissue, StringComparison.OrdinalIgnoreCase))
+                {
+                    reissueNotes.Add(new BouDispatchSimpleViewModel
+                    {
+                        Id = row.Id,
+                        DenominationId = row.DenominationId,
+                        Denomination = row.DenominationValue,
+                        Quantity = row.Bundles ?? 0,
+                        Amount = row.Amount,
+                    });
+                }
+                else if (string.Equals(row.BundleType, BundleTypes.Coin, StringComparison.OrdinalIgnoreCase))
+                {
+                    coins.Add(new BouDispatchSimpleViewModel
+                    {
+                        Id = row.Id,
+                        DenominationId = row.DenominationId,
+                        Denomination = row.DenominationValue,
+                        Quantity = row.Boxes ?? 0,
+                        Amount = row.Amount,
+                    });
+                }
+                else
+                {
+                    // BundleType = "NA" — copied from CB before Panel A entered dispatch.
+                    // Fall back: notes have Bundles, coins have Boxes.
+                    if (row.Bundles.HasValue && row.Bundles > 0)
+                        reissueNotes.Add(new BouDispatchSimpleViewModel
+                        {
+                            Id = row.Id,
+                            DenominationId = row.DenominationId,
+                            Denomination = row.DenominationValue,
+                            Quantity = row.Bundles.Value,
+                            Amount = row.Amount,
+                        });
+                    else if (row.Boxes.HasValue && row.Boxes > 0)
+                        coins.Add(new BouDispatchSimpleViewModel
+                        {
+                            Id = row.Id,
+                            DenominationId = row.DenominationId,
+                            Denomination = row.DenominationValue,
+                            Quantity = row.Boxes.Value,
+                            Amount = row.Amount,
+                        });
+                }
+            }
+
+            // Panel names from status history
+            var history = request.WithdrawalRequestStatusHistory.Where(h => !h.IsDeleted).ToList();
+
+            var panelAStatusId = await _statusResolver.GetStatusIdAsync(WithdrawalStatusNames.PendingApproval);
+            var panelBStatusId = await _statusResolver.GetStatusIdAsync(WithdrawalStatusNames.Approved);
+
+            string panelAName = string.Empty;
+            string panelBName = string.Empty;
+
+            var panelAEntry = history.FirstOrDefault(h => h.NewStatusId == panelAStatusId);
+            if (panelAEntry is not null)
+            {
+                var user = await _identityService.GetUserByUsername(panelAEntry.ChangedBy);
+                if (user is not null)
+                    panelAName = System.Text.RegularExpressions.Regex.Replace(
+                        $"{user.FirstName} {user.MiddleName} {user.LastName}".Trim(), @"\s+", " ");
+            }
+
+            var panelBEntry = history.FirstOrDefault(h => h.NewStatusId == panelBStatusId);
+            if (panelBEntry is not null)
+            {
+                var user = await _identityService.GetUserByUsername(panelBEntry.ChangedBy);
+                if (user is not null)
+                    panelBName = System.Text.RegularExpressions.Regex.Replace(
+                        $"{user.FirstName} {user.MiddleName} {user.LastName}".Trim(), @"\s+", " ");
+            }
+
+            var vm = new WithdrawalPrintViewModel
+            {
+                TransactionRefNumber = request.TransactionRefNumber,
+                CollectionDate = request.CollectionDate,
+                RtgsDate = request.FundSettlementValueDate,
+                RtgsCode = request.RtgsCode,
+                CbName = cb?.Name ?? "—",
+                BouBranchName = bouBranch?.Name ?? "—",
+                BouBranchCode = request.BouBranchCode,
+                TotalAmount = request.TotalAmount,
+                TotalNotesAmount = request.TotalNotesAmount,
+                TotalCoinsAmount = request.TotalCoinsAmount,
+                Agents = agents,
+                NewBanknotes = newBanknotes.OrderBy(n => n.Denomination).ThenBy(n => n.StartBox).ToList(),
+                ReissueBanknotes = reissueNotes.OrderBy(n => n.Denomination).ToList(),
+                Coins = coins.OrderBy(c => c.Denomination).ToList(),
+                PanelAName = panelAName,
+                PanelBName = panelBName,
+                RequiresSpecialApproval = request.RequiresSpecialApproval,
+            };
+
+            return View(vm);
         }
 
         // ── Helpers ───────────────────────────────
@@ -671,12 +868,12 @@ namespace VMSService.Web.Controllers
             WithdrawalStatusNames.PendingInternalApproval => "CbApprover",
             WithdrawalStatusNames.PendingExceptionalApproval => "BOU",
             WithdrawalStatusNames.PendingWithdrawalConfirmation => "Remittance",
-            WithdrawalStatusNames.PendingRecommendation => "Remittance",
-            WithdrawalStatusNames.PendingConfirmation => "PanelA",
-            WithdrawalStatusNames.WithdrawalConfirmed => "PanelB",
+            WithdrawalStatusNames.PendingVerification => "Remittance",
+            WithdrawalStatusNames.PendingApproval => "PanelB",
+            WithdrawalStatusNames.Approved => "PanelA",
             WithdrawalStatusNames.RejectExceptionalApproval => "PanelB",
             WithdrawalStatusNames.RecallRequested => "Remittance",
-            WithdrawalStatusNames.Recalled => "Remittance",
+            WithdrawalStatusNames.RecallApproved => "Remittance",
             _ => "CbMaker",
         };
 
@@ -687,12 +884,12 @@ namespace VMSService.Web.Controllers
             WithdrawalStatusNames.PendingInternalApproval => "CB",
             WithdrawalStatusNames.PendingExceptionalApproval or
             WithdrawalStatusNames.PendingWithdrawalConfirmation => "Remittance",
-            WithdrawalStatusNames.PendingRecommendation => "PanelA",
-            WithdrawalStatusNames.PendingConfirmation or
-            WithdrawalStatusNames.WithdrawalConfirmed or
-            WithdrawalStatusNames.RejectExceptionalApproval => "PanelB",
+            WithdrawalStatusNames.PendingVerification => "PanelB",
+            WithdrawalStatusNames.PendingApproval or
+            WithdrawalStatusNames.Approved or
+            WithdrawalStatusNames.RejectExceptionalApproval => "PanelA",
             WithdrawalStatusNames.RecallRequested or
-            WithdrawalStatusNames.Recalled => "Remittance",
+            WithdrawalStatusNames.RecallApproved => "Remittance",
             _ => "CB",
         };
 
@@ -716,31 +913,7 @@ namespace VMSService.Web.Controllers
                     .ToList();
         }
 
-        //private bool ValidateSubmit(SaveWithdrawalRequestViewModel vm, out List<string> errors)
-        //{
-        //    errors = [];
-
-        //    //if (vm.CbBranchId == 0)
-        //    //    errors.Add("Please select a company branch.");
-
-        //    if (vm.BouBranchId == 0)
-        //        errors.Add("Please select a bank branch.");
-
-        //    if (vm.AgentIds.Count != 2)
-        //        errors.Add("Exactly 2 collectors are required.");
-
-        //    if (!vm.Denominations.Any(d => d.Bundles > 0 || d.Boxes > 0))
-        //        errors.Add("Please add at least one denomination.");
-
-        //    if (vm.CollectionDate == default)
-        //        errors.Add("Please select a collection date.");
-
-        //    if (!string.IsNullOrEmpty(vm.RtgsCode) && !vm.RtgsDate.HasValue)
-        //        errors.Add("RTGS date is required when an RTGS code is provided.");
-
-
-        //    return errors.Count == 0;
-        //}
+       
 
         private async Task SaveDenominationsAsync(
        Guid requestId,

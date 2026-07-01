@@ -236,8 +236,8 @@
         formState.cbCode      = document.getElementById('cbCode')?.textContent?.trim() || null;
         formState.createdDate = '@Model.Request.CreatedDate.ToString("yyyy-MM-dd")';
 
-        formState.rtgsDate = @Html.Raw(Model.Request.RtgsDate.HasValue
-            ? $"'{Model.Request.RtgsDate.Value.ToString("yyyy-MM-dd")}'"
+        formState.rtgsDate = @Html.Raw(Model.Request.FundSettlementValueDate.HasValue
+            ? $"'{Model.Request.FundSettlementValueDate.Value.ToString("yyyy-MM-dd")}'"
             : "null");
         formState.rtgsCode = @Html.Raw(string.IsNullOrEmpty(Model.Request.RtgsCode)
             ? "null"
