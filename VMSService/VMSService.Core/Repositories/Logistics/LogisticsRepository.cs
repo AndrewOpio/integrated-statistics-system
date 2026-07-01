@@ -53,6 +53,8 @@ namespace VMSService.Core.Repositories.Logistics
             existingLogistics.Description = logistics.Description;
             existingLogistics.Date = logistics.Date;
             existingLogistics.ReferenceNumber = logistics.ReferenceNumber;
+            existingLogistics.TeamLeader = logistics.TeamLeader;
+            existingLogistics.AssistantTeamLeader = logistics.AssistantTeamLeader;
             existingLogistics.ModifiedDate = DateTime.UtcNow;
             existingLogistics.CurrentStatusId = logistics.CurrentStatusId;
 

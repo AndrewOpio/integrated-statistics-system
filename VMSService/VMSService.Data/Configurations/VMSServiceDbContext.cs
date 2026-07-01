@@ -57,11 +57,25 @@ namespace VMSService.Data.Configurations
 
         // End of Day Discrepancies
         public DbSet<EodDiscrepancyReport> EodDiscrepancyReports { get; set; }
+        public DbSet<EodDiscrepancyReportEntry> EodDiscrepancyReportEntries { get; set; }
         public DbSet<BoardSessionSurplusShortage> BoardSessionSurplusShortages { get; set; }
         public DbSet<BoardSessionDifferentDenom> BoardSessionDifferentDenoms { get; set; }
         public DbSet<EodDiscrepancyReportStatusHistory> EodDiscrepancyReportStatusHistories { get; set; }
 
         public DbSet<Attachment> Attachments { get; set; }
+
+        // Monthly Surplus
+        public DbSet<MonthlySurplus> MonthlySurpluses { get; set; }
+        public DbSet<MonthlySurplusStatusHistory> MonthlySurplusStatusHistories { get; set; }
+
+        // Monthly Shortage
+        public DbSet<MonthlyShortage> MonthlyShortages { get; set; }
+        public DbSet<MonthlyShortageDetail> MonthlyShortageDetails { get; set; }
+        public DbSet<MonthlyShortageStatusHistory> MonthlyShortageStatusHistories { get; set; }
+
+        // Monthly Commercial Bank Settlement
+        public DbSet<MonthlyCommercialBankSettlement> MonthlyCommercialBankSettlements { get; set; }
+        public DbSet<MonthlyCommercialBankSettlementStatusHistory> MonthlyCommercialBankSettlementStatusHistories { get; set; }
 
         // Destruction
         public DbSet<DestructionRequest> DestructionRequests { get; set; }
@@ -155,6 +169,23 @@ namespace VMSService.Data.Configurations
                 .WithMany(d => d.BoardSessionSurplusShortages)
                 .HasForeignKey(s => s.DepositRequestId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // ── EodDiscrepancyReportEntry (junction) ──────────────────────────────────
+            modelBuilder.Entity<EodDiscrepancyReportEntry>(entity =>
+            {
+                entity.HasOne(e => e.EodDiscrepancyReport)
+                      .WithMany(r => r.Entries)
+                      .HasForeignKey(e => e.EodDiscrepancyReportId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.BoardSessionSurplusShortage)
+                      .WithMany()
+                      .HasForeignKey(e => e.BoardSessionSurplusShortageId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(e => e.BoardSessionSurplusShortageId).IsUnique();
+                entity.HasIndex(e => e.EodDiscrepancyReportId);
+            });
 
             // ✅ ADD THIS AT THE END — catches all remaining FKs not explicitly configured above
             foreach (var relationship in modelBuilder.Model.GetEntityTypes()

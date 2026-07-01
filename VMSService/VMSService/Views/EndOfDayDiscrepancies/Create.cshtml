@@ -29,17 +29,17 @@
                 <div id="formAlerts"></div>
 
                 <p class="text-muted small mb-4">
-                    Select the branch and period. All shortage/surplus transactions recorded
-                    for that branch within the period will be automatically compiled into this report.
+                    Select the branch and session date. All unlinked shortage/surplus transactions
+                    recorded for that branch on that day will be automatically compiled into this report.
                 </p>
 
                 <form id="cfbReportForm">
                     <div class="row mb-3">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label class="form-label">Reference Number <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="referenceNumber" placeholder="" />
+                            <input type="text" class="form-control" id="referenceNumber" placeholder="e.g. EOD-2026-001" />
                         </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label class="form-label">Branch <span class="text-danger">*</span></label>
                             <select class="form-select" id="branchId">
                                 <option value="">-- Select Branch --</option>
@@ -49,16 +49,9 @@
                                 }
                             </select>
                         </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Period Start <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" id="periodStart" />
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Period End <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" id="periodEnd" />
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Session Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="sessionDate" />
                         </div>
                     </div>
 
@@ -153,21 +146,20 @@
         previewDebounce = setTimeout(loadPreview, 400);
     }
 
-    ['branchId', 'periodStart', 'periodEnd'].forEach(id =>
+    ['branchId', 'sessionDate'].forEach(id =>
         document.getElementById(id).addEventListener('change', onFilterChange));
 
     function loadPreview() {
         const branchId    = document.getElementById('branchId').value;
-        const periodStart = document.getElementById('periodStart').value;
-        const periodEnd   = document.getElementById('periodEnd').value;
+        const sessionDate = document.getElementById('sessionDate').value;
 
-        if (!branchId || !periodStart || !periodEnd || periodEnd < periodStart) {
+        if (!branchId || !sessionDate) {
             document.getElementById('previewSection').style.display = 'none';
             document.getElementById('compileBtn').disabled = true;
             return;
         }
 
-        fetch(`@Url.Action("GetTransactionPreview")?branchId=${branchId}&periodStart=${periodStart}&periodEnd=${periodEnd}`, { credentials: 'same-origin' })
+        fetch(`@Url.Action("GetTransactionPreview")?branchId=${branchId}&sessionDate=${sessionDate}`, { credentials: 'same-origin' })
             .then(r => {
                 if (r.status === 401 || r.redirected) {
                     window.location.reload();
@@ -208,7 +200,7 @@
             const branchName   = branchMap[t.depositBranchId] ?? '–';
             const bankName     = bankMap[t.commercialBankId] ?? '–';
             const denomName    = denomMap[t.denominationId] ?? t.denominationId;
-            const depositDate   = t.depositDate ?? '–';
+            const depositDate  = t.depositDate ?? '–';
             const depositTotal = t.depositDenomAmount != null ? t.depositDenomAmount.toLocaleString() : '–';
             if (isShortage) shortage += t.amount; else surplus += t.amount;
             rows += `<tr>
@@ -234,11 +226,10 @@
     function submitForm() {
         const referenceNumber = document.getElementById('referenceNumber').value.trim();
         const branchId        = parseInt(document.getElementById('branchId').value);
-        const periodStart     = document.getElementById('periodStart').value;
-        const periodEnd       = document.getElementById('periodEnd').value;
+        const sessionDate     = document.getElementById('sessionDate').value;
         const remarks         = document.getElementById('remarks').value.trim();
 
-        if (!referenceNumber || !branchId || !periodStart || !periodEnd) {
+        if (!referenceNumber || !branchId || !sessionDate) {
             showAlert('danger', 'Please fill in all required fields.');
             return;
         }
@@ -246,14 +237,18 @@
         fetch('@Url.Action("Create")', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ referenceNumber, branchId, periodStart, periodEnd, remarks: remarks || null })
+            body: JSON.stringify({ referenceNumber, branchId, sessionDate, remarks: remarks || null })
         })
-        .then(r => r.json())
+        .then(r => {
+            if (r.status === 401 || r.redirected) { window.location.reload(); return null; }
+            return r.json().catch(() => { throw new Error(`Server returned status ${r.status}`); });
+        })
         .then(data => {
+            if (!data) return;
             if (data.success) window.location.href = data.redirectUrl;
             else showAlert('danger', data.message ?? 'An error occurred.');
         })
-        .catch(() => showAlert('danger', 'Network error. Please try again.'));
+        .catch(err => showAlert('danger', err.message ?? 'Network error. Please try again.'));
     }
 
     function showAlert(type, message) {

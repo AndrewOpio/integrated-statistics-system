@@ -7,7 +7,6 @@ namespace VMSService.Data.Entities
     {
         public int Id { get; set; }
 
-        public int? EodDiscrepancyReportId { get; set; }
         public Guid? DepositRequestId { get; set; }
         public int CommercialBankId { get; set; }
         public int BranchId { get; set; }
@@ -19,7 +18,6 @@ namespace VMSService.Data.Entities
         public bool IsProcessedOnRtgs { get; set; }
         public string? RtgsCode { get; set; }
 
-        public virtual EodDiscrepancyReport? EodDiscrepancyReport { get; set; }
         public virtual DepositRequest? DepositRequest { get; set; }
         public virtual ICollection<BoardSessionDifferentDenom> DifferentDenoms { get; set; } = [];
     }

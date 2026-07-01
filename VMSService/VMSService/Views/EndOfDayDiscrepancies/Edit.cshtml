@@ -52,12 +52,8 @@
 
                     <div class="row mb-3">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Period Start <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" id="periodStart" value="@Model.PeriodStart.ToString("yyyy-MM-dd")" />
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Period End <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" id="periodEnd" value="@Model.PeriodEnd.ToString("yyyy-MM-dd")" />
+                            <label class="form-label">Session Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="sessionDate" value="@Model.SessionDate.ToString("yyyy-MM-dd")" />
                         </div>
                     </div>
 
@@ -83,11 +79,10 @@
     function submitForm() {
         const referenceNumber = document.getElementById('referenceNumber').value.trim();
         const branchId        = parseInt(document.getElementById('branchId').value);
-        const periodStart     = document.getElementById('periodStart').value;
-        const periodEnd       = document.getElementById('periodEnd').value;
+        const sessionDate     = document.getElementById('sessionDate').value;
         const remarks         = document.getElementById('remarks').value.trim();
 
-        if (!referenceNumber || !branchId || !periodStart || !periodEnd) {
+        if (!referenceNumber || !branchId || !sessionDate) {
             showAlert('danger', 'Please fill in all required fields.');
             return;
         }
@@ -95,7 +90,7 @@
         fetch('@Url.Action("Edit")', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: @Model.Id, referenceNumber, branchId, periodStart, periodEnd, remarks: remarks || null })
+            body: JSON.stringify({ id: @Model.Id, referenceNumber, branchId, sessionDate, remarks: remarks || null })
         })
         .then(r => r.json())
         .then(data => {

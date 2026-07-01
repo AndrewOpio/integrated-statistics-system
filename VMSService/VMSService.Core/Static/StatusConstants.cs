@@ -113,21 +113,47 @@
             public const string Returned = "Returned";
         }
 
+        public static class MonthlySurplus
+        {
+            public const string Draft                    = "Draft";
+            public const string PendingAcknowledgement   = "Pending Acknowledgement";
+        }
+
+        public static class MonthlyShortage
+        {
+            public const string Draft                = "Draft";
+            public const string PendingApproval      = "Pending Approval";
+            public const string PendingConfirmation  = "Pending Confirmation";
+            public const string Confirmed            = "Confirmed";
+        }
+
+        public static class MonthlyCommercialBankSettlement
+        {
+            public const string Draft                = "Draft";
+            public const string PendingApproval      = "Pending Approval";
+            public const string PendingConfirmation  = "Pending Confirmation";
+            public const string Confirmed            = "Confirmed";
+        }
+
         public static class Entity
         {
-            public const string ApprovedCurrencyProcurement = "ApprovedCurrencyProcurement";
-            public const string ExPrintMint = "ExPrintMint";
-            public const string ReceivedStock = "ReceivedStock";
-            public const string StockMovement = "StockMovement";
-            public const string StockMovementDiscrepancy = "StockMovementDiscrepancy";
-            public const string Logistics = "Logistics";
-            public const string WithdrawalRequest = "Withdrawal Request";
-            public const string AgentDetail = "AgentDetail";
-            public const string DepositRequest = "DepositRequest";
-            public const string DepositRequestExceptional = "DepositRequestExceptional";
-            public const string DestructionRequest = "Destruction";
-            public const string DestructionAuthorization = "DestructionAuthorization";
-            public const string CfbReport = "EndOfDayDiscrepancies";
+            public const string ApprovedCurrencyProcurement   = "ApprovedCurrencyProcurement";
+            public const string ExPrintMint                   = "ExPrintMint";
+            public const string ReceivedStock                 = "ReceivedStock";
+            public const string StockMovement                 = "StockMovement";
+            public const string StockMovementDiscrepancy      = "StockMovementDiscrepancy";
+            public const string Logistics                     = "Logistics";
+            public const string WithdrawalRequest             = "Withdrawal Request";
+            public const string AgentDetail                   = "AgentDetail";
+            public const string DepositRequest                = "DepositRequest";
+            public const string DepositRequestExceptional     = "DepositRequestExceptional";
+            public const string DestructionRequest            = "Destruction";
+            public const string DestructionAuthorization      = "DestructionAuthorization";
+            public const string CfbReport                     = "EndOfDayDiscrepancies";
+            public const string MonthlySurpluses              = "MonthlySurpluses";
+            public const string MonthlyShortages              = "MonthlyShortages";
+            public const string MonthlyCommercialBankSettlements      = "MonthlyCommercialBankSettlements";
         }
     }
 }
+

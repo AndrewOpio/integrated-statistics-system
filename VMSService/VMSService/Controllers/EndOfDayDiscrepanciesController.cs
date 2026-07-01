@@ -11,6 +11,7 @@ using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
+using VMSService.Web.Authorization;
 using WorkflowService.Client;
 using WorkflowService.Client.Dto;
 
@@ -42,6 +43,7 @@ namespace VMSService.Web.Controllers
             _denominationRepository  = denominationRepository;
         }
 
+        [RequirePermission(SystemPermissions.EndOfDayDiscrepancies.View)]
         [Breadcrumb("End of Day Discrepancies", FromController = typeof(HomeController), FromAction = nameof(HomeController.Index))]
         public async Task<IActionResult> Index()
         {
@@ -49,6 +51,7 @@ namespace VMSService.Web.Controllers
             return View(reports);
         }
 
+        [RequirePermission(SystemPermissions.EndOfDayDiscrepancies.Create)]
         [HttpGet]
         [Breadcrumb("Create", FromController = typeof(EndOfDayDiscrepanciesController), FromAction = nameof(Index))]
         public async Task<IActionResult> Create()
@@ -63,12 +66,12 @@ namespace VMSService.Web.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetTransactionPreview(int branchId, DateTime periodStart, DateTime periodEnd)
+        public async Task<IActionResult> GetTransactionPreview(int branchId, DateTime sessionDate)
         {
-            if (branchId <= 0 || periodStart == default || periodEnd == default || periodEnd < periodStart)
+            if (branchId <= 0 || sessionDate == default)
                 return Ok(new { transactions = Array.Empty<object>() });
 
-            var transactions = await _cfbReportRepository.GetUnlinkedTransactions(branchId, periodStart, periodEnd);
+            var transactions = await _cfbReportRepository.GetUnlinkedTransactions(branchId, sessionDate);
 
             var result = transactions.Select(t => new
             {
@@ -88,6 +91,7 @@ namespace VMSService.Web.Controllers
             return Ok(new { transactions = result });
         }
 
+        [RequirePermission(SystemPermissions.EndOfDayDiscrepancies.Create)]
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateEodDiscrepancyReportDto dto)
         {
@@ -117,8 +121,7 @@ namespace VMSService.Web.Controllers
                 var report = new EodDiscrepancyReport
                 {
                     ReferenceNumber   = dto.ReferenceNumber,
-                    PeriodStart       = dto.PeriodStart,
-                    PeriodEnd         = dto.PeriodEnd,
+                    SessionDate       = dto.SessionDate,
                     BranchId          = dto.BranchId,
                     Remarks           = dto.Remarks,
                     CurrentStatusId   = initialStatusId,
@@ -127,8 +130,8 @@ namespace VMSService.Web.Controllers
 
                 await _cfbReportRepository.Create(report);
 
-                // Link all unlinked transactions for this branch/period
-                var unlinked = await _cfbReportRepository.GetUnlinkedTransactions(dto.BranchId, dto.PeriodStart, dto.PeriodEnd);
+                // Link all unlinked transactions for this branch/session date
+                var unlinked = await _cfbReportRepository.GetUnlinkedTransactions(dto.BranchId, dto.SessionDate);
                 if (unlinked.Any())
                     await _cfbReportRepository.LinkTransactionsToReport(report.Id, unlinked.Select(t => t.Id));
 
@@ -141,6 +144,7 @@ namespace VMSService.Web.Controllers
             }
         }
 
+        [RequirePermission(SystemPermissions.EndOfDayDiscrepancies.Details)]
         [HttpGet]
         [Breadcrumb("Details", FromController = typeof(EndOfDayDiscrepanciesController), FromAction = nameof(Index))]
         public async Task<IActionResult> Details(int? id)
@@ -208,8 +212,7 @@ namespace VMSService.Web.Controllers
             {
                 Id                   = report.Id,
                 ReferenceNumber      = report.ReferenceNumber,
-                PeriodStart          = report.PeriodStart,
-                PeriodEnd            = report.PeriodEnd,
+                SessionDate          = report.SessionDate,
                 BranchId             = report.BranchId,
                 BranchName           = branchName,
                 Remarks              = report.Remarks,
@@ -217,7 +220,7 @@ namespace VMSService.Web.Controllers
                 CurrentStatusName    = report.CurrentStatusName,
                 CreatedBy            = report.CreatedBy,
                 CreatedDate          = report.CreatedDate,
-                Transactions         = report.BoardSessionSurplusShortages ?? [],
+                Transactions         = report.Entries?.Select(e => e.BoardSessionSurplusShortage).ToList() ?? [],
                 AvailableTransitions = availableTransitions,
                 StatusHistory        = statusHistory,
             };
@@ -225,6 +228,7 @@ namespace VMSService.Web.Controllers
             return View(vm);
         }
 
+        [RequirePermission(SystemPermissions.EndOfDayDiscrepancies.Edit)]
         [HttpGet]
         [Breadcrumb("Edit", FromController = typeof(EndOfDayDiscrepanciesController), FromAction = nameof(Index))]
         public async Task<IActionResult> Edit(int? id)
@@ -239,6 +243,7 @@ namespace VMSService.Web.Controllers
             return View(report);
         }
 
+        [RequirePermission(SystemPermissions.EndOfDayDiscrepancies.Edit)]
         [HttpPost]
         public async Task<IActionResult> Edit([FromBody] UpdateEodDiscrepancyReportDto dto)
         {
@@ -251,8 +256,7 @@ namespace VMSService.Web.Controllers
                 if (report == null) return NotFound();
 
                 report.ReferenceNumber = dto.ReferenceNumber;
-                report.PeriodStart     = dto.PeriodStart;
-                report.PeriodEnd       = dto.PeriodEnd;
+                report.SessionDate     = dto.SessionDate;
                 report.BranchId        = dto.BranchId;
                 report.Remarks         = dto.Remarks;
 

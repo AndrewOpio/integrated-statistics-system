@@ -70,8 +70,8 @@
                         <span class="fw-bold">@Model.BranchName</span>
                     </div>
                     <div class="col-md-4 mb-3">
-                        <span class="text-muted small d-block">Period</span>
-                        <span class="fw-bold">@Model.PeriodStart.ToString("dd MMM yyyy") – @Model.PeriodEnd.ToString("dd MMM yyyy")</span>
+                        <span class="text-muted small d-block">Session Date</span>
+                        <span class="fw-bold">@Model.SessionDate.ToString("dd MMM yyyy")</span>
                     </div>
                     @if (!string.IsNullOrWhiteSpace(Model.Remarks))
                     {
@@ -267,10 +267,12 @@
                 @if (Model.CurrentStatusName == StatusConstants.CfbReport.Draft ||
                      Model.CurrentStatusName == StatusConstants.CfbReport.Returned)
                 {
-                    <hr />
-                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-primary w-100">
-                        <i class="ti ti-edit me-1"></i>Edit Report
-                    </a>
+                    <permission name="@SystemPermissions.EndOfDayDiscrepancies.Edit">
+                        <hr />
+                        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-primary w-100">
+                            <i class="ti ti-edit me-1"></i>Edit Report
+                        </a>
+                    </permission>
                 }
 
             </div>

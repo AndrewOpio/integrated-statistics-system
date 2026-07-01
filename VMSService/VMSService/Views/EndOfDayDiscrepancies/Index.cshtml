@@ -13,9 +13,11 @@
                         <h2 class="fs-5 fw-bold mb-0">End of Day Discrepancy Reports</h2>
                     </div>
                     <div class="col text-end">
-                        <a asp-action="Create" class="btn btn-sm btn-primary">
-                            <i class="ti ti-plus me-1"></i>New Discrepancy Report
-                        </a>
+                        <permission name="@SystemPermissions.EndOfDayDiscrepancies.Create">
+                            <a asp-action="Create" class="btn btn-sm btn-primary">
+                                <i class="ti ti-plus me-1"></i>New Discrepancy Report
+                            </a>
+                        </permission>
                     </div>
                 </div>
             </div>
@@ -38,12 +40,12 @@
                             @{ int rowNumber = 1; }
                             @foreach (var item in Model)
                             {
-                                var totalShortage = item.BoardSessionSurplusShortages?.Where(t => !t.IsSurplus).Sum(t => t.Amount) ?? 0m;
-                                var totalSurplus  = item.BoardSessionSurplusShortages?.Where(t => t.IsSurplus).Sum(t => t.Amount) ?? 0m;
+                                var totalShortage = item.Entries.Where(e => !e.BoardSessionSurplusShortage.IsSurplus).Sum(e => e.BoardSessionSurplusShortage.Amount);
+                                var totalSurplus  = item.Entries.Where(e => e.BoardSessionSurplusShortage.IsSurplus).Sum(e => e.BoardSessionSurplusShortage.Amount);
                                 <tr>
                                     <td><span class="text-primary fw-bold">@rowNumber</span></td>
                                     <td class="fw-bold">@item.ReferenceNumber</td>
-                                    <td>@item.PeriodStart.ToString("dd/MMM/yyyy") – @item.PeriodEnd.ToString("dd/MMM/yyyy")</td>
+                                    <td>@item.SessionDate.ToString("dd/MMM/yyyy")</td>
                                     <td>
                                         @{
                                             string badgeClass = item.CurrentStatusName switch
@@ -68,9 +70,11 @@
                                             </a>
                                             @if (item.CurrentStatusName == "Draft" || item.CurrentStatusName == "Returned")
                                             {
-                                                <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
-                                                    <i class="ti ti-edit"></i>
-                                                </a>
+                                                <permission name="@SystemPermissions.EndOfDayDiscrepancies.Edit">
+                                                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
+                                                        <i class="ti ti-edit"></i>
+                                                    </a>
+                                                </permission>
                                             }
                                         </div>
                                     </td>

@@ -6,8 +6,7 @@ namespace VMSService.Core.Models.EodDiscrepancyReports
     public class CreateEodDiscrepancyReportDto
     {
         public string ReferenceNumber { get; set; } = null!;
-        public DateTime PeriodStart { get; set; }
-        public DateTime PeriodEnd { get; set; }
+        public DateTime SessionDate { get; set; }
         public int BranchId { get; set; }
         public string? Remarks { get; set; }
     }
@@ -16,8 +15,7 @@ namespace VMSService.Core.Models.EodDiscrepancyReports
     {
         public int Id { get; set; }
         public string ReferenceNumber { get; set; } = null!;
-        public DateTime PeriodStart { get; set; }
-        public DateTime PeriodEnd { get; set; }
+        public DateTime SessionDate { get; set; }
         public int BranchId { get; set; }
         public string? Remarks { get; set; }
     }
@@ -26,8 +24,7 @@ namespace VMSService.Core.Models.EodDiscrepancyReports
     {
         public int Id { get; set; }
         public string ReferenceNumber { get; set; } = string.Empty;
-        public DateTime PeriodStart { get; set; }
-        public DateTime PeriodEnd { get; set; }
+        public DateTime SessionDate { get; set; }
         public int BranchId { get; set; }
         public string BranchName { get; set; } = string.Empty;
         public string? Remarks { get; set; }

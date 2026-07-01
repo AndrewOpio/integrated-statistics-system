@@ -7,6 +7,12 @@ using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
 using VMSService.Core.Repositories.EodDiscrepancyReportStatusHistories;
 using VMSService.Core.Repositories.EodDiscrepancyReports;
+using VMSService.Core.Repositories.MonthlySurpluses;
+using VMSService.Core.Repositories.MonthlySurplusStatusHistories;
+using VMSService.Core.Repositories.MonthlyShortages;
+using VMSService.Core.Repositories.MonthlyShortageStatusHistories;
+using VMSService.Core.Repositories.MonthlyCommercialBankSettlements;
+using VMSService.Core.Repositories.MonthlyCommercialBankSettlementStatusHistories;
 using VMSService.Core.Repositories.DestructionAuthorizationStatusHistories;
 using VMSService.Core.Repositories.DestructionAuthorizations;
 using VMSService.Core.Repositories.DestructionRequestStatusHistories;
@@ -53,7 +59,13 @@ namespace VMSService.Core.Services.Workflows
         IDestructionAuthorizationRepository _destructionAuthorizationRepository,
         IDestructionAuthorizationStatusHistoryRepository _destructionAuthorizationStatusHistoryRepository,
         IEodDiscrepancyReportRepository _cfbReportRepository,
-        IEodDiscrepancyReportStatusHistoryRepository _cfbReportStatusHistoryRepository) : IWorkflowService
+        IEodDiscrepancyReportStatusHistoryRepository _cfbReportStatusHistoryRepository,
+        IMonthlySurplusRepository _monthlySurplusRepository,
+        IMonthlySurplusStatusHistoryRepository _monthlySurplusStatusHistoryRepository,
+        IMonthlyShortageRepository _monthlyShortageRepository,
+        IMonthlyShortageStatusHistoryRepository _monthlyShortageStatusHistoryRepository,
+        IMonthlyCommercialBankSettlementRepository _cbSettlementRepository,
+        IMonthlyCommercialBankSettlementStatusHistoryRepository _cbSettlementStatusHistoryRepository) : IWorkflowService
     {
 
 
@@ -112,6 +124,15 @@ namespace VMSService.Core.Services.Workflows
 
                     case StatusConstants.Entity.CfbReport:
                         return await HandleCfbReportTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
+
+                    case StatusConstants.Entity.MonthlySurpluses:
+                        return await HandleMonthlySurplusTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
+
+                    case StatusConstants.Entity.MonthlyShortages:
+                        return await HandleMonthlyShortageTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
+
+                    case StatusConstants.Entity.MonthlyCommercialBankSettlements:
+                        return await HandleMonthlyCommercialBankSettlementTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
 
                     default:
                         _logger.LogWarning("Unknown entity type: {EntityType}", entityType);
@@ -826,6 +847,168 @@ namespace VMSService.Core.Services.Workflows
             }
 
             _logger.LogInformation("CFB Report {Id} transitioned from status {From} to {To} by user {Username} with action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
+        private async Task<bool> HandleMonthlySurplusTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
+        {
+            var settlement = await _monthlySurplusRepository.FindById(entityId);
+            if (settlement == null)
+            {
+                _logger.LogWarning("Monthly Settlement {Id} not found", entityId);
+                return false;
+            }
+
+            if (settlement.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Monthly Settlement {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, settlement.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new MonthlySurplusStatusHistory
+            {
+                MonthlySurplusId = entityId,
+                OldStatusId         = settlement.CurrentStatusId,
+                OldStatusName       = settlement.CurrentStatusName,
+                NewStatusId         = transition.ToStatusId,
+                NewStatusName       = transition.ToStatus.Name,
+                ChangedBy           = username,
+                ChangedAt           = DateTime.Now,
+                Remarks             = remarks,
+                AttachmentIds       = attachmentIds != null && attachmentIds.Any()
+                                          ? string.Join(",", attachmentIds)
+                                          : null,
+                IsDeleted           = false
+            };
+
+            await _monthlySurplusStatusHistoryRepository.Create(statusHistory);
+
+            settlement.CurrentStatusId   = transition.ToStatusId;
+            settlement.CurrentStatusName = transition.ToStatus.Name;
+            await _monthlySurplusRepository.Update(settlement);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"Monthly Settlement {settlement.ReferenceNumber}",
+                    transition,
+                    statusHistory.NewStatusName,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("Monthly Settlement {Id} transitioned from {From} to {To} by {Username} via action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
+        private async Task<bool> HandleMonthlyShortageTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
+        {
+            var shortage = await _monthlyShortageRepository.FindById(entityId);
+            if (shortage == null)
+            {
+                _logger.LogWarning("Monthly Shortage {Id} not found", entityId);
+                return false;
+            }
+
+            if (shortage.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Monthly Shortage {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, shortage.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new MonthlyShortageStatusHistory
+            {
+                MonthlyShortageId = entityId,
+                OldStatusId       = shortage.CurrentStatusId,
+                OldStatusName     = shortage.CurrentStatusName,
+                NewStatusId       = transition.ToStatusId,
+                NewStatusName     = transition.ToStatus.Name,
+                ChangedBy         = username,
+                ChangedAt         = DateTime.Now,
+                Remarks           = remarks,
+                AttachmentIds     = attachmentIds != null && attachmentIds.Count > 0
+                                        ? string.Join(",", attachmentIds)
+                                        : null,
+                IsDeleted         = false
+            };
+
+            await _monthlyShortageStatusHistoryRepository.Create(statusHistory);
+
+            shortage.CurrentStatusId   = transition.ToStatusId;
+            shortage.CurrentStatusName = transition.ToStatus.Name;
+            await _monthlyShortageRepository.Update(shortage);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"Monthly Shortage {shortage.ReferenceNumber}",
+                    transition,
+                    statusHistory.NewStatusName,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("Monthly Shortage {Id} transitioned from {From} to {To} by {Username} via action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
+        private async Task<bool> HandleMonthlyCommercialBankSettlementTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
+        {
+            var settlement = await _cbSettlementRepository.FindById(entityId);
+            if (settlement == null)
+            {
+                _logger.LogWarning("CB Settlement {Id} not found", entityId);
+                return false;
+            }
+
+            if (settlement.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("CB Settlement {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, settlement.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new MonthlyCommercialBankSettlementStatusHistory
+            {
+                MonthlyCommercialBankSettlementId = entityId,
+                OldStatusId   = settlement.CurrentStatusId,
+                OldStatusName = settlement.CurrentStatusName,
+                NewStatusId   = transition.ToStatusId,
+                NewStatusName = transition.ToStatus.Name,
+                ChangedBy     = username,
+                ChangedAt     = DateTime.Now,
+                Remarks       = remarks,
+                AttachmentIds = attachmentIds != null && attachmentIds.Count > 0
+                                    ? string.Join(",", attachmentIds)
+                                    : null,
+                IsDeleted     = false
+            };
+
+            await _cbSettlementStatusHistoryRepository.Create(statusHistory);
+
+            settlement.CurrentStatusId   = transition.ToStatusId;
+            settlement.CurrentStatusName = transition.ToStatus.Name;
+            await _cbSettlementRepository.Update(settlement);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"CB Settlement {settlement.ReferenceNumber}",
+                    transition,
+                    statusHistory.NewStatusName,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("CB Settlement {Id} transitioned from {From} to {To} by {Username} via action {Action}",
                 entityId, currentStatusId, transition.ToStatusId, username, actionName);
 
             return true;

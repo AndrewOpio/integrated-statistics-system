@@ -18,19 +18,22 @@ namespace VMSService.Core.Repositories.EodDiscrepancyReports
         {
             return await _db.EodDiscrepancyReports
                 .AsNoTracking()
-                .Include(r => r.BoardSessionSurplusShortages)
-                .OrderByDescending(r => r.PeriodStart)
+                .Include(r => r.Entries)
+                    .ThenInclude(e => e.BoardSessionSurplusShortage)
+                .OrderByDescending(r => r.SessionDate)
                 .ToListAsync();
         }
 
         public async Task<EodDiscrepancyReport> FindById(int id)
         {
             var result = await _db.EodDiscrepancyReports
-                .Include(r => r.BoardSessionSurplusShortages)
-                    .ThenInclude(s => s.DifferentDenoms)
-                .Include(r => r.BoardSessionSurplusShortages)
-                    .ThenInclude(s => s.DepositRequest)
-                        .ThenInclude(dr => dr.DepositRequestDenominations)
+                .Include(r => r.Entries)
+                    .ThenInclude(e => e.BoardSessionSurplusShortage)
+                        .ThenInclude(s => s.DifferentDenoms)
+                .Include(r => r.Entries)
+                    .ThenInclude(e => e.BoardSessionSurplusShortage)
+                        .ThenInclude(s => s.DepositRequest)
+                            .ThenInclude(dr => dr.DepositRequestDenominations)
                 .Include(r => r.EodDiscrepancyReportStatusHistories)
                 .FirstOrDefaultAsync(r => r.Id == id);
             return result!;
@@ -53,14 +56,16 @@ namespace VMSService.Core.Repositories.EodDiscrepancyReports
             return await Save();
         }
 
-        public async Task<ICollection<BoardSessionSurplusShortage>> GetUnlinkedTransactions(int branchId, DateTime periodStart, DateTime periodEnd)
+        public async Task<ICollection<BoardSessionSurplusShortage>> GetUnlinkedTransactions(int branchId, DateTime sessionDate)
         {
+            var dayStart = sessionDate.Date;
+            var dayEnd   = dayStart.AddDays(1);
             return await _db.BoardSessionSurplusShortages
                 .AsNoTracking()
-                .Where(t => t.EodDiscrepancyReportId == null
+                .Where(t => !_db.EodDiscrepancyReportEntries.Any(e => e.BoardSessionSurplusShortageId == t.Id)
                          && t.BranchId == branchId
-                         && t.CreatedDate >= periodStart
-                         && t.CreatedDate < periodEnd.Date.AddDays(1))
+                         && t.CreatedDate >= dayStart
+                         && t.CreatedDate < dayEnd)
                 .Include(t => t.DifferentDenoms)
                 .Include(t => t.DepositRequest)
                     .ThenInclude(dr => dr.DepositRequestDenominations)
@@ -70,13 +75,20 @@ namespace VMSService.Core.Repositories.EodDiscrepancyReports
 
         public async Task<bool> LinkTransactionsToReport(int cfbReportId, IEnumerable<int> transactionIds)
         {
-            var sessions = await _db.BoardSessionSurplusShortages
-                .Where(t => transactionIds.Contains(t.Id) && t.EodDiscrepancyReportId == null)
+            var alreadyLinked = await _db.EodDiscrepancyReportEntries
+                .Where(e => transactionIds.Contains(e.BoardSessionSurplusShortageId))
+                .Select(e => e.BoardSessionSurplusShortageId)
                 .ToListAsync();
 
-            foreach (var session in sessions)
-                session.EodDiscrepancyReportId = cfbReportId;
+            var newEntries = transactionIds
+                .Except(alreadyLinked)
+                .Select(id => new EodDiscrepancyReportEntry
+                {
+                    EodDiscrepancyReportId        = cfbReportId,
+                    BoardSessionSurplusShortageId = id,
+                });
 
+            await _db.EodDiscrepancyReportEntries.AddRangeAsync(newEntries);
             return await Save();
         }
 

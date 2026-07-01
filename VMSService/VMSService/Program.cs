@@ -69,6 +69,13 @@ using VMSService.Core.Repositories.DestructionAuthorizationStatusHistories;
 using VMSService.Core.Repositories.DestructionLocations;
 using VMSService.Core.Repositories.EodDiscrepancyReports;
 using VMSService.Core.Repositories.EodDiscrepancyReportStatusHistories;
+using VMSService.Core.Repositories.MonthlySurpluses;
+using VMSService.Core.Repositories.MonthlySurplusStatusHistories;
+using VMSService.Core.Repositories.MonthlyShortages;
+using VMSService.Core.Repositories.MonthlyShortageStatusHistories;
+using VMSService.Core.Repositories.MonthlyCommercialBankSettlements;
+using VMSService.Core.Repositories.MonthlyCommercialBankSettlementStatusHistories;
+using VMSService.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -175,16 +182,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             },
             OnAuthenticationFailed = context =>
             {
-                // Handle specific authentication failures
                 context.NoResult();
+                context.Response.Cookies.Delete("AuthToken");
+                context.Response.Cookies.Delete("Username");
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 context.Response.Redirect(authenticationSettings?.LoginPath ?? "/logout");
                 return Task.CompletedTask;
             },
             OnChallenge = async context =>
             {
-                // This event fires when authentication fails
                 context.HandleResponse();
+                context.Response.Cookies.Delete("AuthToken");
+                context.Response.Cookies.Delete("Username");
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 context.Response.Redirect(authenticationSettings?.LoginPath ?? "/logout");
                 await context.Response.CompleteAsync();
@@ -251,6 +260,13 @@ builder.Services.AddScoped<IDestructionAuthorizationRepository, DestructionAutho
 builder.Services.AddScoped<IDestructionAuthorizationStatusHistoryRepository, DestructionAuthorizationStatusHistoryRepository>();
 builder.Services.AddScoped<IEodDiscrepancyReportRepository, EodDiscrepancyReportRepository>();
 builder.Services.AddScoped<IEodDiscrepancyReportStatusHistoryRepository, EodDiscrepancyReportStatusHistoryRepository>();
+builder.Services.AddScoped<IMonthlySurplusRepository, MonthlySurplusRepository>();
+builder.Services.AddScoped<IMonthlySurplusStatusHistoryRepository, MonthlySurplusStatusHistoryRepository>();
+builder.Services.AddScoped<IMonthlyShortageRepository, MonthlyShortageRepository>();
+builder.Services.AddScoped<IMonthlyShortageDetailRepository, MonthlyShortageDetailRepository>();
+builder.Services.AddScoped<IMonthlyShortageStatusHistoryRepository, MonthlyShortageStatusHistoryRepository>();
+builder.Services.AddScoped<IMonthlyCommercialBankSettlementRepository, MonthlyCommercialBankSettlementRepository>();
+builder.Services.AddScoped<IMonthlyCommercialBankSettlementStatusHistoryRepository, MonthlyCommercialBankSettlementStatusHistoryRepository>();
 builder.Services.AddScoped<IAttachmentRepository, AttachmentRepository>();
 
 // ── Resource-based ownership check ────────────────────────────
@@ -267,6 +283,16 @@ builder.Services.AddHttpClient<VMSService.Core.Services.Stocks.StockService>()
     {
         var configuration = sp.GetRequiredService<IConfiguration>();
         var baseUrl = configuration["StockApiSettings:BaseUrl"] ?? "https://localhost:7158";
+        client.BaseAddress = new Uri(baseUrl);
+        client.DefaultRequestHeaders.Add("Accept", "application/json");
+    });
+
+// Register Permission Service (cached lookup against IdentityService)
+builder.Services.AddHttpClient<IPermissionService, PermissionService>()
+    .ConfigureHttpClient((sp, client) =>
+    {
+        var configuration = sp.GetRequiredService<IConfiguration>();
+        var baseUrl = configuration["MicroServices:identityservice"] ?? "https://localhost:7026";
         client.BaseAddress = new Uri(baseUrl);
         client.DefaultRequestHeaders.Add("Accept", "application/json");
     });

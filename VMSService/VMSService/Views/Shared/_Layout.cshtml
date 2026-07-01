@@ -191,14 +191,66 @@
                         <span class="sidebar-text">Logistics</span>
                     </a>
                 </li>
-                <li class="nav-item">
-                    <a asp-controller="EndOfDayDiscrepancies" asp-action="Index" class="nav-link d-flex align-items-center">
-                        <span class="sidebar-icon fs-5 me-4">
-                            <i class="ti ti-scale"></i>
+                <permission name="@SystemPermissions.EndOfDayDiscrepancies.View">
+                    <li class="nav-item">
+                        <a asp-controller="EndOfDayDiscrepancies" asp-action="Index" class="nav-link d-flex align-items-center">
+                            <span class="sidebar-icon fs-5 me-4">
+                                <i class="ti ti-scale"></i>
+                            </span>
+                            <span class="sidebar-text">EOD Discrepancies</span>
+                        </a>
+                    </li>
+                </permission>
+                <permission name="@SystemPermissions.MonthlySurpluses.View">
+                    <li class="nav-item">
+                        <span class="nav-link collapsed d-flex justify-content-between align-items-center"
+                              data-bs-toggle="collapse" data-bs-target="#submenu-monthly-settlements">
+                            <span class="d-flex align-items-center">
+                                <span class="sidebar-icon fs-5 me-4">
+                                    <i class="ti ti-report-money"></i>
+                                </span>
+                                <span class="sidebar-text">Monthly Settlements</span>
+                            </span>
+                            <span class="link-arrow">
+                                <svg class="icon icon-sm" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                    <path fill-rule="evenodd"
+                                          d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                                          clip-rule="evenodd"></path>
+                                </svg>
+                            </span>
                         </span>
-                        <span class="sidebar-text">EOD Discrepancies</span>
-                    </a>
-                </li>
+                        <div class="multi-level collapse" role="list" id="submenu-monthly-settlements" aria-expanded="false">
+                            <ul class="flex-column nav">
+                                <permission name="@SystemPermissions.MonthlySurpluses.CheckPosition">
+                                    <li class="nav-item">
+                                        <a asp-controller="MonthlySurpluses" asp-action="CheckPosition" class="nav-link">
+                                            <span class="sidebar-text">Check Net Position</span>
+                                        </a>
+                                    </li>
+                                </permission>
+                                <li class="nav-item">
+                                    <a asp-controller="MonthlySurpluses" asp-action="Index" class="nav-link">
+                                        <span class="sidebar-text">Monthly Surplus</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <permission name="@SystemPermissions.MonthlyShortages.View">
+                                        <a asp-controller="MonthlyShortages" asp-action="Index" class="nav-link">
+                                            <span class="sidebar-text">Monthly Shortage</span>
+                                        </a>
+                                    </permission>
+                                </li>
+                                <li class="nav-item">
+                                    <permission name="@SystemPermissions.MonthlyCommercialBankSettlements.View">
+                                        <a asp-controller="MonthlyCommercialBankSettlements" asp-action="Index" class="nav-link">
+                                            <span class="sidebar-text">CB Settlements</span>
+                                        </a>
+                                    </permission>
+                                </li>
+                            </ul>
+                        </div>
+                    </li>
+                </permission>
                 <li class="nav-item">
                     <span class="nav-link collapsed d-flex justify-content-between align-items-center"
                           data-bs-toggle="collapse" data-bs-target="#submenu-destruction">

@@ -1,0 +1,362 @@
+@using ConfigurationsService.Client
+@using VMSService.Core.Static
+@inject VMSService.Web.Services.IPermissionService PermissionService
+
+@{
+    ViewData["Title"] = "Check Net Position";
+    var branches = ViewBag.Branches as List<BranchDto> ?? new();
+    var canUpdateStock = await PermissionService.HasPermissionAsync(User, SystemPermissions.MonthlySurpluses.Create);
+}
+@Html.AntiForgeryToken()
+
+<div class="row g-4">
+
+    @* ── Left: form + result ── *@
+    <div class="col-12 col-xl-8">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="ti ti-search text-primary fs-5"></i>
+                <h6 class="fw-bold mb-0">Select Branch &amp; Period</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-5">
+                        <label class="form-label fw-semibold small">Branch <span class="text-danger">*</span></label>
+                        <select class="form-select" id="branchId">
+                            <option value="">-- Select Branch --</option>
+                            @foreach (var b in branches)
+                            {
+                                <option value="@b.Id" data-name="@b.Name">@b.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold small">Period <span class="text-danger">*</span></label>
+                        <input type="month" class="form-control" id="period" />
+                    </div>
+                    <div class="col-md-3">
+                        <button type="button" class="btn btn-primary w-100" onclick="checkPosition()">
+                            <i class="ti ti-calculator me-1"></i>Check
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="resultArea"></div>
+    </div>
+
+    @* ── Right: guide ── *@
+    <div class="col-12 col-xl-4">
+        <div style="position:sticky;top:1.5rem;">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="fw-bold text-muted small text-uppercase mb-3">
+                        <i class="ti ti-info-circle me-1"></i>About this page
+                    </h6>
+                    <p class="small text-muted mb-3">
+                        Use this page to check the net EOD position for a branch and month
+                        before deciding whether to initiate a <strong>surplus</strong> or
+                        <strong>shortage</strong> record.
+                    </p>
+                    <hr class="my-3" />
+                    <div class="d-flex align-items-start gap-2 mb-2">
+                        <i class="ti ti-trending-up text-success mt-1"></i>
+                        <div class="small text-muted"><strong class="text-success">Surplus</strong> — the branch collected more than it paid out. You can initiate a Monthly Surplus record.</div>
+                    </div>
+                    <div class="d-flex align-items-start gap-2 mb-2">
+                        <i class="ti ti-trending-down text-danger mt-1"></i>
+                        <div class="small text-muted"><strong class="text-danger">Shortage</strong> — the branch paid out more than it collected. Use Monthly Shortages instead.</div>
+                    </div>
+                    <div class="d-flex align-items-start gap-2">
+                        <i class="ti ti-scale text-secondary mt-1"></i>
+                        <div class="small text-muted"><strong>Balanced</strong> — no surplus or shortage for this period.</div>
+                    </div>
+                    <hr class="my-3" />
+                    <p class="small text-muted mb-0">
+                        Only <strong>Approved</strong> EOD discrepancy reports are included in the calculation.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+    <script>
+        const canUpdateStockPosition = @(canUpdateStock ? "true" : "false");
+
+        function fmt(n) {
+            return Number(n).toLocaleString('en-UG', { maximumFractionDigits: 0 });
+        }
+
+        function checkPosition() {
+            const branchSel = document.getElementById('branchId');
+            const branchId  = branchSel.value;
+            const branchName = branchSel.options[branchSel.selectedIndex]?.dataset?.name ?? '';
+            const period    = document.getElementById('period').value;
+            const area      = document.getElementById('resultArea');
+
+            if (!branchId || !period) {
+                area.innerHTML = '<div class="alert alert-warning"><i class="ti ti-alert-circle me-1"></i>Please select both a branch and a period.</div>';
+                return;
+            }
+
+            const [year, month] = period.split('-');
+            const periodLabel   = new Date(year, month - 1, 1).toLocaleString('en-UG', { month: 'long', year: 'numeric' });
+
+            area.innerHTML = '<div class="text-muted small p-3"><i class="ti ti-loader-2 me-1"></i>Calculating position…</div>';
+
+            fetch(`@Url.Action("PreviewNetPosition")?branchId=${branchId}&year=${year}&month=${month}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.hasData) {
+                        area.innerHTML = `
+                            <div class="card border-0 shadow">
+                                <div class="card-body text-center py-5">
+                                    <i class="ti ti-database-off fs-1 text-muted mb-3 d-block"></i>
+                                    <h5 class="fw-bold text-muted">No Approved EOD Data</h5>
+                                    <p class="text-muted small mb-0">There are no approved EOD discrepancy reports for <strong>${branchName}</strong> in <strong>${periodLabel}</strong>.</p>
+                                </div>
+                            </div>`;
+                        return;
+                    }
+
+                    if (data.isBalanced) {
+                        area.innerHTML = `
+                            <div class="card border-0 shadow">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center gap-3 mb-4">
+                                        <div class="rounded-circle bg-secondary bg-opacity-10 d-flex align-items-center justify-content-center flex-shrink-0" style="width:3rem;height:3rem;">
+                                            <i class="ti ti-scale text-secondary fs-4"></i>
+                                        </div>
+                                        <div>
+                                            <div class="text-muted small">${branchName} &bull; ${periodLabel}</div>
+                                            <h4 class="fw-bold mb-0 text-secondary">Balanced</h4>
+                                        </div>
+                                    </div>
+                                    <div class="row g-3">
+                                        <div class="col-6">
+                                            <div class="p-3 bg-light rounded text-center">
+                                                <div class="text-muted small">Total Surplus</div>
+                                                <div class="fw-bold text-success">UGX ${fmt(data.totalSurplus)}</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="p-3 bg-light rounded text-center">
+                                                <div class="text-muted small">Total Shortage</div>
+                                                <div class="fw-bold text-danger">UGX ${fmt(data.totalShortage)}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p class="text-muted small mt-3 mb-0">No surplus or shortage record is required for this period.</p>
+                                </div>
+                            </div>`;
+                        return;
+                    }
+
+                    if (data.isShortage) {
+                        area.innerHTML = `
+                            <div class="card border-danger border-2 shadow">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center gap-3 mb-4">
+                                        <div class="rounded-circle bg-danger d-flex align-items-center justify-content-center flex-shrink-0" style="width:3rem;height:3rem;">
+                                            <i class="ti ti-trending-down text-white fs-4"></i>
+                                        </div>
+                                        <div>
+                                            <div class="text-muted small">${branchName} &bull; ${periodLabel}</div>
+                                            <h4 class="fw-bold mb-0 text-danger">Net Shortage</h4>
+                                        </div>
+                                    </div>
+                                    <div class="row g-3 mb-4">
+                                        <div class="col-4">
+                                            <div class="p-3 bg-light rounded text-center">
+                                                <div class="text-muted small">Total Surplus</div>
+                                                <div class="fw-bold text-success">UGX ${fmt(data.totalSurplus)}</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="p-3 bg-light rounded text-center">
+                                                <div class="text-muted small">Total Shortage</div>
+                                                <div class="fw-bold text-danger">UGX ${fmt(data.totalShortage)}</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="p-3 border border-danger rounded text-center">
+                                                <div class="text-muted small">Net Shortage</div>
+                                                <div class="fw-bold text-danger fs-5">UGX ${fmt(data.net)}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p class="text-muted small mb-3">This branch has a <strong>shortage</strong> for this period. Use Monthly Shortages to report it.</p>
+                                    <a href="@Url.Action("Generate","MonthlyShortages")" class="btn btn-danger">
+                                        <i class="ti ti-report me-1"></i>Go to Monthly Shortages
+                                    </a>
+                                </div>
+                            </div>`;
+                        return;
+                    }
+
+                    // Surplus
+                    const createUrl = `@Url.Action("InitiateSurplus","MonthlySurpluses")?branchId=${branchId}&period=${period}&amount=${Math.round(data.net)}`;
+                    window._pendingSurplusUrl = createUrl;
+                    window._pendingBranchName = branchName;
+                    window._pendingPeriodLabel = periodLabel;
+                    window._pendingNet = data.net;
+                    area.innerHTML = `
+                        <div class="card border-success border-2 shadow">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center gap-3 mb-4">
+                                    <div class="rounded-circle bg-success d-flex align-items-center justify-content-center flex-shrink-0" style="width:3rem;height:3rem;">
+                                        <i class="ti ti-trending-up text-white fs-4"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-muted small">${branchName} &bull; ${periodLabel}</div>
+                                        <h4 class="fw-bold mb-0 text-success">Net Surplus</h4>
+                                    </div>
+                                </div>
+                                <div class="row g-3 mb-4">
+                                    <div class="col-4">
+                                        <div class="p-3 bg-light rounded text-center">
+                                            <div class="text-muted small">Total Surplus</div>
+                                            <div class="fw-bold text-success">UGX ${fmt(data.totalSurplus)}</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="p-3 bg-light rounded text-center">
+                                            <div class="text-muted small">Total Shortage</div>
+                                            <div class="fw-bold text-danger">UGX ${fmt(data.totalShortage)}</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="p-3 border border-success rounded text-center">
+                                            <div class="text-muted small">Net Surplus</div>
+                                            <div class="fw-bold text-success fs-5">UGX ${fmt(data.net)}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p class="text-muted small mb-3">
+                                    This branch has a <strong>surplus</strong> for this period.
+                                    Before initiating a surplus record, confirm that the surplus amount has been removed from the <strong>CFB stock ledger</strong>.
+                                </p>
+                                <div class="d-flex gap-2 flex-wrap">
+                                    ${canUpdateStockPosition ? `
+                                    <button type="button" class="btn btn-outline-warning" onclick="openStockConfirmModal()">
+                                        <i class="ti ti-package-export me-1"></i>Update Stock Position
+                                    </button>
+                                    <a id="btnInitiateSurplus" href="${createUrl}" class="btn btn-success">
+                                        <i class="ti ti-plus me-1"></i>Initiate Surplus
+                                    </a>` : ''}
+                                </div>
+                                <div id="stockConfirmedBadge" class="mt-3 d-none">
+                                    <span class="badge bg-success bg-opacity-10 text-success px-3 py-2">
+                                        <i class="ti ti-circle-check me-1"></i>Stock position confirmed
+                                    </span>
+                                </div>
+                            </div>
+                        </div>`;
+                })
+                .catch(() => {
+                    area.innerHTML = '<div class="alert alert-danger"><i class="ti ti-alert-circle me-1"></i>An error occurred. Please try again.</div>';
+                });
+        }
+
+        function openStockConfirmModal() {
+            const net = window._pendingNet ?? 0;
+            document.getElementById('stockModalAmount').textContent = 'UGX ' + fmt(net);
+            document.getElementById('stockModalNotes').value = '';
+            document.getElementById('stockModalError').classList.add('d-none');
+            document.getElementById('stockModalError').textContent = '';
+            document.getElementById('stockConfirmBtn').disabled = false;
+            document.getElementById('stockConfirmBtn').innerHTML = '<i class="ti ti-check me-1"></i>Confirm & Update';
+            const modal = new bootstrap.Modal(document.getElementById('stockConfirmModal'));
+            modal.show();
+        }
+
+        async function confirmStockUpdate() {
+            const branchId = document.getElementById('branchId').value;
+            const period   = document.getElementById('period').value;
+            const amount   = Math.round(window._pendingNet ?? 0);
+            const notes    = document.getElementById('stockModalNotes').value.trim();
+
+            const btn = document.getElementById('stockConfirmBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Updating…';
+            document.getElementById('stockModalError').classList.add('d-none');
+
+            try {
+                const params = new URLSearchParams({ branchId, amount, period });
+                if (notes) params.append('notes', notes);
+
+                const res = await fetch(`@Url.Action("RecordStockDeduction")`, {
+                    method: 'POST',
+                    headers: { 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '' },
+                    body: params,
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    document.getElementById('stockModalError').textContent = data.message ?? 'An error occurred.';
+                    document.getElementById('stockModalError').classList.remove('d-none');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="ti ti-check me-1"></i>Confirm & Update';
+                    return;
+                }
+
+                document.getElementById('stockConfirmedBadge').innerHTML =
+                    `<span class="badge bg-success bg-opacity-10 text-success px-3 py-2">
+                        <i class="ti ti-circle-check me-1"></i>Stock position updated &mdash; Ref: <strong>${data.referenceCode}</strong>
+                    </span>`;
+                document.getElementById('stockConfirmedBadge').classList.remove('d-none');
+
+                bootstrap.Modal.getInstance(document.getElementById('stockConfirmModal')).hide();
+            } catch {
+                document.getElementById('stockModalError').textContent = 'Network error. Please try again.';
+                document.getElementById('stockModalError').classList.remove('d-none');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ti ti-check me-1"></i>Confirm & Update';
+            }
+        }
+    </script>
+}
+
+@* ── Stock Position Confirmation Modal ── *@
+<div class="modal fade" id="stockConfirmModal" tabindex="-1" aria-labelledby="stockConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="stockConfirmModalLabel">
+                    <i class="ti ti-package-export text-warning me-2"></i>Confirm Stock Position Update
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">
+                    This will record a stock-out entry under the <strong>CFB</strong> category in the
+                    Stock Ledger for the amount below. The Initiate Surplus button will unlock once the
+                    ledger entry is created.
+                </p>
+                <div class="p-3 border border-warning rounded text-center mb-4">
+                    <div class="text-muted small mb-1">Amount to Remove from CFB</div>
+                    <div class="fw-bold text-warning fs-5" id="stockModalAmount">—</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">Notes <span class="text-muted fw-normal">(optional)</span></label>
+                    <textarea class="form-control" id="stockModalNotes" rows="2"
+                              placeholder="Additional notes for this stock deduction…"></textarea>
+                </div>
+                <div id="stockModalError" class="text-danger small mt-1 d-none">
+                    <i class="ti ti-alert-circle me-1"></i>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning text-white" id="stockConfirmBtn" onclick="confirmStockUpdate()">
+                    <i class="ti ti-check me-1"></i>Confirm & Update
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

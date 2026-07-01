@@ -1,0 +1,81 @@
+@model IEnumerable<VMSService.Data.Entities.MonthlyCommercialBankSettlement>
+
+@using VMSService.Core.Static
+
+@{
+    ViewData["Title"] = "Commercial Bank Settlements";
+    var bankNames = ViewBag.BankNames as Dictionary<int, string> ?? new Dictionary<int, string>();
+}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h2 class="fs-5 fw-bold mb-0">Monthly Commercial Bank Settlements</h2>
+                    </div>
+                    <div class="col text-end">
+                        <permission name="@SystemPermissions.MonthlyCommercialBankSettlements.Generate">
+                            <a asp-action="Generate" class="btn btn-sm btn-primary">
+                                <i class="ti ti-refresh me-1"></i>Generate
+                            </a>
+                        </permission>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-centered table-nowrap mb-0 rounded datatable">
+                        <thead class="thead-light">
+                            <tr>
+                                <th class="border-0 rounded-start">#</th>
+                                <th class="border-0">Reference</th>
+                                <th class="border-0">Commercial Bank</th>
+                                <th class="border-0">Month</th>
+                                <th class="border-0 text-end">Total Surplus</th>
+                                <th class="border-0 text-end">Total Shortage</th>
+                                <th class="border-0 text-end">Net Position</th>
+                                <th class="border-0">Status</th>
+                                <th class="border-0 rounded-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{ int rowNumber = 1; }
+                            @foreach (var item in Model)
+                            {
+                                string badgeClass = item.CurrentStatusName switch
+                                {
+                                    "Draft"                => "bg-secondary",
+                                    "Pending Approval"     => "bg-warning text-dark",
+                                    "Pending Confirmation" => "bg-info text-dark",
+                                    "Confirmed"            => "bg-success",
+                                    _                      => "bg-secondary"
+                                };
+                                string bankName  = bankNames.TryGetValue(item.CommercialBankId, out var bn) ? bn : item.CommercialBankId.ToString();
+                                string netClass  = item.NetPosition > 0 ? "text-success" : item.NetPosition < 0 ? "text-danger" : "";
+                                string netSign   = item.NetPosition >= 0 ? "+" : "";
+                                <tr>
+                                    <td><span class="text-primary fw-bold">@rowNumber</span></td>
+                                    <td class="fw-bold">@item.ReferenceNumber</td>
+                                    <td>@bankName</td>
+                                    <td>@item.Period.ToString("MMMM yyyy")</td>
+                                    <td class="text-end text-success">@item.TotalSurplus.ToString("N0")</td>
+                                    <td class="text-end text-danger">@item.TotalShortage.ToString("N0")</td>
+                                    <td class="text-end fw-bold @netClass">@netSign@item.NetPosition.ToString("N0")</td>
+                                    <td><span class="badge @badgeClass">@item.CurrentStatusName</span></td>
+                                    <td>
+                                        <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
+                                            <i class="ti ti-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                rowNumber++;
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
