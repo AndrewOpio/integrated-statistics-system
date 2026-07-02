@@ -1,0 +1,186 @@
+@using ConfigurationsService.Client
+
+@{
+    ViewData["Title"] = "New Banking Surplus";
+    var branches = ViewBag.Branches as List<BranchDto> ?? new();
+}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header pb-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="d-flex flex-column">
+                        <span class="text-muted small mb-2">Banking Surpluses</span>
+                        <h2 class="fs-4 fw-bold mb-0">New Banking Surplus</h2>
+                    </div>
+                    <a asp-action="Index" class="btn btn-outline-secondary">
+                        <i class="ti ti-arrow-left me-1"></i> Back to List
+                    </a>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <div id="formAlerts"></div>
+
+                <form id="surplusForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Reference Number <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="referenceNumber" name="referenceNumber" placeholder="" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Branch <span class="text-danger">*</span></label>
+                            <select class="form-select" id="branchId" name="branchId" onchange="computeNetPosition()">
+                                <option value="">-- Select Branch --</option>
+                                @foreach (var b in branches)
+                                {
+                                    <option value="@b.Id">@b.Name</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Month <span class="text-danger">*</span></label>
+                            <input type="month" class="form-control" id="period" onchange="computeNetPosition()" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Amount (UGX) <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="amount" name="amount" min="0" step="1"
+                                       placeholder="Select branch and month to compute" readonly />
+                                <span class="input-group-text" id="netPositionBadge" style="display:none;"></span>
+                            </div>
+                            <div id="netPositionInfo" class="form-text mt-1"></div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Date of Deposit <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="depositDate" name="depositDate"
+                                   value="@DateTime.Today.ToString("yyyy-MM-dd")" disabled />
+                            <input type="hidden" name="depositDate" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Remarks</label>
+                        <textarea class="form-control" id="remarks" name="remarks" rows="2" placeholder="Optional"></textarea>
+                    </div>
+
+                    <div class="d-flex gap-2 justify-content-end">
+                        <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="button" class="btn btn-primary px-4" id="submitBtn" onclick="submitForm()">
+                            <i class="ti ti-device-floppy me-1"></i>Save Draft
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function fmt(n) {
+            return Number(n).toLocaleString(undefined, { minimumFractionDigits: 0 });
+        }
+
+        function computeNetPosition() {
+            const branchId = document.getElementById('branchId').value;
+            const period   = document.getElementById('period').value;
+            const amountEl = document.getElementById('amount');
+            const badge    = document.getElementById('netPositionBadge');
+            const info     = document.getElementById('netPositionInfo');
+
+            amountEl.value = '';
+            badge.style.display = 'none';
+            badge.className = 'input-group-text';
+            badge.textContent = '';
+            info.innerHTML = '';
+
+            if (!branchId || !period) return;
+
+            info.innerHTML = '<span class="text-muted"><span class="spinner-border spinner-border-sm me-1"></span>Computing...</span>';
+
+            fetch(`@Url.Action("ComputeNetPosition")?branchId=${branchId}&period=${period}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.hasEntries) {
+                        info.innerHTML = '<span class="text-warning"><i class="ti ti-alert-triangle me-1"></i>No approved Banking EOD entries found for this branch and month.</span>';
+                        return;
+                    }
+
+                    if (data.isSurplus) {
+                        amountEl.value = data.netSurplus;
+                        badge.style.display = '';
+                        badge.className = 'input-group-text text-success fw-bold';
+                        badge.textContent = 'Surplus';
+                        info.innerHTML =
+                            `<span class="text-muted small">Surplus: <strong class="text-success">${fmt(data.totalSurplus)}</strong> &nbsp;|&nbsp; ` +
+                            `Shortage: <strong class="text-danger">${fmt(data.totalShortage)}</strong> &nbsp;|&nbsp; ` +
+                            `Net: <strong class="text-success">+${fmt(data.netSurplus)}</strong></span>`;
+                    } else {
+                        badge.style.display = '';
+                        badge.className = 'input-group-text text-danger fw-bold';
+                        badge.textContent = 'Shortage';
+                        info.innerHTML =
+                            `<span class="text-muted small">Surplus: <strong class="text-success">${fmt(data.totalSurplus)}</strong> &nbsp;|&nbsp; ` +
+                            `Shortage: <strong class="text-danger">${fmt(data.totalShortage)}</strong> &nbsp;|&nbsp; ` +
+                            `Net: <strong class="text-danger">${fmt(data.netSurplus)}</strong> — not a surplus, amount not populated.</span>`;
+                    }
+                })
+                .catch(() => {
+                    info.innerHTML = '<span class="text-danger"><i class="ti ti-x me-1"></i>Failed to compute net position.</span>';
+                });
+        }
+
+        function submitForm() {
+            const referenceNumber = document.getElementById('referenceNumber').value.trim();
+            const branchId        = document.getElementById('branchId').value;
+            const period          = document.getElementById('period').value;
+            const amount          = document.getElementById('amount').value;
+            const depositDate     = document.querySelector('input[name="depositDate"][type="hidden"]').value;
+            const remarks         = document.getElementById('remarks').value.trim();
+
+            const alerts = document.getElementById('formAlerts');
+            alerts.innerHTML = '';
+
+            const errors = [];
+            if (!referenceNumber)        errors.push('Reference Number is required.');
+            if (!branchId)               errors.push('Branch is required.');
+            if (!period)                 errors.push('Month is required.');
+            if (!amount || amount <= 0)  errors.push('Amount must be greater than zero. Select a branch and month with a net surplus.');
+            if (!depositDate)            errors.push('Date of Deposit is required.');
+
+            if (errors.length > 0) {
+                alerts.innerHTML = '<div class="alert alert-danger"><ul class="mb-0">' + errors.map(e => '<li>' + e + '</li>').join('') + '</ul></div>';
+                return;
+            }
+
+            const dto = {
+                referenceNumber,
+                branchId: parseInt(branchId),
+                period: period + '-01',
+                amount: parseFloat(amount),
+                depositDate: depositDate || null,
+                remarks: remarks || null
+            };
+
+            fetch('@Url.Action("Generate")', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dto)
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) window.location.href = data.redirectUrl;
+                else alerts.innerHTML = '<div class="alert alert-danger">' + (data.message || 'An error occurred.') + '</div>';
+            })
+            .catch(() => alerts.innerHTML = '<div class="alert alert-danger">An unexpected error occurred.</div>');
+        }
+    </script>
+}

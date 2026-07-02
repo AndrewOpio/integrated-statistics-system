@@ -22,7 +22,7 @@ namespace IdentityService.Core.Services.RsaAuthentication
             _logger = logger;
 
             // Configure HttpClient
-            _httpClient.BaseAddress = new Uri(_settings.BaseUrl);
+            //_httpClient.BaseAddress = new Uri(_settings?.BaseUrl);
             _httpClient.DefaultRequestHeaders.Add("client-key", _settings.ClientKey);
             _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
         }
