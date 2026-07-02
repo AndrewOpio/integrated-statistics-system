@@ -115,8 +115,18 @@ namespace VMSService.Web.Controllers
 
         [RequirePermission(SystemPermissions.MonthlySurpluses.Create)]
         [HttpGet]
-        public IActionResult InitiateSurplus(int branchId, string period, decimal amount)
+        public async Task<IActionResult> InitiateSurplus(int branchId, string period, decimal amount)
         {
+            if (DateTime.TryParse(period + "-01", out var periodStart))
+            {
+                var existing = await _surplusRepo.FindByBranchAndPeriod(branchId, periodStart);
+                if (existing != null)
+                {
+                    TempData["Error"] = $"A surplus record already exists for this branch and period ({existing.ReferenceNumber}).";
+                    return RedirectToAction(nameof(CheckPosition));
+                }
+            }
+
             TempData["AllowSurplusCreate"] = "1";
             return RedirectToAction(nameof(Create), new { branchId, period, amount });
         }

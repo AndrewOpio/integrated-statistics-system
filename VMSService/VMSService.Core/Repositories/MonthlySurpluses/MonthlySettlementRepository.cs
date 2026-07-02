@@ -40,6 +40,13 @@ namespace VMSService.Core.Repositories.MonthlySurpluses
             return await Save();
         }
 
+        public async Task<MonthlySurplus?> FindByBranchAndPeriod(int branchId, DateTime periodStart)
+        {
+            return await _db.MonthlySurpluses
+                .AsNoTracking()
+                .FirstOrDefaultAsync(r => r.BranchId == branchId && r.Period == periodStart);
+        }
+
         public async Task<bool> Save()
         {
             return await _db.SaveChangesAsync() > 0;

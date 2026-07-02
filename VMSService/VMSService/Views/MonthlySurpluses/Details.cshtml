@@ -7,16 +7,18 @@
 
     string statusBadgeClass = Model.CurrentStatusName switch
     {
-        "Draft"                    => "bg-secondary",
-        "Pending Acknowledgement"  => "bg-warning text-dark",
-        _                          => "bg-secondary"
+        "Draft"                   => "bg-secondary",
+        "Pending Acknowledgement" => "bg-warning text-dark",
+        "Acknowledged"            => "bg-success",
+        _                         => "bg-secondary"
     };
 
-    var stages = new[] { "Draft", "Pending Acknowledgement" };
+    var stages = new[] { "Draft", "Pending Acknowledgement", "Acknowledged" };
     int currentStageIndex = Model.CurrentStatusName switch
     {
         "Draft"                   => 0,
-        "Pending Acknowledgement" => stages.Length, // all stages done → every circle gets a tick
+        "Pending Acknowledgement" => 1,
+        "Acknowledged"            => stages.Length, // all stages done → every circle gets a tick
         _                         => 0
     };
     bool isReturned = false;

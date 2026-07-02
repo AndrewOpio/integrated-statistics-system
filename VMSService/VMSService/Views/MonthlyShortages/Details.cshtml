@@ -150,22 +150,16 @@
                                 <th class="text-end">Surplus</th>
                                 <th class="text-end">Shortage</th>
                                 <th class="text-end pe-3">Net Position</th>
-                                <th class="text-end pe-3">Share</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @{
-                                decimal totalAbsNet = Model.BranchDetails.Sum(b => Math.Abs(b.NetShortage));
-                            }
                             @foreach (var d in Model.BranchDetails.OrderByDescending(x => x.NetShortage))
                             {
-                                decimal share         = totalAbsNet > 0 ? Math.Round(Math.Abs(d.NetShortage) / totalAbsNet * 100, 1) : 0;
                                 bool    branchShort   = d.NetShortage > 0;
                                 bool    branchSurplus = d.NetShortage < 0;
                                 string  badgeBg       = branchShort   ? "bg-danger bg-opacity-10 text-danger" :
                                                         branchSurplus  ? "bg-success bg-opacity-10 text-success" :
                                                                          "bg-secondary bg-opacity-10 text-secondary";
-                                string  barColor      = branchShort   ? "bg-danger" : branchSurplus ? "bg-success" : "bg-secondary";
                                 <tr>
                                     <td class="ps-3 fw-semibold">
                                         <i class="ti ti-building me-1 text-muted"></i>@d.BranchName
@@ -181,14 +175,6 @@
                                             <i class="ti ti-chevron-right ms-1" style="font-size:.65rem;"></i>
                                         </span>
                                     </td>
-                                    <td class="text-end pe-3" style="min-width:120px;">
-                                        <div class="d-flex align-items-center justify-content-end gap-2">
-                                            <div class="progress flex-grow-1" style="height:6px;max-width:60px;">
-                                                <div class="progress-bar @barColor" style="width:@share%"></div>
-                                            </div>
-                                            <small class="text-muted">@share%</small>
-                                        </div>
-                                    </td>
                                 </tr>
                             }
                         </tbody>
@@ -198,7 +184,6 @@
                                 <td class="text-end text-success">@Model.TotalSurplus.ToString("N0")</td>
                                 <td class="text-end text-danger">@Model.TotalShortage.ToString("N0")</td>
                                 <td class="text-end pe-3 @netValueColor">@(netIsSurplus ? "+" : "")@Model.NetShortage.ToString("N0")</td>
-                                <td class="text-end pe-3 text-muted small">100%</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -431,6 +416,7 @@
                         rows += `<tr>
                             <td>${i + 1}</td>
                             <td>${t.sessionDate}</td>
+                            <td class="text-muted small">${t.commercialBank}</td>
                             <td><span class="badge ${t.isSurplus ? 'bg-success' : 'bg-danger'}">${t.isSurplus ? 'Surplus' : 'Shortage'}</span></td>
                             <td class="text-end fw-semibold ${t.isSurplus ? 'text-success' : 'text-danger'}">${fmt(t.amount)}</td>
                         </tr>`;
@@ -446,6 +432,7 @@
                                     <tr>
                                         <th>#</th>
                                         <th>Session Date</th>
+                                        <th>Commercial Bank</th>
                                         <th>Type</th>
                                         <th class="text-end">Amount</th>
                                     </tr>
@@ -453,7 +440,7 @@
                                 <tbody>${rows}</tbody>
                                 <tfoot class="fw-bold" style="background-color:#f4f6f8">
                                     <tr>
-                                        <td colspan="2">Total (${transactions.length} transaction${transactions.length !== 1 ? 's' : ''})</td>
+                                        <td colspan="3">Total (${transactions.length} transaction${transactions.length !== 1 ? 's' : ''})</td>
                                         <td>
                                             <span class="text-success me-2">S+ ${fmt(totalSurplus)}</span>
                                             <span class="text-danger">S- ${fmt(totalShortage)}</span>

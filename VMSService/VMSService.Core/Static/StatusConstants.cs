@@ -124,8 +124,9 @@ namespace VMSService.Core.Static
 
         public static class MonthlySurplus
         {
-            public const string Draft                    = "Draft";
-            public const string PendingAcknowledgement   = "Pending Acknowledgement";
+            public const string Draft                  = "Draft";
+            public const string PendingAcknowledgement = "Pending Acknowledgement";
+            public const string Acknowledged           = "Acknowledged";
         }
 
         public static class MonthlyShortage

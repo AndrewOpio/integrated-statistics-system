@@ -5,5 +5,6 @@ namespace VMSService.Core.Repositories.MonthlySurpluses
 {
     public interface IMonthlySurplusRepository : IRepositoryBase<MonthlySurplus, int>
     {
+        Task<MonthlySurplus?> FindByBranchAndPeriod(int branchId, DateTime periodStart);
     }
 }
