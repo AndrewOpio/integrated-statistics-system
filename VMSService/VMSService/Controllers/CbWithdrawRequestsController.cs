@@ -247,6 +247,9 @@ namespace VMSService.Web.Controllers
                 //if (!await CanAccessRequestAsync(request.CbId))  // CbId not Id
                 //    return Forbid();
 
+                if (vm.RtgsDate.HasValue && vm.RtgsDate.Value > request.CollectionDate)
+                    return BadRequest(new { errors = new[] { "Fund settlement value date cannot be after the collection date." } });
+
                 request.FundSettlementValueDate = vm.RtgsDate;
                 request.RtgsCode = vm.RtgsCode;
                 request.ModifiedDate = DateTime.Now;
@@ -274,6 +277,9 @@ namespace VMSService.Web.Controllers
             else
             {
                 // ── CREATE path — full initialisation ────────────────────────────
+                if (vm.RtgsDate.HasValue && vm.CollectionDate.HasValue && vm.RtgsDate.Value > vm.CollectionDate.Value)
+                    return BadRequest(new { errors = new[] { "Fund settlement value date cannot be after the collection date." } });
+
                 request = new WithdrawalRequest
                 {
                     CbId = GetCbIdFromClaims(),
@@ -632,6 +638,12 @@ namespace VMSService.Web.Controllers
             if (rtgsDate.HasValue && rtgsDate.Value > DateOnly.FromDateTime(DateTime.Now))
             {
                 TempData["Error"] = "RTGS date cannot be in the future.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (rtgsDate.HasValue && rtgsDate.Value > request.CollectionDate)
+            {
+                TempData["Error"] = "Fund settlement value date cannot be after the collection date.";
                 return RedirectToAction(nameof(Details), new { id });
             }
 
