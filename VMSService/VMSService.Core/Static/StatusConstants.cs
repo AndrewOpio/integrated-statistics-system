@@ -145,6 +145,21 @@ namespace VMSService.Core.Static
             public const string Confirmed            = "Confirmed";
         }
 
+        public static class BankingSurplus
+        {
+            public const string Draft                  = "Draft";
+            public const string PendingAcknowledgement = "Pending Acknowledgement";
+            public const string Acknowledged           = "Acknowledged";
+        }
+
+        public static class BankingShortage
+        {
+            public const string Draft               = "Draft";
+            public const string PendingApproval     = "Pending Approval";
+            public const string PendingConfirmation = "Pending Confirmation";
+            public const string Confirmed           = "Confirmed";
+        }
+
         public static class StockProcessingPlan
         {
             public const string Draft = "Draft";
@@ -188,7 +203,9 @@ namespace VMSService.Core.Static
             public const string CfbReport                     = "EndOfDayDiscrepancies";
             public const string MonthlySurpluses              = "MonthlySurpluses";
             public const string MonthlyShortages              = "MonthlyShortages";
-            public const string MonthlyCommercialBankSettlements      = "MonthlyCommercialBankSettlements";
+            public const string MonthlyCommercialBankSettlements = "MonthlyCommercialBankSettlements";
+            public const string BankingSurpluses                  = "BankingSurpluses";
+            public const string BankingShortages                  = "BankingShortages";
         }
     }
 }

@@ -308,13 +308,20 @@
                                         </a>
                                     </permission>
                                 </li>
-                                <li class="nav-item">
-                                    <permission name="@SystemPermissions.MonthlyCommercialBankSettlements.View">
-                                        <a asp-controller="MonthlyCommercialBankSettlements" asp-action="Index" class="nav-link">
-                                            <span class="sidebar-text">CB Settlements</span>
+                                <permission name="@SystemPermissions.BankingSurpluses.View">
+                                    <li class="nav-item">
+                                        <a asp-controller="BankingSurpluses" asp-action="Index" class="nav-link">
+                                            <span class="sidebar-text">Banking Surplus</span>
                                         </a>
-                                    </permission>
-                                </li>
+                                    </li>
+                                </permission>
+                                <permission name="@SystemPermissions.BankingShortages.View">
+                                    <li class="nav-item">
+                                        <a asp-controller="BankingShortages" asp-action="Index" class="nav-link">
+                                            <span class="sidebar-text">Banking Shortage</span>
+                                        </a>
+                                    </li>
+                                </permission>
                             </ul>
                         </div>
                     </li>
