@@ -6,7 +6,7 @@ namespace VMSService.Data.Entities
     {
         public int Id { get; set; }
         public int CommercialBankId { get; set; }
-        public int CommercialBankBranchId { get; set; }
+        public int? CommercialBankBranchId { get; set; }
         public int BranchId { get; set; } // The BOU Branch they will be transacting at
         public string AgentNames { get; set; } //Exactly as they appear in their work-issued identity cards
         public string NIN { get; set; } //National Identification Number

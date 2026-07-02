@@ -13,14 +13,4 @@ namespace VMSService.Core.Models.Shared
         public string ControllerName { get; set; } = string.Empty;
         public object? AdditionalValidation { get; set; }
     }
-
-    public class StatusHistoryViewModel
-    {
-        public string OldStatusName { get; set; } = string.Empty;
-        public string NewStatusName { get; set; } = string.Empty;
-        public string ChangedBy { get; set; } = string.Empty;
-        public DateTime ChangedAt { get; set; }
-        public string? Remarks { get; set; }
-        public IEnumerable<AttachmentViewModel> Attachments { get; set; } = [];
-    }
 }

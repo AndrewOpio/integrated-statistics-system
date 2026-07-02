@@ -5,6 +5,8 @@
 
     var userRoles = User.FindAll("appRole").Select(c => c.Value).ToList();
     var isStaff = User.FindFirst("isStaff")?.Value;
+    bool isCbMaker = userRoles.Contains("CAS:CB Maker");
+    bool isCbApprover = userRoles.Contains("CAS:CB Approver");
 }
 
 <div class="container-fluid px-4 py-4">
@@ -62,7 +64,7 @@
                     }
 
                 }
-            } else
+            } else if (isCbMaker || isCbApprover)
             {
                 <div class="col-12 col-md-6 col-lg-4 col-xl-3">
                     <a class="card service-card border" href="https://localhost:7277/CbRequests/">

@@ -182,10 +182,11 @@ namespace VMSService.Controllers
 
         public IActionResult Logout()
         {
+            var username = Request.Cookies["Username"];
             Response.Cookies.Delete("AuthToken");
             Response.Cookies.Delete("Username");
             var gatewayUrl = _configuration["Microservices:gatewayservice"];
-            return Redirect($"{gatewayUrl}/Login/Logout");
+            return Redirect($"{gatewayUrl}/Login/Logout?username={Uri.EscapeDataString(username ?? string.Empty)}");
         }
     }
 }

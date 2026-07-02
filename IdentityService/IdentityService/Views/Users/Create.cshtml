@@ -207,7 +207,7 @@
                             <!-- Create Mode -->
                             <div class="form-floating mb-3">
                                 <input type="text" asp-for="UserName" class="form-control"
-                                       placeholder="Username" required>
+                                       placeholder="Username" maxlength="19" required>
                                 <label asp-for="UserName">Username <span class="text-danger">*</span></label>
                                 <small class="form-text text-muted" id="usernameHelpText">
                                     Please enter a username that exists on Active Directory.
@@ -216,7 +216,7 @@
                             </div>
                             <div class="form-floating mb-3">
                                 <input type="text" asp-for="Title" class="form-control bg-light"
-                                       placeholder="Title" required>
+                                       placeholder="Title" maxlength="100" required>
                                 <label asp-for="Title">Title <span class="text-danger">*</span></label>
                                 <span asp-validation-for="Title" class="text-danger"></span>
                             </div>
@@ -244,19 +244,19 @@
                             <div id="nonStaffFieldsCreate" class="d-none">
                                 <div class="form-floating mb-3">
                                     <input type="text" asp-for="FirstName" class="form-control"
-                                           placeholder="First Name">
+                                           placeholder="First Name" maxlength="20">
                                     <label asp-for="FirstName">First Name <span class="text-danger">*</span></label>
                                     <span asp-validation-for="FirstName" class="text-danger"></span>
                                 </div>
                                 <div class="form-floating mb-3">
                                     <input type="text" asp-for="MiddleName" class="form-control"
-                                           placeholder="Middle Name">
+                                           placeholder="Middle Name" maxlength="20">
                                     <label asp-for="MiddleName">Middle Name</label>
                                     <span asp-validation-for="MiddleName" class="text-danger"></span>
                                 </div>
                                 <div class="form-floating mb-3">
                                     <input type="text" asp-for="LastName" class="form-control"
-                                           placeholder="Last Name">
+                                           placeholder="Last Name" maxlength="20">
                                     <label asp-for="LastName">Last Name <span class="text-danger">*</span></label>
                                     <span asp-validation-for="LastName" class="text-danger"></span>
                                 </div>

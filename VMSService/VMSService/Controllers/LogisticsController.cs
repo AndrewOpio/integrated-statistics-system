@@ -129,6 +129,7 @@ namespace VMSService.Web.Controllers
             foreach (var userRole in userRoles)
             {
                 var transitions = await _workflowServiceClient.GetAvailableTransitionsAsync(
+                    SystemPolicy.SystemSettings.AppAcronym,
                     StatusConstants.Entity.Logistics, 
                     logistics.CurrentStatusId,
                     userRole);

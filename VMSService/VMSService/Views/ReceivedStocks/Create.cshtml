@@ -125,41 +125,92 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label" for="DeliveryAirline">Delivery Airline</label>
-                                <input type="text" class="form-control" id="DeliveryAirline" name="DeliveryAirline" placeholder="Enter airline name">
+                                <input type="text" class="form-control" id="DeliveryAirline" name="DeliveryAirline" placeholder="Enter airline name" required>
                                 <span asp-validation-for="DeliveryAirline" class="text-danger small d-block mt-1"></span>
                             </div>
 
                             <div class="col-md-6 mb-3">
                                 <label class="form-label" for="TestingFees">Testing Fees</label>
-                                <input type="number" class="form-control" id="TestingFees" name="TestingFees" placeholder="0" step="0.01" min="0">
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="TestingFees" asp-for="TestingFees" placeholder="0"  required>
+                                    <select class="form-select" asp-for="TestingFeesCurrency" style="flex: 0.5;">
+                                        <option value="">-- Select Currency --</option>
+                                        <option value="UGX">UGX</option>
+                                        <option value="USD">USD</option>
+                                        <option value="EUR">EUR</option>
+                                        <option value="GBP">GBP</option>
+                                        <option value="KES">KES</option>
+                                    </select>
+                                </div>
                                 <span asp-validation-for="TestingFees" class="text-danger small d-block mt-1"></span>
                             </div>
+
                         </div>
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label" for="ShippingFees">Shipping Fees</label>
-                                <input type="number" class="form-control" id="ShippingFees" name="ShippingFees" placeholder="0" step="0.01" min="0">
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="ShippingFees" asp-for="ShippingFees" placeholder="0" required>
+                                    <select class="form-select" asp-for="ShippingFeesCurrency" style="flex: 0.5;">
+                                        <option value="">-- Select Currency --</option>
+                                        <option value="UGX">UGX</option>
+                                        <option value="USD">USD</option>
+                                        <option value="EUR">EUR</option>
+                                        <option value="GBP">GBP</option>
+                                        <option value="KES">KES</option>
+                                    </select>
+                                </div>
                                 <span asp-validation-for="ShippingFees" class="text-danger small d-block mt-1"></span>
                             </div>
 
                             <div class="col-md-6 mb-3">
                                 <label class="form-label" for="InsuranceFees">Insurance Fees</label>
-                                <input type="number" class="form-control" id="InsuranceFees" name="InsuranceFees" placeholder="0" step="0.01" min="0">
-                                <span asp-validation-for="InsuranceFees" class="text-danger small d-block mt-1"></span>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="InsuranceFees" asp-for="InsuranceFees" placeholder="0">
+                                    <select class="form-select" asp-for="InsuranceFeesCurrency" style="flex: 0.5;">
+                                        <option value="">-- Select Currency --</option>
+                                        <option value="UGX">UGX</option>
+                                        <option value="USD">USD</option>
+                                        <option value="EUR">EUR</option>
+                                        <option value="GBP">GBP</option>
+                                        <option value="KES">KES</option>
+                                    </select>
+                                </div>
+                                @* <span asp-validation-for="InsuranceFees" class="text-danger small d-block mt-1"></span> *@
                             </div>
                         </div>
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label" for="HandlingCharges">Handling Charges</label>
-                                <input type="number" class="form-control" id="HandlingCharges" name="HandlingCharges" placeholder="0" step="0.01" min="0">
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="HandlingCharges" asp-for="HandlingCharges" placeholder="0" required>
+                                    <select class="form-select" asp-for="HandlingChargesCurrency" style="flex: 0.5;">
+                                        <option value="">-- Select Currency --</option>
+                                        <option value="UGX">UGX</option>
+                                        <option value="USD">USD</option>
+                                        <option value="EUR">EUR</option>
+                                        <option value="GBP">GBP</option>
+                                        <option value="KES">KES</option>
+                                    </select>
+                                </div>
                                 <span asp-validation-for="HandlingCharges" class="text-danger small d-block mt-1"></span>
                             </div>
 
                             <div class="col-md-6 mb-3">
                                 <label class="form-label" for="ClearingFees">Clearing Fees</label>
-                                <input type="number" class="form-control" id="ClearingFees" name="ClearingFees" placeholder="0" step="0.01" min="0">
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="ClearingFees" asp-for="ClearingFees" placeholder="0" required>
+                                    <select class="form-select" asp-for="ClearingFeesCurrency" style="flex: 0.5;">
+                                        <option value="">-- Select Currency --</option>
+                                        <option value="UGX">UGX</option>
+                                        <option value="USD">USD</option>
+                                        <option value="EUR">EUR</option>
+                                        <option value="GBP">GBP</option>
+                                        <option value="KES">KES</option>
+                                    </select>
+                                </div>
                                 <span asp-validation-for="ClearingFees" class="text-danger small d-block mt-1"></span>
                             </div>
                         </div>

@@ -10,5 +10,6 @@ namespace VMSService.Data.Entities
         public Guid DepositRequestDenominationId { get; set; }
         public DepositRequestDenomination DepositRequestDenomination { get; set; } = null!;
         public bool IsDeleted { get; set; } = false;
+        public int NumberOfBundlesOrBoxes { get; set; }
     }
 }

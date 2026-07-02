@@ -9,9 +9,19 @@ namespace VMSService.Core.Models.Bags
         public int DenominationId { get; set; }
         public string? DenominationName { get; set; }
         public decimal DenominationValue { get; set; }
+        public int? CategoryId { get; set; }
+        public string? CategoryName { get; set; }
+        public int? SubCategoryId { get; set; }
+        public string? SubCategoryName { get; set; }
         public List<DepositRequestDenominationViewModel> Items { get; set; } = [];
+        public List<NestedBagViewModel> NestedBags { get; set; } = [];
+        public int OwnBundles { get; set; }
+        public int TotalBundles { get; set; }
         public decimal TotalAmount { get; set; }
         public DateTime CreatedDate { get; set; }
         public string CreatedBy { get; set; } = string.Empty;
+        public bool IsChildBag { get; set; }
+        public string? VaultSectionName { get; set; }
+        public string? VaultName { get; set; }
     }
 }

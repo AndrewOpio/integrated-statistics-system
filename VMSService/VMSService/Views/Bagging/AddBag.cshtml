@@ -1,0 +1,138 @@
+@using VMSService.Core.Models.Bags
+@model VMSService.Core.Models.Bags.AddBagToBagViewModel
+
+@{
+    ViewData["Title"] = "Add Bag to Bag";
+    var parentBag = ViewBag.ParentBag as BagDetailsViewModel;
+    var availableBags = ViewBag.AvailableBags as List<NestedBagViewModel> ?? new List<NestedBagViewModel>();
+    int remainingCapacity = 50 - (parentBag?.TotalBundles ?? 0);
+}
+
+@* Hero Card *@
+<div class="rounded-3 p-4 mb-4" style="background:linear-gradient(135deg,#31316A 30%,#BA7517 100%);">
+    <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+        <div>
+            <p class="text-uppercase mb-1" style="letter-spacing:.08em;color:rgba(255,255,255,.7);">
+                <i class="ti ti-package me-1"></i>Add Bag Into Bag
+            </p>
+            <h2 class="fw-semibold text-white mb-1">@parentBag?.ReferenceNumber</h2>
+            <span class="badge rounded-pill px-3 py-2" style="background:rgba(255,255,255,.2);color:#fff;">
+                <i class="ti ti-coins me-1"></i>@parentBag?.DenominationName
+            </span>
+        </div>
+        <a asp-action="Details" asp-route-id="@Model.ParentBagId" class="btn btn-sm btn-secondary align-self-start">
+            <i class="ti ti-arrow-left me-1"></i>Back to Bag
+        </a>
+    </div>
+    <div class="row g-3">
+        <div class="col-6 col-md-3">
+            <div class="rounded-3 p-3" style="background:rgba(255,255,255,.12);">
+                <p class="text-uppercase mb-1" style="font-size:10px;letter-spacing:.1em;color:rgba(255,255,255,.7);">Current Bundles</p>
+                <p class="fw-bold mb-0 fs-4 text-white">@parentBag?.TotalBundles <span class="fs-6 fw-normal" style="color:rgba(255,255,255,.6);">/ 50</span></p>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="rounded-3 p-3" style="background:rgba(255,255,255,.12);">
+                <p class="text-uppercase mb-1" style="font-size:10px;letter-spacing:.1em;color:rgba(255,255,255,.7);">Remaining Capacity</p>
+                <p class="fw-bold mb-0 fs-4 text-white">@remainingCapacity</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* Selection Card *@
+<div class="card border-0 shadow mb-4">
+    <div class="card-header bg-white">
+        <h5 class="mb-0 fw-bold">
+            <i class="ti ti-list-search me-2"></i>Select a Bag to Add
+        </h5>
+        <p class="text-muted small mb-0 mt-1">Only bags with the same denomination and fewer than 50 bundles that fit within the remaining capacity are shown.</p>
+    </div>
+    <div class="card-body @(!availableBags.Any() ? "p-4" : "p-0")">
+        @if (!availableBags.Any())
+        {
+            <div class="text-center py-5">
+                <i class="ti ti-mood-empty d-block mb-3 text-secondary" style="font-size:3rem;opacity:.4;"></i>
+                <p class="fw-semibold text-muted mb-1">No eligible bags available</p>
+                <p class="text-muted small">All bags of this denomination are either full, already nested, or would exceed the remaining capacity of @remainingCapacity bundle@(remainingCapacity == 1 ? "" : "s").</p>
+                <a asp-action="Details" asp-route-id="@Model.ParentBagId" class="btn btn-sm btn-secondary mt-2">
+                    <i class="ti ti-arrow-left me-1"></i>Back to Bag
+                </a>
+            </div>
+        }
+        else
+        {
+            <form asp-action="AddBag" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="ParentBagId" />
+
+                <div class="table-responsive m-4">
+                    <table class="table table-sm table-hover mb-0" id="availableBagsTable">
+                        <thead style="background-color:#f8fafc;border-bottom:2px solid #e9ecef;">
+                            <tr>
+                                <th class="px-3 py-2" style="width:48px;"></th>
+                                <th class="px-3 py-2 small fw-semibold">Bag Reference</th>
+                                <th class="px-3 py-2 small fw-semibold text-center">Bundles</th>
+                                <th class="px-3 py-2 small fw-semibold text-end">Amount (UGX)</th>
+                                <th class="px-3 py-2 small fw-semibold">Created Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var bag in availableBags)
+                            {
+                                <tr style="border-bottom:1px solid #f0f2f5;cursor:pointer;"
+                                    onclick="selectBag(@bag.ChildBagId, this)">
+                                    <td class="px-3 text-center">
+                                        <input type="radio" name="ChildBagId" value="@bag.ChildBagId"
+                                               class="form-check-input" id="bag_@bag.ChildBagId" required />
+                                    </td>
+                                    <td class="px-3 small fw-bold">
+                                        <label for="bag_@bag.ChildBagId" class="mb-0" style="cursor:pointer;">
+                                            @bag.ReferenceNumber
+                                        </label>
+                                    </td>
+                                    <td class="px-3 small fw-semibold text-center">@bag.TotalBundles</td>
+                                    <td class="px-3 small fw-semibold text-end text-primary">UGX @bag.TotalAmount.ToString("N0")</td>
+                                    <td class="px-3 small">@bag.CreatedDate.ToString("dd MMM yyyy")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="p-3 border-top d-flex justify-content-end gap-2">
+                    <a asp-action="Details" asp-route-id="@Model.ParentBagId" class="btn btn-secondary">
+                        Cancel
+                    </a>
+                    <button type="submit" class="btn btn-tertiary" id="addBagBtn" disabled>
+                        <i class="ti ti-check me-1"></i>Add Selected Bag
+                    </button>
+                </div>
+            </form>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function selectBag(bagId, row) {
+            document.querySelectorAll('#availableBagsTable tbody tr').forEach(r => r.classList.remove('table-active'));
+            row.classList.add('table-active');
+            document.getElementById('bag_' + bagId).checked = true;
+            document.getElementById('addBagBtn').disabled = false;
+        }
+
+        document.querySelectorAll('input[name="ChildBagId"]').forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                document.getElementById('addBagBtn').disabled = false;
+            });
+        });
+
+        $(document).ready(function () {
+            $('#availableBagsTable').DataTable({
+                pageLength: 25,
+                columnDefs: [{ orderable: false, targets: 0 }]
+            });
+        });
+    </script>
+}

@@ -144,8 +144,8 @@
                                                         <i class="ti ti-coins me-1"></i>@detail.DenominationName
                                                     </span>
                                                 </td>
-                                                <td class="fs-7 text-end fw-semibold" style="padding: 0.75rem;">@detail.ReceivedStartCaseNumber.ToString("N0")</td>
-                                                <td class="fs-7 text-end fw-semibold" style="padding: 0.75rem;">@detail.ReceivedEndCaseNumber.ToString("N0")</td>
+                                                <td class="fs-7 text-end fw-semibold" style="padding: 0.75rem;">@detail.ReceivedStartCaseNumber</td>
+                                                <td class="fs-7 text-end fw-semibold" style="padding: 0.75rem;">@detail.ReceivedEndCaseNumber</td>
                                             </tr>
                                         }
                                     </tbody>
@@ -188,27 +188,37 @@
                         <div class="row">
                             <div class="col-6 mb-4">
                                 <small class="text-muted text-uppercase fw-semibold d-block mb-1">Testing Fees</small>
-                                <p class="mb-0 fw-bold fs-6">@Model.TestingFees.ToString("N2")</p>
+                                <p class="mb-0 fw-bold fs-6">
+                                    @($"{Model.TestingFeesCurrency} {Model.TestingFees:N2}")
+                                </p>
                             </div>
                             <div class="col-6 mb-4">
                                 <small class="text-muted text-uppercase fw-semibold d-block mb-1">Shipping Fees</small>
-                                <p class="mb-0 fw-bold fs-6">@Model.ShippingFees.ToString("N2")</p>
+                                <p class="mb-0 fw-bold fs-6">
+                                    @($"{Model.ShippingFeesCurrency} {Model.ShippingFees:N2}")
+                                </p>
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-6 mb-4">
                                 <small class="text-muted text-uppercase fw-semibold d-block mb-1">Insurance Fees</small>
-                                <p class="mb-0 fw-bold fs-6">@Model.InsuranceFees.ToString("N2")</p>
+                                <p class="mb-0 fw-bold fs-6">
+                                    @($"{Model.InsuranceFeesCurrency} {Model.InsuranceFees:N2}")
+                                </p>
                             </div>
                             <div class="col-6 mb-4">
                                 <small class="text-muted text-uppercase fw-semibold d-block mb-1">Handling Charges</small>
-                                <p class="mb-0 fw-bold fs-6">@Model.HandlingCharges.ToString("N2")</p>
+                                <p class="mb-0 fw-bold fs-6">
+                                    @($"{Model.HandlingChargesCurrency} {Model.HandlingCharges:N2}")
+                                </p>
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-6 mb-4">
                                 <small class="text-muted text-uppercase fw-semibold d-block mb-1">Clearing Fees</small>
-                                <p class="mb-0 fw-bold fs-6">@Model.ClearingFees.ToString("N2")</p>
+                                <p class="mb-0 fw-bold fs-6">
+                                    @($"{Model.ClearingFeesCurrency} {Model.ClearingFees:N2}")
+                                </p>
                             </div>
                             <div class="col-6 mb-4">
                                 <small class="text-muted text-uppercase fw-semibold d-block mb-1">Partial Delivery</small>

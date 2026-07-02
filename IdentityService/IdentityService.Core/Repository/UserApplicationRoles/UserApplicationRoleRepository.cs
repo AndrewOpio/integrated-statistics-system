@@ -75,5 +75,15 @@ namespace IdentityService.Core.Repository.UserApplicationRoles
                 .Include(x => x.User)
                 .ToListAsync();
         }
+
+        public async Task<ICollection<UserApplicationRole>> GetUsersByRoleName(string roleName)
+        {
+            return await _db.UserApplicationRoles
+                .Where(x => x.ApplicationRole.Role.Name == roleName)
+                .Include(x => x.User)
+                .Include(x => x.ApplicationRole)
+                    .ThenInclude(x => x.Role)
+                .ToListAsync();
+        }
     }
 }

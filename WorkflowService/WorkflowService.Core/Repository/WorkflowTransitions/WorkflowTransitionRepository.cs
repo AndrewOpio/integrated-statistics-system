@@ -97,9 +97,9 @@ namespace WorkflowService.Core.Repositories.WorkflowTransitions
         public async Task<ICollection<WorkflowTransition>> FindByEntityTypeAndStatus(int entityTypeId, int currentStatusId)
         {
             return await _db.WorkflowTransitions
-                .Where(x => x.EntityTypeId == entityTypeId && 
-                            x.FromStatusId == currentStatusId && 
-                            x.IsDeleted == false && 
+                .Where(x => x.EntityTypeId == entityTypeId &&
+                            x.FromStatusId == currentStatusId &&
+                            x.IsDeleted == false &&
                             x.IsActive == true)
                 .Include(x => x.EntityType)
                 .Include(x => x.FromStatus)
@@ -111,10 +111,10 @@ namespace WorkflowService.Core.Repositories.WorkflowTransitions
         public async Task<WorkflowTransition> FindByTransitionKey(int entityTypeId, int fromStatusId, string actionName)
         {
             return await _db.WorkflowTransitions
-                .Where(x => x.EntityTypeId == entityTypeId && 
-                            x.FromStatusId == fromStatusId && 
-                            x.ActionName == actionName && 
-                            x.IsDeleted == false && 
+                .Where(x => x.EntityTypeId == entityTypeId &&
+                            x.FromStatusId == fromStatusId &&
+                            x.ActionName == actionName &&
+                            x.IsDeleted == false &&
                             x.IsActive == true)
                 .Include(x => x.EntityType)
                 .Include(x => x.FromStatus)

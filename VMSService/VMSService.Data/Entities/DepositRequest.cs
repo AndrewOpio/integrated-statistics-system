@@ -30,5 +30,6 @@ namespace VMSService.Data.Entities
         public ICollection<DepositRequestAgent> DepositRequestAgents { get; set; } = [];
         public ICollection<DepositRequestDenomination> DepositRequestDenominations { get; set; } = [];
         public ICollection<DepositRequestStatusHistory> DepositRequestStatusHistory { get; set; } = [];
+        public ICollection<BoardSessionSurplusShortage> BoardSessionSurplusShortages { get; set; } = [];
     }
 }

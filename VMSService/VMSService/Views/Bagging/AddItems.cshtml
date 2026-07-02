@@ -1,157 +1,206 @@
+@using VMSService.Core.Models.Bags
+@using VMSService.Core.Models.CbDepositRequests
 @model VMSService.Core.Models.Bags.AddItemsToBagViewModel
 
 @{
     ViewData["Title"] = "Add Items to Bag";
-    var bag = ViewBag.Bag as VMSService.Core.Models.Bags.BagDetailsViewModel;
-    var availableItems = ViewBag.AvailableItems as List<VMSService.Core.Models.CbDepositRequests.DepositRequestDenominationViewModel> ?? new List<VMSService.Core.Models.CbDepositRequests.DepositRequestDenominationViewModel>();
+    var bag = ViewBag.Bag as BagDetailsViewModel;
+    var availableItems = ViewBag.AvailableItems as List<DepositRequestDenominationViewModel> ?? new List<DepositRequestDenominationViewModel>();
+    int remainingCapacity = 50 - (bag?.TotalBundles ?? 0);
 }
 
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center py-4">
-    <div class="d-block mb-4 mb-md-0">
-        <h2 class="h4">Add Items to Bag</h2>
-        <p class="mb-0">Bag: <strong>@bag?.ReferenceNumber</strong> | Denomination: <strong>@bag?.DenominationName</strong></p>
-    </div>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <a asp-action="Details" asp-route-id="@bag?.Id" class="btn btn-sm btn-secondary">
-            <i class="ti ti-arrow-left me-2"></i>
-            Back to Bag Details
+@* Hero Card *@
+<div class="rounded-3 p-4 mb-4" style="background:linear-gradient(135deg,#31316A 30%,#BA7517 100%);">
+    <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+        <div>
+            <p class="text-uppercase mb-1" style="letter-spacing:.08em;color:rgba(255,255,255,.7);">
+                <i class="ti ti-package me-1"></i>Add Items to Bag
+            </p>
+            <h2 class="fw-semibold text-white mb-1">@bag?.ReferenceNumber</h2>
+            <span class="badge rounded-pill px-3 py-2" style="background:rgba(255,255,255,.2);color:#fff;">
+                <i class="ti ti-coins me-1"></i>@bag?.DenominationName
+            </span>
+        </div>
+        <a asp-action="Details" asp-route-id="@bag?.Id" class="btn btn-sm btn-secondary align-self-start">
+            <i class="ti ti-arrow-left me-1"></i>Back to Bag
         </a>
+    </div>
+    <div class="row g-3">
+        <div class="col-6 col-md-3">
+            <div class="rounded-3 p-3" style="background:rgba(255,255,255,.12);">
+                <p class="text-uppercase mb-1" style="font-size:10px;letter-spacing:.1em;color:rgba(255,255,255,.7);">Current Bundles</p>
+                <p class="fw-bold mb-0 fs-4 text-white">@bag?.TotalBundles <span class="fs-6 fw-normal" style="color:rgba(255,255,255,.6);">/ 50</span></p>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="rounded-3 p-3" style="background:rgba(255,255,255,.12);">
+                <p class="text-uppercase mb-1" style="font-size:10px;letter-spacing:.1em;color:rgba(255,255,255,.7);">Remaining Capacity</p>
+                <p class="fw-bold mb-0 fs-4 text-white">@remainingCapacity</p>
+            </div>
+        </div>
     </div>
 </div>
 
-<div class="card border-0 shadow">
-    <div class="card-body">
-        @if (availableItems.Any())
+@* Selection Card *@
+<div class="card border-0 shadow mb-4">
+    <div class="card-header bg-white">
+        <h5 class="mb-0 fw-bold">
+            <i class="ti ti-list-search me-2"></i>Select Items to Add
+        </h5>
+        <p class="text-muted small mb-0 mt-1">Only unbagged items matching this bag's denomination are shown. You can select multiple items at once.</p>
+    </div>
+    <div class="card-body @(!availableItems.Any() ? "p-4" : "p-0")">
+        @if (!availableItems.Any())
+        {
+            <div class="text-center py-5">
+                <i class="ti ti-mood-empty d-block mb-3 text-secondary" style="font-size:3rem;opacity:.4;"></i>
+                <p class="fw-semibold text-muted mb-1">No available items</p>
+                <p class="text-muted small">All deposit request denominations of <strong>@bag?.DenominationName</strong> have already been added to bags.</p>
+                <a asp-action="Details" asp-route-id="@bag?.Id" class="btn btn-sm btn-secondary mt-2">
+                    <i class="ti ti-arrow-left me-1"></i>Back to Bag
+                </a>
+            </div>
+        }
+        else
         {
             <form asp-action="AddItems" method="post" id="addItemsForm">
                 @Html.AntiForgeryToken()
                 <input type="hidden" asp-for="BagId" value="@bag?.Id" />
 
-                <div class="mb-3">
-                    <button type="button" class="btn btn-sm btn-outline-primary" id="selectAllBtn">
-                        <i class="ti ti-checkbox me-2"></i>
-                        Select All
+                <div class="px-3 py-2 border-bottom d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-tertiary" id="selectAllBtn">
+                        <i class="ti ti-checkbox me-1"></i>Select All
                     </button>
                     <button type="button" class="btn btn-sm btn-outline-secondary" id="deselectAllBtn">
-                        <i class="ti ti-square me-2"></i>
-                        Deselect All
+                        <i class="ti ti-square me-1"></i>Deselect All
                     </button>
-                    <span class="ms-3 text-muted">
+                    <span class="ms-2 small text-muted">
                         <strong id="selectedCount">0</strong> item(s) selected
                     </span>
                 </div>
 
                 <div class="table-responsive">
-                    <table class="table table-hover" id="itemsTable">
-                        <thead>
+                    <table class="table table-sm table-hover mb-0" id="itemsTable">
+                        <thead style="background-color:#f8fafc;border-bottom:2px solid #e9ecef;">
                             <tr>
-                                <th width="50">
+                                <th class="px-3 py-2" style="width:48px;">
                                     <input type="checkbox" class="form-check-input" id="selectAllCheckbox" />
                                 </th>
-                                <th>Transaction Ref</th>
-                                <th>Denomination</th>
-                                <th>Type</th>
-                                <th>Bundles</th>
-                                <th>Amount</th>
-                                <th>Origin</th>
-                                <th>Sub-Category</th>
+                                <th class="px-3 py-2 small fw-semibold">Transaction Ref</th>
+                                <th class="px-3 py-2 small fw-semibold">Type</th>
+                                <th class="px-3 py-2 small fw-semibold text-center">Bundles / Boxes</th>
+                                <th class="px-3 py-2 small fw-semibold text-end">Amount (UGX)</th>
+                                <th class="px-3 py-2 small fw-semibold">Origin</th>
+                                <th class="px-3 py-2 small fw-semibold">Sub-Category</th>
+                                <th class="px-3 py-2 small fw-semibold">Deposit Date</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var item in availableItems)
                             {
-                                <tr>
-                                    <td>
-                                        <input type="checkbox" class="form-check-input item-checkbox" 
-                                               name="DepositRequestDenominationIds" 
-                                               value="@item.Id" />
+                                <tr style="border-bottom:1px solid #f0f2f5;cursor:pointer;"
+                                    onclick="toggleItem(this)">
+                                    <td class="px-3 text-center">
+                                        <input type="checkbox" class="form-check-input item-checkbox"
+                                               name="DepositRequestDenominationIds"
+                                               value="@item.Id"
+                                               onclick="event.stopPropagation()" />
                                     </td>
-                                    <td>@item.TransactionRefNumber</td>
-                                    <td>@item.DenominationName</td>
-                                    <td>@item.DenominationTypeName</td>
-                                    <td>@(item.Bundles ?? item.Boxes)</td>
-                                    <td>@item.Amount.ToString("N2")</td>
-                                    <td>
-                                        <span class="badge bg-@(item.Origin == "Cb" ? "info" : "warning")">
+                                    <td class="px-3 small fw-bold">@item.TransactionRefNumber</td>
+                                    <td class="px-3 small">@item.DenominationTypeName</td>
+                                    <td class="px-3 small fw-semibold text-center">@item.NumberOfBundlesOrBoxes</td>
+                                    <td class="px-3 small fw-semibold text-end text-primary">UGX @item.Amount.ToString("N0")</td>
+                                    <td class="px-3 small">
+                                        <span class="badge" style="background-color:@(item.Origin == "Cb" ? "#e7f5ff" : "#fff8e1");color:@(item.Origin == "Cb" ? "#0b5394" : "#7d4a00");">
                                             @item.Origin
                                         </span>
                                     </td>
-                                    <td>@item.SubCategoryName</td>
+                                    <td class="px-3 small">@item.SubCategoryName</td>
+                                    <td class="px-3 small">@item.DepositDate.ToString("dd MMM yyyy")</td>
                                 </tr>
                             }
                         </tbody>
                     </table>
                 </div>
 
-                <hr class="my-4" />
-
-                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                    <button type="submit" class="btn btn-success">
-                        <i class="ti ti-plus me-2"></i>
-                        Add Selected Items
-                    </button>
+                <div class="p-3 border-top d-flex justify-content-end gap-2">
                     <a asp-action="Details" asp-route-id="@bag?.Id" class="btn btn-secondary">
                         Cancel
                     </a>
+                    <button type="submit" class="btn btn-tertiary" id="addItemsBtn" disabled>
+                        <i class="ti ti-check me-1"></i>Add Selected Items
+                    </button>
                 </div>
             </form>
-        }
-        else
-        {
-            <div class="alert alert-info">
-                <i class="ti ti-info-circle me-2"></i>
-                No available items with denomination <strong>@bag?.DenominationName</strong>. All items have already been added to bags.
-            </div>
-            <a asp-action="Details" asp-route-id="@bag?.Id" class="btn btn-secondary">
-                Back to Bag Details
-            </a>
         }
     </div>
 </div>
 
 @section Scripts {
     <script>
-        $(document).ready(function() {
+        function toggleItem(row) {
+            const cb = row.querySelector('.item-checkbox');
+            cb.checked = !cb.checked;
+            syncRowHighlight(row, cb.checked);
+            syncHeaderCheckbox();
+            updateSelectedCount();
+        }
+
+        function syncRowHighlight(row, checked) {
+            if (checked) row.classList.add('table-active');
+            else row.classList.remove('table-active');
+        }
+
+        function syncHeaderCheckbox() {
+            const total = document.querySelectorAll('.item-checkbox').length;
+            const checked = document.querySelectorAll('.item-checkbox:checked').length;
+            document.getElementById('selectAllCheckbox').checked = total > 0 && total === checked;
+        }
+
+        function updateSelectedCount() {
+            const count = document.querySelectorAll('.item-checkbox:checked').length;
+            document.getElementById('selectedCount').textContent = count;
+            document.getElementById('addItemsBtn').disabled = count === 0;
+        }
+
+        document.getElementById('selectAllCheckbox').addEventListener('change', function () {
+            document.querySelectorAll('.item-checkbox').forEach(cb => {
+                cb.checked = this.checked;
+                syncRowHighlight(cb.closest('tr'), this.checked);
+            });
+            updateSelectedCount();
+        });
+
+        document.getElementById('selectAllBtn').addEventListener('click', function () {
+            document.querySelectorAll('.item-checkbox').forEach(cb => {
+                cb.checked = true;
+                syncRowHighlight(cb.closest('tr'), true);
+            });
+            document.getElementById('selectAllCheckbox').checked = true;
+            updateSelectedCount();
+        });
+
+        document.getElementById('deselectAllBtn').addEventListener('click', function () {
+            document.querySelectorAll('.item-checkbox').forEach(cb => {
+                cb.checked = false;
+                syncRowHighlight(cb.closest('tr'), false);
+            });
+            document.getElementById('selectAllCheckbox').checked = false;
+            updateSelectedCount();
+        });
+
+        document.querySelectorAll('.item-checkbox').forEach(cb => {
+            cb.addEventListener('change', function () {
+                syncRowHighlight(this.closest('tr'), this.checked);
+                syncHeaderCheckbox();
+                updateSelectedCount();
+            });
+        });
+
+        $(document).ready(function () {
             $('#itemsTable').DataTable({
-                pageLength: 25
-            });
-
-            function updateSelectedCount() {
-                const count = $('.item-checkbox:checked').length;
-                $('#selectedCount').text(count);
-            }
-
-            $('#selectAllCheckbox').change(function() {
-                $('.item-checkbox').prop('checked', this.checked);
-                updateSelectedCount();
-            });
-
-            $('#selectAllBtn').click(function() {
-                $('.item-checkbox').prop('checked', true);
-                $('#selectAllCheckbox').prop('checked', true);
-                updateSelectedCount();
-            });
-
-            $('#deselectAllBtn').click(function() {
-                $('.item-checkbox').prop('checked', false);
-                $('#selectAllCheckbox').prop('checked', false);
-                updateSelectedCount();
-            });
-
-            $('.item-checkbox').change(function() {
-                const total = $('.item-checkbox').length;
-                const checked = $('.item-checkbox:checked').length;
-                $('#selectAllCheckbox').prop('checked', total === checked);
-                updateSelectedCount();
-            });
-
-            $('#addItemsForm').submit(function(e) {
-                const count = $('.item-checkbox:checked').length;
-                if (count === 0) {
-                    e.preventDefault();
-                    alert('Please select at least one item to add.');
-                    return false;
-                }
+                pageLength: 25,
+                columnDefs: [{ orderable: false, targets: 0 }]
             });
         });
     </script>

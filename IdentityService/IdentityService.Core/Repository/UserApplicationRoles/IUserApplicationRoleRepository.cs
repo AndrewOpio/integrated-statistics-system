@@ -9,5 +9,6 @@ namespace IdentityService.Core.Repository.UserApplicationRoles
         Task<ICollection<UserApplicationRole>> FindByUserId(string userId);
         Task<ICollection<UserApplicationRole>> FindByUserName(string username);
         Task<ICollection<UserApplicationRole>> GetUsersByRoleIds(List<int> appRoleIds);
+        Task<ICollection<UserApplicationRole>> GetUsersByRoleName(string roleName);
     }
 }

@@ -51,8 +51,8 @@
                                 <span asp-validation-for="BranchId" class="text-danger small d-block mt-1"></span>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label" asp-for="CommercialBankBranchId">Commercial Bank Branch <span class="text-danger">*</span></label>
-                                <select class="form-select" asp-for="CommercialBankBranchId" asp-items="@Model.CommercialBankBranchList" required>
+                                <label class="form-label" asp-for="CommercialBankBranchId">Commercial Bank Branch</label>
+                                <select class="form-select" asp-for="CommercialBankBranchId" asp-items="@Model.CommercialBankBranchList">
                                     <option value="">-- Select Branch --</option>
                                 </select>
                                 <span asp-validation-for="CommercialBankBranchId" class="text-danger small d-block mt-1"></span>

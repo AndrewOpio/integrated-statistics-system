@@ -89,5 +89,27 @@ namespace VMSService.Core.Services.Identity
                 return new UserDto();
             }
         }
+
+        public async Task<ICollection<UserDto>> GetUsersByRoleName(string roleName)
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync($"{_baseUrl}/api/User/get-by-rolename/{roleName}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var user = await response.Content.ReadFromJsonAsync<ICollection<UserDto>>();
+                    return user ?? new List<UserDto>();
+                }
+
+                _logger.LogError("Failed to retrieve users by roleName. Status: {StatusCode}", response.StatusCode);
+                return new List<UserDto>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving users by roleName from Identity API");
+                return new List<UserDto>();
+            }
+        }
     }
 }

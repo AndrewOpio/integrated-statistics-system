@@ -10,10 +10,15 @@ namespace VMSService.Data.Entities
         // public int ReceivedStatus { get; set; }
         public string DeliveryAirline { get; set; }
         public decimal TestingFees { get; set; }
+        public string TestingFeesCurrency { get; set; }
         public decimal ShippingFees { get; set; }
+        public string ShippingFeesCurrency { get; set; }
         public decimal InsuranceFees { get; set; }
+        public string InsuranceFeesCurrency { get; set; }
         public decimal HandlingCharges { get; set; }
+        public string HandlingChargesCurrency { get; set; }
         public decimal ClearingFees { get; set; }
+        public string ClearingFeesCurrency { get; set; }
         public int CurrentStatusId { get; set; }
         public bool IsDeleted { get; set; }
         public bool? IsPartial { get; set; }

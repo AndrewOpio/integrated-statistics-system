@@ -107,8 +107,43 @@
                         </div>
                     </div>
 
-                    <!-- Active Status -->
+                    <!-- Attachment Requirements Section -->
+                    <h6 class="mb-3 mt-3"><i class="ti ti-paperclip me-1"></i>Attachment Requirements</h6>
+
                     <div class="mb-3">
+                        <div class="form-check">
+                            <input asp-for="RequiresAttachments" type="checkbox" class="form-check-input" id="RequiresAttachments" />
+                            <label class="form-check-label" for="RequiresAttachments">
+                                Require Attachment(s)
+                            </label>
+                        </div>
+                        <small class="form-hint d-block mt-2">Check if users must provide attachments when performing this transition</small>
+                    </div>
+
+                    <div id="attachmentsConfigSection" class="d-none">
+                        <div class="card border">
+                            <div class="card-header bg-light">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">Configure Required Attachments</h6>
+                                    <button type="button" id="addAttachmentBtn" class="btn btn-sm btn-primary">
+                                        <i class="ti ti-plus me-1"></i>Add Attachment
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div id="attachmentsList" class="space-y-3"></div>
+                                <div id="noAttachmentsMessage" class="text-center text-muted py-4">
+                                    <i class="ti ti-file-alert fs-2 mb-2"></i>
+                                    <p class="mb-0">No attachments configured yet. Click "Add Attachment" to add one.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <input type="hidden" id="attachmentsJson" name="attachmentsJson" value="" />
+
+                    <!-- Active Status -->
+                    <div class="mb-3 mt-3">
                         <div class="form-check">
                             <input asp-for="IsActive" type="checkbox" class="form-check-input" id="IsActive" />
                             <label class="form-check-label" for="IsActive">

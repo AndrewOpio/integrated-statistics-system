@@ -91,6 +91,82 @@ namespace VMSService.Core.Static
             public const string Approved = "Approved";
         }
 
+        public static class DestructionRequest
+        {
+            public const string Draft = "Draft";
+            public const string PendingVerification = "Pending Verification";
+            public const string PendingApproval = "Pending Approval";
+            public const string Approved = "Approved";
+            public const string PendingCompletion = "Pending Completion";
+            public const string Completed = "Completed";
+            public const string ReturnedToStorage = "Returned To Storage";
+            public const string ReturnedForDestruction = "Returned For Destruction";
+        }
+
+        public static class DestructionAuthorization
+        {
+            public const string Draft             = "Draft";
+            public const string PendingApproval   = "Pending Approval";
+            public const string Approved          = "Approved";
+            public const string Rejected          = "Rejected";
+            public const string AmendmentDraft    = "Amendment Draft";
+            public const string AmendmentApproved = "Amendment Approved";
+        }
+
+        public static class CfbReport
+        {
+            public const string Draft = "Draft";
+            public const string PendingVerification = "Pending Verification";
+            public const string PendingApproval = "Pending Approval";
+            public const string Approved = "Approved";
+            public const string Returned = "Returned";
+        }
+
+        public static class MonthlySurplus
+        {
+            public const string Draft                    = "Draft";
+            public const string PendingAcknowledgement   = "Pending Acknowledgement";
+        }
+
+        public static class MonthlyShortage
+        {
+            public const string Draft                = "Draft";
+            public const string PendingApproval      = "Pending Approval";
+            public const string PendingConfirmation  = "Pending Confirmation";
+            public const string Confirmed            = "Confirmed";
+        }
+
+        public static class MonthlyCommercialBankSettlement
+        {
+            public const string Draft                = "Draft";
+            public const string PendingApproval      = "Pending Approval";
+            public const string PendingConfirmation  = "Pending Confirmation";
+            public const string Confirmed            = "Confirmed";
+        }
+
+        public static class StockProcessingPlan
+        {
+            public const string Draft = "Draft";
+            public const string PendingVerification = "Pending Verification";
+            public const string IssuedToBoards = "Issued To Boards";
+            public const string ResultsPendingVerification = "Results Pending Verification";
+            public const string ResultsPendingConfirmation = "Results Pending Confirmation";
+            public const string Completed = "Completed";
+        }
+
+        public static class StockProcessingSession
+        {
+            public const string Draft = "Draft";
+            public const string Open = "Open";
+            public const string Closed = "Closed";
+        }
+
+        public static class BagMovement
+        {
+            public const string PendingVerification = "Pending Verification";
+            public const string Verified = "Verified";
+        }
+
         public static class Entity
         {
             public const string ApprovedCurrencyProcurement = "ApprovedCurrencyProcurement";
@@ -103,6 +179,16 @@ namespace VMSService.Core.Static
             public const string AgentDetail = "AgentDetail";
             public const string DepositRequest = "DepositRequest";
             public const string DepositRequestExceptional = "DepositRequestExceptional";
+            public const string StockProcessingPlan = "StockProcessingPlan";
+            public const string StockProcessingSession = "StockProcessingSession";
+            public const string BagMovement = "BagMovement";
+            public const string DestructionRequest            = "Destruction";
+            public const string DestructionAuthorization      = "DestructionAuthorization";
+            public const string CfbReport                     = "EndOfDayDiscrepancies";
+            public const string MonthlySurpluses              = "MonthlySurpluses";
+            public const string MonthlyShortages              = "MonthlyShortages";
+            public const string MonthlyCommercialBankSettlements      = "MonthlyCommercialBankSettlements";
         }
     }
 }
+
