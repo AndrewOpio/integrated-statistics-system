@@ -7,6 +7,7 @@
             public const string Vendor = "Vendor";
             public const string CommercialBank = "Commercial Bank";
             public const string Branch = "Branch";
+            public const string Category = "Currency Category";
         }
 
         public static class StoreTypes
@@ -14,7 +15,8 @@
             public const string New = "New";
             public const string Paids = "Paids";
             public const string Cancelled = "Cancelled";
-            public const string Reissue = "Reissue";
+            public const string Reissue = "Re-Issue";
+            public const string MWB = "MWB"; //Money With Boards
         }
 
         public static class DenominationTypes
@@ -36,6 +38,9 @@
             public const string OperationalToBuffer = "OperationalToBuffer";
             public const string CommBankToBranch = "Commercial Bank To Branch";
             public const string BranchToCommBank = "BranchToCommercialBank";
+            public const string PaidsToMWB = "Paids To Money With Boards";
+            public const string MWBToReIssue = "Money With Boards To Re-Issue";
+            public const string MWBToCancelled = "Money With Boards To Cancelled";
         }
 
         public static readonly (string Key, string Value)[] MovementTypes = new[]

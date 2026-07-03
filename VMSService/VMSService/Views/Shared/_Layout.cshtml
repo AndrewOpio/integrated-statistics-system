@@ -33,10 +33,23 @@
     bool isAssistantBranchManager = userRoles.Contains(SystemPolicy.Roles.StockVerifier);
     bool isPanelA = userRoles.Contains(SystemPolicy.Roles.PanelA);
     bool isPanelB = userRoles.Contains(SystemPolicy.Roles.PanelB);
+    bool isVO = userRoles.Contains(SystemPolicy.Roles.VerificationOfficer);
+    bool isBoardSupervisor = userRoles.Contains(SystemPolicy.Roles.BoardSupervisor);
 
     // bool isCommercialBank = userRoles.Contains($"{SystemSettings.AppAcronym}:Commercial Bank");
     // bool isStockReceiver = userRoles.Contains($"{SystemSettings.AppAcronym}:StockReceiver");
     // bool isStockManager = userRoles.Contains($"{SystemSettings.AppAcronym}:StockManager");
+
+    var userRoleList = User.FindAll("appRole")
+        .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
+        .Select(c => c.Value.Split(":")[1])
+        .Distinct().ToList();
+    var displayName = User.FindFirst("DisplayName")?.Value ?? User.Identity?.Name ?? "";
+    var initials = string.Concat(
+        displayName.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                   .Take(2).Select(w => char.ToUpper(w[0]).ToString()));
+    if (string.IsNullOrEmpty(initials) && !string.IsNullOrEmpty(User.Identity?.Name))
+        initials = char.ToUpper(User.Identity.Name[0]).ToString();
 }
 
 <!DOCTYPE html>
@@ -109,7 +122,28 @@
                         </div>
                     </div>
                 </li>
-                <li role="separator" class="dropdown-divider mt-4 mb-3"></li>
+                <li role="separator" class="dropdown-divider mt-4 mb-2"></li>
+                @*<li class="nav-item px-1 mb-1">
+                    <div class="sidebar-user-card">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="sidebar-avatar">@initials</div>
+                            <div style="min-width:0;flex:1;">
+                                <div class="sidebar-user-name text-truncate">@displayName</div>
+                                <div class="sidebar-user-sub text-truncate">@User.Identity?.Name</div>
+                            </div>
+                        </div>
+                        @if (userRoleList.Any())
+                        {
+                            <div class="sidebar-roles">
+                                @foreach (var role in userRoleList)
+                                {
+                                    <span class="sidebar-role-badge">@role</span>
+                                }
+                            </div>
+                        }
+                    </div>
+                </li>
+                <li role="separator" class="dropdown-divider mb-2"></li>*@
                 <li class="nav-item active">
                     <a asp-controller="Home" asp-action="Index" class="nav-link d-flex align-items-center">
                         <span class="sidebar-icon fs-5 me-4">
@@ -213,7 +247,21 @@
                             </ul>
                         </div>
                     </li>
+                }
 
+                @if (isBoardSupervisor) {
+                    <li class="nav-item">
+                        <a asp-controller="StockProcessingSession" asp-action="Index" class="nav-link d-flex align-items-center">
+                            <span class="sidebar-icon fs-5 me-4">
+                                <i class="ti ti-package-export"></i>
+                            </span>
+                            <span class="sidebar-text">My Sessions</span>
+                        </a>
+                    </li>
+                }
+
+                @if (isVO || isBranchManager || isAssistantBranchManager || isPanelA || isPanelB)
+                {
                     <li class="nav-item">
                         <span class="nav-link collapsed d-flex justify-content-between align-items-center"
                               data-bs-toggle="collapse" data-bs-target="#submenuprocessing-app">
@@ -525,8 +573,20 @@
         <nav class="navbar navbar-top navbar-expand navbar-dashboard navbar-dark ps-0 pe-2 pb-0 pt-1">
             <div class="container-fluid px-0">
                 <div class="d-flex justify-content-between w-100" id="navbarSupportedContent">
-                    <div class="d-flex align-items-center">
-                        <breadcrumb class="mt-3 me-3"></breadcrumb>
+                    <div class="d-flex align-items-center gap-3">
+                        <breadcrumb class="mt-3"></breadcrumb>
+                        @if (userRoleList.Any())
+                        {
+                            <div class="d-none d-lg-flex align-items-center gap-1">
+                                @foreach (var role in userRoleList)
+                                {
+                                    <span class="badge rounded-pill text-bg-light border fw-semibold"
+                                          style="font-size:.62rem;letter-spacing:.05em;text-transform:uppercase;color:#31316A!important;border-color:#dee2e6!important;">
+                                        @role
+                                    </span>
+                                }
+                            </div>
+                        }
                     </div>
                     <!-- Navbar links -->
                     <ul class="navbar-nav align-items-center">

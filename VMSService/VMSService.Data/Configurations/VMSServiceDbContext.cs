@@ -205,11 +205,11 @@ namespace VMSService.Data.Configurations
             });
 
             // ── BoardSessionSurplusShortage → DepositRequest ─────────────────────────
-            modelBuilder.Entity<BoardSessionSurplusShortage>()
-                .HasOne(s => s.DepositRequest)
-                .WithMany(d => d.BoardSessionSurplusShortages)
-                .HasForeignKey(s => s.DepositRequestId)
-                .OnDelete(DeleteBehavior.SetNull);
+            //modelBuilder.Entity<BoardSessionSurplusShortage>()
+            //    .HasOne(s => s.DepositRequest)
+            //    .WithMany(d => d.BoardSessionSurplusShortages)
+            //    .HasForeignKey(s => s.DepositRequestId)
+            //    .OnDelete(DeleteBehavior.SetNull);
 
             // ── EodDiscrepancyReportEntry (junction) ──────────────────────────────────
             modelBuilder.Entity<EodDiscrepancyReportEntry>(entity =>

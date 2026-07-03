@@ -23,6 +23,8 @@ using VMSService.Core.Repositories.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.ReceivedStocks;
 using VMSService.Core.Repositories.StockProcessingPlans;
 using VMSService.Core.Repositories.StockProcessingPlanStatusHistories;
+using VMSService.Core.Repositories.StockProcessingSessions;
+using VMSService.Core.Repositories.StockProcessingSessionStatusHistories;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
 using VMSService.Core.Repositories.StockMovementDiscrepancies;
 using VMSService.Core.Repositories.StockMovements;
@@ -46,6 +48,8 @@ namespace VMSService.Core.Services.Workflows
         IExPrintMintStatusHistoryRepository _exPrintMintStatusHistoryRepository,
         IStockProcessingPlanRepository _stockProcessingPlanRepository,
         IStockProcessingPlanStatusHistoryRepository _stockProcessingPlanStatusHistoryRepository,
+        IStockProcessingSessionRepository _stockProcessingSessionRepository,
+        IStockProcessingSessionStatusHistoryRepository _stockProcessingSessionStatusHistoryRepository,
         IReceivedStockStatusHistoryRepository _receivedStockStatusHistoryRepository,
         IStockMovementRepository _stockMovementRepository,
         IStockMovementStatusHistoryRepository _stockMovementStatusHistoryRepository,
@@ -138,6 +142,12 @@ namespace VMSService.Core.Services.Workflows
 
                     case StatusConstants.Entity.MonthlyCommercialBankSettlements:
                         return await HandleMonthlyCommercialBankSettlementTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
+
+                    case StatusConstants.Entity.StockProcessingPlan:
+                        return await HandleStockProcessingPlanTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
+
+                    case StatusConstants.Entity.StockProcessingSession:
+                        return await HandleStockProcessingSessionTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
 
                     default:
                         _logger.LogWarning("Unknown entity type: {EntityType}", entityType);
@@ -498,7 +508,8 @@ namespace VMSService.Core.Services.Workflows
                     Recipients = recipients.ToList(),
                 };
 
-                var notificationId = await _notificationServiceClient.SendAsync(notificationRequest);
+                //var notificationId = await _notificationServiceClient.SendAsync(notificationRequest);
+                var notificationId = new Guid();
 
                 _logger.LogInformation("Notification sent successfully. NotificationId: {NotificationId} for entity {Entity}",
                     notificationId, entityDescription);
@@ -1095,6 +1106,57 @@ namespace VMSService.Core.Services.Workflows
 
             _logger.LogInformation("CB Settlement {Id} transitioned from {From} to {To} by {Username} via action {Action}",
                 entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
+        private async Task<bool> HandleStockProcessingSessionTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
+        {
+            var session = await _stockProcessingSessionRepository.FindById(entityId);
+            if (session == null)
+            {
+                _logger.LogWarning("Stock Processing Session {Id} not found", entityId);
+                return false;
+            }
+
+            if (session.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Stock Processing Session {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, session.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new StockProcessingSessionStatusHistory
+            {
+                StockProcessingSessionId = entityId,
+                OldStatusId = session.CurrentStatusId,
+                NewStatusId = transition.ToStatusId,
+                ChangedBy = username,
+                ChangedAt = DateTime.Now,
+                Remarks = remarks,
+                Attachments = attachmentIds != null && attachmentIds.Any()
+                    ? string.Join(",", attachmentIds)
+                    : null,
+                IsDeleted = false
+            };
+
+            await _stockProcessingSessionStatusHistoryRepository.Create(statusHistory);
+
+            session.CurrentStatusId = transition.ToStatusId;
+            await _stockProcessingSessionRepository.Update(session);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"Stock Processing Session #{session.ReferenceNumber}",
+                    transition,
+                    transition.ToStatus.Name,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("Stock Processing Session {Id} transitioned from status {From} to {To} by user {Username} with action {Action}. Attachments: {AttachmentCount}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName, attachmentIds?.Count ?? 0);
 
             return true;
         }

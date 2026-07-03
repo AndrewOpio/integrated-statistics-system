@@ -157,6 +157,7 @@ namespace VMSService.Core.Static
         public static class StockProcessingSession
         {
             public const string Draft = "Draft";
+            public const string IssuedToBoard = "Issued To Board";
             public const string Open = "Open";
             public const string Closed = "Closed";
         }

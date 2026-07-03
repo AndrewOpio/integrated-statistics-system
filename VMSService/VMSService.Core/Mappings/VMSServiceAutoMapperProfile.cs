@@ -41,6 +41,9 @@ using VMSService.Core.Models.VendorTypes;
 using VMSService.Core.Services.Identity.IdentityEntities;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Data.Entities;
+using VMSService.Core.Models.BagMovements;
+using VMSService.Core.Models.StockProcessingResults;
+using VMSService.Core.Models.StockProcessingSessions;
 
 namespace VMSService.Core.Mappings
 {
@@ -112,9 +115,10 @@ namespace VMSService.Core.Mappings
 
             // Vault and VaultSection mappings
             CreateMap<Vault, VaultViewModel>().ReverseMap();
-            CreateMap<VaultSection, VaultSectionViewModel>()
-                .ForMember(dest => dest.VaultName, opt => opt.MapFrom(src => src.Vault.Name))
-                .ReverseMap();
+            CreateMap<VaultSection, VaultSectionViewModel>().ReverseMap();
+            CreateMap<BagMovement, BagMovementViewModel>().ReverseMap();
+            CreateMap<StockProcessingSession, StockProcessingSessionViewModel>();
+            CreateMap<StockProcessingResult, StockProcessingResultViewModel>().ReverseMap();
         }
     }
 }

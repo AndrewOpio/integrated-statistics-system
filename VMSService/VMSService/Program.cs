@@ -36,6 +36,7 @@ using VMSService.Core.Repositories.StockProcessingPlans;
 using VMSService.Core.Repositories.StockProcessingPlanStatusHistories;
 using VMSService.Core.Repositories.StockProcessingSessions;
 using VMSService.Core.Repositories.StockProcessingSessionStatusHistories;
+using VMSService.Core.Repositories.StockProcessingResults;
 using VMSService.Core.Repositories.CurrencyVendors;
 using VMSService.Core.Repositories.ProcessingBoards;
 using VMSService.Core.Repositories.Denominations;
@@ -93,6 +94,7 @@ using VMSService.Core.Repositories.MonthlyShortageStatusHistories;
 using VMSService.Core.Repositories.MonthlyCommercialBankSettlements;
 using VMSService.Core.Repositories.MonthlyCommercialBankSettlementStatusHistories;
 using VMSService.Web.Services;
+using VMSService.Core.Repositories.BagMovements;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -306,6 +308,13 @@ builder.Services.AddScoped<IBagRepository, BagRepository>();
 // Add after line with builder.Services.AddScoped<IBagRepository, BagRepository>();
 builder.Services.AddScoped<IVaultRepository, VaultRepository>();
 builder.Services.AddScoped<IVaultSectionRepository, VaultSectionRepository>();
+builder.Services.AddScoped<IBagMovementRepository, BagMovementRepository>();
+builder.Services.AddScoped<IStockProcessingResultRepository, StockProcessingResultRepository>();
+builder.Services.AddScoped<IMinDepositStandardRepository, MinDepositStandardRepository>();
+builder.Services.AddScoped<IDepositProcessingFeeRepository, DepositProcessingFeeRepository>();
+builder.Services.AddScoped<IDepositFeeRepository, DepositFeeRepository>();
+builder.Services.AddScoped<IFeeTypeRepository, FeeTypeRepository>();
+builder.Services.AddScoped<ISubCategoryRepository, SubCategoryRepository>();
 
 builder.Services.AddHttpClient<VMSService.Core.Services.Stocks.StockService>()
     .ConfigureHttpClient((sp, client) =>

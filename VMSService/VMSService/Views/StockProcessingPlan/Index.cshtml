@@ -6,6 +6,7 @@
     ViewData["Title"] = "Stock Processing Plans";
     var branches = ViewBag.Branches as ICollection<BranchDto> ?? new List<BranchDto>();
     int? selectedBranchId = ViewBag.SelectedBranchId as int?;
+    var userRoles = string.Join(", ", User.FindAll("appRole").Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:")).Select(c => c.Value.Split(":")[1]).ToList());
 }
 
 <style>
@@ -59,10 +60,13 @@
                         <h2 class="fs-5 fw-bold mb-0">Stock Processing Plans</h2>
                     </div>
                     <div class="col-auto">
-                        <button type="button" class="btn btn-sm btn-primary"
-                                data-bs-toggle="modal" data-bs-target="#createPlanModal">
-                            <i class="ti ti-plus me-1"></i>Create New Plan
-                        </button>
+                        @if (userRoles.Contains(SystemPolicy.Roles.Treasury))
+                        {
+                            <button type="button" class="btn btn-sm btn-primary"
+                                    data-bs-toggle="modal" data-bs-target="#createPlanModal">
+                                <i class="ti ti-plus me-1"></i>Create New Plan
+                            </button>
+                        }
                     </div>
                 </div>
             </div>
