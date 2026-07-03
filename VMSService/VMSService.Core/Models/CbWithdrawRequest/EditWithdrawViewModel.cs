@@ -21,7 +21,7 @@ namespace VMSService.Core.Models.CbWithdrawRequest
         public DenomTableViewModel Denoms { get; init; } = null!;
         public ICollection<WorkflowTransitionDto> AvailableTransitions { get; set; } = new List<WorkflowTransitionDto>();
         public Guid? EditingRequestId { get; set; }
-        public DateOnly? RtgsDate { get; set; }
+        public DateOnly? FundSettlementValueDate { get; set; }
         public string? RtgsCode { get; set; }
 
     }

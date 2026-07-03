@@ -74,22 +74,20 @@
             <div class="alert alert-warning d-flex align-items-start gap-2 py-2 mb-3">
                 <i class="ti ti-info-circle text-warning mt-1 flex-shrink-0"></i>
                 <small>
-                    Enter the RTGS date and reference code once confirmed with the bank.
-                    RTGS date must be after the collection date.
+                    Enter the RTGS reference code that will be verified.
+                    Fund settlement value date is the same as the collection date.
                 </small>
             </div>
 
             <div class="row g-3">
                 <div class="col-md-6">
-                    <label class="form-label">RTGS Date</label>
-                    @* <input type="date"
-                           id="rtgsDate"
-                           class="form-control"
-                           onchange="formState.rtgsDate = this.value || null; checkSpecialApproval();" /> *@
+                    <label class="form-label">Fund Settlement Value Date</label>
                     <input type="date"
                            id="rtgsDate"
                            class="form-control"
+                           disabled
                            onchange="formState.rtgsDate = this.value || null;" />
+                    <small class="text-muted">Fund Settlement Value Date is the same as the collection date.</small>
 
                     @*  <small id="rtgsDateError" class="text-danger mt-1" style="display:none;">
                         <i class="ti ti-alert-circle me-1"></i>
@@ -191,7 +189,7 @@
         // const today = new Date().toISOString().split('T')[0];
 
         document.getElementById('collectionDate').min = today;
-        document.getElementById('rtgsDate').min = today;
+        document.getElementById('rtgsDate').min = today; // max is set dynamically when collection date is picked
 
         formState.createdDate = today;
         formState.cbCode = document.getElementById('cbCode')?.textContent?.trim() || null;

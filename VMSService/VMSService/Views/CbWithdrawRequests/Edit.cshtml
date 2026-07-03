@@ -72,27 +72,17 @@
             <div class="alert alert-warning d-flex align-items-start gap-2 py-2 mb-3">
                 <i class="ti ti-info-circle text-warning mt-1 flex-shrink-0"></i>
                 <small>
-                    Enter the RTGS date and reference code once confirmed with the bank.
-                    RTGS date must be after the collection date.
+                    Enter the RTGS reference code for verification.
+                    Fund settlement value date is the same as the collection date.
                 </small>
             </div>
 
             <div class="row g-3">
                 <div class="col-md-6">
-                    <label class="form-label">RTGS Date</label>
-                    @* <input type="date"
-                           id="rtgsDate"
-                           class="form-control"
-                           onchange="formState.rtgsDate = this.value || null; checkSpecialApproval();" /> *@
-                    <input type="date"
-                           id="rtgsDate"
-                           class="form-control"
-                           onchange="formState.rtgsDate = this.value || null;"/>
-
-                   @*  <small id="rtgsDateError" class="text-danger mt-1" style="display:none;">
-                        <i class="ti ti-alert-circle me-1"></i>
-                        RTGS date cannot be before the collection date.
-                    </small> *@
+                    <label class="form-label">Fund Settlement Value Date</label>
+                    <input type="hidden" name="rtgsDate" value="@Model.Request.FundSettlementValueDate?.ToString("yyyy-MM-dd")" />
+                    <p class="fw-semibold fw-bold mb-1">@Model.Request.FundSettlementValueDate?.ToString("dd MMM yyyy")</p>
+                    <small class="text-muted small">Same as collection date</small>
                 </div>
 
                 <div class="col-md-6">
@@ -102,6 +92,7 @@
                            class="form-control"
                            placeholder="e.g. RTGS-2026-001"
                            oninput="formState.rtgsCode = this.value || null" />
+
                 </div>
             </div>
 
@@ -110,10 +101,10 @@
                  style="display:none!important;">
                 <i class="ti ti-alert-triangle text-danger fs-5 mt-1 flex-shrink-0"></i>
                 <div class="flex-grow-1">
-                    <p class="fw-bold mb-1">Special Approval Required!</p>
+                    <p class="fw-bold mb-1">Exceptional Approval Required!</p>
                     <p class="mb-1 small">
-                        Collection date matches RTGS date. This request will be routed for
-                        <strong>special approval</strong> before processing.
+                        Collection date matches fund settlement value date. This request will be routed for
+                        <strong>Exceptional approval</strong> before processing.
                     </p>
                     <div class="border-top pt-2 mt-1">
                         <p class="text-muted mb-0" style="font-size:9px;">REASON PROVIDED</p>
@@ -140,7 +131,7 @@
                             <i class="ti ti-alert-triangle text-danger fs-5"></i>
                         </div>
                         <div>
-                            <h5 class="modal-title mb-0 fw-bold">Special Approval Required</h5>
+                            <h5 class="modal-title mb-0 fw-bold">Exceptional Approval Required</h5>
                             <p class="text-muted small mb-0">Collection date matches Creation date</p>
                         </div>
                     </div>
@@ -149,7 +140,7 @@
                     <div class="alert alert-danger d-flex gap-2 py-2 mb-3">
                         <i class="ti ti-info-circle flex-shrink-0 mt-1"></i>
                         <small>
-                            Same-day RTGS requests require special authorization.
+                            Same-day RTGS requests require exceptional authorization.
                             Please provide a reason — this will be reviewed before processing.
                         </small>
                     </div>
@@ -204,8 +195,6 @@
     <script src="~/js/denom-table.js"></script>
 
     <script>
-        // const today = new Date().toISOString().split('T')[0]; Model.IsEdit && !Model.IsLumpSum
-        document.getElementById('rtgsDate').max = today;
 
         // ── Denomination data — must be set before DOMContentLoaded fires preFillDenoms ──
         window.savedDenoms = @Html.Raw(Json.Serialize(
@@ -236,18 +225,11 @@
         formState.cbCode      = document.getElementById('cbCode')?.textContent?.trim() || null;
         formState.createdDate = '@Model.Request.CreatedDate.ToString("yyyy-MM-dd")';
 
-        formState.rtgsDate = @Html.Raw(Model.Request.FundSettlementValueDate.HasValue
-            ? $"'{Model.Request.FundSettlementValueDate.Value.ToString("yyyy-MM-dd")}'"
-            : "null");
+        formState.rtgsDate = '@Model.Branches.CollectionDate.ToString("yyyy-MM-dd")';
         formState.rtgsCode = @Html.Raw(string.IsNullOrEmpty(Model.Request.RtgsCode)
             ? "null"
             : $"'{Model.Request.RtgsCode}'");
 
-        // Pre-fill RTGS inputs
-        if (formState.rtgsDate) {
-            const el = document.getElementById('rtgsDate');
-            if (el) el.value = formState.rtgsDate;
-        }
         if (formState.rtgsCode) {
             const el = document.getElementById('rtgsCode');
             if (el) el.value = formState.rtgsCode;

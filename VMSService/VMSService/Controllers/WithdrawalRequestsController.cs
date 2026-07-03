@@ -422,7 +422,7 @@ namespace VMSService.Web.Controllers
                 StatusId = request.StatusTypeId,
                 StatusName = request.StatusTypeName,
                 CollectionDate = request.CollectionDate,
-                RtgsDate = request.FundSettlementValueDate,
+                FundSettlementValueDate = request.FundSettlementValueDate,
                 RtgsCode = request.RtgsCode,
                 RequiresSpecialApproval = request.RequiresSpecialApproval,
                 CbName = cb?.Name ?? "—",
@@ -446,7 +446,6 @@ namespace VMSService.Web.Controllers
                 RtgsVerificationStatus = request.RtgsVerificationStatus,
                 RtgsVerifiedDate = request.RtgsVerifiedDate,
                 CanVerifyRtgs = (string.IsNullOrEmpty(request.RtgsVerificationStatus) || request.RtgsVerificationStatus == RtgsVerification.Pending)
-                    && request.FundSettlementValueDate.HasValue
                     && !string.IsNullOrEmpty(request.RtgsCode),
                 RecallRtgsPending = request.RecallRtgsPending,
                 RecallRtgsCode = request.RecallRtgsCode,
@@ -706,9 +705,9 @@ namespace VMSService.Web.Controllers
                     WithdrawalStatusNames.PendingWithdrawalConfirmation,
                 };
                 if (statusesRequiringRtgs.Contains(request.StatusTypeName)
-                    && (!request.FundSettlementValueDate.HasValue || string.IsNullOrEmpty(request.RtgsCode)))
+                    && string.IsNullOrEmpty(request.RtgsCode))
                 {
-                    TempData["Error"] = "RTGS date and RTGS code must be provided before this action can be taken.";
+                    TempData["Error"] = "RTGS code must be provided before this action can be taken.";
                     return RedirectToAction(nameof(Details), new { id });
                 }
 
@@ -878,6 +877,8 @@ namespace VMSService.Web.Controllers
         {
             var request = await _uow.Requests.FindById(id);
             if (request is null) return NotFound();
+
+            var collectionDateSameAsFundSettlementValueDate = request.CollectionDate == request.FundSettlementValueDate;
 
             var validStatuses = new[] { RtgsVerification.Confirmed, RtgsVerification.AmountMismatch, RtgsVerification.DateMismatch, RtgsVerification.NotFound };
             if (!validStatuses.Contains(verificationStatus))

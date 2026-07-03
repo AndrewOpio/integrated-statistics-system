@@ -31,6 +31,22 @@ function onBouBranchSelected(id) {
     formState.bouBranchId = id ? parseInt(id) : null;
 }
 
+function onCollectionDateChanged(value) {
+    formState.collectionDate = value || null;
+    checkSpecialApproval();
+
+    const rtgsInput = document.getElementById('rtgsDate');
+    if (!rtgsInput) return;
+
+    if (value) {
+        rtgsInput.value = value;
+        formState.rtgsDate = value;
+    } else {
+        rtgsInput.value = '';
+        formState.rtgsDate = null;
+    }
+}
+
 // ─────────────────────────────────────────────
 // Agent selection — called from _AgentSelection
 // ─────────────────────────────────────────────
@@ -77,11 +93,14 @@ function buildDenomLines() {
 
 function validateForm(isDraft) {
     const errors = [];
+    const isEdit = !!formState.id;
 
-    if (!formState.collectionDate)
-        errors.push('Please select a collection date.');
-    else if (formState.collectionDate < today)
-        errors.push('Collection date cannot be in the past.');
+    if (!isEdit) {
+        if (!formState.collectionDate)
+            errors.push('Please select a collection date.');
+        else if (formState.collectionDate < today)
+            errors.push('Collection date cannot be in the past.');
+    }
 
     if (!isDraft) {
 
@@ -97,8 +116,8 @@ function validateForm(isDraft) {
         if (formState.rtgsDate && !formState.rtgsCode)
             errors.push('RTGS code is required when an RTGS date is provided.');
 
-        if (formState.rtgsDate && formState.rtgsDate > today)
-            errors.push('RTGS date cannot be in the future.');
+        if (formState.rtgsDate && formState.collectionDate && formState.rtgsDate > formState.collectionDate)
+            errors.push('Fund settlement value date cannot be after the collection date.');
 
         if (!window.dtHasValue())
             errors.push('Please add at least one denomination or enter a lump sum amount.');

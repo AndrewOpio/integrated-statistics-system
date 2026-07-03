@@ -220,10 +220,6 @@ namespace VMSService.Web.Controllers
                     return BadRequest(new { errors = new[] { "Collection date cannot be in the past." } });
             }
 
-            // Guard: RTGS date cannot be in the future
-            if (vm.RtgsDate.HasValue && vm.RtgsDate.Value > DateOnly.FromDateTime(DateTime.Now))
-                return BadRequest(new { errors = new[] { "RTGS date cannot be in the future." } });
-
             // Guard: lump sum must be a whole bundle (multiple of 1,000)
             if (vm.IsLumpSum)
             {
@@ -410,10 +406,11 @@ namespace VMSService.Web.Controllers
             {
                 WithdrawalStatusNames.Draft,
                 WithdrawalStatusNames.PendingInternalApproval,
-                WithdrawalStatusNames.PendingWithdrawalConfirmation,
+                WithdrawalStatusNames.ReturnedForRevision,
+                WithdrawalStatusNames.PendingRTGSVerification,
             };
             var canEditRtgs = rtgsEditableStatuses.Contains(request.StatusTypeName)
-                && userRoleNames.Contains(RolePolicy.CbApprover);
+                && (userRoleNames.Contains(RolePolicy.CbApprover) || userRoleNames.Contains(RolePolicy.CbMaker));
 
             // ── Status history ────────────────────────────────────────────────────
             var statusHistory = request.WithdrawalRequestStatusHistory
@@ -482,7 +479,7 @@ namespace VMSService.Web.Controllers
                 StatusId = request.StatusTypeId,
                 StatusName = request.StatusTypeName,
                 CollectionDate = request.CollectionDate,
-                RtgsDate = request.FundSettlementValueDate,
+                FundSettlementValueDate = request.FundSettlementValueDate,
                 RtgsCode = request.RtgsCode,
                 RequiresSpecialApproval = request.RequiresSpecialApproval,
                 SpecialApprovalReason = request.SpecialApprovalReason,
@@ -627,17 +624,12 @@ namespace VMSService.Web.Controllers
             {
                 WithdrawalStatusNames.Draft,
                 WithdrawalStatusNames.PendingInternalApproval,
-                WithdrawalStatusNames.PendingWithdrawalConfirmation,
+                WithdrawalStatusNames.ReturnedForRevision,
+                WithdrawalStatusNames.PendingRTGSVerification,
             };
             if (!rtgsUpdateableStatuses.Contains(request.StatusTypeName))
             {
                 TempData["Error"] = "RTGS details can no longer be updated at this stage.";
-                return RedirectToAction(nameof(Details), new { id });
-            }
-
-            if (rtgsDate.HasValue && rtgsDate.Value > DateOnly.FromDateTime(DateTime.Now))
-            {
-                TempData["Error"] = "RTGS date cannot be in the future.";
                 return RedirectToAction(nameof(Details), new { id });
             }
 

@@ -123,26 +123,33 @@
                         </p>
                     </div>
                     <div class="col-md-4">
-                        <p class="text-muted mb-0" style="font-size:9px;">RTGS DATE</p>
+                        <p class="text-muted mb-0" style="font-size:9px;">FUND SETTLEMENT VALUE DATE</p>
                         <p class="fw-semibold small mb-0">
-                            @(Model.RtgsDate.HasValue? Model.RtgsDate.Value.ToString("dd MMM yyyy") : "—")
+                            @(Model.FundSettlementValueDate.HasValue? Model.FundSettlementValueDate.Value.ToString("dd MMM yyyy") : "—")
                         </p>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-4 @(string.IsNullOrEmpty(Model.RtgsCode) ? "rounded-2 p-2 border border-danger bg-danger bg-opacity-10" : "")">
                         <p class="text-muted mb-0" style="font-size:9px;">RTGS CODE</p>
-                        <p class="fw-semibold small mb-0">
-                            @(string.IsNullOrEmpty(Model.RtgsCode) ? "—" : Model.RtgsCode)
-                        </p>
+                        @if (string.IsNullOrEmpty(Model.RtgsCode))
+                        {
+                            <span class="badge bg-danger text-dark">
+                                <i class="ti ti-clock me-1"></i> Awaiting from CB
+                            </span>
+                        }
+                        else
+                        {
+                            <p class="fw-semibold small mb-0">@Model.RtgsCode</p>
+                        }
                     </div>
                 </div>
 
                 @* RTGS Verification *@
-                @if (Model.RtgsDate.HasValue && !string.IsNullOrEmpty(Model.RtgsCode))
+                @if (!string.IsNullOrEmpty(Model.RtgsCode))
                 {
                     <div class="row mt-2 pt-2 border-top">
                         <div class="col-md-12">
                             <p class="text-muted mb-1" style="font-size:9px;">RTGS VERIFICATION</p>
-                            @switch (Model.RtgsVerificationStatus)
+                            @switch (Model.RtgsVerificationStatus) 
                             {
                                 case WithdrawStatuses.RtgsVerification.Confirmed:
                                     <span class="badge bg-success rounded-pill px-3 py-2">
@@ -155,7 +162,7 @@
                                             <i class="ti ti-circle-check me-1"></i> Verified (Date Corrected)
                                         </span>
                                         <span class="small text-muted">
-                                            CB submitted: @(Model.RtgsDate?.ToString("dd MMM yyyy") ?? "—") —
+                                            CB submitted: @(Model.FundSettlementValueDate?.ToString("dd MMM yyyy") ?? "—") —
                                             Actual: @(Model.RtgsVerifiedDate?.ToString("dd MMM yyyy") ?? "—")
                                         </span>
                                     </div>
@@ -179,7 +186,7 @@
                                         <form method="post" asp-action="VerifyRtgs" asp-route-id="@Model.Id" class="mt-2">
                                             @Html.AntiForgeryToken()
                                             <div class="row g-3 align-items-end">
-                                                <div class="col-md-3">
+                                                @* <div class="col-md-3">
                                                     <label class="text-muted mb-1" style="font-size:9px;">VERIFICATION RESULT</label>
                                                     <select name="verificationStatus" class="form-select form-select-sm" required
                                                             onchange="document.getElementById('dateMismatchField').style.display = this.value === 'DateMismatch' ? 'block' : 'none'">
@@ -191,9 +198,9 @@
                                                     </select>
                                                 </div>
                                                 <div class="col-md-3" id="dateMismatchField" style="display:none;">
-                                                    <label class="text-muted mb-1" style="font-size:9px;">CORRECT RTGS DATE</label>
+                                                    <label class="text-muted mb-1" style="font-size:9px;">CORRECT FUND SETTLEMENT DATE</label>
                                                     <input type="date" name="rtgsVerifiedDate" class="form-control form-control-sm" />
-                                                </div>
+                                                </div> *@
                                                 <div class="col-md-3">
                                                     <button type="submit" class="btn btn-sm btn-primary">
                                                         <i class="ti ti-check me-1"></i> Submit Verification
@@ -221,7 +228,7 @@
                                 @Html.AntiForgeryToken()
                                 <div class="row g-3 align-items-end">
                                     <div class="col-md-4">
-                                        <label class="text-muted mb-1" style="font-size:9px;">RECALL RTGS DATE</label>
+                                        <label class="text-muted mb-1" style="font-size:9px;">RECALL FUND SETTLEMENT DATE</label>
                                         <input type="date" name="recallRtgsDate" class="form-control form-control-sm" required />
                                     </div>
                                     <div class="col-md-4">
@@ -486,11 +493,11 @@
                 else if (Model.AvailableTransitions.Any())
                 {
                     <div class="card-body border-top pt-3">
-                        @if (string.IsNullOrEmpty(Model.RtgsCode) || !Model.RtgsDate.HasValue)
+                        @if (string.IsNullOrEmpty(Model.RtgsCode))
                         {
                             <div class="alert alert-warning d-flex gap-2 py-2 mb-0 small">
                                 <i class="ti ti-alert-triangle flex-shrink-0 mt-1"></i>
-                                Please provide the RTGS code and date before proceeding.
+                                Please provide the RTGS code before proceeding.
                             </div>
                         }
                         else if (string.IsNullOrEmpty(Model.RtgsVerificationStatus) || Model.RtgsVerificationStatus == WithdrawStatuses.RtgsVerification.Pending)

@@ -21,7 +21,7 @@ namespace VMSService.Core.Models.WithdrawalRequests
         public int StatusId { get; init; }
         public DateOnly CollectionDate { get; init; }
         public DateTime CreatedDate { get; init; }
-        public DateOnly? RtgsDate { get; init; }
+        public DateOnly? FundSettlementValueDate { get; init; }
         public string? RtgsCode { get; init; }
         public bool RequiresSpecialApproval { get; set; }
         public string? SpecialApprovalReason { get; set; }
