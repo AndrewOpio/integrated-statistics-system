@@ -197,6 +197,14 @@
                     <tbody>
                         @foreach (var session in Model.Sessions)
                         {
+                            var statusClass = session.CurrentStatusName switch
+                            {
+                                "Draft" => "bg-info",
+                                "Issued To Board" => "bg-info",
+                                "Open" => "bg-danger",
+                                "Closed" => "bg-success",
+                                _ => "bg-secondary"
+                            };
                             <tr>
                                 <td class="ps-3 py-2 px-1 fw-semibold" style="color:#31316A;font-size:.8rem;">
                                     <a asp-controller="StockProcessingSession" asp-action="Details" asp-route-id="@session.Id"
@@ -257,7 +265,7 @@
                                     }
                                 </td>
                                 <td class="py-2 px-1">
-                                    <span class="badge bg-info"><i class="ti ti-badge"></i>@session.CurrentStatusName</span>
+                                    <span class="badge @statusClass"><i class="ti ti-circle-filled"></i>@session.CurrentStatusName</span>
                                 </td>
                                 <td>
                                     <a asp-controller="StockProcessingSession" asp-action="Details" asp-route-id="@session.Id"

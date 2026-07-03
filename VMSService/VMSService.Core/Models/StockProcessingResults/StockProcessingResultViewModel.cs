@@ -11,8 +11,10 @@ namespace VMSService.Core.Models.StockProcessingResults
         public decimal FitShredValue { get; set; }
         public decimal CanceledValue { get; set; }
         public decimal ReissueValue { get; set; }
+        public decimal UnProcessedValue { get; set; } // Money with Boards - The balance that is not processed
         public bool IsDeleted { get; set; }
         public DateTime CreatedDate { get; set; }
         public string CreatedBy { get; set; } = string.Empty;
+        public bool IsVerified { get; set; }
     }
 }

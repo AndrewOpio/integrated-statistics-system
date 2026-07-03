@@ -5,25 +5,25 @@
 namespace VMSService.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class AddedStockProcessingPlanReferenceNumber : Migration
+    public partial class AddedUnProcessedValueInResults : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "ReferenceNumber",
-                table: "StockProcessingPlans",
-                type: "nvarchar(max)",
+            migrationBuilder.AddColumn<decimal>(
+                name: "UnProcessedValue",
+                table: "StockProcessingResults",
+                type: "decimal(18,2)",
                 nullable: false,
-                defaultValue: "");
+                defaultValue: 0m);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "ReferenceNumber",
-                table: "StockProcessingPlans");
+                name: "UnProcessedValue",
+                table: "StockProcessingResults");
         }
     }
 }
