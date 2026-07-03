@@ -93,6 +93,10 @@ using VMSService.Core.Repositories.MonthlyShortages;
 using VMSService.Core.Repositories.MonthlyShortageStatusHistories;
 using VMSService.Core.Repositories.MonthlyCommercialBankSettlements;
 using VMSService.Core.Repositories.MonthlyCommercialBankSettlementStatusHistories;
+using VMSService.Core.Repositories.BankingSurpluses;
+using VMSService.Core.Repositories.BankingSurplusStatusHistories;
+using VMSService.Core.Repositories.BankingShortages;
+using VMSService.Core.Repositories.BankingShortageStatusHistories;
 using VMSService.Web.Services;
 using VMSService.Core.Repositories.BagMovements;
 
@@ -291,6 +295,10 @@ builder.Services.AddScoped<IMonthlyShortageDetailRepository, MonthlyShortageDeta
 builder.Services.AddScoped<IMonthlyShortageStatusHistoryRepository, MonthlyShortageStatusHistoryRepository>();
 builder.Services.AddScoped<IMonthlyCommercialBankSettlementRepository, MonthlyCommercialBankSettlementRepository>();
 builder.Services.AddScoped<IMonthlyCommercialBankSettlementStatusHistoryRepository, MonthlyCommercialBankSettlementStatusHistoryRepository>();
+builder.Services.AddScoped<IBankingSurplusRepository, BankingSurplusRepository>();
+builder.Services.AddScoped<IBankingSurplusStatusHistoryRepository, BankingSurplusStatusHistoryRepository>();
+builder.Services.AddScoped<IBankingShortageRepository, BankingShortageRepository>();
+builder.Services.AddScoped<IBankingShortageStatusHistoryRepository, BankingShortageStatusHistoryRepository>();
 builder.Services.AddScoped<IAttachmentRepository, AttachmentRepository>();
 
 // ── Resource-based ownership check ────────────────────────────
