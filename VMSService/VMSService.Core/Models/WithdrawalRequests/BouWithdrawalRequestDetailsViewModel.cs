@@ -26,6 +26,7 @@ namespace VMSService.Core.Models.WithdrawalRequests
         public bool RequiresSpecialApproval { get; set; }
         public string? SpecialApprovalReason { get; set; }
         public bool IsPostApprovalView { get; set; }
+        public bool IsLateSubmission { get; set; }
 
         public string CbCode { get; init; } = string.Empty;
         public string CbName { get; init; } = string.Empty;
@@ -37,6 +38,8 @@ namespace VMSService.Core.Models.WithdrawalRequests
         public decimal TotalAmount { get; init; }
         public bool IsLumpSum { get; set; } = false;
         public string? CurrentStatusName { get; set; }
+        public DateTime? SubmissionDate { get; set; }
+        public DateTime? ApprovalDate { get; set; }
         public bool CanEditDispatch { get; set; }
         public bool HasDispatchData { get; set; }
         public string RtgsVerificationStatus { get; init; } = "Pending";
@@ -45,6 +48,8 @@ namespace VMSService.Core.Models.WithdrawalRequests
         public bool RecallRtgsPending { get; init; }
         public string? RecallRtgsCode { get; init; }
         public DateOnly? RecallRtgsDate { get; init; }
+        public string? ReturnRtgsCode { get; init; }
+        public DateOnly? ReturnRtgsDate { get; init; }
         public IEnumerable<AttachmentViewModel> AllAttachments { get; set; } = [];
         public DenomTableViewModel Denoms { get; init; } = null!;
         public WithdrawalStepViewModel Steps { get; init; } = null!;

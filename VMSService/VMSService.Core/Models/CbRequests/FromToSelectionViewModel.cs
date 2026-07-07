@@ -15,7 +15,10 @@ namespace VMSService.Core.Models.CbRequests
         //public int SelectedCbBranchId { get; set; }
         public int SelectedBouBranchId { get; set; }
         public DateOnly CollectionDate { get; set; }
+        public DateTime? SubmissionDate { get; set; }
         public DateTime CreatedDate { get; set; }
         public bool IsEdit { get; set; } = false;
+        public bool RequiresSpecialApproval { get; set; } = false;
+        public string? SpecialApprovalReason { get; set; }
     }
 }

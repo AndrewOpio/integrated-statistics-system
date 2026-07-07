@@ -30,10 +30,12 @@ using VMSService.Core.Repositories.StockMovementStatusHistories;
 using VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 using VMSService.Core.Services.Identity;
+using VMSService.Core.Services.Submissions;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
 using WorkflowService.Client;
 using WorkflowService.Client.Dto;
+using static VMSService.Core.Static.WithdrawConstants;
 
 namespace VMSService.Core.Services.Workflows
 {
@@ -605,6 +607,32 @@ namespace VMSService.Core.Services.Workflows
             request.StatusTypeName = transition.ToStatus.Name;
             request.ModifiedBy = username;
             request.ModifiedDate = DateTime.Now;
+
+            // CB approval is the submission event — classify same-day submissions here
+            if (transition.ToStatus.Name == WithdrawalStatusNames.PendingRTGSVerification)
+            {
+                // TODO: isDayBeforeHoliday is simplified (always false). See SubmissionClassifier
+                // for the full TODO — a future implementation will look up the holiday calendar.
+                var classification = SubmissionClassifier.Classify(
+                    statusHistory.ChangedAt, request.CollectionDate, isDayBeforeHoliday: false);
+
+                if (classification == SubmissionClassification.LateInvalid)
+                {
+                    _logger.LogWarning(
+                        "WithdrawalRequest {Id} approval rejected: approval date is past collection date {CollectionDate}",
+                        entityId, request.CollectionDate);
+                    return false;
+                }
+
+                // Only derive from classification if not already explicitly set via SetSameDayReason.
+                if (!request.RequiresSpecialApproval)
+                {
+                    request.RequiresSpecialApproval = classification == SubmissionClassification.SameDayExceptional;
+                    request.SpecialApprovalReason = classification == SubmissionClassification.SameDayExceptional
+                        ? remarks
+                        : null;
+                }
+            }
 
             // If supervisor is submitting to bank � generate ref number + copy denominations
             //if (transition.ToStatusId == WithdrawStatuses.WithdrawalStatusIds.SubmittedToBOU)

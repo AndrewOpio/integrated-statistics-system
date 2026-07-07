@@ -1,6 +1,4 @@
-﻿using static VMSService.Core.Static.WithdrawStatuses;
-
-namespace VMSService.Core.Static
+﻿namespace VMSService.Core.Static
 {
     public static class StatusConstants
     {
@@ -55,24 +53,30 @@ namespace VMSService.Core.Static
             public const string DiscrepancyPendingResolution = "Mismatch Pending Resolution";
             public const string DiscrepancyResolved = "Mismatch Resolved";
         }
-        public static class WithdrawalRequest
-        {
-            public const string Draft = "Internal Draft";
-            public const string PendingInternalApproval = "Pending Internal Approval";
-            public const string ReturnedForRevision = "Returned for Internal Revision";
-            public const string PendingRecommendation = "Pending Recommendation";
-            public const string PendingExceptionalApproval = "Pending Exceptional Approval";
-            public const string PendingConfirmation = "Pending Approval";
-            public const string WithdrawalConfirmed = "Withdrawal Confirmed";
-            public const string WithdrawalReturned = "Withdrawal Returned";
-            public const string RejectExceptionalApproval = "Reject Exceptional Approval";
-            public const string BouDraft = "BOU Draft";
-            public const string PendingWithdrawalConfirmation = "Pending Withdrawal Confirmation";
-            public const string RecallRequested = "Recall Requested";
-            public const string Recalled = "Recalled";
-            public const string RecallComplete = "Recall Complete";
-            public const string VerificationFailed = "Verification Failed";
-        }
+        //public static class WithdrawalRequest
+        //{
+        //    public const string Draft = "Internal Draft";
+        //    public const string PendingInternalApproval = "Pending Internal Approval";
+        //    public const string ReturnedForRevision = "Returned for Internal Revision";
+        //    public const string PendingRTGSVerification = "Pending RTGS Verification";
+        //    public const string VerificationFailed = "Verification Failed";
+        //    public const string PendingWithdrawalConfirmation = "Pending Withdrawal Confirmation";
+        //    public const string PendingExceptionalApproval = "Pending Exceptional Approval";
+        //    public const string RejectExceptionalApproval = "Reject Exceptional Approval";
+        //    public const string PendingVerification = "Pending Verification";
+        //    public const string PendingApproval = "Pending Approval";
+        //    public const string RecallRequested = "Recall Requested";
+        //    public const string RecallApproved = "Recall Approved";
+        //    public const string RecallComplete = "Recall Complete";
+        //    public const string Approved = "Approved";
+        //    public const string Rejected = "Rejected";
+        //    public const string RejectComplete = "Reject Complete";
+        //    public const string Cancelled = "Cancelled";
+        //    public const string CancelComplete = "Cancel Complete";
+        //    public const string Completed = "Completed";
+        //    public const string Expired = "Expired";
+        //    public const string RejectExceptionalApprovalComplete = "Reject Exceptional Approval Complete";
+        //}
 
         public static class AgentDetail
         {
@@ -188,6 +192,11 @@ namespace VMSService.Core.Static
             public const string MonthlySurpluses              = "MonthlySurpluses";
             public const string MonthlyShortages              = "MonthlyShortages";
             public const string MonthlyCommercialBankSettlements      = "MonthlyCommercialBankSettlements";
+        }
+
+        public static class DenominationName { 
+            public const string Note = "Note";
+            public const string Coin = "Coin";
         }
     }
 }

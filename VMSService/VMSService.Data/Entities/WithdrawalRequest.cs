@@ -33,6 +33,8 @@ namespace VMSService.Data.Entities
         public bool RecallRtgsPending { get; set; } = false;
         public string? RecallRtgsCode { get; set; }
         public DateOnly? RecallRtgsDate { get; set; }
+        public string? ReturnRtgsCode { get; set; }
+        public DateOnly? ReturnRtgsDate { get; set; }
 
         public bool IsDeleted { get; set; } = false;
         public ICollection<WithdrawalRequestAgent> WithdrawalRequestAgents { get; set; } = [];

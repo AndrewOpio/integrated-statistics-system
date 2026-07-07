@@ -3931,6 +3931,12 @@ namespace VMSService.Data.Migrations
                     b.Property<bool>("RequiresSpecialApproval")
                         .HasColumnType("bit");
 
+                    b.Property<string>("ReturnRtgsCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateOnly?>("ReturnRtgsDate")
+                        .HasColumnType("date");
+
                     b.Property<string>("RtgsCode")
                         .HasColumnType("nvarchar(max)");
 

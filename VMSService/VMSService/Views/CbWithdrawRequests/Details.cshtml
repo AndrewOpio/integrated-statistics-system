@@ -1,5 +1,5 @@
 ﻿@using System.Security.Claims
-@using static VMSService.Core.Static.WithdrawStatuses
+@using static VMSService.Core.Static.WithdrawConstants
 @model VMSService.Core.Models.CbWithdrawRequest.WithdrawalRequestDetailsViewModel
 @{
     Layout = "_CbLayout";
@@ -71,14 +71,33 @@
     <div class="col-md-8">
 
         @* Special Approval Reason *@
-        @if (Model.RequiresSpecialApproval && !string.IsNullOrEmpty(Model.SpecialApprovalReason))
+        @if (Model.RequiresSpecialApproval && !string.IsNullOrEmpty(Model.ExceptionalApprovalReason))
         {
             <div class="alert alert-warning d-flex align-items-start gap-3 mb-3">
                 <i class="ti ti-alert-triangle fs-4 text-warning flex-shrink-0 mt-1"></i>
                 <div>
                     <p class="fw-bold mb-1">Exceptional Approval Required</p>
                     <p class="mb-0 text-muted" style="font-size:9px;">REASON PROVIDED</p>
-                    <p class="mb-0 fw-semibold">@Model.SpecialApprovalReason</p>
+                    <p class="mb-0 fw-semibold">@Model.ExceptionalApprovalReason</p>
+                </div>
+            </div>
+        }
+
+        @* CB Maker same-day notice *@
+        @if (Model.ShowSameDayMakerWarning)
+        {
+            <div class="alert alert-warning d-flex align-items-start gap-2 py-2 mb-3">
+                <i class="ti ti-alert-triangle text-warning fs-5 flex-shrink-0 mt-1"></i>
+                <div>
+                    <p class="fw-bold mb-1">Same-Day Collection</p>
+                    <p class="mb-0 small">
+                        The collection date is today. If this request is approved today, it will be
+                        flagged as a same-day exceptional request.
+                        @if (Model.CanEdit)
+                        {
+                            <span>Consider editing the request to select a future date if possible.</span>
+                        }
+                    </p>
                 </div>
             </div>
         }
@@ -116,54 +135,59 @@
                     </div>
                 </div>
 
-                @* Collection Details *@
+                @* Collection Details — date row *@
                 <div class="row g-3 mt-2 pt-2 border-top">
+                    <div class="col-md-4">
+                        <p class="text-muted mb-0" style="font-size:9px;">SUBMISSION DATE</p>
+                        <p class="fw-semibold small mb-0">
+                            @(Model.SubmissionDate.HasValue ? Model.SubmissionDate.Value.ToString("dd MMM yyyy HH:mm") : "—")
+                        </p>
+                    </div>
                     <div class="col-md-4">
                         <p class="text-muted mb-0" style="font-size:9px;">COLLECTION DATE</p>
                         <p class="fw-semibold small mb-0">
                             @Model.CollectionDate.ToString("dd MMM yyyy")
                         </p>
                     </div>
-                    @if (Model.CanEditRtgs)
-                    {
-                        <form method="post" asp-action="UpdateRtgs" asp-route-id="@Model.Id" class="col-md-8">
-                            @Html.AntiForgeryToken()
-                            <div class="row g-3 align-items-end">
-                                <div class="col-md-4">
-                                    <label class="text-muted mb-1" style="font-size:9px;">FUND SETTLEMENT VALUE DATE</label>
-                                    <input type="hidden" name="rtgsDate" value="@Model.FundSettlementValueDate?.ToString("yyyy-MM-dd")" />
-                                    <p class="fw-semibold small mb-1">@Model.FundSettlementValueDate?.ToString("dd MMM yyyy")</p>
-                                    <small class="text-muted">Same as collection date</small>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="text-muted mb-1" style="font-size:9px;">RTGS CODE</label>
-                                    <input type="text" name="rtgsCode" class="form-control form-control-sm"
-                                           value="@Model.RtgsCode" placeholder="Enter RTGS code" />
-                                </div>
-                                <div class="col-md-4">
-                                    <button type="submit" class="btn btn-sm btn-primary">
-                                        <i class="ti ti-check me-1"></i> Save RTGS
-                                    </button>
-                                </div>
+                    <div class="col-md-4">
+                        <p class="text-muted mb-0" style="font-size:9px;">FUND SETTLEMENT VALUE DATE</p>
+                        <p class="fw-semibold small mb-0">
+                            @(Model.FundSettlementValueDate.HasValue ? Model.FundSettlementValueDate.Value.ToString("dd MMM yyyy") : "—")
+                        </p>
+                    </div>
+                </div>
+
+                @* RTGS row *@
+                @if (Model.CanEditRtgs)
+                {
+                    <form method="post" asp-action="UpdateRtgs" asp-route-id="@Model.Id">
+                        @Html.AntiForgeryToken()
+                        <div class="row g-3 mt-2 pt-2 border-top align-items-end">
+                            <div class="col-md-4">
+                                <input type="hidden" name="rtgsDate" value="@Model.FundSettlementValueDate?.ToString("yyyy-MM-dd")" />
+                                <label class="text-muted mb-1" style="font-size:9px;">RTGS CODE</label>
+                                <input type="text" name="rtgsCode" class="form-control form-control-sm"
+                                       value="@Model.RtgsCode" placeholder="Enter RTGS code" />
                             </div>
-                        </form>
-                    }
-                    else
-                    {
-                        <div class="col-md-4">
-                            <p class="text-muted mb-0" style="font-size:9px;">FUND SETTLEMENT VALUE DATE</p>
-                            <p class="fw-semibold small mb-0">
-                                @(Model.FundSettlementValueDate.HasValue ? Model.FundSettlementValueDate.Value.ToString("dd MMM yyyy") : "—")
-                            </p>
+                            <div class="col-md-4">
+                                <button type="submit" class="btn btn-sm btn-primary">
+                                    <i class="ti ti-check me-1"></i> Save RTGS
+                                </button>
+                            </div>
                         </div>
+                    </form>
+                }
+                else
+                {
+                    <div class="row g-3 mt-2 pt-2 border-top">
                         <div class="col-md-4">
                             <p class="text-muted mb-0" style="font-size:9px;">RTGS CODE</p>
                             <p class="fw-semibold small mb-0">
                                 @(string.IsNullOrEmpty(Model.RtgsCode) ? "—" : Model.RtgsCode)
                             </p>
                         </div>
-                    }
-                </div>
+                    </div>
+                }
 
                 @if (Model.RecallRtgsDate.HasValue)
                 {
@@ -605,6 +629,12 @@
                         <span class="text-muted small">Collection</span>
                         <span class="fw-semibold small">@Model.CollectionDate.ToString("dd MMM yyyy")</span>
                     </div>
+                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                        <span class="text-muted small">Submission Date</span>
+                        <span class="fw-semibold small">
+                            @(Model.SubmissionDate.HasValue ? Model.SubmissionDate.Value.ToString("dd MMM yyyy HH:mm") : "—")
+                        </span>
+                    </div>
                     <div class="d-flex justify-content-between align-items-center py-2">
                         <span class="text-muted small">Status</span>
                         <span class="badge bg-info p-2 more-rounded">@Model.CurrentStatusName</span>
@@ -702,6 +732,19 @@
                     else if (Model.AvailableTransitions.Any())
                     {
                         <div class="border-top mt-2 pt-3">
+                            @if (Model.ShowExceptionalApprovalWarning)
+                            {
+                                <div class="alert alert-warning d-flex align-items-start gap-2 py-2 mb-3">
+                                    <i class="ti ti-alert-triangle text-warning fs-5 flex-shrink-0 mt-1"></i>
+                                    <div>
+                                        <p class="fw-bold mb-1">Same-Day Exceptional Approval</p>
+                                        <p class="mb-0 small">
+                                            The collection date is today. Approving this request will flag it for
+                                            exceptional review. You must provide a reason in the comment below.
+                                        </p>
+                                    </div>
+                                </div>
+                            }
                             <form method="post"
                                   asp-action="ExecuteAction"
                                   asp-route-id="@Model.Id"
@@ -709,14 +752,15 @@
 
                                 <div class="mb-3">
                                     <label class="form-label small text-uppercase text-muted fw-semibold">
-                                        Comment <span id="commentRequired" class="text-danger" style="display:none;">*</span>
+                                        Comment <span id="commentRequired" class="text-danger" @(Model.ShowExceptionalApprovalWarning ? "" : "style=\"display:none;\"")>*</span>
                                     </label>
                                     <textarea id="remarksTextarea"
                                               class="form-control form-control-sm"
                                               name="remarks"
                                               rows="5"
                                               style="min-height:150px;"
-                                              placeholder="Add a comment ..."></textarea>
+                                              placeholder="@(Model.ShowExceptionalApprovalWarning ? "Provide a reason for same-day exceptional approval ..." : "Add a comment ...")"
+                                              @(Model.ShowExceptionalApprovalWarning ? "required" : "")></textarea>
                                     <small id="commentHint" class="text-muted d-block mt-1"></small>
                                 </div>
 

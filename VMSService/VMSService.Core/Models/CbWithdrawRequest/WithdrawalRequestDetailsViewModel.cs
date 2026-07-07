@@ -23,7 +23,7 @@ namespace VMSService.Core.Models.CbWithdrawRequest
         public DateOnly? FundSettlementValueDate { get; init; }
         public string? RtgsCode { get; init; }
         public bool RequiresSpecialApproval { get; set; }
-        public string? SpecialApprovalReason { get; set; }
+        public string? ExceptionalApprovalReason { get; set; }
         public bool IsPostApprovalView { get; set; }
         //public string InitiatorName { get; init; } = string.Empty;
 
@@ -56,7 +56,15 @@ namespace VMSService.Core.Models.CbWithdrawRequest
         public string? RecallRtgsCode { get; init; }
         public DateOnly? RecallRtgsDate { get; init; }
 
+        public string? ReturnRtgsCode { get; init; }
+        public DateOnly? ReturnRtgsDate { get; init; }
+
         public string? CurrentStatusName { get; set; }
+        public DateTime? SubmissionDate { get; set; }
+        public bool ShowExceptionalApprovalWarning { get; set; }
+        public bool ShowSameDayMakerWarning { get; set; }
+        public bool ShowSameDayReasonCapture { get; set; }
+        public bool CanEditSameDayReason { get; set; }
         public IEnumerable<WithdrawalRequestStatusHistoryViewModel> StatusHistory { get; set; } = [];
         public IEnumerable<AttachmentViewModel> AllAttachments { get; set; } = [];
     }

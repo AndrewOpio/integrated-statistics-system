@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using VMSService.Core.Models.BoxStates;
 using VMSService.Data.Configurations;
 using VMSService.Data.Entities;
-using static VMSService.Core.Static.WithdrawStatuses;
+using static VMSService.Core.Static.WithdrawConstants;
 
 namespace VMSService.Core.Repositories.WithdrawalRequestDenominations
 {

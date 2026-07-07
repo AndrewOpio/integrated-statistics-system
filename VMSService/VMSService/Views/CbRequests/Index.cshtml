@@ -1,5 +1,5 @@
 ﻿@using System.Security.Claims
-@using static VMSService.Core.Static.WithdrawStatuses
+@using static VMSService.Core.Static.WithdrawConstants
 @model VMSService.Core.Models.CbRequests.CbRequestsIndexViewModel
 
 @{
@@ -10,7 +10,7 @@
 
     string BadgeCss(string s) => s switch
     {
-        StatusConstants.WithdrawalRequest.Draft => "text-bg-secondary",
+        WithdrawalStatusNames.Draft => "text-bg-secondary",
         WithdrawalStatusNames.PendingVerification => "text-bg-primary",
         WithdrawalStatusNames.PendingExceptionalApproval => "text-bg-info",
         WithdrawalStatusNames.PendingApproval => "text-bg-warning",

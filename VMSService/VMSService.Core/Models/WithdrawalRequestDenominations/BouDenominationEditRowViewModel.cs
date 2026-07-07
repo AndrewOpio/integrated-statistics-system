@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using VMSService.Core.Models.CbRequests;
-using static VMSService.Core.Static.WithdrawStatuses;
+using static VMSService.Core.Static.WithdrawConstants;
 
 namespace VMSService.Core.Models.WithdrawalRequestDenominations
 {

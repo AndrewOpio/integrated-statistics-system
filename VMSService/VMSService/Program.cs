@@ -384,6 +384,8 @@ builder.Services.AddControllersWithViews()
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
     });
 
+builder.Services.AddHostedService<VMSService.Web.BackgroundServices.WithdrawalExpiryService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

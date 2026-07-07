@@ -26,6 +26,7 @@
     </p>
 </div>
 
+
 <div id="withdrawalForm">
 
     @* ── Branch Selection ── *@
@@ -81,7 +82,7 @@
                 <div class="col-md-6">
                     <label class="form-label">Fund Settlement Value Date</label>
                     <input type="hidden" name="rtgsDate" value="@Model.Request.FundSettlementValueDate?.ToString("yyyy-MM-dd")" />
-                    <p class="fw-semibold fw-bold mb-1">@Model.Request.FundSettlementValueDate?.ToString("dd MMM yyyy")</p>
+                    <p id="rtgsDateDisplay" class="fw-semibold fw-bold mb-1">@Model.Request.FundSettlementValueDate?.ToString("dd MMM yyyy")</p>
                     <small class="text-muted small">Same as collection date</small>
                 </div>
 
@@ -92,88 +93,15 @@
                            class="form-control"
                            placeholder="e.g. RTGS-2026-001"
                            oninput="formState.rtgsCode = this.value || null" />
-
-                </div>
-            </div>
-
-            <div id="specialApprovalWarning"
-                 class="alert alert-danger d-flex align-items-start gap-2 py-2 mt-3 mb-0"
-                 style="display:none!important;">
-                <i class="ti ti-alert-triangle text-danger fs-5 mt-1 flex-shrink-0"></i>
-                <div class="flex-grow-1">
-                    <p class="fw-bold mb-1">Exceptional Approval Required!</p>
-                    <p class="mb-1 small">
-                        Collection date matches fund settlement value date. This request will be routed for
-                        <strong>Exceptional approval</strong> before processing.
-                    </p>
-                    <div class="border-top pt-2 mt-1">
-                        <p class="text-muted mb-0" style="font-size:9px;">REASON PROVIDED</p>
-                        <p class="fw-semibold small mb-0" id="specialApprovalReasonDisplay"></p>
-                    </div>
-                    <button type="button"
-                            class="btn btn-sm btn-outline-danger mt-2"
-                            onclick="editSpecialApprovalReason()">
-                        <i class="ti ti-edit me-1"></i> Edit Reason
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-    @* ── Special Approval Modal ── *@
-    <div class="modal fade" id="specialApprovalModal" tabindex="-1"
-         data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header border-bottom">
-                    <div class="d-flex align-items-center gap-2">
-                        <div class="rounded-2 bg-danger bg-opacity-10 d-flex align-items-center justify-content-center"
-                             style="width:36px;height:36px;">
-                            <i class="ti ti-alert-triangle text-danger fs-5"></i>
-                        </div>
-                        <div>
-                            <h5 class="modal-title mb-0 fw-bold">Exceptional Approval Required</h5>
-                            <p class="text-muted small mb-0">Collection date matches Creation date</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-danger d-flex gap-2 py-2 mb-3">
-                        <i class="ti ti-info-circle flex-shrink-0 mt-1"></i>
-                        <small>
-                            Same-day RTGS requests require exceptional authorization.
-                            Please provide a reason — this will be reviewed before processing.
-                        </small>
-                    </div>
-                    <label class="form-label">
-                        Reason for Same-Day Submission <span class="text-danger">*</span>
-                    </label>
-                    <textarea id="specialApprovalReasonInput"
-                              class="form-control"
-                              rows="3"
-                              placeholder="type reason for same-day withdrawal"></textarea>
-                    <small id="specialApprovalReasonError"
-                           class="text-danger mt-1"
-                           style="display:none;">
-                        <i class="ti ti-alert-circle me-1"></i>
-                        Please provide a reason before continuing.
+                    <small id="rtgsCodeHint" class="text-warning d-none">
+                        <i class="ti ti-alert-triangle me-1"></i>Required for same-day collection requests.
                     </small>
                 </div>
-                <div class="modal-footer border-top">
-                    <button type="button"
-                            class="btn btn-outline-secondary"
-                            onclick="onSpecialApprovalCancelled()">
-                        <i class="ti ti-x me-1"></i> Cancel
-                    </button>
-                    <button type="button"
-                            class="btn btn-danger"
-                            onclick="onSpecialApprovalConfirmed()">
-                        <i class="ti ti-check me-1"></i> Confirm & Continue
-                    </button>
-                </div>
             </div>
+
         </div>
     </div>
-    @* ── Actions ── *@
+@* ── Actions ── *@
     <div class="d-flex justify-content-between gap-2 mt-4 mb-5 ">
         <a asp-action="Details" asp-route-id="@Model.Request.Id" class="btn btn-outline-secondary">
             <i class="ti ti-arrow-left me-1"></i> Back to Details
@@ -225,6 +153,10 @@
         formState.cbCode      = document.getElementById('cbCode')?.textContent?.trim() || null;
         formState.createdDate = '@Model.Request.CreatedDate.ToString("yyyy-MM-dd")';
 
+        formState.collectionDate = '@Model.Branches.CollectionDate.ToString("yyyy-MM-dd")';
+        const collectionDateInput = document.getElementById('collectionDate');
+        if (collectionDateInput) collectionDateInput.min = today;
+
         formState.rtgsDate = '@Model.Branches.CollectionDate.ToString("yyyy-MM-dd")';
         formState.rtgsCode = @Html.Raw(string.IsNullOrEmpty(Model.Request.RtgsCode)
             ? "null"
@@ -234,6 +166,24 @@
             const el = document.getElementById('rtgsCode');
             if (el) el.value = formState.rtgsCode;
         }
+
+        // If collection date is today and RTGS is not yet filled, mark it required on page load.
+        if (formState.collectionDate === today && !formState.rtgsCode) {
+            const rtgsCodeInput = document.getElementById('rtgsCode');
+            if (rtgsCodeInput) rtgsCodeInput.required = true;
+            const rtgsCodeHint = document.getElementById('rtgsCodeHint');
+            if (rtgsCodeHint) rtgsCodeHint.classList.remove('d-none');
+        }
+
+        formState.requiresSpecialApproval = @Html.Raw(Model.Request.RequiresSpecialApproval ? "true" : "false");
+        formState.specialApprovalReason   = @Html.Raw(string.IsNullOrEmpty(Model.Request.SpecialApprovalReason)
+            ? "null"
+            : $"'{Model.Request.SpecialApprovalReason.Replace("'", "\\'")}'");
+
+        // Pre-fill the unified modal textarea with the saved reason.
+        const _reasonInput = document.getElementById('sameDayReasonInput');
+        if (_reasonInput && formState.specialApprovalReason)
+            _reasonInput.value = formState.specialApprovalReason;
 
         // Seed lump sum mode if request was saved as lump sum
         document.addEventListener('DOMContentLoaded', () => {
