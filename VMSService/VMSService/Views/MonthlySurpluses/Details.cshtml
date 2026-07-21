@@ -24,7 +24,7 @@
     bool isReturned = false;
 }
 
-<div class="row g-4">
+<div class="row g-4 pb-5">
 
     @* ── Left column ────────────────────────────────────────────── *@
     <div class="col-12 col-xl-8">
@@ -76,16 +76,20 @@
                                     {
                                         <i class="ti ti-arrow-back-up" style="font-size:.75rem;"></i>
                                     }
+                                    else if (current)
+                                    {
+                                        <i class="ti ti-clock" style="font-size:.75rem;"></i>
+                                    }
                                     else
                                     {
-                                        <span>@(i + 1)</span>
+                                        <i class="ti ti-circle" style="font-size:.75rem;"></i>
                                     }
                                 </div>
                                 <div class="small mt-1 @labelClass" style="font-size:.7rem;">@stages[i]</div>
                             </div>
                             @if (i < stages.Length - 1)
                             {
-                                <div class="flex-fill d-flex align-items-center" style="margin-top:-1.2rem;">
+                                <div class="flex-fill align-self-start" style="margin-top:calc(1rem - 1px);">
                                     <div class="w-100 @(i < currentStageIndex ? "bg-success" : "bg-light")" style="height:2px;"></div>
                                 </div>
                             }
@@ -96,16 +100,25 @@
         </div>
 
         @* ── Surplus amount highlight ── *@
+        @{
+            decimal eodTotalSurplus  = Model.EodEntries.Where(e => e.IsSurplus).Sum(e => e.Amount);
+            decimal eodTotalShortage = Model.EodEntries.Where(e => !e.IsSurplus).Sum(e => e.Amount);
+            decimal eodNetPosition   = eodTotalSurplus - eodTotalShortage;
+        }
         <div class="card border-0 border-start border-4 border-success shadow mb-4">
             <div class="card-body d-flex align-items-center gap-4 py-3">
                 <div class="rounded-circle bg-success d-flex align-items-center justify-content-center flex-shrink-0"
                      style="width:3rem;height:3rem;">
                     <i class="ti ti-trending-up text-white fs-4"></i>
                 </div>
-                <div>
+                <div class="flex-grow-1">
                     <div class="text-muted small">Surplus Amount (UGX)</div>
                     <div class="fs-2 fw-bold text-success lh-1">@Model.Amount.ToString("N0")</div>
                 </div>
+                <button type="button" class="btn btn-outline-success btn-sm"
+                        data-bs-toggle="modal" data-bs-target="#eodBreakdownModal">
+                    <i class="ti ti-chart-bar me-1"></i>View Breakdown
+                </button>
             </div>
         </div>
 
@@ -137,33 +150,14 @@
                     </div>
                     <div class="col-md-4">
                         <div class="p-3 bg-light rounded">
-                            <div class="text-muted small mb-1">Date of Deposit</div>
+                            <div class="text-muted small mb-1">EFT Date</div>
                             <div class="fw-semibold">
-                                @(Model.DepositDate.HasValue
-                                    ? Model.DepositDate.Value.ToString("dd MMM yyyy")
+                                @(Model.EftDate.HasValue
+                                    ? Model.EftDate.Value.ToString("dd MMM yyyy")
                                     : "<span class=\"text-muted\">—</span>")
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="p-3 bg-light rounded">
-                            <div class="text-muted small mb-1">Commercial Bank</div>
-                            <div class="fw-semibold">
-                                @(string.IsNullOrEmpty(Model.CommercialBankName)
-                                    ? "<span class=\"text-muted\">—</span>"
-                                    : Model.CommercialBankName)
-                            </div>
-                        </div>
-                    </div>
-                    @if (!string.IsNullOrWhiteSpace(Model.AccountNumber))
-                    {
-                        <div class="col-md-4">
-                            <div class="p-3 bg-light rounded">
-                                <div class="text-muted small mb-1">Account Number</div>
-                                <div class="fw-semibold">@Model.AccountNumber</div>
-                            </div>
-                        </div>
-                    }
                     @if (!string.IsNullOrWhiteSpace(Model.Remarks))
                     {
                         <div class="col-12">
@@ -331,6 +325,44 @@
                 </div>
             </div>
 
+            @* About this page *@
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <h6 class="fw-bold text-muted small text-uppercase mb-3">
+                        <i class="ti ti-info-circle me-1"></i>About this page
+                    </h6>
+                    <p class="small text-muted mb-3">
+                        This page shows the full details of a <strong>Monthly Surplus</strong> record — the net surplus
+                        position for a specific branch over a calendar month, derived from approved EOD discrepancy reports.
+                    </p>
+                    <hr class="my-3" />
+                    <div class="d-flex align-items-start gap-2 mb-2">
+                        <i class="ti ti-timeline text-primary mt-1 flex-shrink-0"></i>
+                        <div class="small text-muted"><strong>Workflow stepper</strong> — tracks the record from Draft through to Acknowledged.</div>
+                    </div>
+                    <div class="d-flex align-items-start gap-2 mb-2">
+                        <i class="ti ti-trending-up text-success mt-1 flex-shrink-0"></i>
+                        <div class="small text-muted"><strong>Surplus amount</strong> — the declared net surplus for the branch and period. Click <em>View Breakdown</em> to see the individual EOD sessions that make up this figure.</div>
+                    </div>
+                    <div class="d-flex align-items-start gap-2 mb-2">
+                        <i class="ti ti-info-circle text-secondary mt-1 flex-shrink-0"></i>
+                        <div class="small text-muted"><strong>Surplus details</strong> — shows the branch, period, the commercial bank the funds were deposited to, account number, date of deposit, and any remarks.</div>
+                    </div>
+                    <div class="d-flex align-items-start gap-2 mb-2">
+                        <i class="ti ti-paperclip text-secondary mt-1 flex-shrink-0"></i>
+                        <div class="small text-muted"><strong>Attachments</strong> — supporting documents uploaded during workflow transitions, available for download.</div>
+                    </div>
+                    <div class="d-flex align-items-start gap-2 mb-2">
+                        <i class="ti ti-history text-secondary mt-1 flex-shrink-0"></i>
+                        <div class="small text-muted"><strong>Comments &amp; History</strong> — a full audit trail of every status change, who made it, when, and any remarks they added.</div>
+                    </div>
+                    <div class="d-flex align-items-start gap-2">
+                        <i class="ti ti-player-play text-primary mt-1 flex-shrink-0"></i>
+                        <div class="small text-muted"><strong>Actions panel</strong> — if your role permits an action at the current stage (e.g. Submit, Acknowledge), it will appear here. Select the action, add remarks if needed, and submit.</div>
+                    </div>
+                </div>
+            </div>
+
             @* Quick info card *@
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
@@ -351,11 +383,11 @@
                         <span class="text-muted small">Amount</span>
                         <span class="fw-bold text-success small">@Model.Amount.ToString("N0")</span>
                     </div>
-                    @if (Model.DepositDate.HasValue)
+                    @if (Model.EftDate.HasValue)
                     {
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span class="text-muted small">Deposit Date</span>
-                            <span class="fw-semibold small">@Model.DepositDate.Value.ToString("dd MMM yyyy")</span>
+                            <span class="fw-semibold small">@Model.EftDate.Value.ToString("dd MMM yyyy")</span>
                         </div>
                     }
                     <div class="d-flex justify-content-between align-items-center">
@@ -369,6 +401,104 @@
     </div>
 
 </div>
+
+@* EOD Breakdown Modal *@
+<div class="modal fade" id="eodBreakdownModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">
+                        <i class="ti ti-chart-bar me-2 text-success"></i>EOD Breakdown — @Model.Period.ToString("MMMM yyyy")
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    @if (!Model.EodEntries.Any())
+                    {
+                        <div class="text-center py-5">
+                            <i class="ti ti-inbox text-muted" style="font-size:2.5rem;"></i>
+                            <p class="text-muted mt-2 mb-0">No approved EOD entries found for this branch and period.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="row g-3 mb-4">
+                            <div class="col-4">
+                                <div class="text-center p-3 bg-success bg-opacity-10 rounded">
+                                    <div class="text-muted small">Total Surplus</div>
+                                    <div class="fs-5 fw-bold text-success">@eodTotalSurplus.ToString("N0")</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="text-center p-3 bg-danger bg-opacity-10 rounded">
+                                    <div class="text-muted small">Total Shortage</div>
+                                    <div class="fs-5 fw-bold text-danger">@eodTotalShortage.ToString("N0")</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="text-center p-3 @(eodNetPosition >= 0 ? "bg-success" : "bg-danger") bg-opacity-10 rounded">
+                                    <div class="text-muted small">Net Position</div>
+                                    <div class="fs-5 fw-bold @(eodNetPosition >= 0 ? "text-success" : "text-danger")">
+                                        @(eodNetPosition >= 0 ? "+" : "")@eodNetPosition.ToString("N0")
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead style="background-color:#f4f6f8;">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Session Date</th>
+                                        <th>Bank</th>
+                                        <th>Denomination</th>
+                                        <th>Type</th>
+                                        <th class="text-end">Amount (UGX)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @{ int eodRow = 1; }
+                                    @foreach (var e in Model.EodEntries)
+                                    {
+                                        <tr>
+                                            <td class="text-muted">@eodRow</td>
+                                            <td>@e.SessionDate.ToString("dd MMM yyyy")</td>
+                                            <td class="text-muted small">@e.CommercialBankName</td>
+                                            <td class="text-muted small">@e.DenominationName</td>
+                                            <td>
+                                                <span class="badge @(e.IsSurplus ? "bg-success" : "bg-danger")">
+                                                    @(e.IsSurplus ? "Surplus" : "Shortage")
+                                                </span>
+                                            </td>
+                                            <td class="text-end fw-semibold @(e.IsSurplus ? "text-success" : "text-danger")">
+                                                @e.Amount.ToString("N0")
+                                            </td>
+                                        </tr>
+                                        eodRow++;
+                                    }
+                                </tbody>
+                                <tfoot class="fw-bold" style="background-color:#f4f6f8;">
+                                    <tr>
+                                        <td colspan="4">Total (@Model.EodEntries.Count transaction@(Model.EodEntries.Count != 1 ? "s" : ""))</td>
+                                        <td>
+                                            <span class="text-success me-2">S+ @eodTotalSurplus.ToString("N0")</span>
+                                            <span class="text-danger">S- @eodTotalShortage.ToString("N0")</span>
+                                        </td>
+                                        <td class="text-end @(eodNetPosition >= 0 ? "text-success" : "text-danger")">
+                                            Net: @(eodNetPosition >= 0 ? "+" : "")@eodNetPosition.ToString("N0")
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
 @section Scripts {
     <script>

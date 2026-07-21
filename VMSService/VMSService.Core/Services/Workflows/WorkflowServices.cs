@@ -11,6 +11,7 @@ using VMSService.Core.Repositories.MonthlySurpluses;
 using VMSService.Core.Repositories.MonthlySurplusStatusHistories;
 using VMSService.Core.Repositories.MonthlyShortages;
 using VMSService.Core.Repositories.MonthlyShortageStatusHistories;
+using VMSService.Core.Repositories.MonthlyShortageReimbursements;
 using VMSService.Core.Repositories.MonthlyCommercialBankSettlements;
 using VMSService.Core.Repositories.MonthlyCommercialBankSettlementStatusHistories;
 using VMSService.Core.Repositories.BankingSurpluses;
@@ -34,6 +35,7 @@ using VMSService.Core.Repositories.StockMovementStatusHistories;
 using VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 using VMSService.Core.Services.Identity;
+using VMSService.Core.Services.StockPositions;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
 using WorkflowService.Client;
@@ -77,7 +79,10 @@ namespace VMSService.Core.Services.Workflows
         IBankingSurplusRepository _bankingSurplusRepository,
         IBankingSurplusStatusHistoryRepository _bankingSurplusStatusHistoryRepository,
         IBankingShortageRepository _bankingShortageRepository,
-        IBankingShortageStatusHistoryRepository _bankingShortageStatusHistoryRepository) : IWorkflowService
+        IBankingShortageStatusHistoryRepository _bankingShortageStatusHistoryRepository,
+        IMonthlyShortageReimbursementRepository _reimbursementRepository,
+        IMonthlyShortageReimbursementStatusHistoryRepository _reimbursementStatusHistoryRepository,
+        IStockPositionService _stockPositionService) : IWorkflowService
     {
 
 
@@ -152,6 +157,9 @@ namespace VMSService.Core.Services.Workflows
 
                     case StatusConstants.Entity.BankingShortages:
                         return await HandleBankingShortageTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
+
+                    case StatusConstants.Entity.MonthlyShortageReimbursements:
+                        return await HandleMonthlyShortageReimbursementTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
 
                     default:
                         _logger.LogWarning("Unknown entity type: {EntityType}", entityType);
@@ -1267,6 +1275,65 @@ namespace VMSService.Core.Services.Workflows
             }
 
             _logger.LogInformation("Destruction Authorization {Id} transitioned from status {From} to {To} by user {Username} with action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
+        private async Task<bool> HandleMonthlyShortageReimbursementTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
+        {
+            var reimbursement = await _reimbursementRepository.FindById(entityId);
+            if (reimbursement == null)
+            {
+                _logger.LogWarning("Monthly Shortage Reimbursement {Id} not found", entityId);
+                return false;
+            }
+
+            if (reimbursement.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Monthly Shortage Reimbursement {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, reimbursement.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new MonthlyShortageReimbursementStatusHistory
+            {
+                MonthlyShortageReimbursementId = entityId,
+                OldStatusId   = reimbursement.CurrentStatusId,
+                OldStatusName = reimbursement.CurrentStatusName,
+                NewStatusId   = transition.ToStatusId,
+                NewStatusName = transition.ToStatus.Name,
+                ChangedBy     = username,
+                ChangedAt     = DateTime.Now,
+                Remarks       = remarks,
+                AttachmentIds = attachmentIds != null && attachmentIds.Count > 0
+                                    ? string.Join(",", attachmentIds)
+                                    : null,
+                IsDeleted     = false,
+            };
+
+            await _reimbursementStatusHistoryRepository.Create(statusHistory);
+
+            reimbursement.CurrentStatusId   = transition.ToStatusId;
+            reimbursement.CurrentStatusName = transition.ToStatus.Name;
+            await _reimbursementRepository.Update(reimbursement);
+
+            if (transition.ToStatus.Name == StatusConstants.MonthlyShortageReimbursement.Approved)
+            {
+                await _stockPositionService.CreateReimbursementLedgerAsync(reimbursement);
+            }
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"Shortage Reimbursement {reimbursement.ReferenceNumber}",
+                    transition,
+                    statusHistory.NewStatusName,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("Shortage Reimbursement {Id} transitioned from {From} to {To} by {Username} via action {Action}",
                 entityId, currentStatusId, transition.ToStatusId, username, actionName);
 
             return true;

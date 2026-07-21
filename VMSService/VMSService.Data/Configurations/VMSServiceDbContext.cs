@@ -28,6 +28,7 @@ namespace VMSService.Data.Configurations
         public DbSet<StockMovement> StockMovements { get; set; }
         public DbSet<StockMovementDenomination> StockMovementDenominations { get; set; }
         public DbSet<StockMovementDenominationBoxNumberRange> StockMovementDenominationBoxNumberRanges { get; set; }
+        public DbSet<StockMovementDenominationBag> StockMovementDenominationBags { get; set; }
         public DbSet<StockMovementStatusHistory> StockMovementStatusHistory { get; set; }
         public DbSet<StockMovementDiscrepancy> StockMovementDiscrepancies { get; set; }
         public DbSet<Logistics> Logistics { get; set; }
@@ -97,6 +98,9 @@ namespace VMSService.Data.Configurations
         public DbSet<MonthlyShortage> MonthlyShortages { get; set; }
         public DbSet<MonthlyShortageDetail> MonthlyShortageDetails { get; set; }
         public DbSet<MonthlyShortageStatusHistory> MonthlyShortageStatusHistories { get; set; }
+        public DbSet<MonthlyShortageReimbursement> MonthlyShortageReimbursements { get; set; }
+        public DbSet<MonthlyShortageReimbursementDenomination> MonthlyShortageReimbursementDenominations { get; set; }
+        public DbSet<MonthlyShortageReimbursementStatusHistory> MonthlyShortageReimbursementStatusHistories { get; set; }
 
         // Monthly Commercial Bank Settlement
         public DbSet<MonthlyCommercialBankSettlement> MonthlyCommercialBankSettlements { get; set; }

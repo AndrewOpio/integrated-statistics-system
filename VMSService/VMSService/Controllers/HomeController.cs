@@ -117,7 +117,7 @@ namespace VMSService.Controllers
                         selectedBranch = _mapper.Map<BranchViewModel>(branch);
                     }
                 }
-                
+
                 // Fallback to Kampala if no valid branchId provided
                 if (selectedBranch == null)
                 {
@@ -139,13 +139,13 @@ namespace VMSService.Controllers
                     // Get all denominations sorted by value
                     var allDenominations = await _denominationRepository.FindAll();
                     var sortedDenominations = allDenominations?.OrderBy(d => d.Value).ToList();
-                    
+
                     // Get stock position matrix from service with filtered categories and denominations
                     var stockPositionMatrix = await _stockPositionService.GetStockMatrixAsync(
-                        selectedBranch.Id, 
+                        selectedBranch.Id,
                         allCategories.Select(c => c.Id).ToList(),
                         sortedDenominations.Select(d => d.Id).ToList());
-                    
+
                     ViewBag.KampalaBranch = selectedBranch;
                     ViewBag.SelectedBranchId = selectedBranch.Id;
                     ViewBag.Categories = allCategories;

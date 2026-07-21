@@ -4,8 +4,7 @@
 
 @{
     ViewData["Title"] = "New Monthly Surplus";
-    var branches = ViewBag.Branches as List<BranchDto>        ?? new();
-    var banks    = ViewBag.Banks    as List<CommercialBankDto> ?? new();
+    var branches = ViewBag.Branches as List<BranchDto> ?? new();
 }
 
 <div class="row">
@@ -29,10 +28,6 @@
                 <form id="settlementForm">
                     <div class="row mb-3">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Reference Number <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="referenceNumber" name="referenceNumber" placeholder="" />
-                        </div>
-                        <div class="col-md-6 mb-3">
                             <label class="form-label">Branch <span class="text-danger">*</span></label>
                             <select class="form-select" id="branchId" name="branchId">
                                 <option value="">-- Select Branch --</option>
@@ -42,37 +37,20 @@
                                 }
                             </select>
                         </div>
-                    </div>
-
-                    <div class="row mb-3">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Month <span class="text-danger">*</span></label>
                             <input type="month" class="form-control" id="period" />
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Amount (UGX) <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control" id="amount" name="amount" min="0" step="1" placeholder="0" />
-                        </div>
                     </div>
 
                     <div class="row mb-3">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Commercial Bank <span class="text-danger">*</span></label>
-                            <select class="form-select" id="commercialBankId" name="commercialBankId">
-                                <option value="">-- Select Bank --</option>
-                                @foreach (var b in banks)
-                                {
-                                    <option value="@b.Id">@b.Name</option>
-                                }
-                            </select>
+                            <label class="form-label">EFT Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="eftDate" name="eftDate" />
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Account Number</label>
-                            <input type="text" class="form-control" id="accountNumber" name="accountNumber" placeholder="Optional" />
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Date of Deposit <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" id="depositDate" name="depositDate" />
+                            <label class="form-label">Amount (UGX) <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="amount" name="amount" min="0" step="1" placeholder="0" />
                         </div>
                     </div>
 
@@ -112,25 +90,20 @@
         })();
 
         function submitForm() {
-            const referenceNumber  = document.getElementById('referenceNumber').value.trim();
-            const branchId         = document.getElementById('branchId').value;
-            const period           = document.getElementById('period').value;
-            const amount           = document.getElementById('amount').value;
-            const depositDate      = document.getElementById('depositDate').value;
-            const commercialBankId = document.getElementById('commercialBankId').value;
-            const accountNumber    = document.getElementById('accountNumber').value.trim();
-            const remarks          = document.getElementById('remarks').value.trim();
+            const branchId    = document.getElementById('branchId').value;
+            const period      = document.getElementById('period').value;
+            const amount      = document.getElementById('amount').value;
+            const eftDate = document.getElementById('eftDate').value;
+            const remarks     = document.getElementById('remarks').value.trim();
 
             const alerts = document.getElementById('formAlerts');
             alerts.innerHTML = '';
 
             const errors = [];
-            if (!referenceNumber)   errors.push('Reference Number is required.');
-            if (!branchId)          errors.push('Branch is required.');
-            if (!period)            errors.push('Period is required.');
+            if (!branchId)              errors.push('Branch is required.');
+            if (!period)                errors.push('Period is required.');
             if (!amount || amount <= 0) errors.push('Amount must be greater than zero.');
-            if (!commercialBankId)  errors.push('Commercial Bank is required.');
-            if (!depositDate)       errors.push('Date of Deposit is required.');
+            if (!eftDate)               errors.push('EFT Date is required.');
 
             if (errors.length > 0) {
                 alerts.innerHTML = '<div class="alert alert-danger"><ul class="mb-0">' + errors.map(e => '<li>' + e + '</li>').join('') + '</ul></div>';
@@ -138,13 +111,10 @@
             }
 
             const dto = {
-                referenceNumber,
                 branchId: parseInt(branchId),
                 period: period + '-01',
                 amount: parseFloat(amount),
-                depositDate: depositDate || null,
-                commercialBankId: commercialBankId ? parseInt(commercialBankId) : null,
-                accountNumber: accountNumber || null,
+                eftDate: eftDate || null,
                 remarks: remarks || null
             };
 

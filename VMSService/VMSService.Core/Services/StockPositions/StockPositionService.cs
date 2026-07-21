@@ -514,5 +514,52 @@ namespace VMSService.Core.Services.StockPositions
                 return new Dictionary<int, Dictionary<int, decimal>>();
             }
         }
+
+        public async Task<bool> CreateReimbursementLedgerAsync(MonthlyShortageReimbursement reimbursement)
+        {
+            try
+            {
+                var categories        = await _stockService.GetAllCategories();
+                var counterPartyTypes = await _stockService.GetAllCounterPartyTypes();
+
+                var cfbCategory = categories?.FirstOrDefault(c =>
+                    c.Name.Equals(StockConstants.StockCategories.Cfb, StringComparison.OrdinalIgnoreCase));
+
+                var branchCounterPartyType = counterPartyTypes?.FirstOrDefault(c =>
+                    c.Name.Equals(StockConstants.StockCounterPartyType.Branch, StringComparison.OrdinalIgnoreCase));
+
+                var ledger = new StockLedger
+                {
+                    ReferenceCode      = $"REIMB-{reimbursement.ReferenceNumber}",
+                    IsIn               = true,
+                    StockMovementId    = 0,
+                    CounterPartyTypeId = branchCounterPartyType?.Id ?? 0,
+                    CounterPartyId     = reimbursement.BranchId,
+                    StoreId            = reimbursement.BranchId,
+                    Notes              = $"Shortage reimbursement approved for {reimbursement.ReferenceNumber}",
+                    StockLedgerDetails = reimbursement.Denominations.Select(d => new StockLedgerDetail
+                    {
+                        DenominationId  = d.DenominationId,
+                        CategoryId      = cfbCategory?.Id ?? 0,
+                        NumberOfPieces  = d.NumberOfPieces,
+                        NumberOfBoxes   = 0,
+                        NumberOfBundles = d.NumberOfPieces / 1000,
+                        Value           = d.Amount,
+                        SubCategoryId   = 0,
+                    }).ToList(),
+                };
+
+                var created = await _stockService.CreateStockLedger(ledger);
+                if (!created)
+                    _logger.LogWarning("Stock ledger creation returned false for reimbursement {Ref}", reimbursement.ReferenceNumber);
+
+                return created;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error posting stock ledger for reimbursement {Ref}", reimbursement.ReferenceNumber);
+                return false;
+            }
+        }
     }
 }

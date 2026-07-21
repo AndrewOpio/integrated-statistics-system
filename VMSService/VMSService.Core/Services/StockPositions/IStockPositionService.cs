@@ -18,5 +18,10 @@ namespace VMSService.Core.Services.StockPositions
         /// Get stock position matrix for a branch (denominations x categories) with values
         /// </summary>
         Task<Dictionary<int, Dictionary<int, decimal>>> GetStockMatrixAsync(int branchId, List<int> categoryIds, List<int> denominationIds);
+
+        /// <summary>
+        /// Post a CFB stock ledger entry (IsIn = true) when a shortage reimbursement is approved
+        /// </summary>
+        Task<bool> CreateReimbursementLedgerAsync(MonthlyShortageReimbursement reimbursement);
     }
 }

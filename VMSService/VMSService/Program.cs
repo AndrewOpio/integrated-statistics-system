@@ -90,6 +90,7 @@ using VMSService.Core.Repositories.MonthlySurpluses;
 using VMSService.Core.Repositories.MonthlySurplusStatusHistories;
 using VMSService.Core.Repositories.MonthlyShortages;
 using VMSService.Core.Repositories.MonthlyShortageStatusHistories;
+using VMSService.Core.Repositories.MonthlyShortageReimbursements;
 using VMSService.Core.Repositories.MonthlyCommercialBankSettlements;
 using VMSService.Core.Repositories.MonthlyCommercialBankSettlementStatusHistories;
 using VMSService.Core.Repositories.BankingSurpluses;
@@ -259,6 +260,7 @@ builder.Services.AddScoped<IPackingListDetailsRepository, PackingListDetailsRepo
 builder.Services.AddScoped<IStockLedgerDetailRepository, StockLedgerDetailRepository>();
 builder.Services.AddScoped<ICommercialBankRepository, CommercialBankRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<ISubCategoryRepository, SubCategoryRepository>();
 builder.Services.AddScoped<IBranchCategoryRepository, BranchCategoryRepository>();
 builder.Services.AddScoped<IBranchRepository, BranchRepository>();
 builder.Services.AddScoped<ICommercialBankBranchRepository, CommercialBankBranchRepository>();
@@ -291,6 +293,8 @@ builder.Services.AddScoped<IMonthlySurplusStatusHistoryRepository, MonthlySurplu
 builder.Services.AddScoped<IMonthlyShortageRepository, MonthlyShortageRepository>();
 builder.Services.AddScoped<IMonthlyShortageDetailRepository, MonthlyShortageDetailRepository>();
 builder.Services.AddScoped<IMonthlyShortageStatusHistoryRepository, MonthlyShortageStatusHistoryRepository>();
+builder.Services.AddScoped<IMonthlyShortageReimbursementRepository, MonthlyShortageReimbursementRepository>();
+builder.Services.AddScoped<IMonthlyShortageReimbursementStatusHistoryRepository, MonthlyShortageReimbursementStatusHistoryRepository>();
 builder.Services.AddScoped<IMonthlyCommercialBankSettlementRepository, MonthlyCommercialBankSettlementRepository>();
 builder.Services.AddScoped<IMonthlyCommercialBankSettlementStatusHistoryRepository, MonthlyCommercialBankSettlementStatusHistoryRepository>();
 builder.Services.AddScoped<IBankingSurplusRepository, BankingSurplusRepository>();

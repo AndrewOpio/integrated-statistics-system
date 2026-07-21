@@ -31,6 +31,8 @@ using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.NewStockMovementLogs;
 using VMSService.Core.Repositories.PackingListRangeDetails;
+using VMSService.Core.Repositories.Categories;
+using VMSService.Core.Repositories.SubCategories;
 using ConfigurationsService.Client;
 
 namespace VMSService.Web.Controllers
@@ -56,7 +58,9 @@ namespace VMSService.Web.Controllers
         INewStockMovementLogRepository _newStockMovementLogRepository,
         IPackingListDetailsRepository _packingListDetailsRepository,
         IConfigurationsServiceClient _configServiceClient,
-        IWorkflowServiceClient _workflowServiceClient) : Controller
+        IWorkflowServiceClient _workflowServiceClient,
+        ICategoryRepository _categoryRepository,
+        ISubCategoryRepository _subCategoryRepository) : Controller
     {
         [Breadcrumb("Received Stock", FromController = typeof(HomeController), FromAction = nameof(Index))]
         // GET: ReceivedStocks
@@ -623,98 +627,74 @@ namespace VMSService.Web.Controllers
                 {
                     if (actionName.Equals("Confirm"))
                     {
-                        //Update Stock Position
                         try
                         {
-                            //var updatedReceivedStock = await _receivedStockRepository.FindById(id);
-
-                            BranchCategory store = await _branchCategoryRepository
-                                .FindByBranchAndCategoryName(receivedStock.ExPrintMint.BranchId, StockConstants.StoreTypes.New);
-                            var counterPartyType = await _counterPartyTypeRepository.FindByName(StockConstants.StockCounterPartyType.Vendor);
-
-                            StockLedgerDetail stockLedgerDetail = new()
-                            {
-                                CreatedDate = DateTime.Now,
-                                ModifiedDate = DateTime.Now,
-                                CreatedBy = username ?? "unknown",
-                                ModifiedBy = username ?? "unknown",
-                                DenominationId = receivedStock.ExPrintMint.DenominationId,
-                                NumberOfPieces = receivedStock.NumberOfBoxes * 50000,
-                                NumberOfBoxes = receivedStock.NumberOfBoxes,
-                                NumberOfBundles = receivedStock.NumberOfBoxes,
-                                //Value = receivedStock.ExPrintMint.
-                            };
-
-                            List<StockLedgerDetail> stockLedgerDetails = new();
-                            stockLedgerDetails.Add(stockLedgerDetail);
-
-                            // Create StockLedger entry
-                            StockLedger stockLedger = new()
-                            {
-                                ReferenceCode = receivedStock.ExPrintMint.ExPrintMintReference,
-                                //StoreId = store.Id, //Branch - New
-                                IsIn = true,
-                                CounterPartyId = receivedStock.ExPrintMint.CurrencyVendorId,
-                                CounterPartyTypeId = counterPartyType.Id, //Vendor
-                                Notes = remarks,
-                                CreatedBy = username ?? "unknown",
-                                CreatedDate = DateTime.Now,
-                                ModifiedBy = username ?? "unknown",
-                                ModifiedDate = DateTime.Now,
-                                StockLedgerDetails = stockLedgerDetails
-                            };
-
-                            bool createdLedgerRecord = await _stockLedgerRepository.Create(stockLedger);
-
-                            if (createdLedgerRecord)
-                            {
-                                //// Create StockLedgerDetail entries
-                                //for (int i = 0; i < receivedStock.NumberOfPieces; i++)
-                                //{
-                                //    var ledgerDetail = new StockLedgerDetail
-                                //    {
-                                //        StockLedgerId = createdLedgerRecord.Id,
-                                //        DenominationId = receivedStock.ExPrintMint.DenominationId,
-                                //        NumberOfPieces = receivedStock.NumberOfPieces,
-                                //        NumberOfBoxes = receivedStock.NumberOfBoxes,
-                                //        NumberOfBundles = null,
-                                //        Value = receivedStock.Value,
-                                //        CreatedBy = username ?? "unknown",
-                                //        ModifiedBy = username ?? "unknown",
-                                //        CreatedDate = DateTime.Now,
-                                //        ModifiedDate = DateTime.Now
-                                //    };
-
-                                //    await _stockLedgerDetailRepository.Create(ledgerDetail);
-                                //}
-
-                                _logger.LogInformation("Stock position updated successfully for Received Stock {ReceivedStockId}", id);
-                            }
-                            else
-                            {
-                                _logger.LogWarning("Failed to create stock ledger for Received Stock {ReceivedStockId}", id);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "Error updating stock position for Received Stock {ReceivedStockId}", id);
-                            TempData["Warning"] = "Action confirmed but stock position update encountered an error. Please verify stock levels.";
-                        }
-
-                        // Create StockMovement from received stock and populate logs
-                        try
-                        {
+                            // Step 1: Create StockMovement and get its ID
                             var updatedReceivedStock = await _receivedStockRepository.FindById(id);
-                            await CreateStockMovementFromReceivedStock(updatedReceivedStock, username);
+                            var createdMovement = await CreateStockMovementFromReceivedStock(updatedReceivedStock, username);
+
+                            if (createdMovement != null)
+                            {
+                                // Step 2: Create StockLedger using the movement ID
+                                var store = await _branchCategoryRepository
+                                    .FindByBranchAndCategoryName(receivedStock.ExPrintMint.BranchId, StockConstants.StoreTypes.New);
+                                var counterPartyType = await _counterPartyTypeRepository.FindByName(StockConstants.StockCounterPartyType.Vendor);
+                                var denomination = await _denominationRepository.FindById(receivedStock.ExPrintMint.DenominationId);
+                                var categories = await _categoryRepository.FindAll();
+                                var newCategory = categories?.FirstOrDefault(c => c.Name == StockConstants.StoreTypes.New);
+                                var subCategories = await _subCategoryRepository.FindAll();
+                                var naSubCategory = subCategories?.FirstOrDefault(s => s.Name == StockConstants.SubCategories.NA);
+
+                                int numberOfPieces = receivedStock.NumberOfBoxes * 50000;
+
+                                var stockLedgerDetail = new StockLedgerDetail
+                                {
+                                    CreatedDate = DateTime.Now,
+                                    ModifiedDate = DateTime.Now,
+                                    CreatedBy = username,
+                                    ModifiedBy = username,
+                                    DenominationId = receivedStock.ExPrintMint.DenominationId,
+                                    NumberOfPieces = numberOfPieces,
+                                    NumberOfBoxes = receivedStock.NumberOfBoxes,
+                                    NumberOfBundles = receivedStock.NumberOfBoxes,
+                                    Value = denomination != null ? denomination.Value * numberOfPieces : 0,
+                                    CategoryId = newCategory?.Id ?? 0,
+                                    SubCategoryId = naSubCategory?.Id ?? 0,
+                                };
+
+                                var stockLedger = new StockLedger
+                                {
+                                    ReferenceCode = receivedStock.ExPrintMint.ExPrintMintReference,
+                                    StockMovementId = createdMovement.Id,
+                                    StoreId = store?.Id ?? 0,
+                                    IsIn = true,
+                                    CounterPartyId = receivedStock.ExPrintMint.CurrencyVendorId,
+                                    CounterPartyTypeId = counterPartyType?.Id ?? 0,
+                                    Notes = remarks,
+                                    CreatedBy = username,
+                                    CreatedDate = DateTime.Now,
+                                    ModifiedBy = username,
+                                    ModifiedDate = DateTime.Now,
+                                    StockLedgerDetails = new List<StockLedgerDetail> { stockLedgerDetail }
+                                };
+
+                                bool createdLedgerRecord = await _stockLedgerRepository.Create(stockLedger);
+                                if (!createdLedgerRecord)
+                                    _logger.LogWarning("Failed to create stock ledger for Received Stock {ReceivedStockId}", id);
+
+                                // Step 3: Populate NewStockMovementLogs
+                                await PopulateNewStockMovementLogs(createdMovement);
+                            }
+
+                            TempData["Success"] = "Stock Position Updated Successfully and Notification Sent!";
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogError(ex, "Error creating stock movement from received stock {ReceivedStockId}", id);
-                            TempData["Warning"] = "Stock movement creation encountered an error. Please verify manually.";  
+                            _logger.LogError(ex, "Error processing stock records for Received Stock {ReceivedStockId}", id);
+                            TempData["Warning"] = "Action confirmed but stock record processing encountered an error. Please verify stock levels.";
                         }
-
-                        TempData["Success"] = "Stock Position Updated Successfully and Notification Sent!";
-                    } else
+                    }
+                    else
                     {
                         TempData["Success"] = "Review completed successfully!";
                     }
@@ -733,17 +713,16 @@ namespace VMSService.Web.Controllers
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        private async Task CreateStockMovementFromReceivedStock(ReceivedStock receivedStock, string username)
+        private async Task<StockMovement?> CreateStockMovementFromReceivedStock(ReceivedStock receivedStock, string username)
         {
             if (receivedStock?.ReceivedStockDetails == null || !receivedStock.ReceivedStockDetails.Any())
             {
                 _logger.LogWarning("No received stock details found for received stock {ReceivedStockId}", receivedStock?.Id);
-                return;
+                return null;
             }
 
             try
             {
-                // Get the denomination from the ExPrintMint
                 if (receivedStock.ExPrintMint == null)
                 {
                     receivedStock.ExPrintMint = await _exPrintMintRepository.FindById(receivedStock.ExPrintMintId);
@@ -752,11 +731,8 @@ namespace VMSService.Web.Controllers
                 if (receivedStock.ExPrintMint?.DenominationId == null || receivedStock.ExPrintMint.DenominationId == 0)
                 {
                     _logger.LogWarning("Invalid denomination for received stock {ReceivedStockId}", receivedStock.Id);
-                    return;
+                    return null;
                 }
-
-                // Get the Received status directly by name (more efficient than loading all)
-                //var receivedStatus = await _workflowServiceClient.FindStatusByName("Received", "ReceivedStock");
 
                 StatusTypeDto receivedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
                 {
@@ -767,10 +743,9 @@ namespace VMSService.Web.Controllers
 
                 int statusId = receivedStatus?.Id ?? 1;
 
-                // Create StockMovement
                 var stockMovement = new StockMovement
                 {
-                    MovementType = "ReceivedStock",
+                    MovementType = StockConstants.StockMovementTypes.VendorToBranch,
                     Date = DateTime.Now,
                     ReferenceNumber = $"REC-{receivedStock.Id}-{DateTime.Now:yyyyMMddHHmmss}",
                     CurrentStatusId = statusId,
@@ -783,14 +758,12 @@ namespace VMSService.Web.Controllers
                     Denominations = new List<StockMovementDenomination>()
                 };
 
-                // Create denomination entry with box ranges
                 var denomination = new StockMovementDenomination
                 {
                     DenominationId = receivedStock.ExPrintMint.DenominationId,
                     BoxNumberRanges = new List<StockMovementDenominationBoxNumberRange>()
                 };
 
-                // Add all the box ranges from received stock details
                 foreach (var detail in receivedStock.ReceivedStockDetails)
                 {
                     denomination.BoxNumberRanges.Add(new StockMovementDenominationBoxNumberRange
@@ -802,16 +775,12 @@ namespace VMSService.Web.Controllers
 
                 stockMovement.Denominations.Add(denomination);
 
-                // Save the stock movement
                 var createdMovement = await _stockMovementRepository.CreateAsync(stockMovement);
 
                 if (createdMovement != null)
-                {
                     _logger.LogInformation("Stock movement created for received stock {ReceivedStockId}, Movement ID: {MovementId}", receivedStock.Id, createdMovement.Id);
-                    
-                    // Populate NewStockMovementLogs
-                    await PopulateNewStockMovementLogs(createdMovement);
-                }
+
+                return createdMovement;
             }
             catch (Exception ex)
             {

@@ -77,16 +77,20 @@
                                     {
                                         <i class="ti ti-check"></i>
                                     }
+                                    else if (current)
+                                    {
+                                        <i class="ti ti-clock" style="font-size:.75rem;"></i>
+                                    }
                                     else
                                     {
-                                        <span>@(i + 1)</span>
+                                        <i class="ti ti-circle" style="font-size:.75rem;"></i>
                                     }
                                 </div>
                                 <div class="small mt-1 @labelClass" style="font-size:.7rem;">@stages[i]</div>
                             </div>
                             @if (i < stages.Length - 1)
                             {
-                                <div class="flex-fill d-flex align-items-center" style="margin-top:-1.2rem;">
+                                <div class="flex-fill align-self-start" style="margin-top:calc(1rem - 1px);">
                                     <div class="w-100 @(i < currentStageIndex ? "bg-success" : "bg-light")" style="height:2px;"></div>
                                 </div>
                             }
@@ -399,6 +403,7 @@
                         rows += `<tr>
                             <td>${i + 1}</td>
                             <td>${t.sessionDate}</td>
+                            <td class="text-muted small">${t.denomination}</td>
                             <td><span class="badge ${t.isSurplus ? 'bg-success' : 'bg-danger'}">${t.isSurplus ? 'Surplus' : 'Shortage'}</span></td>
                             <td class="text-end fw-semibold ${t.isSurplus ? 'text-success' : 'text-danger'}">${fmt(t.amount)}</td>
                         </tr>`;
@@ -415,6 +420,7 @@
                                     <tr>
                                         <th>#</th>
                                         <th>Session Date</th>
+                                        <th>Denomination</th>
                                         <th>Type</th>
                                         <th class="text-end">Amount</th>
                                     </tr>
@@ -422,7 +428,7 @@
                                 <tbody>${rows}</tbody>
                                 <tfoot class="fw-bold" style="background-color:#f4f6f8">
                                     <tr>
-                                        <td colspan="2">Total (${transactions.length} transaction${transactions.length !== 1 ? 's' : ''})</td>
+                                        <td colspan="3">Total (${transactions.length} transaction${transactions.length !== 1 ? 's' : ''})</td>
                                         <td>
                                             <span class="text-success me-2">S+ ${fmt(totalSurplus)}</span>
                                             <span class="text-danger">S- ${fmt(totalShortage)}</span>

@@ -308,15 +308,18 @@ $(document).ready(function () {
                     boxNumberRangesList.Add(new { prefix = "", start = "", end = "" });
                 }
                 
-                branchRowsList.Add(new { 
-                    denominationId = r.DenominationId, 
+                var selectedBags = (IEnumerable<dynamic>)(r.SelectedBags ?? new List<dynamic>());
+
+                branchRowsList.Add(new {
+                    denominationId = r.DenominationId,
                     numBagsBoxes = r.NumBagsBoxes,
                     containerType = r.ContainerType ?? "Bag",
-                    numBundles = r.NumBundles, 
-                    categoryId = r.CategoryId, 
+                    numBundles = r.NumBundles,
+                    categoryId = r.CategoryId,
                     subTotalValue = r.SubTotalValue,
                     categorization = r.Categorization,
-                    boxNumberRanges = boxNumberRangesList
+                    boxNumberRanges = boxNumberRangesList,
+                    selectedBags = selectedBags.Select(b => new { id = b.id, referenceNumber = b.referenceNumber }).ToList()
                 });
             }
         }
@@ -724,19 +727,20 @@ $(document).ready(function () {
         if (isBranch) {
             payload.BranchDate            = $('#branchDate').val();
             payload.BranchReferenceNumber = $('#branchReferenceNumber').val();
-            payload.DispatchingBranch     = $('#dispatchingBranch').val();
-            payload.ReceivingBranch       = $('#receivingBranch').val();
+            payload.DispatchingBranch     = parseInt($('#dispatchingBranch').val()) || null;
+            payload.ReceivingBranch       = parseInt($('#receivingBranch').val()) || null;
             payload.BranchTotalBagsBoxes  = parseInt($('#totalBagsBoxes').val().replace(/,/g,'')) || 0;
             payload.BranchGrandTotalValue = parseFloat($('#grandTotalValue').val().replace(/,/g,'')) || 0;
             payload.DenominationRows = branchRows.filter(r => r.denominationId !== '').map(r => ({
-                DenominationId: r.denominationId,
-                NumBagsBoxes: r.numBagsBoxes,
-                ContainerType: r.containerType,
-                NumBundles: r.numBundles,
-                CategoryId: r.categoryId,
-                SubTotalValue: r.subTotalValue,
-                Categorization: r.categorization ?? 'buffer',
-                BoxNumberRanges: (r.boxNumberRanges || []).filter(s => s.prefix !== '' || s.start !== '' || s.end !== '')
+                DenominationId:  parseInt(r.denominationId) || 0,
+                NumBagsBoxes:    r.numBagsBoxes !== '' ? parseInt(r.numBagsBoxes) : null,
+                ContainerType:   r.containerType,
+                NumBundles:      r.numBundles !== '' ? parseFloat(r.numBundles) : null,
+                CategoryId:      r.categoryId ? parseInt(r.categoryId) : null,
+                SubTotalValue:   parseFloat(r.subTotalValue) || 0,
+                Categorization:  r.categorization ?? 'buffer',
+                BoxNumberRanges: (r.boxNumberRanges || []).filter(s => s.prefix !== '' || s.start !== '' || s.end !== ''),
+                SelectedBagIds:  (r.selectedBags || []).map(b => parseInt(b.id))
             }));
         } else {
             payload.InternalDate            = $('#internalDate').val();

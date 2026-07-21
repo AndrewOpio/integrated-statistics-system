@@ -1,6 +1,7 @@
 using ConfigurationsService.Client;
 using IdentityService.Core.Models;
 using IdentityService.Core.Repository.ApplicationPermissions;
+using IdentityService.Core.Repository.ApplicationRoleBranches;
 using IdentityService.Core.Repository.ApplicationRoles;
 using IdentityService.Core.Repository.Applications;
 using IdentityService.Core.Repository.CommercialBankUsers;
@@ -99,6 +100,7 @@ builder.Services.AddScoped<IApplicationRepository, ApplicationRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<IApplicationRoleRepository, ApplicationRoleRepository>();
+builder.Services.AddScoped<IApplicationRoleBranchRepository, ApplicationRoleBranchRepository>();
 builder.Services.AddScoped<IUserApplicationRoleRepository, UserApplicationRoleRepository>();
 builder.Services.AddScoped<IApplicationPermissionRepository, ApplicationPermissionRepository>();
 builder.Services.AddScoped<ICommercialBankUserRepository, CommercialBankUserRepository>();

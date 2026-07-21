@@ -227,6 +227,26 @@ namespace WorkflowService.Client
             }
         }
 
+        public async Task<List<EntityActionableStatusesDto>> GetFromStatusesByRoles(string appAcronym, IEnumerable<int> roleIds)
+        {
+            try
+            {
+                var response = await _httpClient.PostAsJsonAsync("/api/transition/from-statuses-by-roles",
+                    new { appAcronym, roleIds });
+
+                if (response.IsSuccessStatusCode)
+                    return await response.Content.ReadFromJsonAsync<List<EntityActionableStatusesDto>>() ?? [];
+
+                _logger.LogError("GetFromStatusesByRoles failed: {Status}", response.StatusCode);
+                return [];
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetFromStatusesByRoles for {AppAcronym}", appAcronym);
+                return [];
+            }
+        }
+
         public async Task<List<WorkflowTransitionDto>> GetAvailableTransitionsAsync(string appAcronym, string entityType, int statusId, int userRole)
         {
             try

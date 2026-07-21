@@ -183,6 +183,11 @@ namespace VMSService.Core.Static
             public const string Verified = "Verified";
         }
 
+        public static class CommercialBank
+        {
+            public const string Banking = "Banking";
+        }
+
         public static class Entity
         {
             public const string ApprovedCurrencyProcurement = "ApprovedCurrencyProcurement";
@@ -206,6 +211,14 @@ namespace VMSService.Core.Static
             public const string MonthlyCommercialBankSettlements = "MonthlyCommercialBankSettlements";
             public const string BankingSurpluses                  = "BankingSurpluses";
             public const string BankingShortages                  = "BankingShortages";
+            public const string MonthlyShortageReimbursements     = "MonthlyShortageReimbursements";
+        }
+
+        public static class MonthlyShortageReimbursement
+        {
+            public const string Draft           = "Draft";
+            public const string PendingApproval = "Pending Approval";
+            public const string Approved        = "Approved";
         }
     }
 }

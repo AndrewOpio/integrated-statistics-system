@@ -6,5 +6,6 @@ namespace VMSService.Core.Repositories.BankingShortages
     public interface IBankingShortageRepository : IRepositoryBase<BankingShortage, int>
     {
         Task<BankingShortage?> FindByPeriod(DateTime period);
+        Task<int> CountForPeriod(int year, int month);
     }
 }

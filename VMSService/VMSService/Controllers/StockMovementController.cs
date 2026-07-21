@@ -17,6 +17,7 @@ using VMSService.Core.Services.Stocks;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
+using VMSService.Core.Repositories.Bags;
 using VMSService.Core.Repositories.NewStockMovementLogs;
 using VMSService.Core.Repositories.PackingListRangeDetails;
 using VMSService.Data.Entities;
@@ -41,6 +42,7 @@ namespace VMSService.Web.Controllers
         private readonly IPackingListDetailsRepository _packingListDetailsRepository;
         private readonly IConfigurationsServiceClient _configServiceClient;
         private readonly IWorkflowServiceClient _workflowServiceClient;
+        private readonly IBagRepository _bagRepository;
 
         public StockMovementController(
             ILogger<StockMovementController> logger,
@@ -55,7 +57,8 @@ namespace VMSService.Web.Controllers
             INewStockMovementLogRepository newStockMovementLogRepository,
             IPackingListDetailsRepository packingListDetailsRepository,
             IConfigurationsServiceClient configServiceClient,
-            IWorkflowServiceClient workflowServiceClient)
+            IWorkflowServiceClient workflowServiceClient,
+            IBagRepository bagRepository)
         {
             _logger = logger;
             _httpClientFactory = httpClientFactory;
@@ -70,6 +73,7 @@ namespace VMSService.Web.Controllers
             _packingListDetailsRepository = packingListDetailsRepository;
             _configServiceClient = configServiceClient;
             _workflowServiceClient = workflowServiceClient;
+            _bagRepository = bagRepository;
         }
         [Breadcrumb("Stock Movement", FromController = typeof(HomeController), FromAction = nameof(Index))]
         public async Task<IActionResult> Index()
@@ -111,7 +115,21 @@ namespace VMSService.Web.Controllers
 
             var movmt = await _stockMovementRepository.FindAllAsync();
 
+            //var branchIds = GetUserBranchIds();
+            //movmt = movmt
+            //    .Where(m => (m.DispatchingBranchId.HasValue && branchIds.Contains(m.DispatchingBranchId.Value))
+            //             || (m.ReceivingBranchId.HasValue && branchIds.Contains(m.ReceivingBranchId.Value)))
+            //    .ToList();
+
             return View(movmt);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetAvailableBags(int denominationId, int branchId, int? categoryId = null)
+        {
+            var bags = await _bagRepository.GetProcessedBagsByDenominationAndBranchAsync(denominationId, branchId, categoryId);
+            var result = bags.Select(b => new { id = b.Id, referenceNumber = b.ReferenceNumber });
+            return Json(result);
         }
 
         [HttpGet]
@@ -200,7 +218,7 @@ namespace VMSService.Web.Controllers
                     TotalBagsBoxes = model.BranchTotalBagsBoxes,
                     GrandTotalValue = model.BranchGrandTotalValue,
                     CurrentStatusId = draftStatus.Id,
-                    CurrentStatusName = draftStatus.Name,
+                    CurrentStatusName = draftStatus.Name ?? StatusConstants.StockMovement.Draft,
                     Denominations = filteredDenoms.Select(x => {
                         return new StockMovementDenomination
                         {
@@ -211,6 +229,9 @@ namespace VMSService.Web.Controllers
                             ContainerType = x.ContainerType,
                             SubTotalValue = x.SubTotalValue,
                             Categorization = x.Categorization,
+                            DenominationBags = x.SelectedBagIds?
+                                .Select(bagId => new StockMovementDenominationBag { BagId = bagId })
+                                .ToList(),
                             BoxNumberRanges = x.BoxNumberRanges?
                                 .Where(r =>
                                     !string.IsNullOrWhiteSpace(r.Prefix) ||
@@ -232,7 +253,8 @@ namespace VMSService.Web.Controllers
                 }
                 catch (Exception ex)
                 {
-
+                    _logger.LogError(ex, "Failed to save stock movement");
+                    return StatusCode(500, new { message = ex.InnerException?.Message ?? ex.Message });
                 }
                 return Json(new { redirectUrl = Url.Action("Index") });
             }
@@ -262,6 +284,7 @@ namespace VMSService.Web.Controllers
                     TotalBagsBoxes = model.InternalTotalBoxes,
                     GrandTotalValue = model.InternalGrandTotalValue,
                     CurrentStatusId = draftStatus.Id,
+                    CurrentStatusName = draftStatus.Name ?? StatusConstants.StockMovement.Draft,
                     Denominations = filteredDenoms.Select(x => new StockMovementDenomination
                     {
                         DenominationId = x.DenominationId,
@@ -305,10 +328,22 @@ namespace VMSService.Web.Controllers
             var categories = await _stockService.GetAllCategories();
             var commercialBanks = await _configServiceClient.GetAllCommercialBankAsync();
 
+            // Collect bag IDs from denominations and look up their reference numbers
+            var bagIds = movement.Denominations?
+                .SelectMany(d => d.DenominationBags ?? Enumerable.Empty<StockMovementDenominationBag>())
+                .Select(db => db.BagId)
+                .Distinct()
+                .ToList() ?? new List<int>();
+
+            var bags = bagIds.Any()
+                ? await _bagRepository.GetBagsByIdsAsync(bagIds)
+                : new List<VMSService.Data.Entities.Bag>();
+
             ViewBag.Branches = branches;
             ViewBag.Denominations = denominations;
             ViewBag.Categories = categories;
             ViewBag.CommercialBanks = commercialBanks;
+            ViewBag.BagLookup = bags.ToDictionary(b => b.Id, b => b.ReferenceNumber);
 
             // Load status history
             var statusHistory = await _statusHistoryRepository.FindByStockMovementId(id);
@@ -481,6 +516,11 @@ namespace VMSService.Web.Controllers
                         End = br.End
                     }).ToList();
 
+                    var selectedBags = denom.DenominationBags?
+                        .Where(db => db.Bag != null)
+                        .Select(db => new { id = db.BagId, referenceNumber = db.Bag!.ReferenceNumber })
+                        .ToList();
+
                     denominationViewModels.Add(new
                     {
                         DenominationId = denom.DenominationId,
@@ -490,7 +530,8 @@ namespace VMSService.Web.Controllers
                         Categorization = denom.Categorization,
                         ContainerType = denom.ContainerType,
                         SubTotalValue = denom.SubTotalValue,
-                        BoxNumberRanges = boxRanges
+                        BoxNumberRanges = boxRanges,
+                        SelectedBags = selectedBags
                     });
                 }
             }
@@ -573,6 +614,9 @@ namespace VMSService.Web.Controllers
                             ContainerType = x.ContainerType,
                             SubTotalValue = x.SubTotalValue,
                             Categorization = x.Categorization,
+                            DenominationBags = x.SelectedBagIds?
+                                .Select(bagId => new StockMovementDenominationBag { BagId = bagId })
+                                .ToList() ?? new List<StockMovementDenominationBag>(),
                             BoxNumberRanges = x.BoxNumberRanges?
                                 .Where(r =>
                                     !string.IsNullOrWhiteSpace(r.Prefix) ||
@@ -900,6 +944,16 @@ namespace VMSService.Web.Controllers
                 _logger.LogError(ex, "Error populating NewStockMovementLogs for movement {MovementId}", movement?.Id);
                 // Don't throw - log the error but allow the workflow to continue
             }
+        }
+
+
+        private List<int> GetUserBranchIds()
+        {
+            return User.FindAll("branchId")
+                .Select(c => int.TryParse(c.Value, out var id) ? id : (int?)null)
+                .Where(id => id.HasValue)
+                .Select(id => id!.Value)
+                .ToList();
         }
 
         [HttpPost]

@@ -8,6 +8,7 @@ using VMSService.Controllers;
 using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.MonthlySurpluses;
 using VMSService.Core.Repositories.Attachments;
+using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.MonthlySurpluses;
 using VMSService.Core.Repositories.MonthlySurplusStatusHistories;
 using VMSService.Core.Repositories.StockMovements;
@@ -31,6 +32,7 @@ namespace VMSService.Web.Controllers
         IWorkflowServiceClient _workflowServiceClient,
         IWorkflowService _workflowService,
         IConfigurationsServiceClient _configServiceClient,
+        IDenominationRepository _denominationRepo,
         IStockService _stockService,
         IStockMovementRepository _stockMovementRepository,
         VMSServiceDbContext _db,
@@ -41,8 +43,8 @@ namespace VMSService.Web.Controllers
         public async Task<IActionResult> Index()
         {
             var surpluses = await _surplusRepo.FindAll();
-            var banks     = await _configServiceClient.GetAllCommercialBankAsync();
-            ViewBag.BankNames = banks?.ToDictionary(b => b.Id, b => b.Name) ?? new Dictionary<int, string>();
+            var branchIds = GetUserBranchIds();
+            surpluses = surpluses.Where(s => branchIds.Contains(s.BranchId)).ToList();
             return View(surpluses);
         }
 
@@ -58,9 +60,7 @@ namespace VMSService.Web.Controllers
             }
 
             var branches = await _configServiceClient.GetAllBouBranchesAsync();
-            var banks    = await _configServiceClient.GetAllCommercialBankAsync();
             ViewBag.Branches = branches?.ToList() ?? new();
-            ViewBag.Banks    = banks?.ToList() ?? new();
             return View();
         }
 
@@ -88,15 +88,19 @@ namespace VMSService.Web.Controllers
                 }
                 catch { /* WorkflowService may not be configured yet */ }
 
+                var branch = await _configServiceClient.GetBouBranchByIdAsync(dto.BranchId);
+                var branchCode = !string.IsNullOrWhiteSpace(branch?.BranchCode)
+                    ? branch.BranchCode
+                    : (branch?.Name?.Replace(" ", "").ToUpper()[..Math.Min(3, branch.Name.Replace(" ", "").Length)] ?? "BRN");
+                int seq = await _surplusRepo.CountForPeriodAndBranch(dto.BranchId, dto.Period.Year, dto.Period.Month) + 1;
+
                 var surplus = new MonthlySurplus
                 {
-                    ReferenceNumber   = dto.ReferenceNumber,
+                    ReferenceNumber   = ReferenceNumberGenerator.MonthlySurplus(dto.Period.Year, dto.Period.Month, branchCode, seq),
                     BranchId          = dto.BranchId,
                     Period            = dto.Period,
                     Amount            = dto.Amount,
-                    DepositDate       = dto.DepositDate,
-                    CommercialBankId  = dto.CommercialBankId,
-                    AccountNumber     = dto.AccountNumber,
+                    EftDate           = dto.EftDate,
                     Remarks           = dto.Remarks,
                     CurrentStatusId   = initialStatusId,
                     CurrentStatusName = initialStatusName,
@@ -137,7 +141,18 @@ namespace VMSService.Web.Controllers
         public async Task<IActionResult> CheckPosition()
         {
             var branches = await _configServiceClient.GetAllBouBranchesAsync();
-            ViewBag.Branches = branches?.ToList() ?? new();
+
+            var userBranchIds = User.FindAll("branchId")
+                .Select(c => int.TryParse(c.Value, out var id) ? id : (int?)null)
+                .Where(id => id.HasValue)
+                .Select(id => id!.Value)
+                .ToHashSet();
+
+            var filtered = userBranchIds.Count > 0
+                ? branches?.Where(b => userBranchIds.Contains(b.Id)).ToList()
+                : branches?.ToList() ?? [];
+
+            ViewBag.Branches = filtered ?? [];
             return View();
         }
 
@@ -254,23 +269,42 @@ namespace VMSService.Web.Controllers
                          && r.CurrentStatusName == StatusConstants.CfbReport.Approved)
                 .ToListAsync();
 
-            var transactions = eodReports
-                .SelectMany(r => r.Entries.Select(e => e.BoardSessionSurplusShortage))
+            var allBanks   = await _configServiceClient.GetAllCommercialBankAsync();
+            var bankMap    = allBanks?.ToDictionary(b => b.Id, b => b.Name) ?? new Dictionary<int, string>();
+            var bankingIds = allBanks?
+                .Where(b => b.Name.Equals(StatusConstants.CommercialBank.Banking, StringComparison.OrdinalIgnoreCase))
+                .Select(b => b.Id)
+                .ToHashSet() ?? new HashSet<int>();
+
+            var txRows = eodReports
+                .SelectMany(r => r.Entries.Select(e => new {
+                    SessionDate = r.SessionDate,
+                    t           = e.BoardSessionSurplusShortage
+                }))
+                .Where(x => !bankingIds.Contains(x.t.CommercialBankId))
+                .OrderBy(x => x.SessionDate)
                 .ToList();
 
-            var totalSurplus  = transactions.Where(t => t.IsSurplus).Sum(t => t.Amount);
-            var totalShortage = transactions.Where(t => !t.IsSurplus).Sum(t => t.Amount);
+            var totalSurplus  = txRows.Where(x => x.t.IsSurplus).Sum(x => x.t.Amount);
+            var totalShortage = txRows.Where(x => !x.t.IsSurplus).Sum(x => x.t.Amount);
             var net           = totalSurplus - totalShortage;
 
             return Ok(new
             {
                 totalSurplus,
                 totalShortage,
-                net       = Math.Abs(net),
+                net        = Math.Abs(net),
                 isSurplus  = net > 0,
                 isShortage = net < 0,
                 isBalanced = net == 0,
-                hasData    = transactions.Any(),
+                hasData    = txRows.Any(),
+                transactions = txRows.Select(x => new
+                {
+                    date      = x.SessionDate.ToString("dd MMM yyyy"),
+                    bank      = bankMap.TryGetValue(x.t.CommercialBankId, out var bn) ? bn : "—",
+                    isSurplus = x.t.IsSurplus,
+                    amount    = x.t.Amount,
+                }),
             });
         }
 
@@ -315,9 +349,7 @@ namespace VMSService.Web.Controllers
             }
 
             var branches   = await _configServiceClient.GetAllBouBranchesAsync();
-            var banks      = await _configServiceClient.GetAllCommercialBankAsync();
             var branchName = branches?.FirstOrDefault(b => b.Id == surplus.BranchId)?.Name ?? surplus.BranchId.ToString();
-            var bankName   = banks?.FirstOrDefault(b => b.Id == surplus.CommercialBankId)?.Name ?? surplus.CommercialBankId?.ToString() ?? string.Empty;
 
             var historyEntities = await _historyRepo.FindByMonthlySurplusId(id.Value);
             var statusHistory   = new List<MonthlySurplusStatusHistoryViewModel>();
@@ -370,6 +402,40 @@ namespace VMSService.Web.Controllers
                     FileType = a.FileType,
                 });
 
+            var periodStart = new DateTime(surplus.Period.Year, surplus.Period.Month, 1);
+            var periodEnd   = periodStart.AddMonths(1);
+
+            var allBanksForEod   = await _configServiceClient.GetAllCommercialBankAsync();
+            var bankMapForEod    = allBanksForEod?.ToDictionary(b => b.Id, b => b.Name) ?? [];
+            var bankingIdsForEod = allBanksForEod?
+                .Where(b => b.Name.Equals(StatusConstants.CommercialBank.Banking, StringComparison.OrdinalIgnoreCase))
+                .Select(b => b.Id)
+                .ToHashSet() ?? [];
+
+            var eodEntries = await _db.EodDiscrepancyReportEntries
+                .AsNoTracking()
+                .Include(e => e.EodDiscrepancyReport)
+                .Include(e => e.BoardSessionSurplusShortage)
+                .Where(e => e.EodDiscrepancyReport.BranchId == surplus.BranchId
+                         && e.EodDiscrepancyReport.SessionDate >= periodStart
+                         && e.EodDiscrepancyReport.SessionDate < periodEnd
+                         && e.EodDiscrepancyReport.CurrentStatusName == StatusConstants.CfbReport.Approved
+                         && !bankingIdsForEod.Contains(e.BoardSessionSurplusShortage.CommercialBankId))
+                .OrderBy(e => e.EodDiscrepancyReport.SessionDate)
+                .ToListAsync();
+
+            var denominations = await _denominationRepo.FindAll();
+            var denomMap = denominations?.ToDictionary(d => d.Id, d => d.Name) ?? [];
+
+            var eodEntryViewModels = eodEntries.Select(e => new MonthlySurplusEodEntryViewModel
+            {
+                SessionDate        = e.EodDiscrepancyReport.SessionDate,
+                IsSurplus          = e.BoardSessionSurplusShortage.IsSurplus,
+                Amount             = e.BoardSessionSurplusShortage.Amount,
+                CommercialBankName = bankMapForEod.TryGetValue(e.BoardSessionSurplusShortage.CommercialBankId, out var bn) ? bn : "—",
+                DenominationName   = denomMap.TryGetValue(e.BoardSessionSurplusShortage.DenominationId, out var dn) ? dn : "—",
+            }).ToList();
+
             var vm = new MonthlySurplusDetailsViewModel
             {
                 Id                   = surplus.Id,
@@ -378,15 +444,13 @@ namespace VMSService.Web.Controllers
                 BranchName           = branchName,
                 Period               = surplus.Period,
                 Amount               = surplus.Amount,
-                DepositDate          = surplus.DepositDate,
-                CommercialBankId     = surplus.CommercialBankId,
-                CommercialBankName   = bankName,
-                AccountNumber        = surplus.AccountNumber,
+                EftDate              = surplus.EftDate,
                 Remarks              = surplus.Remarks,
                 CurrentStatusId      = surplus.CurrentStatusId,
                 CurrentStatusName    = surplus.CurrentStatusName,
                 CreatedBy            = surplus.CreatedBy,
                 CreatedDate          = surplus.CreatedDate,
+                EodEntries           = eodEntryViewModels,
                 AvailableTransitions = availableTransitions,
                 StatusHistory        = statusHistory,
                 Attachments          = allAttachments,
@@ -406,9 +470,7 @@ namespace VMSService.Web.Controllers
             if (surplus == null) return NotFound();
 
             var branches = await _configServiceClient.GetAllBouBranchesAsync();
-            var banks    = await _configServiceClient.GetAllCommercialBankAsync();
             ViewBag.Branches = branches?.ToList() ?? new();
-            ViewBag.Banks    = banks?.ToList() ?? new();
             return View(surplus);
         }
 
@@ -424,14 +486,11 @@ namespace VMSService.Web.Controllers
                 var surplus = await _surplusRepo.FindById(dto.Id);
                 if (surplus == null) return NotFound();
 
-                surplus.ReferenceNumber  = dto.ReferenceNumber;
                 surplus.BranchId         = dto.BranchId;
                 surplus.Period           = dto.Period;
                 surplus.Amount           = dto.Amount;
-                surplus.DepositDate      = dto.DepositDate;
-                surplus.CommercialBankId = dto.CommercialBankId;
-                surplus.AccountNumber    = dto.AccountNumber;
-                surplus.Remarks          = dto.Remarks;
+                surplus.EftDate = dto.EftDate;
+                surplus.Remarks     = dto.Remarks;
 
                 await _surplusRepo.Update(surplus);
                 return Ok(new { success = true, redirectUrl = Url.Action(nameof(Details), new { id = dto.Id }) });
@@ -570,6 +629,15 @@ namespace VMSService.Web.Controllers
             }
 
             return uploadedIds;
+        }
+
+        private List<int> GetUserBranchIds()
+        {
+            return User.FindAll("branchId")
+                .Select(c => int.TryParse(c.Value, out var id) ? id : (int?)null)
+                .Where(id => id.HasValue)
+                .Select(id => id!.Value)
+                .ToList();
         }
 
         private List<int> GetUserRoles()

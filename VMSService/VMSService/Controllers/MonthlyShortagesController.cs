@@ -8,6 +8,7 @@ using VMSService.Controllers;
 using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.MonthlyShortages;
 using VMSService.Core.Repositories.Attachments;
+using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.MonthlyShortages;
 using VMSService.Core.Repositories.MonthlyShortageStatusHistories;
 using VMSService.Core.Services.Workflows;
@@ -29,6 +30,7 @@ namespace VMSService.Web.Controllers
         IWorkflowServiceClient _workflowServiceClient,
         IWorkflowService _workflowService,
         IConfigurationsServiceClient _configServiceClient,
+        IDenominationRepository _denominationRepo,
         VMSServiceDbContext _db,
         IWebHostEnvironment _environment) : Controller
     {
@@ -81,7 +83,7 @@ namespace VMSService.Web.Controllers
                 // Exclude "Banking" commercial bank transactions
                 var allBanks = await _configServiceClient.GetAllCommercialBankAsync();
                 var bankingIds = allBanks?
-                    .Where(b => b.Name.Equals("Banking", StringComparison.OrdinalIgnoreCase))
+                    .Where(b => b.Name.Equals(StatusConstants.CommercialBank.Banking, StringComparison.OrdinalIgnoreCase))
                     .Select(b => b.Id)
                     .ToHashSet() ?? new HashSet<int>();
 
@@ -152,9 +154,10 @@ namespace VMSService.Web.Controllers
                 }
                 else
                 {
+                    int seq = await _shortageRepo.CountForPeriod(year, month) + 1;
                     var shortage = new MonthlyShortage
                     {
-                        ReferenceNumber   = $"SHT/{year}/{month:D2}",
+                        ReferenceNumber   = ReferenceNumberGenerator.MonthlyShortage(year, month, seq),
                         Period            = periodStart,
                         TotalSurplus      = grandSurplus,
                         TotalShortage     = grandShortage,
@@ -335,9 +338,12 @@ namespace VMSService.Web.Controllers
             var banks = await _configServiceClient.GetAllCommercialBankAsync();
             var bankMap = banks?.ToDictionary(b => b.Id, b => b.Name) ?? new Dictionary<int, string>();
             var bankingIds = banks?
-                .Where(b => b.Name.Equals("Banking", StringComparison.OrdinalIgnoreCase))
+                .Where(b => b.Name.Equals(StatusConstants.CommercialBank.Banking, StringComparison.OrdinalIgnoreCase))
                 .Select(b => b.Id)
                 .ToHashSet() ?? new HashSet<int>();
+
+            var denominations = await _denominationRepo.FindAll();
+            var denomMap = denominations?.ToDictionary(d => d.Id, d => d.Name) ?? new Dictionary<int, string>();
 
             var transactions = entries
                 .Where(e => !bankingIds.Contains(e.BoardSessionSurplusShortage.CommercialBankId))
@@ -347,6 +353,7 @@ namespace VMSService.Web.Controllers
                     isSurplus      = e.BoardSessionSurplusShortage.IsSurplus,
                     amount         = e.BoardSessionSurplusShortage.Amount,
                     commercialBank = bankMap.TryGetValue(e.BoardSessionSurplusShortage.CommercialBankId, out var name) ? name : "—",
+                    denomination   = denomMap.TryGetValue(e.BoardSessionSurplusShortage.DenominationId, out var dname) ? dname : "—",
                 });
 
             return Ok(new { transactions });

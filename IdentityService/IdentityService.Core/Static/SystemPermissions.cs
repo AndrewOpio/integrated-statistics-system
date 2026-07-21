@@ -131,6 +131,12 @@
             public const string Generate = "CAS MonthlyShortagesController Generate";
         }
 
+        public static class CAS_MonthlyShortageReimbursements
+        {
+            public const string View   = "CAS MonthlyShortageReimbursementsController Index";
+            public const string Create = "CAS MonthlyShortageReimbursementsController Create";
+        }
+
         public static class CAS_MonthlyCommercialBankSettlements
         {
             public const string View     = "CAS MonthlyCommercialBankSettlementsController Index";
