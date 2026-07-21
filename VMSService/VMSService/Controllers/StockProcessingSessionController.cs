@@ -4,10 +4,14 @@ using Microsoft.EntityFrameworkCore;
 using SmartBreadcrumbs.Attributes;
 using VMSService.Controllers;
 using VMSService.Core.Models.Attachments;
+using VMSService.Core.Models.BoardSessionDifferentDenoms;
+using VMSService.Core.Models.BoardSessionSurplusShortages;
+using VMSService.Core.Models.StockProcessingResults;
 using VMSService.Core.Models.StockProcessingSessions;
 using VMSService.Core.Models.StockProcessingSessionStatusHistories;
 using VMSService.Core.Repositories.Attachments;
 using VMSService.Core.Repositories.CommercialBanks;
+using VMSService.Core.Repositories.StockProcessingResults;
 using VMSService.Core.Repositories.StockProcessingSessions;
 using VMSService.Core.Repositories.StockProcessingSessionStatusHistories;
 using VMSService.Core.Services.Identity;
@@ -25,6 +29,7 @@ namespace VMSService.Web.Controllers
     public class StockProcessingSessionController(
         IStockProcessingSessionRepository _sessionRepository,
         IStockProcessingSessionStatusHistoryRepository _sessionStatusHistoryRepository,
+        IStockProcessingResultRepository _resultRepository,
         ICommercialBankRepository _commercialBankRepository,
         IAttachmentRepository _attachmentRepository,
         IStockService _stockService,
@@ -160,7 +165,7 @@ namespace VMSService.Web.Controllers
         }
 
         [HttpGet]
-        [Breadcrumb("Session Details", FromController = typeof(StockProcessingPlanController), FromAction = nameof(StockProcessingPlanController.Index))]
+        [Breadcrumb("Session Details", FromController = typeof(HomeController))]
         public async Task<IActionResult> Details(int id)
         {
             try
@@ -328,6 +333,7 @@ namespace VMSService.Web.Controllers
                 // Counting room and supervisor for the processing board
                 string? countingRoomName = null;
                 string? supervisorName = null;
+                string? supervisorId = null;
                 if (session.ProcessingBoard != null)
                 {
                     var countingRoomId = session.ProcessingBoard.CountingRoomId;
@@ -345,6 +351,7 @@ namespace VMSService.Web.Controllers
                     {
                         try
                         {
+                            supervisorId = roomSession.BoardSupervisorUserId;
                             var user = await _identityService.GetUserByUsername(roomSession.BoardSupervisorUserId);
                             supervisorName = user != null
                                 ? $"{user.FirstName} {user.LastName}".Trim()
@@ -356,6 +363,72 @@ namespace VMSService.Web.Controllers
                         }
                     }
                 }
+
+                // Existing processing results for this session
+                var resultEntities = await _resultRepository.FindBySessionIdAsync(id);
+                var results = resultEntities.Select(r => new StockProcessingResultViewModel
+                {
+                    Id = r.Id,
+                    StockProcessingSessionId = r.StockProcessingSessionId,
+                    Count = r.Count,
+                    FitValue = r.FitValue,
+                    UnfitShredValue = r.UnfitShredValue,
+                    FitShredValue = r.FitShredValue,
+                    CanceledValue = r.CanceledValue,
+                    ReissueValue = r.ReissueValue,
+                    UnProcessedValue = r.UnProcessedValue,
+                    IsVerified = r.IsVerified,
+                    IsDeleted = r.IsDeleted,
+                    CreatedDate = r.CreatedDate,
+                    CreatedBy = r.CreatedBy
+                }).ToList();
+
+                // Different denominations found during processing
+                var differentDenomEntities = await _context.BoardSessionDifferentDenoms
+                    .Where(d => d.StockProcessingSessionId == id)
+                    .ToListAsync();
+
+                var differentDenoms = differentDenomEntities.Select(d =>
+                {
+                    var dd = denomDict.GetValueOrDefault(d.DenominationId);
+                    return new BoardSessionDifferentDenomViewModel
+                    {
+                        Id = d.Id,
+                        DenominationId = d.DenominationId,
+                        DenominationName = dd?.Name,
+                        DenominationValue = dd?.Value ?? 0m,
+                        NumberOfPieces = d.NumberOfPieces,
+                        Amount = d.Amount
+                    };
+                }).ToList();
+
+                // Surplus/shortage records for this session
+                var surplusShortageEntities = await _context.BoardSessionSurplusShortages
+                    .Where(s => s.StockProcessingSessionId == id)
+                    .OrderByDescending(s => s.CreatedDate)
+                    .ToListAsync();
+
+                var surplusShortages = surplusShortageEntities.Select(s =>
+                {
+                    var sd = denomDict.GetValueOrDefault(s.DenominationId);
+                    return new BoardSessionSurplusShortageViewModel
+                    {
+                        Id = s.Id,
+                        Amount = s.Amount,
+                        IsSurplus = s.IsSurplus,
+                        DenominationId = s.DenominationId,
+                        DenominationName = sd?.Name,
+                        DenominationValue = sd?.Value ?? 0m,
+                        CommercialBankId = s.CommercialBankId,
+                        CommercialBankName = bankDict.GetValueOrDefault(s.CommercialBankId),
+                        CreatedDate = s.CreatedDate
+                    };
+                }).ToList();
+
+                ViewBag.Denominations = allDenominations
+                    .OrderBy(d => d.DenominationTypeId)
+                    .ThenBy(d => d.Value)
+                    .ToList();
 
                 var model = new StockProcessingSessionDetailsViewModel
                 {
@@ -381,9 +454,13 @@ namespace VMSService.Web.Controllers
                     CreatedDate = session.CreatedDate,
                     CreatedBy = session.CreatedBy,
                     Bags = bags,
+                    Results = results,
+                    DifferentDenoms = differentDenoms,
+                    SurplusShortages = surplusShortages,
                     StatusHistory = statusHistory,
                     AvailableTransitions = availableTransitions.Distinct().ToList(),
-                    AllAttachments = allAttachments
+                    AllAttachments = allAttachments,
+                    BoardSupervisorUserId = supervisorId ?? ""
                 };
 
                 return View(model);
@@ -407,6 +484,16 @@ namespace VMSService.Web.Controllers
                 {
                     TempData["Error"] = "Processing Session not found.";
                     return RedirectToAction(nameof(Index), "StockProcessingPlan");
+                }
+
+                if (actionName == "SubmitResults")
+                {
+                    var existingResults = await _resultRepository.FindBySessionIdAsync(id);
+                    if (!existingResults.Any(r => !r.IsVerified))
+                    {
+                        TempData["Error"] = "No processing results have been saved for this session. Please save results before submitting.";
+                        return RedirectToAction(nameof(Details), new { id });
+                    }
                 }
 
                 var username = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? "System";
@@ -467,6 +554,62 @@ namespace VMSService.Web.Controllers
                         ? $" {uploadedAttachmentIds.Count} attachment(s) uploaded."
                         : "";
                     TempData["Success"] = $"Action completed successfully.{attachmentMessage}";
+
+                    if (actionName == "SubmitResults")
+                    {
+                        var sessionResults = await _resultRepository.FindBySessionIdAsync(id);
+                        if (sessionResults.Count > 0 && sessionResults.OrderByDescending(r => r.CreatedDate)?.FirstOrDefault()?.UnProcessedValue == 0)
+                        {
+                            session.IsCompleted = true;
+                            await _context.SaveChangesAsync();
+                        }
+
+                        try
+                        {
+                            var closedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+                            {
+                                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                                EntityTypeName = StatusConstants.Entity.StockProcessingSession,
+                                StatusName = StatusConstants.StockProcessingSession.Closed
+                            });
+
+                            if (closedStatus != null)
+                            {
+                                var allPlanSessions = await _context.StockProcessingSessions
+                                    .Where(s => s.StockProcessingPlanId == session.StockProcessingPlanId && !s.IsDeleted)
+                                    .ToListAsync();
+
+                                if (allPlanSessions.Any() && allPlanSessions.All(s => s.CurrentStatusId == closedStatus.Id))
+                                {
+                                    var targetStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+                                    {
+                                        ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                                        EntityTypeName = StatusConstants.Entity.StockProcessingPlan,
+                                        StatusName = StatusConstants.StockProcessingPlan.ResultsPendingVerification
+                                    });
+
+                                    if (targetStatus != null)
+                                    {
+                                        var plan = await _context.StockProcessingPlans
+                                            .FirstOrDefaultAsync(p => p.Id == session.StockProcessingPlanId && !p.IsDeleted);
+
+                                        if (plan != null)
+                                        {
+                                            plan.CurrentStatusId = targetStatus.Id;
+                                            await _context.SaveChangesAsync();
+                                            _logger.LogInformation(
+                                                "Stock Processing Plan {PlanId} advanced to '{Status}' — all sessions closed.",
+                                                plan.Id, StatusConstants.StockProcessingPlan.ResultsPendingVerification);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error advancing plan status after SubmitResults for session {Id}", id);
+                        }
+                    }
                 }
                 else
                 {
@@ -480,6 +623,269 @@ namespace VMSService.Web.Controllers
             }
 
             return RedirectToAction(nameof(Details), new { id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SaveResult(SubmitProcessingResultViewModel model)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    var errors = ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .Where(m => !string.IsNullOrEmpty(m))
+                        .ToList();
+                    TempData["ResultErrors"] = System.Text.Json.JsonSerializer.Serialize(errors);
+                    return RedirectToAction(nameof(Details), new { id = model.SessionId });
+                }
+
+                var session = await _sessionRepository.FindById(model.SessionId);
+                if (session == null)
+                {
+                    TempData["Error"] = "Processing Session not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                var result = new StockProcessingResult
+                {
+                    StockProcessingSessionId = model.SessionId,
+                    Count = model.Count,
+                    UnProcessedValue = model.UnProcessedValue,
+                    FitValue       = session.IsManual ? 0m : model.FitValue,
+                    UnfitShredValue = session.IsManual ? 0m : model.UnfitShredValue,
+                    FitShredValue  = session.IsManual ? 0m : model.FitShredValue,
+                    CanceledValue  = session.IsManual ? model.CanceledValue : 0m,
+                    ReissueValue   = session.IsManual ? model.ReissueValue  : 0m,
+                };
+
+                await _resultRepository.Create(result);
+
+                // Stage denom entries
+                var validDenomEntries = model.DifferentDenomEntries
+                    .Where(e => e.DenominationId > 0 && e.NumberOfPieces > 0)
+                    .ToList();
+
+                if (validDenomEntries.Count > 0)
+                {
+                    var allDenominationsForResult = await _stockService.GetAllDenominations();
+                    var denomDictForResult = allDenominationsForResult.ToDictionary(d => d.Id);
+
+                    foreach (var entry in validDenomEntries)
+                    {
+                        denomDictForResult.TryGetValue(entry.DenominationId, out var denom);
+                        _context.BoardSessionDifferentDenoms.Add(new BoardSessionDifferentDenom
+                        {
+                            StockProcessingSessionId = model.SessionId,
+                            DenominationId = entry.DenominationId,
+                            NumberOfPieces = entry.NumberOfPieces,
+                            Amount = (denom?.Value ?? 0m) * entry.NumberOfPieces
+                        });
+                    }
+                }
+
+                // Calculate and stage surplus/shortage
+                decimal saveProcessedTotal = session.IsManual
+                    ? result.CanceledValue + result.ReissueValue
+                    : result.FitValue + result.UnfitShredValue + result.FitShredValue;
+                decimal saveDiscrepancy = saveProcessedTotal - session.TotalIssuedValue;
+                if (saveDiscrepancy != 0)
+                {
+                    _context.BoardSessionSurplusShortages.Add(new BoardSessionSurplusShortage
+                    {
+                        StockProcessingSessionId = model.SessionId,
+                        CommercialBankId = session.CommercialBankId,
+                        BranchId = session.ProcessingBoard?.BranchId ?? 0,
+                        DenominationId = session.DenominationId,
+                        Amount = Math.Abs(saveDiscrepancy),
+                        IsSurplus = saveDiscrepancy > 0,
+                        IsDifferentDenomination = false,
+                        IsProcessedOnRtgs = false
+                    });
+                }
+
+                if (validDenomEntries.Count > 0 || saveDiscrepancy != 0)
+                    await _context.SaveChangesAsync();
+
+                TempData["ResultSuccess"] = "Processing result saved successfully.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving result for Processing Session {Id}", model.SessionId);
+                TempData["Error"] = "An error occurred while saving the result.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id = model.SessionId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditResult(SubmitProcessingResultViewModel model)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    var errors = ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .Where(m => !string.IsNullOrEmpty(m))
+                        .ToList();
+                    TempData["ResultErrors"] = System.Text.Json.JsonSerializer.Serialize(errors);
+                    return RedirectToAction(nameof(Details), new { id = model.SessionId });
+                }
+
+                var result = await _resultRepository.FindById(model.Id);
+                if (result == null)
+                {
+                    TempData["Error"] = "Processing result not found.";
+                    return RedirectToAction(nameof(Details), new { id = model.SessionId });
+                }
+
+                if (result.IsVerified)
+                {
+                    TempData["Error"] = "Verified results cannot be edited.";
+                    return RedirectToAction(nameof(Details), new { id = model.SessionId });
+                }
+
+                var session = await _sessionRepository.FindById(model.SessionId);
+                if (session == null)
+                {
+                    TempData["Error"] = "Processing Session not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                result.Count          = model.Count;
+                result.UnProcessedValue = model.UnProcessedValue;
+                result.FitValue       = session.IsManual ? 0m : model.FitValue;
+                result.UnfitShredValue = session.IsManual ? 0m : model.UnfitShredValue;
+                result.FitShredValue  = session.IsManual ? 0m : model.FitShredValue;
+                result.CanceledValue  = session.IsManual ? model.CanceledValue : 0m;
+                result.ReissueValue   = session.IsManual ? model.ReissueValue  : 0m;
+
+                await _resultRepository.Update(result);
+
+                // Replace denom entries
+                var existingDenoms = await _context.BoardSessionDifferentDenoms
+                    .Where(d => d.StockProcessingSessionId == model.SessionId)
+                    .ToListAsync();
+                _context.BoardSessionDifferentDenoms.RemoveRange(existingDenoms);
+
+                var validDenomEntries = model.DifferentDenomEntries
+                    .Where(e => e.DenominationId > 0 && e.NumberOfPieces > 0)
+                    .ToList();
+
+                if (validDenomEntries.Count > 0)
+                {
+                    var allDenominationsForEdit = await _stockService.GetAllDenominations();
+                    var denomDictForEdit = allDenominationsForEdit.ToDictionary(d => d.Id);
+
+                    foreach (var entry in validDenomEntries)
+                    {
+                        denomDictForEdit.TryGetValue(entry.DenominationId, out var denom);
+                        _context.BoardSessionDifferentDenoms.Add(new BoardSessionDifferentDenom
+                        {
+                            StockProcessingSessionId = model.SessionId,
+                            DenominationId = entry.DenominationId,
+                            NumberOfPieces = entry.NumberOfPieces,
+                            Amount = (denom?.Value ?? 0m) * entry.NumberOfPieces
+                        });
+                    }
+                }
+
+                // Update or create surplus/shortage record
+                decimal editProcessedTotal = session.IsManual
+                    ? result.CanceledValue + result.ReissueValue
+                    : result.FitValue + result.UnfitShredValue + result.FitShredValue;
+                decimal editDiscrepancy = editProcessedTotal - session.TotalIssuedValue;
+
+                var existingSurplusShortage = await _context.BoardSessionSurplusShortages
+                    .Where(s => s.StockProcessingSessionId == model.SessionId)
+                    .OrderByDescending(s => s.CreatedDate)
+                    .FirstOrDefaultAsync();
+
+                if (editDiscrepancy != 0)
+                {
+                    if (existingSurplusShortage != null)
+                    {
+                        existingSurplusShortage.Amount = Math.Abs(editDiscrepancy);
+                        existingSurplusShortage.IsSurplus = editDiscrepancy > 0;
+                    }
+                    else
+                    {
+                        _context.BoardSessionSurplusShortages.Add(new BoardSessionSurplusShortage
+                        {
+                            StockProcessingSessionId = model.SessionId,
+                            CommercialBankId = session.CommercialBankId,
+                            BranchId = session.ProcessingBoard?.BranchId ?? 0,
+                            DenominationId = session.DenominationId,
+                            Amount = Math.Abs(editDiscrepancy),
+                            IsSurplus = editDiscrepancy > 0,
+                            IsDifferentDenomination = false,
+                            IsProcessedOnRtgs = false
+                        });
+                    }
+                }
+                else if (existingSurplusShortage != null)
+                {
+                    _context.BoardSessionSurplusShortages.Remove(existingSurplusShortage);
+                }
+
+                await _context.SaveChangesAsync();
+                TempData["ResultSuccess"] = "Processing result updated successfully.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error editing result {ResultId} for Processing Session {Id}", model.Id, model.SessionId);
+                TempData["Error"] = "An error occurred while updating the result.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id = model.SessionId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SaveDifferentDenoms(SaveDifferentDenomsViewModel model)
+        {
+            try
+            {
+                var validEntries = model.Entries
+                    .Where(e => e.DenominationId > 0 && e.NumberOfPieces > 0)
+                    .ToList();
+
+                if (validEntries.Count == 0)
+                {
+                    TempData["Error"] = "Please add at least one denomination entry with a valid denomination and piece count.";
+                    return RedirectToAction(nameof(Details), new { id = model.SessionId });
+                }
+
+                var allDenominations = await _stockService.GetAllDenominations();
+                var denomDict = allDenominations.ToDictionary(d => d.Id);
+
+                foreach (var entry in validEntries)
+                {
+                    denomDict.TryGetValue(entry.DenominationId, out var denom);
+                    _context.BoardSessionDifferentDenoms.Add(new BoardSessionDifferentDenom
+                    {
+                        StockProcessingSessionId = model.SessionId,
+                        DenominationId = entry.DenominationId,
+                        NumberOfPieces = entry.NumberOfPieces,
+                        Amount = (denom?.Value ?? 0m) * entry.NumberOfPieces
+                    });
+                }
+
+                await _context.SaveChangesAsync();
+                TempData["DifferentDenomSuccess"] = $"{validEntries.Count} different denomination entr{(validEntries.Count == 1 ? "y" : "ies")} saved successfully.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving different denoms for session {Id}", model.SessionId);
+                TempData["Error"] = "An error occurred while saving the denomination entries.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id = model.SessionId });
         }
 
         private async Task<List<long>> HandleAttachmentUploads(

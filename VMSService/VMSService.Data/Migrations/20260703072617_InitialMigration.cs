@@ -87,6 +87,54 @@ namespace VMSService.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "BankingShortages",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ReferenceNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Period = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    TotalSurplus = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    TotalShortage = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    NetShortage = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Remarks = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CurrentStatusId = table.Column<int>(type: "int", nullable: false),
+                    CurrentStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BankingShortages", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "BankingSurpluses",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ReferenceNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    BranchId = table.Column<int>(type: "int", nullable: false),
+                    Period = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    DepositDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    Remarks = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CurrentStatusId = table.Column<int>(type: "int", nullable: false),
+                    CurrentStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BankingSurpluses", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "BPSMachines",
                 columns: table => new
                 {
@@ -181,6 +229,86 @@ namespace VMSService.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "DestructionAuthorizations",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ReferenceNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Date = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CurrentStatusId = table.Column<int>(type: "int", nullable: false),
+                    CurrentStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DestructionAuthorizations", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "DestructionLocations",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DestructionLocations", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "DestructionTypes",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DestructionTypes", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "EodDiscrepancyReports",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ReferenceNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    SessionDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    BranchId = table.Column<int>(type: "int", nullable: false),
+                    Remarks = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CurrentStatusId = table.Column<int>(type: "int", nullable: false),
+                    CurrentStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_EodDiscrepancyReports", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "FeeTypes",
                 columns: table => new
                 {
@@ -240,6 +368,81 @@ namespace VMSService.Data.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_MinDepositStandards", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MonthlyCommercialBankSettlements",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ReferenceNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CommercialBankId = table.Column<int>(type: "int", nullable: false),
+                    Period = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    TotalSurplus = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    TotalShortage = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    NetPosition = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Remarks = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CurrentStatusId = table.Column<int>(type: "int", nullable: false),
+                    CurrentStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MonthlyCommercialBankSettlements", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MonthlyShortages",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ReferenceNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Period = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    TotalSurplus = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    TotalShortage = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    NetShortage = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Remarks = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CurrentStatusId = table.Column<int>(type: "int", nullable: false),
+                    CurrentStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MonthlyShortages", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MonthlySurpluses",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ReferenceNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    BranchId = table.Column<int>(type: "int", nullable: false),
+                    Period = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    DepositDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    CommercialBankId = table.Column<int>(type: "int", nullable: true),
+                    AccountNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Remarks = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CurrentStatusId = table.Column<int>(type: "int", nullable: false),
+                    CurrentStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MonthlySurpluses", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -346,7 +549,7 @@ namespace VMSService.Data.Migrations
                     BouBranchId = table.Column<int>(type: "int", nullable: false),
                     BouBranchCode = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     CollectionDate = table.Column<DateOnly>(type: "date", nullable: false),
-                    RtgsDate = table.Column<DateOnly>(type: "date", nullable: true),
+                    FundSettlementValueDate = table.Column<DateOnly>(type: "date", nullable: true),
                     RtgsCode = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     RequiresSpecialApproval = table.Column<bool>(type: "bit", nullable: false),
                     SpecialApprovalReason = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -356,6 +559,11 @@ namespace VMSService.Data.Migrations
                     TotalCoinsAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     TotalAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     IsLumpSum = table.Column<bool>(type: "bit", nullable: false),
+                    RtgsVerificationStatus = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    RtgsVerifiedDate = table.Column<DateOnly>(type: "date", nullable: true),
+                    RecallRtgsPending = table.Column<bool>(type: "bit", nullable: false),
+                    RecallRtgsCode = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    RecallRtgsDate = table.Column<DateOnly>(type: "date", nullable: true),
                     IsDeleted = table.Column<bool>(type: "bit", nullable: false),
                     CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
@@ -425,6 +633,70 @@ namespace VMSService.Data.Migrations
                         name: "FK_ApprovedCurrencyStatusHistory_ApprovedCurrencyProcurements_ApprovedCurrencyProcurementId",
                         column: x => x.ApprovedCurrencyProcurementId,
                         principalTable: "ApprovedCurrencyProcurements",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "BankingShortageStatusHistories",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    BankingShortageId = table.Column<int>(type: "int", nullable: false),
+                    OldStatusId = table.Column<int>(type: "int", nullable: false),
+                    OldStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    NewStatusId = table.Column<int>(type: "int", nullable: false),
+                    NewStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ChangedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ChangedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Remarks = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    AttachmentIds = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BankingShortageStatusHistories", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_BankingShortageStatusHistories_BankingShortages_BankingShortageId",
+                        column: x => x.BankingShortageId,
+                        principalTable: "BankingShortages",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "BankingSurplusStatusHistories",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    BankingSurplusId = table.Column<int>(type: "int", nullable: false),
+                    OldStatusId = table.Column<int>(type: "int", nullable: false),
+                    OldStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    NewStatusId = table.Column<int>(type: "int", nullable: false),
+                    NewStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ChangedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ChangedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Remarks = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    AttachmentIds = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BankingSurplusStatusHistories", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_BankingSurplusStatusHistories_BankingSurpluses_BankingSurplusId",
+                        column: x => x.BankingSurplusId,
+                        principalTable: "BankingSurpluses",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -544,6 +816,135 @@ namespace VMSService.Data.Migrations
                         name: "FK_DepositRequestStatusHistory_DepositRequests_DepositRequestId",
                         column: x => x.DepositRequestId,
                         principalTable: "DepositRequests",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "DestructionAuthorizationDenominations",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    DestructionAuthorizationId = table.Column<int>(type: "int", nullable: false),
+                    DenominationId = table.Column<int>(type: "int", nullable: false),
+                    NumberOfBags = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DestructionAuthorizationDenominations", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_DestructionAuthorizationDenominations_DestructionAuthorizations_DestructionAuthorizationId",
+                        column: x => x.DestructionAuthorizationId,
+                        principalTable: "DestructionAuthorizations",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "DestructionAuthorizationStatusHistory",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    DestructionAuthorizationId = table.Column<int>(type: "int", nullable: false),
+                    OldStatusId = table.Column<int>(type: "int", nullable: false),
+                    OldStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    NewStatusId = table.Column<int>(type: "int", nullable: false),
+                    NewStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ChangedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ChangedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Remarks = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DestructionAuthorizationStatusHistory", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_DestructionAuthorizationStatusHistory_DestructionAuthorizations_DestructionAuthorizationId",
+                        column: x => x.DestructionAuthorizationId,
+                        principalTable: "DestructionAuthorizations",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "DestructionRequests",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    DestructionAuthorizationId = table.Column<int>(type: "int", nullable: true),
+                    DestructionTypeId = table.Column<int>(type: "int", nullable: false),
+                    DestructionLocationId = table.Column<int>(type: "int", nullable: true),
+                    ReferenceNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Date = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    VerificationOfficer = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CurrentStatusId = table.Column<int>(type: "int", nullable: false),
+                    CurrentStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    BranchId = table.Column<int>(type: "int", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DestructionRequests", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_DestructionRequests_DestructionAuthorizations_DestructionAuthorizationId",
+                        column: x => x.DestructionAuthorizationId,
+                        principalTable: "DestructionAuthorizations",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_DestructionRequests_DestructionLocations_DestructionLocationId",
+                        column: x => x.DestructionLocationId,
+                        principalTable: "DestructionLocations",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_DestructionRequests_DestructionTypes_DestructionTypeId",
+                        column: x => x.DestructionTypeId,
+                        principalTable: "DestructionTypes",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "EodDiscrepancyReportStatusHistories",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    EodDiscrepancyReportId = table.Column<int>(type: "int", nullable: false),
+                    OldStatusId = table.Column<int>(type: "int", nullable: false),
+                    OldStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    NewStatusId = table.Column<int>(type: "int", nullable: false),
+                    NewStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ChangedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ChangedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Remarks = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_EodDiscrepancyReportStatusHistories", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_EodDiscrepancyReportStatusHistories_EodDiscrepancyReports_EodDiscrepancyReportId",
+                        column: x => x.EodDiscrepancyReportId,
+                        principalTable: "EodDiscrepancyReports",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -674,6 +1075,125 @@ namespace VMSService.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "MonthlyCommercialBankSettlementStatusHistories",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    MonthlyCommercialBankSettlementId = table.Column<int>(type: "int", nullable: false),
+                    OldStatusId = table.Column<int>(type: "int", nullable: false),
+                    OldStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    NewStatusId = table.Column<int>(type: "int", nullable: false),
+                    NewStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ChangedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ChangedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Remarks = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    AttachmentIds = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MonthlyCommercialBankSettlementStatusHistories", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MonthlyCommercialBankSettlementStatusHistories_MonthlyCommercialBankSettlements_MonthlyCommercialBankSettlementId",
+                        column: x => x.MonthlyCommercialBankSettlementId,
+                        principalTable: "MonthlyCommercialBankSettlements",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MonthlyShortageDetails",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    MonthlyShortageId = table.Column<int>(type: "int", nullable: false),
+                    BranchId = table.Column<int>(type: "int", nullable: false),
+                    TotalSurplus = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    TotalShortage = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    NetShortage = table.Column<decimal>(type: "decimal(18,2)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MonthlyShortageDetails", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MonthlyShortageDetails_MonthlyShortages_MonthlyShortageId",
+                        column: x => x.MonthlyShortageId,
+                        principalTable: "MonthlyShortages",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MonthlyShortageStatusHistories",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    MonthlyShortageId = table.Column<int>(type: "int", nullable: false),
+                    OldStatusId = table.Column<int>(type: "int", nullable: false),
+                    OldStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    NewStatusId = table.Column<int>(type: "int", nullable: false),
+                    NewStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ChangedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ChangedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Remarks = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    AttachmentIds = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MonthlyShortageStatusHistories", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MonthlyShortageStatusHistories_MonthlyShortages_MonthlyShortageId",
+                        column: x => x.MonthlyShortageId,
+                        principalTable: "MonthlyShortages",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MonthlySurplusStatusHistories",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    MonthlySurplusId = table.Column<int>(type: "int", nullable: false),
+                    OldStatusId = table.Column<int>(type: "int", nullable: false),
+                    OldStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    NewStatusId = table.Column<int>(type: "int", nullable: false),
+                    NewStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ChangedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ChangedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Remarks = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    AttachmentIds = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MonthlySurplusStatusHistories", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MonthlySurplusStatusHistories_MonthlySurpluses_MonthlySurplusId",
+                        column: x => x.MonthlySurplusId,
+                        principalTable: "MonthlySurpluses",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "VaultSections",
                 columns: table => new
                 {
@@ -767,6 +1287,7 @@ namespace VMSService.Data.Migrations
                     Boxes = table.Column<int>(type: "int", nullable: true),
                     Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     Origin = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    BundleType = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -809,6 +1330,92 @@ namespace VMSService.Data.Migrations
                         name: "FK_WithdrawalRequestStatusHistory_WithdrawalRequests_WithdrawalRequestId",
                         column: x => x.WithdrawalRequestId,
                         principalTable: "WithdrawalRequests",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "DestructionRequestDenominations",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    DestructionRequestId = table.Column<int>(type: "int", nullable: false),
+                    DenominationId = table.Column<int>(type: "int", nullable: false),
+                    NumberOfBags = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    NumberOfNotes = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Destroyed = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DestructionRequestDenominations", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_DestructionRequestDenominations_DestructionRequests_DestructionRequestId",
+                        column: x => x.DestructionRequestId,
+                        principalTable: "DestructionRequests",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "DestructionRequestMembers",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    DestructionRequestId = table.Column<int>(type: "int", nullable: false),
+                    IDNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    FullName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    IsWitness = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DestructionRequestMembers", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_DestructionRequestMembers_DestructionRequests_DestructionRequestId",
+                        column: x => x.DestructionRequestId,
+                        principalTable: "DestructionRequests",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "DestructionRequestStatusHistory",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    DestructionRequestId = table.Column<int>(type: "int", nullable: false),
+                    OldStatusId = table.Column<int>(type: "int", nullable: false),
+                    OldStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    NewStatusId = table.Column<int>(type: "int", nullable: false),
+                    NewStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ChangedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ChangedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Remarks = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    AttachmentIds = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DestructionRequestStatusHistory", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_DestructionRequestStatusHistory_DestructionRequests_DestructionRequestId",
+                        column: x => x.DestructionRequestId,
+                        principalTable: "DestructionRequests",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -934,6 +1541,7 @@ namespace VMSService.Data.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
+                    ReferenceNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     ProcessingDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     BranchId = table.Column<int>(type: "int", nullable: false),
                     StockMovementId = table.Column<int>(type: "int", nullable: true),
@@ -1057,6 +1665,34 @@ namespace VMSService.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "WithdrawalRequestDenominationBoxes",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    WithdrawalRequestDenominationId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CaseNumber = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    BundlesTaken = table.Column<int>(type: "int", nullable: false),
+                    SerialStartTaken = table.Column<long>(type: "bigint", nullable: false),
+                    SerialEndTaken = table.Column<long>(type: "bigint", nullable: false),
+                    SerialPrefix = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_WithdrawalRequestDenominationBoxes", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_WithdrawalRequestDenominationBoxes_WithdrawalRequestDenominations_WithdrawalRequestDenominationId",
+                        column: x => x.WithdrawalRequestDenominationId,
+                        principalTable: "WithdrawalRequestDenominations",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "StockMovementDenominationBoxNumberRanges",
                 columns: table => new
                 {
@@ -1155,6 +1791,8 @@ namespace VMSService.Data.Migrations
                     IsManual = table.Column<bool>(type: "bit", nullable: false),
                     IsDeleted = table.Column<bool>(type: "bit", nullable: false),
                     DenominationId = table.Column<int>(type: "int", nullable: false),
+                    TotalIssuedValue = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    IsCompleted = table.Column<bool>(type: "bit", nullable: false),
                     CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -1386,10 +2024,15 @@ namespace VMSService.Data.Migrations
                     DateDelivered = table.Column<DateTime>(type: "datetime2", nullable: false),
                     DeliveryAirline = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     TestingFees = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    TestingFeesCurrency = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     ShippingFees = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    ShippingFeesCurrency = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     InsuranceFees = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    InsuranceFeesCurrency = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     HandlingCharges = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    HandlingChargesCurrency = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     ClearingFees = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    ClearingFeesCurrency = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     CurrentStatusId = table.Column<int>(type: "int", nullable: false),
                     IsDeleted = table.Column<bool>(type: "bit", nullable: false),
                     IsPartial = table.Column<bool>(type: "bit", nullable: true),
@@ -1415,6 +2058,44 @@ namespace VMSService.Data.Migrations
                         column: x => x.ReceivedStatusTypesId,
                         principalTable: "ReceivedStatusTypes",
                         principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "BoardSessionSurplusShortages",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    CommercialBankId = table.Column<int>(type: "int", nullable: false),
+                    BranchId = table.Column<int>(type: "int", nullable: false),
+                    SessionSourceBranch = table.Column<int>(type: "int", nullable: true),
+                    DenominationId = table.Column<int>(type: "int", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    IsSurplus = table.Column<bool>(type: "bit", nullable: false),
+                    IsDifferentDenomination = table.Column<bool>(type: "bit", nullable: false),
+                    IsProcessedOnRtgs = table.Column<bool>(type: "bit", nullable: false),
+                    RtgsCode = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    DepositRequestId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    StockProcessingSessionId = table.Column<int>(type: "int", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BoardSessionSurplusShortages", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_BoardSessionSurplusShortages_DepositRequests_DepositRequestId",
+                        column: x => x.DepositRequestId,
+                        principalTable: "DepositRequests",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_BoardSessionSurplusShortages_StockProcessingSessions_StockProcessingSessionId",
+                        column: x => x.StockProcessingSessionId,
+                        principalTable: "StockProcessingSessions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -1607,6 +2288,59 @@ namespace VMSService.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "BoardSessionDifferentDenoms",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    DenominationId = table.Column<int>(type: "int", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    StockProcessingSessionId = table.Column<int>(type: "int", nullable: false),
+                    BoardSessionSurplusShortageId = table.Column<int>(type: "int", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BoardSessionDifferentDenoms", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_BoardSessionDifferentDenoms_BoardSessionSurplusShortages_BoardSessionSurplusShortageId",
+                        column: x => x.BoardSessionSurplusShortageId,
+                        principalTable: "BoardSessionSurplusShortages",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_BoardSessionDifferentDenoms_StockProcessingSessions_StockProcessingSessionId",
+                        column: x => x.StockProcessingSessionId,
+                        principalTable: "StockProcessingSessions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "EodDiscrepancyReportEntries",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    EodDiscrepancyReportId = table.Column<int>(type: "int", nullable: false),
+                    BoardSessionSurplusShortageId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_EodDiscrepancyReportEntries", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_EodDiscrepancyReportEntries_BoardSessionSurplusShortages_BoardSessionSurplusShortageId",
+                        column: x => x.BoardSessionSurplusShortageId,
+                        principalTable: "BoardSessionSurplusShortages",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_EodDiscrepancyReportEntries_EodDiscrepancyReports_EodDiscrepancyReportId",
+                        column: x => x.EodDiscrepancyReportId,
+                        principalTable: "EodDiscrepancyReports",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "PackingListDetails",
                 columns: table => new
                 {
@@ -1660,6 +2394,38 @@ namespace VMSService.Data.Migrations
                         column: x => x.ReceivedStockId,
                         principalTable: "ReceivedStock",
                         principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "BoxStates",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PackingListDetailsId = table.Column<long>(type: "bigint", nullable: false),
+                    CaseNumber = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    DenominationId = table.Column<int>(type: "int", nullable: false),
+                    BranchIsAtId = table.Column<int>(type: "int", nullable: false),
+                    CurrentSerialCursor = table.Column<long>(type: "bigint", nullable: false),
+                    RemainingBundles = table.Column<int>(type: "int", nullable: false),
+                    IsAvailable = table.Column<bool>(type: "bit", nullable: false),
+                    LastDispatchedDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    LastDispatchedRequestId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BoxStates", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_BoxStates_PackingListDetails_PackingListDetailsId",
+                        column: x => x.PackingListDetailsId,
+                        principalTable: "PackingListDetails",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -1772,6 +2538,47 @@ namespace VMSService.Data.Migrations
                 column: "VaultSectionId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_BankingShortageStatusHistories_BankingShortageId",
+                table: "BankingShortageStatusHistories",
+                column: "BankingShortageId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BankingSurplusStatusHistories_BankingSurplusId",
+                table: "BankingSurplusStatusHistories",
+                column: "BankingSurplusId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BoardSessionDifferentDenoms_BoardSessionSurplusShortageId",
+                table: "BoardSessionDifferentDenoms",
+                column: "BoardSessionSurplusShortageId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BoardSessionDifferentDenoms_StockProcessingSessionId",
+                table: "BoardSessionDifferentDenoms",
+                column: "StockProcessingSessionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BoardSessionSurplusShortages_DepositRequestId",
+                table: "BoardSessionSurplusShortages",
+                column: "DepositRequestId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BoardSessionSurplusShortages_StockProcessingSessionId",
+                table: "BoardSessionSurplusShortages",
+                column: "StockProcessingSessionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BoxStates_PackingListDetailsId",
+                table: "BoxStates",
+                column: "PackingListDetailsId");
+
+            migrationBuilder.CreateIndex(
+                name: "UQ_BoxState_Box_Denom_Branch",
+                table: "BoxStates",
+                columns: new[] { "CaseNumber", "DenominationId", "BranchIsAtId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_CountingRoomSessions_CountingRoomId",
                 table: "CountingRoomSessions",
                 column: "CountingRoomId");
@@ -1812,6 +2619,62 @@ namespace VMSService.Data.Migrations
                 column: "DepositRequestId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_DestructionAuthorizationDenominations_DestructionAuthorizationId",
+                table: "DestructionAuthorizationDenominations",
+                column: "DestructionAuthorizationId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DestructionAuthorizationStatusHistory_DestructionAuthorizationId",
+                table: "DestructionAuthorizationStatusHistory",
+                column: "DestructionAuthorizationId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DestructionRequestDenominations_DestructionRequestId",
+                table: "DestructionRequestDenominations",
+                column: "DestructionRequestId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DestructionRequestMembers_DestructionRequestId",
+                table: "DestructionRequestMembers",
+                column: "DestructionRequestId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DestructionRequests_DestructionAuthorizationId",
+                table: "DestructionRequests",
+                column: "DestructionAuthorizationId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DestructionRequests_DestructionLocationId",
+                table: "DestructionRequests",
+                column: "DestructionLocationId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DestructionRequests_DestructionTypeId",
+                table: "DestructionRequests",
+                column: "DestructionTypeId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DestructionRequestStatusHistory_DestructionRequestId",
+                table: "DestructionRequestStatusHistory",
+                column: "DestructionRequestId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_EodDiscrepancyReportEntries_BoardSessionSurplusShortageId",
+                table: "EodDiscrepancyReportEntries",
+                column: "BoardSessionSurplusShortageId",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_EodDiscrepancyReportEntries_EodDiscrepancyReportId",
+                table: "EodDiscrepancyReportEntries",
+                column: "EodDiscrepancyReportId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_EodDiscrepancyReportStatusHistories_EodDiscrepancyReportId",
+                table: "EodDiscrepancyReportStatusHistories",
+                column: "EodDiscrepancyReportId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ExPrintMintDetails_ExPrintMintId",
                 table: "ExPrintMintDetails",
                 column: "ExPrintMintId");
@@ -1845,6 +2708,26 @@ namespace VMSService.Data.Migrations
                 name: "IX_LogisticsStatusHistory_LogisticsId",
                 table: "LogisticsStatusHistory",
                 column: "LogisticsId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MonthlyCommercialBankSettlementStatusHistories_MonthlyCommercialBankSettlementId",
+                table: "MonthlyCommercialBankSettlementStatusHistories",
+                column: "MonthlyCommercialBankSettlementId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MonthlyShortageDetails_MonthlyShortageId",
+                table: "MonthlyShortageDetails",
+                column: "MonthlyShortageId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MonthlyShortageStatusHistories_MonthlyShortageId",
+                table: "MonthlyShortageStatusHistories",
+                column: "MonthlyShortageId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MonthlySurplusStatusHistories_MonthlySurplusId",
+                table: "MonthlySurplusStatusHistories",
+                column: "MonthlySurplusId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_NewStockMovementLogs_AccountingStatusId",
@@ -2007,6 +2890,16 @@ namespace VMSService.Data.Migrations
                 columns: new[] { "WithdrawalRequestId", "EnteredBy" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_WithdrawalRequestDenominationBoxes_CaseNumber",
+                table: "WithdrawalRequestDenominationBoxes",
+                column: "CaseNumber");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WithdrawalRequestDenominationBoxes_WithdrawalRequestDenominationId",
+                table: "WithdrawalRequestDenominationBoxes",
+                column: "WithdrawalRequestDenominationId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_WithdrawalRequestDenominations_WithdrawalRequestId_Origin",
                 table: "WithdrawalRequestDenominations",
                 columns: new[] { "WithdrawalRequestId", "Origin" });
@@ -2069,6 +2962,18 @@ namespace VMSService.Data.Migrations
                 name: "BagMovementStatusHistory");
 
             migrationBuilder.DropTable(
+                name: "BankingShortageStatusHistories");
+
+            migrationBuilder.DropTable(
+                name: "BankingSurplusStatusHistories");
+
+            migrationBuilder.DropTable(
+                name: "BoardSessionDifferentDenoms");
+
+            migrationBuilder.DropTable(
+                name: "BoxStates");
+
+            migrationBuilder.DropTable(
                 name: "CountingRoomSessions");
 
             migrationBuilder.DropTable(
@@ -2084,6 +2989,27 @@ namespace VMSService.Data.Migrations
                 name: "DepositRequestStatusHistory");
 
             migrationBuilder.DropTable(
+                name: "DestructionAuthorizationDenominations");
+
+            migrationBuilder.DropTable(
+                name: "DestructionAuthorizationStatusHistory");
+
+            migrationBuilder.DropTable(
+                name: "DestructionRequestDenominations");
+
+            migrationBuilder.DropTable(
+                name: "DestructionRequestMembers");
+
+            migrationBuilder.DropTable(
+                name: "DestructionRequestStatusHistory");
+
+            migrationBuilder.DropTable(
+                name: "EodDiscrepancyReportEntries");
+
+            migrationBuilder.DropTable(
+                name: "EodDiscrepancyReportStatusHistories");
+
+            migrationBuilder.DropTable(
                 name: "ExPrintMintStatusHistory");
 
             migrationBuilder.DropTable(
@@ -2094,6 +3020,18 @@ namespace VMSService.Data.Migrations
 
             migrationBuilder.DropTable(
                 name: "MinDepositStandards");
+
+            migrationBuilder.DropTable(
+                name: "MonthlyCommercialBankSettlementStatusHistories");
+
+            migrationBuilder.DropTable(
+                name: "MonthlyShortageDetails");
+
+            migrationBuilder.DropTable(
+                name: "MonthlyShortageStatusHistories");
+
+            migrationBuilder.DropTable(
+                name: "MonthlySurplusStatusHistories");
 
             migrationBuilder.DropTable(
                 name: "NewStockMovementLogs");
@@ -2132,7 +3070,7 @@ namespace VMSService.Data.Migrations
                 name: "WithdrawalRequestAgents");
 
             migrationBuilder.DropTable(
-                name: "WithdrawalRequestDenominations");
+                name: "WithdrawalRequestDenominationBoxes");
 
             migrationBuilder.DropTable(
                 name: "WithdrawalRequestStatusHistory");
@@ -2147,10 +3085,34 @@ namespace VMSService.Data.Migrations
                 name: "BagMovements");
 
             migrationBuilder.DropTable(
+                name: "BankingShortages");
+
+            migrationBuilder.DropTable(
+                name: "BankingSurpluses");
+
+            migrationBuilder.DropTable(
                 name: "FeeTypes");
 
             migrationBuilder.DropTable(
+                name: "DestructionRequests");
+
+            migrationBuilder.DropTable(
+                name: "BoardSessionSurplusShortages");
+
+            migrationBuilder.DropTable(
+                name: "EodDiscrepancyReports");
+
+            migrationBuilder.DropTable(
                 name: "LogisticsCategories");
+
+            migrationBuilder.DropTable(
+                name: "MonthlyCommercialBankSettlements");
+
+            migrationBuilder.DropTable(
+                name: "MonthlyShortages");
+
+            migrationBuilder.DropTable(
+                name: "MonthlySurpluses");
 
             migrationBuilder.DropTable(
                 name: "NewCaseFullStatusTypes");
@@ -2168,16 +3130,25 @@ namespace VMSService.Data.Migrations
                 name: "StockMovementDenominations");
 
             migrationBuilder.DropTable(
-                name: "StockProcessingSessions");
+                name: "WithdrawalRequestDenominations");
 
             migrationBuilder.DropTable(
-                name: "WithdrawalRequests");
+                name: "Bags");
+
+            migrationBuilder.DropTable(
+                name: "DestructionAuthorizations");
+
+            migrationBuilder.DropTable(
+                name: "DestructionLocations");
+
+            migrationBuilder.DropTable(
+                name: "DestructionTypes");
 
             migrationBuilder.DropTable(
                 name: "DepositRequests");
 
             migrationBuilder.DropTable(
-                name: "Bags");
+                name: "StockProcessingSessions");
 
             migrationBuilder.DropTable(
                 name: "PackingListRanges");
@@ -2186,16 +3157,22 @@ namespace VMSService.Data.Migrations
                 name: "ReceivedStatusTypes");
 
             migrationBuilder.DropTable(
+                name: "WithdrawalRequests");
+
+            migrationBuilder.DropTable(
+                name: "VaultSections");
+
+            migrationBuilder.DropTable(
                 name: "ProcessingBoards");
 
             migrationBuilder.DropTable(
                 name: "StockProcessingPlans");
 
             migrationBuilder.DropTable(
-                name: "VaultSections");
+                name: "ExPrintMintDetails");
 
             migrationBuilder.DropTable(
-                name: "ExPrintMintDetails");
+                name: "Vaults");
 
             migrationBuilder.DropTable(
                 name: "BPSMachines");
@@ -2205,9 +3182,6 @@ namespace VMSService.Data.Migrations
 
             migrationBuilder.DropTable(
                 name: "StockMovements");
-
-            migrationBuilder.DropTable(
-                name: "Vaults");
 
             migrationBuilder.DropTable(
                 name: "ExPrintMints");

@@ -1,4 +1,7 @@
 using VMSService.Core.Models.Attachments;
+using VMSService.Core.Models.BoardSessionDifferentDenoms;
+using VMSService.Core.Models.BoardSessionSurplusShortages;
+using VMSService.Core.Models.StockProcessingResults;
 using VMSService.Core.Models.StockProcessingSessionStatusHistories;
 using WorkflowService.Client.Dto;
 
@@ -30,9 +33,13 @@ namespace VMSService.Core.Models.StockProcessingSessions
         public DateTime CreatedDate { get; set; }
         public string CreatedBy { get; set; } = string.Empty;
         public List<SessionBagDetailsInfo> Bags { get; set; } = [];
+        public ICollection<StockProcessingResultViewModel> Results { get; set; } = [];
+        public ICollection<BoardSessionDifferentDenomViewModel> DifferentDenoms { get; set; } = [];
+        public ICollection<BoardSessionSurplusShortageViewModel> SurplusShortages { get; set; } = [];
         public ICollection<StockProcessingSessionStatusHistoryViewModel> StatusHistory { get; set; } = [];
         public ICollection<WorkflowTransitionDto> AvailableTransitions { get; set; } = [];
         public IEnumerable<AttachmentViewModel> AllAttachments { get; set; } = [];
+        public string BoardSupervisorUserId { get; set; } = string.Empty;
     }
 
     public class SessionBagDetailsInfo

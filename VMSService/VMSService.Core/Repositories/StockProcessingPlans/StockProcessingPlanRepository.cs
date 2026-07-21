@@ -98,5 +98,91 @@ namespace VMSService.Core.Repositories.StockProcessingPlans
                 Denominations = denominations
             };
         }
+
+        public async Task<PlanBagSummaryResult> GetReIssueResultSummaryAsync(int planId)
+        {
+            var sessionData = await _db.StockProcessingSessions
+                .Where(s => s.StockProcessingPlanId == planId && !s.IsDeleted)
+                .Select(s => new { s.Id, s.DenominationId })
+                .ToListAsync();
+
+            if (sessionData.Count == 0)
+                return new PlanBagSummaryResult();
+
+            var sessionIds = sessionData.Select(s => s.Id).ToList();
+            var denomBySessionId = sessionData.ToDictionary(s => s.Id, s => s.DenominationId);
+
+            var results = await _db.StockProcessingResults
+                .Where(r => sessionIds.Contains(r.StockProcessingSessionId) && !r.IsDeleted)
+                .Select(r => new
+                {
+                    r.StockProcessingSessionId,
+                    r.FitValue,
+                    r.ReissueValue
+                })
+                .ToListAsync();
+
+            if (results.Count == 0)
+                return new PlanBagSummaryResult();
+
+            var denominations = results
+                .GroupBy(r => denomBySessionId.GetValueOrDefault(r.StockProcessingSessionId))
+                .Select(g => new StockMovementDenomination
+                {
+                    DenominationId = g.Key,
+                    SubTotalValue = g.Sum(r => r.FitValue + r.ReissueValue)
+                })
+                .ToList();
+
+            return new PlanBagSummaryResult
+            {
+                GrandTotalValue = denominations.Sum(d => d.SubTotalValue),
+                Denominations = denominations
+            };
+        }
+
+        public async Task<PlanBagSummaryResult> GetCanceledResultSummaryAsync(int planId)
+        {
+            var sessionData = await _db.StockProcessingSessions
+                .Where(s => s.StockProcessingPlanId == planId && !s.IsDeleted)
+                .Select(s => new { s.Id, s.DenominationId })
+                .ToListAsync();
+
+            if (sessionData.Count == 0)
+                return new PlanBagSummaryResult();
+
+            var sessionIds = sessionData.Select(s => s.Id).ToList();
+            var denomBySessionId = sessionData.ToDictionary(s => s.Id, s => s.DenominationId);
+
+            var results = await _db.StockProcessingResults
+                .Where(r => sessionIds.Contains(r.StockProcessingSessionId) && !r.IsDeleted)
+                .Select(r => new
+                {
+                    r.StockProcessingSessionId,
+                    r.UnfitShredValue,
+                    r.FitShredValue,
+                    r.CanceledValue
+                })
+                .ToListAsync();
+
+            if (results.Count == 0)
+                return new PlanBagSummaryResult();
+
+            var denominations = results
+                .GroupBy(r => denomBySessionId.GetValueOrDefault(r.StockProcessingSessionId))
+                .Select(g => new StockMovementDenomination
+                {
+                    DenominationId = g.Key,
+                    SubTotalValue = g.Sum(r => r.UnfitShredValue + r.FitShredValue + r.CanceledValue)
+                })
+                .ToList();
+
+            return new PlanBagSummaryResult
+            {
+                TotalNumberOfBagsOrBoxes = results.Select(r => r.StockProcessingSessionId).Distinct().Count(),
+                GrandTotalValue = denominations.Sum(d => d.SubTotalValue),
+                Denominations = denominations
+            };
+        }
     }
 }
