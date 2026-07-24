@@ -113,6 +113,16 @@ namespace VMSService.Data.Configurations
         public DbSet<DestructionAuthorizationDenomination> DestructionAuthorizationDenominations { get; set; }
         public DbSet<DestructionAuthorizationStatusHistory> DestructionAuthorizationStatusHistory { get; set; }
 
+        public DbSet<CfbBox> CfbBoxes => Set<CfbBox>();
+        public DbSet<CfbCashHolding> CfbCashHoldings => Set<CfbCashHolding>();
+        public DbSet<CfbCashMovement> CfbCashMovements => Set<CfbCashMovement>();
+        public DbSet<TopupRequest> TopupRequests => Set<TopupRequest>();
+        public DbSet<TopupLine> TopupLines => Set<TopupLine>();
+        public DbSet<TopupRequestStatusHistory> TopupRequestStatusHistories => Set<TopupRequestStatusHistory>();
+
+        public DbSet<Penalty> Penalties => Set<Penalty>();
+        public DbSet<AppliedPenalty> AppliedPenalties => Set<AppliedPenalty>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -203,6 +213,72 @@ namespace VMSService.Data.Configurations
 
                 e.HasIndex(x => x.CaseNumber);
             });
+
+
+            // ── CFB ─────────────────────
+            // Each branch has exactly two boxes: one for Notes and one for Coins.
+            modelBuilder.Entity<CfbBox>()
+                .HasIndex(x => new { x.BouBranchId, x.BoxType }).IsUnique();
+            modelBuilder.Entity<CfbBox>()
+                .Property(x => x.BoxType).HasMaxLength(10);
+
+            // Holdings are versioned baselines. Only one row per (box, denomination) may be active at a time.
+            // Inactive rows are retained as baseline history.
+            modelBuilder.Entity<CfbCashHolding>()
+                .HasIndex(x => new { x.CfbBoxId, x.DenominationId })
+                .HasFilter("[IsActive] = 1")
+                .IsUnique()
+                .HasDatabaseName("IX_CfbCashHoldings_Active_Box_Denom");
+            modelBuilder.Entity<CfbCashHolding>()
+                .HasOne(x => x.CfbBox).WithMany(x => x.Holdings)
+                .HasForeignKey(x => x.CfbBoxId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Movement ledger: deviation-type entries only (session losses/surpluses/replenishments).
+            // Top-ups and destructions change the baseline, never write a movement row.
+            modelBuilder.Entity<CfbCashMovement>()
+                .HasOne(x => x.CfbBox).WithMany()
+                .HasForeignKey(x => x.CfbBoxId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<CfbCashMovement>()
+                .HasIndex(x => new { x.CfbBoxId, x.DenominationId, x.OccurredAt });
+            modelBuilder.Entity<CfbCashMovement>()
+                .Property(x => x.MovementType).HasMaxLength(30);
+
+            // ── TopupRequest ─────────────────────
+            modelBuilder.Entity<TopupRequest>()
+                .HasMany(r => r.Lines)
+                .WithOne(l => l.TopupRequest)
+                .HasForeignKey(l => l.TopupRequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<TopupRequest>()
+                .HasMany(r => r.StatusHistory)
+                .WithOne(h => h.TopupRequest)
+                .HasForeignKey(h => h.TopupRequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<TopupRequest>()
+                .HasIndex(r => r.BouBranchId);
+            modelBuilder.Entity<TopupRequest>()
+                .HasIndex(r => r.CurrentStatusId);
+
+            // ── Penalty ─────────────────────
+            modelBuilder.Entity<Penalty>()
+                .HasIndex(x => x.Name)
+                .IsUnique();
+            modelBuilder.Entity<Penalty>()
+                .Property(x => x.PenaltyPercent).HasPrecision(18, 4);
+            modelBuilder.Entity<Penalty>()
+                .Property(x => x.PercentCutOff).HasPrecision(18, 4);
+
+            // ── AppliedPenalty ─────────────────────
+            modelBuilder.Entity<AppliedPenalty>()
+                .HasIndex(x => new { x.SourceId, x.PenaltyId })
+                .IsUnique();
+            modelBuilder.Entity<AppliedPenalty>()
+                .HasOne(x => x.Penalty)
+                .WithMany()
+                .HasForeignKey(x => x.PenaltyId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             // ── BoardSessionSurplusShortage → DepositRequest ─────────────────────────
             modelBuilder.Entity<BoardSessionSurplusShortage>()

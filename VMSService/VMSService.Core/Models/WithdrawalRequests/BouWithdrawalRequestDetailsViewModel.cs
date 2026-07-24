@@ -7,6 +7,7 @@ using VMSService.Core.Models.AgentDetails;
 using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.CbRequests;
 using VMSService.Core.Models.CbWithdrawRequest;
+using VMSService.Core.Models.Penalties;
 using VMSService.Core.Models.WithdrawalRequestDenominations;
 using VMSService.Data.Entities;
 using WorkflowService.Client.Dto;
@@ -64,5 +65,8 @@ namespace VMSService.Core.Models.WithdrawalRequests
         public List<BouDispatchCardViewModel> DispatchedNewBanknotes { get; set; } = new();
         public List<BouDispatchSimpleViewModel> DispatchedReissueBanknotes { get; set; } = new();
         public List<BouDispatchSimpleViewModel> DispatchedCoins { get; set; } = new();
+
+        public IEnumerable<PenaltyChecklistItemViewModel> ApplicablePenalties { get; set; } = [];
+        public IEnumerable<AppliedPenaltyViewModel> AppliedPenalties { get; set; } = [];
     }
 }

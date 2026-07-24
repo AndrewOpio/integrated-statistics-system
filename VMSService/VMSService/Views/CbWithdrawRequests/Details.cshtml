@@ -6,6 +6,10 @@
     ViewData["Title"] = "Withdrawal Request Details";
 }
 
+<a asp-action="Index" asp-controller="CbRequests" class="d-inline-flex align-items-center gap-1 mb-3 text-muted text-decoration-none fw-bold">
+    <i class="ti ti-arrow-left"></i> Back to List
+</a>
+
 @await Html.PartialAsync("~/Views/Shared/_Withdrawal/_WithdrawNavSteps.cshtml", Model.Steps)
 
 

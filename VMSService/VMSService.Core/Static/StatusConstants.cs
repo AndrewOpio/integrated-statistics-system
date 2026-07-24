@@ -53,30 +53,6 @@
             public const string DiscrepancyPendingResolution = "Mismatch Pending Resolution";
             public const string DiscrepancyResolved = "Mismatch Resolved";
         }
-        //public static class WithdrawalRequest
-        //{
-        //    public const string Draft = "Internal Draft";
-        //    public const string PendingInternalApproval = "Pending Internal Approval";
-        //    public const string ReturnedForRevision = "Returned for Internal Revision";
-        //    public const string PendingRTGSVerification = "Pending RTGS Verification";
-        //    public const string VerificationFailed = "Verification Failed";
-        //    public const string PendingWithdrawalConfirmation = "Pending Withdrawal Confirmation";
-        //    public const string PendingExceptionalApproval = "Pending Exceptional Approval";
-        //    public const string RejectExceptionalApproval = "Reject Exceptional Approval";
-        //    public const string PendingVerification = "Pending Verification";
-        //    public const string PendingApproval = "Pending Approval";
-        //    public const string RecallRequested = "Recall Requested";
-        //    public const string RecallApproved = "Recall Approved";
-        //    public const string RecallComplete = "Recall Complete";
-        //    public const string Approved = "Approved";
-        //    public const string Rejected = "Rejected";
-        //    public const string RejectComplete = "Reject Complete";
-        //    public const string Cancelled = "Cancelled";
-        //    public const string CancelComplete = "Cancel Complete";
-        //    public const string Completed = "Completed";
-        //    public const string Expired = "Expired";
-        //    public const string RejectExceptionalApprovalComplete = "Reject Exceptional Approval Complete";
-        //}
 
         public static class AgentDetail
         {
@@ -186,12 +162,13 @@
             public const string StockProcessingPlan = "StockProcessingPlan";
             public const string StockProcessingSession = "StockProcessingSession";
             public const string BagMovement = "BagMovement";
-            public const string DestructionRequest            = "Destruction";
-            public const string DestructionAuthorization      = "DestructionAuthorization";
-            public const string CfbReport                     = "EndOfDayDiscrepancies";
-            public const string MonthlySurpluses              = "MonthlySurpluses";
-            public const string MonthlyShortages              = "MonthlyShortages";
-            public const string MonthlyCommercialBankSettlements      = "MonthlyCommercialBankSettlements";
+            public const string DestructionRequest = "Destruction";
+            public const string DestructionAuthorization = "DestructionAuthorization";
+            public const string CfbReport = "EndOfDayDiscrepancies";
+            public const string MonthlySurpluses = "MonthlySurpluses";
+            public const string MonthlyShortages = "MonthlyShortages";
+            public const string MonthlyCommercialBankSettlements = "MonthlyCommercialBankSettlements";
+            public const string CfbTopupRequest = "CfbTopupRequest";
         }
 
         public static class DenominationName { 

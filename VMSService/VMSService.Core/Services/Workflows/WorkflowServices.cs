@@ -29,6 +29,8 @@ using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.StockMovementStatusHistories;
 using VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
+using VMSService.Core.Repositories.CfbTopupRequests;
+using VMSService.Core.Repositories.CfbTopupStatusHistories;
 using VMSService.Core.Services.Identity;
 using VMSService.Core.Services.Submissions;
 using VMSService.Core.Static;
@@ -71,7 +73,9 @@ namespace VMSService.Core.Services.Workflows
         IMonthlyShortageRepository _monthlyShortageRepository,
         IMonthlyShortageStatusHistoryRepository _monthlyShortageStatusHistoryRepository,
         IMonthlyCommercialBankSettlementRepository _cbSettlementRepository,
-        IMonthlyCommercialBankSettlementStatusHistoryRepository _cbSettlementStatusHistoryRepository) : IWorkflowService
+        IMonthlyCommercialBankSettlementStatusHistoryRepository _cbSettlementStatusHistoryRepository,
+        ITopupRequestRepository _topupRequestRepository,
+        ITopupRequestStatusHistoryRepository _topupHistoryRepository) : IWorkflowService
     {
 
 
@@ -140,6 +144,9 @@ namespace VMSService.Core.Services.Workflows
 
                     case StatusConstants.Entity.MonthlyCommercialBankSettlements:
                         return await HandleMonthlyCommercialBankSettlementTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
+
+                    case StatusConstants.Entity.CfbTopupRequest:
+                        return await HandleCfbTopupRequestTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
 
                     default:
                         _logger.LogWarning("Unknown entity type: {EntityType}", entityType);
@@ -1122,6 +1129,57 @@ namespace VMSService.Core.Services.Workflows
             }
 
             _logger.LogInformation("CB Settlement {Id} transitioned from {From} to {To} by {Username} via action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
+        private async Task<bool> HandleCfbTopupRequestTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition)
+        {
+            var topup = await _topupRequestRepository.FindById(entityId);
+            if (topup == null)
+            {
+                _logger.LogWarning("TopupRequest {Id} not found", entityId);
+                return false;
+            }
+
+            if (topup.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("TopupRequest {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, topup.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new TopupRequestStatusHistory
+            {
+                TopupRequestId = entityId,
+                OldStatusId    = topup.CurrentStatusId,
+                OldStatusName  = topup.CurrentStatusName,
+                NewStatusId    = transition.ToStatusId,
+                NewStatusName  = transition.ToStatus.Name,
+                ChangedBy      = username,
+                ChangedAt      = DateTime.Now,
+                Remarks        = remarks,
+                IsDeleted      = false
+            };
+
+            await _topupHistoryRepository.Create(statusHistory);
+
+            topup.CurrentStatusId   = transition.ToStatusId;
+            topup.CurrentStatusName = transition.ToStatus.Name;
+            await _topupRequestRepository.Update(topup);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"CFB Top-Up Request #{entityId}",
+                    transition,
+                    statusHistory.NewStatusName,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("TopupRequest {Id} transitioned from {From} to {To} by {Username} via action {Action}",
                 entityId, currentStatusId, transition.ToStatusId, username, actionName);
 
             return true;

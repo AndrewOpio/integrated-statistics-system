@@ -22,6 +22,12 @@ using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
 using VMSService.Core.Repositories.Attachments;
 using VMSService.Core.Repositories.Bags;
+using VMSService.Core.Repositories.CfbBoxes;
+using VMSService.Core.Repositories.CfbCashHoldings;
+using VMSService.Core.Repositories.CfbMovements;
+using VMSService.Core.Repositories.CfbTopupRequests;
+using VMSService.Core.Repositories.CfbTopupStatusHistories;
+using VMSService.Core.Repositories.CfbUnitOfWorks;
 using VMSService.Core.Repositories.BranchCategories;
 using VMSService.Core.Repositories.Branches;
 using VMSService.Core.Repositories.Categories;
@@ -52,6 +58,8 @@ using VMSService.Core.Repositories.MinDepositStandards;
 using VMSService.Core.Repositories.NewStockMovementLogs;
 using VMSService.Core.Repositories.PackingListRangeDetails;
 using VMSService.Core.Repositories.PackingListRanges;
+using VMSService.Core.Repositories.AppliedPenalties;
+using VMSService.Core.Repositories.Penalties;
 using VMSService.Core.Repositories.ReceivedStocks;
 using VMSService.Core.Repositories.ReceivedStocksDetails;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
@@ -290,6 +298,14 @@ builder.Services.AddScoped<IMonthlyShortageStatusHistoryRepository, MonthlyShort
 builder.Services.AddScoped<IMonthlyCommercialBankSettlementRepository, MonthlyCommercialBankSettlementRepository>();
 builder.Services.AddScoped<IMonthlyCommercialBankSettlementStatusHistoryRepository, MonthlyCommercialBankSettlementStatusHistoryRepository>();
 builder.Services.AddScoped<IAttachmentRepository, AttachmentRepository>();
+builder.Services.AddScoped<ICfbBoxRepository, CfbBoxRepository>();
+builder.Services.AddScoped<ICfbCashHoldingRepository, CfbCashHoldingRepository>();
+builder.Services.AddScoped<ICfbMovementRepository, CfbMovementRepository>();
+builder.Services.AddScoped<ITopupRequestRepository, TopupRequestRepository>();
+builder.Services.AddScoped<ITopupRequestStatusHistoryRepository, TopupRequestStatusHistoryRepository>();
+builder.Services.AddScoped<ICfbUnitOfWork, CfbUnitOfWork>();
+builder.Services.AddScoped<IPenaltyRepository, PenaltyRepository>();
+builder.Services.AddScoped<IAppliedPenaltyRepository, AppliedPenaltyRepository>();
 
 // ── Resource-based ownership check ────────────────────────────
 builder.Services.AddSingleton<IAuthorizationHandler, CbOwnershipAuthorizationHandler>();

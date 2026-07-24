@@ -8,13 +8,16 @@ using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.CbDepositRequests;
 using VMSService.Core.Models.CbRequests;
 using VMSService.Core.Models.CbWithdrawRequest;
+using VMSService.Core.Models.Penalties;
 using VMSService.Core.Models.WithdrawalRequestDenominations;
 using VMSService.Core.Models.WithdrawalRequests;
 using VMSService.Core.Repositories.AgentDetails;
+using VMSService.Core.Repositories.AppliedPenalties;
 using VMSService.Core.Repositories.Attachments;
 using VMSService.Core.Repositories.Categories;
 using VMSService.Core.Repositories.CounterPartyTypes;
 using VMSService.Core.Repositories.Denominations;
+using VMSService.Core.Repositories.Penalties;
 using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Repositories.WithdrawalRequestDenominations;
@@ -42,12 +45,14 @@ namespace VMSService.Web.Controllers
         IWithdrawalRequestDenominationRepository _wrDenomRepo,
         IAttachmentRepository _attachmentRepository,
         IWithdrawalUnitOfWork _uow,
-        IWithdrawalStatusResolver _statusResolver,
+        //IWithdrawalStatusResolver _statusResolver,
         IWebHostEnvironment _environment,
         IStockMovementRepository _stockMovementRepository,
         IStockLedgerRepository _stockLedgerRepository,
         ICategoryRepository _categoryRepository,
         ICounterPartyTypeRepository _counterPartyTypeRepository,
+        IPenaltyRepository _penaltyRepository,
+        IAppliedPenaltyRepository _appliedPenaltyRepository,
         ILogger<WithdrawalRequestsController> _logger,
         IMapper _mapper) : Controller
     {
@@ -529,8 +534,115 @@ namespace VMSService.Web.Controllers
                 })
                 .ToList();
 
+            // ── Penalties ─────────────────────
+            if (!string.IsNullOrEmpty(request.TransactionRefNumber))
+            {
+                var appliedPenalties = await _appliedPenaltyRepository.FindBySourceId(request.TransactionRefNumber);
+                vm.AppliedPenalties = appliedPenalties.Select(a => new AppliedPenaltyViewModel
+                {
+                    Id = a.Id,
+                    PenaltyId = a.PenaltyId,
+                    PenaltyName = a.Penalty?.Name ?? string.Empty,
+                    ChargeValue = a.ChargeValue,
+                    Quantity = a.Quantity,
+                    IsSettledOnRtgs = a.IsSettledOnRtgs,
+                    RtgsCode = a.RtgsCode,
+                    RtgsSettlingMessage = a.RtgsSettlingMessage,
+                    AppliedBy = a.CreatedBy,
+                    AppliedAt = a.CreatedDate,
+                }).ToList();
+
+                if (request.StatusTypeName == WithdrawalStatusNames.PendingVerification && vm.AvailableTransitions.Any())
+                {
+                    var appliedPenaltyIds = appliedPenalties.Select(a => a.PenaltyId).ToHashSet();
+                    var applicablePenalties = await _penaltyRepository.FindApplicableFor(PenaltyConstants.AppliesTo.PreTransaction);
+                    vm.ApplicablePenalties = applicablePenalties.Select(p => new PenaltyChecklistItemViewModel
+                    {
+                        Id = p.Id,
+                        Name = p.Name,
+                        Description = p.Description,
+                        PenaltyValue = p.PenaltyValue,
+                        IsChecked = appliedPenaltyIds.Contains(p.Id),
+                    }).ToList();
+                }
+            }
 
             return View(vm);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ApplyPenalties(Guid id, List<int>? penaltyIds)
+        {
+            var request = await _uow.Requests.FindById(id);
+            if (request is null)
+            {
+                TempData["Error"] = "Withdrawal request not found.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (request.StatusTypeName != WithdrawalStatusNames.PendingVerification)
+            {
+                TempData["Error"] = "Penalties can only be applied while the request is Pending Verification.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (string.IsNullOrEmpty(request.TransactionRefNumber))
+            {
+                TempData["Error"] = "This request does not have a transaction reference number yet.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            // Same check used to gate the workflow action buttons — only someone whose role has an
+            // available transition on this request right now may apply/adjust its penalties.
+            var hasAvailableTransition = false;
+            foreach (var roleId in GetUserRoleIds())
+            {
+                var roleTransitions = await _workflowService.GetAvailableTransitionsAsync(
+                    StatusConstants.Entity.WithdrawalRequest, request.StatusTypeId, roleId);
+                if (roleTransitions.Any())
+                {
+                    hasAvailableTransition = true;
+                    break;
+                }
+            }
+
+            if (!hasAvailableTransition)
+            {
+                TempData["Error"] = "You are not authorized to act on this request at its current status.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            try
+            {
+                var checkedPenaltyIds = (penaltyIds ?? []).ToHashSet();
+                var currentlyApplied = await _appliedPenaltyRepository.FindBySourceId(request.TransactionRefNumber);
+
+                foreach (var penaltyId in checkedPenaltyIds)
+                {
+                    await _appliedPenaltyRepository.Apply(
+                        PenaltyConstants.Source.Withdrawal, request.TransactionRefNumber, penaltyId);
+                }
+
+                foreach (var applied in currentlyApplied.Where(a => !checkedPenaltyIds.Contains(a.PenaltyId)))
+                {
+                    await _appliedPenaltyRepository.Remove(applied.Id);
+                }
+
+                await _appliedPenaltyRepository.Save();
+                TempData["Success"] = "Penalties updated.";
+            }
+            catch (InvalidOperationException ex)
+            {
+                TempData["Error"] = ex.Message;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error applying penalties to withdrawal request {Id}", id);
+                TempData["Error"] = "An error occurred while updating penalties.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         [HttpGet]

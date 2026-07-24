@@ -91,7 +91,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("AgentDetails");
+                    b.ToTable("AgentDetails", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.AgentDetailStatusHistory", b =>
@@ -145,7 +145,70 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("AgentDetailId");
 
-                    b.ToTable("AgentDetailStatusHistory");
+                    b.ToTable("AgentDetailStatusHistory", (string)null);
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.AppliedPenalty", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("ChargeValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("DenomValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("IsSettledOnRtgs")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("PenaltyId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RtgsCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RtgsSettlingMessage")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("SourceId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PenaltyId");
+
+                    b.HasIndex("SourceId", "PenaltyId")
+                        .IsUnique();
+
+                    b.ToTable("AppliedPenalties", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ApprovedCurrencyDenomination", b =>
@@ -194,7 +257,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("CurrencyVendorId");
 
-                    b.ToTable("ApprovedCurrencyDenominations");
+                    b.ToTable("ApprovedCurrencyDenominations", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ApprovedCurrencyProcurement", b =>
@@ -238,7 +301,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ApprovedCurrencyProcurements");
+                    b.ToTable("ApprovedCurrencyProcurements", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ApprovedCurrencyStatusHistory", b =>
@@ -300,7 +363,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("ApprovedCurrencyProcurementId");
 
-                    b.ToTable("ApprovedCurrencyStatusHistory");
+                    b.ToTable("ApprovedCurrencyStatusHistory", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.Attachment", b =>
@@ -358,7 +421,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Attachments");
+                    b.ToTable("Attachments", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.BPSMachine", b =>
@@ -395,7 +458,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("BPSMachines");
+                    b.ToTable("BPSMachines", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.Bag", b =>
@@ -452,7 +515,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("VaultSectionId");
 
-                    b.ToTable("Bags");
+                    b.ToTable("Bags", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.BagDenomination", b =>
@@ -495,7 +558,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("DepositRequestDenominationId");
 
-                    b.ToTable("BagDenominations");
+                    b.ToTable("BagDenominations", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.BagMovement", b =>
@@ -543,7 +606,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("OldVaultSectionId");
 
-                    b.ToTable("BagMovements");
+                    b.ToTable("BagMovements", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.BagMovementStatusHistory", b =>
@@ -597,7 +660,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("BagMovementId");
 
-                    b.ToTable("BagMovementStatusHistory");
+                    b.ToTable("BagMovementStatusHistory", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.BaggedBag", b =>
@@ -637,7 +700,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("ParentBagId");
 
-                    b.ToTable("BaggedBags");
+                    b.ToTable("BaggedBags", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.BoardSessionDifferentDenom", b =>
@@ -661,7 +724,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("BoardSessionSurplusShortageId");
 
-                    b.ToTable("BoardSessionDifferentDenoms");
+                    b.ToTable("BoardSessionDifferentDenoms", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.BoardSessionSurplusShortage", b =>
@@ -720,7 +783,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("DepositRequestId");
 
-                    b.ToTable("BoardSessionSurplusShortages");
+                    b.ToTable("BoardSessionSurplusShortages", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.BoxState", b =>
@@ -784,7 +847,303 @@ namespace VMSService.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("UQ_BoxState_Box_Denom_Branch");
 
-                    b.ToTable("BoxStates");
+                    b.ToTable("BoxStates", (string)null);
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.CfbBox", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BouBranchCode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("BouBranchId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("BoxType")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BouBranchId", "BoxType")
+                        .IsUnique();
+
+                    b.ToTable("CfbBoxes", (string)null);
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.CfbCashHolding", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("CfbBoxId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DenomValue")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DenominationId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CfbBoxId", "DenominationId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_CfbCashHoldings_Active_Box_Denom")
+                        .HasFilter("[IsActive] = 1");
+
+                    b.ToTable("CfbCashHoldings", (string)null);
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.CfbCashMovement", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("AmountChange")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("CfbBoxId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DenomValue")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DenominationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("MovementType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("SourceId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CfbBoxId", "DenominationId", "OccurredAt");
+
+                    b.ToTable("CfbCashMovements", (string)null);
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.TopupRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BouBranchId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CurrentStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CurrentStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Justification")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BouBranchId");
+
+                    b.HasIndex("CurrentStatusId");
+
+                    b.ToTable("TopupRequests", (string)null);
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.TopupLine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("BaselineBeforeTopup")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("CfbBoxId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DenomValue")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DenominationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("TopupRequestId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TopupRequestId");
+
+                    b.ToTable("TopupLines", (string)null);
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.TopupRequestStatusHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ChangedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("NewStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("NewStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("OldStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("OldStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TopupRequestId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TopupRequestId");
+
+                    b.ToTable("TopupRequestStatusHistories", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.CountingRoom", b =>
@@ -821,7 +1180,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("CountingRooms");
+                    b.ToTable("CountingRooms", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.CountingRoomSession", b =>
@@ -864,7 +1223,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("StockProcessingPlanId");
 
-                    b.ToTable("CountingRoomSessions");
+                    b.ToTable("CountingRoomSessions", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.CurrencyVendor", b =>
@@ -910,7 +1269,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("VendorTypeId");
 
-                    b.ToTable("CurrencyVendors");
+                    b.ToTable("CurrencyVendors", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.DepositFee", b =>
@@ -973,7 +1332,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("FeeTypeId");
 
-                    b.ToTable("DepositFees");
+                    b.ToTable("DepositFees", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.DepositProcessingFee", b =>
@@ -1021,7 +1380,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("DepositProcessingFees");
+                    b.ToTable("DepositProcessingFees", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.DepositRequest", b =>
@@ -1103,7 +1462,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("DepositRequests");
+                    b.ToTable("DepositRequests", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.DepositRequestAgent", b =>
@@ -1152,7 +1511,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("DepositRequestId");
 
-                    b.ToTable("DepositRequestAgents");
+                    b.ToTable("DepositRequestAgents", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.DepositRequestDenomination", b =>
@@ -1207,7 +1566,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("DepositRequestId");
 
-                    b.ToTable("DepositRequestDenominations");
+                    b.ToTable("DepositRequestDenominations", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.DepositRequestStatusHistory", b =>
@@ -1259,7 +1618,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("DepositRequestId");
 
-                    b.ToTable("DepositRequestStatusHistory");
+                    b.ToTable("DepositRequestStatusHistory", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.DestructionAuthorization", b =>
@@ -1300,7 +1659,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("DestructionAuthorizations");
+                    b.ToTable("DestructionAuthorizations", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.DestructionAuthorizationDenomination", b =>
@@ -1341,7 +1700,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("DestructionAuthorizationId");
 
-                    b.ToTable("DestructionAuthorizationDenominations");
+                    b.ToTable("DestructionAuthorizationDenominations", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.DestructionAuthorizationStatusHistory", b =>
@@ -1400,7 +1759,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("DestructionAuthorizationId");
 
-                    b.ToTable("DestructionAuthorizationStatusHistory");
+                    b.ToTable("DestructionAuthorizationStatusHistory", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.DestructionLocation", b =>
@@ -1437,7 +1796,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("DestructionLocations");
+                    b.ToTable("DestructionLocations", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.DestructionRequest", b =>
@@ -1500,7 +1859,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("DestructionTypeId");
 
-                    b.ToTable("DestructionRequests");
+                    b.ToTable("DestructionRequests", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.DestructionRequestDenomination", b =>
@@ -1547,7 +1906,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("DestructionRequestId");
 
-                    b.ToTable("DestructionRequestDenominations");
+                    b.ToTable("DestructionRequestDenominations", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.DestructionRequestMember", b =>
@@ -1590,7 +1949,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("DestructionRequestId");
 
-                    b.ToTable("DestructionRequestMembers");
+                    b.ToTable("DestructionRequestMembers", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.DestructionRequestStatusHistory", b =>
@@ -1652,7 +2011,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("DestructionRequestId");
 
-                    b.ToTable("DestructionRequestStatusHistory");
+                    b.ToTable("DestructionRequestStatusHistory", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.DestructionType", b =>
@@ -1689,7 +2048,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("DestructionTypes");
+                    b.ToTable("DestructionTypes", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.EodDiscrepancyReport", b =>
@@ -1736,7 +2095,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("EodDiscrepancyReports");
+                    b.ToTable("EodDiscrepancyReports", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.EodDiscrepancyReportEntry", b =>
@@ -1760,7 +2119,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("EodDiscrepancyReportId");
 
-                    b.ToTable("EodDiscrepancyReportEntries");
+                    b.ToTable("EodDiscrepancyReportEntries", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.EodDiscrepancyReportStatusHistory", b =>
@@ -1820,7 +2179,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("EodDiscrepancyReportId");
 
-                    b.ToTable("EodDiscrepancyReportStatusHistories");
+                    b.ToTable("EodDiscrepancyReportStatusHistories", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ExPrintMint", b =>
@@ -1884,7 +2243,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("CurrencyVendorId");
 
-                    b.ToTable("ExPrintMints");
+                    b.ToTable("ExPrintMints", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ExPrintMintDetail", b =>
@@ -1931,7 +2290,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("ExPrintMintId");
 
-                    b.ToTable("ExPrintMintDetails");
+                    b.ToTable("ExPrintMintDetails", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ExPrintMintStatusHistory", b =>
@@ -1993,7 +2352,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("ExPrintMintId");
 
-                    b.ToTable("ExPrintMintStatusHistory");
+                    b.ToTable("ExPrintMintStatusHistory", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.FeeType", b =>
@@ -2024,7 +2383,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("FeeTypes");
+                    b.ToTable("FeeTypes", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.Logistics", b =>
@@ -2077,7 +2436,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Logistics");
+                    b.ToTable("Logistics", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.LogisticsCategory", b =>
@@ -2116,7 +2475,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("LogisticsId");
 
-                    b.ToTable("LogisticsCategories");
+                    b.ToTable("LogisticsCategories", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.LogisticsDetail", b =>
@@ -2175,7 +2534,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("LogisticsCategoryId");
 
-                    b.ToTable("LogisticsDetails");
+                    b.ToTable("LogisticsDetails", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.LogisticsStatusHistory", b =>
@@ -2231,7 +2590,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("LogisticsId");
 
-                    b.ToTable("LogisticsStatusHistory");
+                    b.ToTable("LogisticsStatusHistory", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.MinDepositStandard", b =>
@@ -2273,7 +2632,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("MinDepositStandards");
+                    b.ToTable("MinDepositStandards", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.MonthlyCommercialBankSettlement", b =>
@@ -2329,7 +2688,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("MonthlyCommercialBankSettlements");
+                    b.ToTable("MonthlyCommercialBankSettlements", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.MonthlyCommercialBankSettlementStatusHistory", b =>
@@ -2391,7 +2750,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("MonthlyCommercialBankSettlementId");
 
-                    b.ToTable("MonthlyCommercialBankSettlementStatusHistories");
+                    b.ToTable("MonthlyCommercialBankSettlementStatusHistories", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.MonthlyShortage", b =>
@@ -2444,7 +2803,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("MonthlyShortages");
+                    b.ToTable("MonthlyShortages", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.MonthlyShortageDetail", b =>
@@ -2474,7 +2833,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("MonthlyShortageId");
 
-                    b.ToTable("MonthlyShortageDetails");
+                    b.ToTable("MonthlyShortageDetails", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.MonthlyShortageStatusHistory", b =>
@@ -2536,7 +2895,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("MonthlyShortageId");
 
-                    b.ToTable("MonthlyShortageStatusHistories");
+                    b.ToTable("MonthlyShortageStatusHistories", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.MonthlySurplus", b =>
@@ -2595,7 +2954,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("MonthlySurpluses");
+                    b.ToTable("MonthlySurpluses", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.MonthlySurplusStatusHistory", b =>
@@ -2657,7 +3016,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("MonthlySurplusId");
 
-                    b.ToTable("MonthlySurplusStatusHistories");
+                    b.ToTable("MonthlySurplusStatusHistories", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.NewCaseFullStatusTypes", b =>
@@ -2692,7 +3051,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("NewCaseFullStatusTypes");
+                    b.ToTable("NewCaseFullStatusTypes", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.NewStockAccountingStatus", b =>
@@ -2727,7 +3086,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("NewStockAccountingStatuses");
+                    b.ToTable("NewStockAccountingStatuses", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.NewStockMovementlog", b =>
@@ -2780,7 +3139,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("StockMovementId");
 
-                    b.ToTable("NewStockMovementLogs");
+                    b.ToTable("NewStockMovementLogs", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.PackingListDetails", b =>
@@ -2821,7 +3180,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("PackingListRangeId");
 
-                    b.ToTable("PackingListDetails");
+                    b.ToTable("PackingListDetails", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.PackingListRange", b =>
@@ -2878,7 +3237,74 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("ExpectedStockId");
 
-                    b.ToTable("PackingListRanges");
+                    b.ToTable("PackingListRanges", (string)null);
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.Penalty", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("AppliesTo")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<TimeOnly?>("CutOffTime")
+                        .HasColumnType("time");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal?>("PenaltyMultiplier")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PenaltyPercent")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal?>("PenaltyValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PercentCutOff")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Penalties", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ProcessingBoard", b =>
@@ -2925,7 +3351,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("CountingRoomId");
 
-                    b.ToTable("ProcessingBoards");
+                    b.ToTable("ProcessingBoards", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ProcessingSessionBag", b =>
@@ -2965,7 +3391,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("StockProcessingSessionId");
 
-                    b.ToTable("ProcessingSessionBags");
+                    b.ToTable("ProcessingSessionBags", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ReceivedStatusTypes", b =>
@@ -3000,7 +3426,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ReceivedStatusTypes");
+                    b.ToTable("ReceivedStatusTypes", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ReceivedStock", b =>
@@ -3095,7 +3521,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("ReceivedStatusTypesId");
 
-                    b.ToTable("ReceivedStock");
+                    b.ToTable("ReceivedStock", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ReceivedStockDetails", b =>
@@ -3141,7 +3567,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("ReceivedStockId");
 
-                    b.ToTable("ReceivedStockDetails");
+                    b.ToTable("ReceivedStockDetails", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ReceivedStockStatusHistory", b =>
@@ -3203,7 +3629,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("ReceivedStockId");
 
-                    b.ToTable("ReceivedStockStatusHistory");
+                    b.ToTable("ReceivedStockStatusHistory", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.SessionBag", b =>
@@ -3248,7 +3674,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("StockProcessingPlanId");
 
-                    b.ToTable("SessionBags");
+                    b.ToTable("SessionBags", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.StockMovement", b =>
@@ -3313,7 +3739,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("LogisticsId");
 
-                    b.ToTable("StockMovements");
+                    b.ToTable("StockMovements", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.StockMovementDenomination", b =>
@@ -3356,7 +3782,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("StockMovementId");
 
-                    b.ToTable("StockMovementDenominations");
+                    b.ToTable("StockMovementDenominations", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.StockMovementDenominationBoxNumberRange", b =>
@@ -3386,7 +3812,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("StockMovementDenominationId");
 
-                    b.ToTable("StockMovementDenominationBoxNumberRanges");
+                    b.ToTable("StockMovementDenominationBoxNumberRanges", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.StockMovementDiscrepancy", b =>
@@ -3425,7 +3851,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("StockMovementId");
 
-                    b.ToTable("StockMovementDiscrepancies");
+                    b.ToTable("StockMovementDiscrepancies", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.StockMovementStatusHistory", b =>
@@ -3487,7 +3913,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("StockMovementId");
 
-                    b.ToTable("StockMovementStatusHistory");
+                    b.ToTable("StockMovementStatusHistory", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.StockProcessingPlan", b =>
@@ -3531,7 +3957,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("StockMovementId");
 
-                    b.ToTable("StockProcessingPlans");
+                    b.ToTable("StockProcessingPlans", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.StockProcessingPlanStatusHistory", b =>
@@ -3585,7 +4011,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("StockProcessingPlanId");
 
-                    b.ToTable("StockProcessingPlanStatusHistory");
+                    b.ToTable("StockProcessingPlanStatusHistory", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.StockProcessingResult", b =>
@@ -3638,7 +4064,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("StockProcessingSessionId");
 
-                    b.ToTable("StockProcessingResults");
+                    b.ToTable("StockProcessingResults", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.StockProcessingSession", b =>
@@ -3697,7 +4123,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("StockProcessingPlanId");
 
-                    b.ToTable("StockProcessingSessions");
+                    b.ToTable("StockProcessingSessions", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.StockProcessingSessionStatusHistory", b =>
@@ -3751,7 +4177,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("StockProcessingSessionId");
 
-                    b.ToTable("StockProcessingSessionStatusHistory");
+                    b.ToTable("StockProcessingSessionStatusHistory", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.Vault", b =>
@@ -3791,7 +4217,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Vaults");
+                    b.ToTable("Vaults", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.VaultSection", b =>
@@ -3833,7 +4259,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("VaultId");
 
-                    b.ToTable("VaultSections");
+                    b.ToTable("VaultSections", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.VendorType", b =>
@@ -3870,7 +4296,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("VendorTypes");
+                    b.ToTable("VendorTypes", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.WithdrawalRequest", b =>
@@ -3983,7 +4409,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("CbId", "BouBranchId", "CollectionDate");
 
-                    b.ToTable("WithdrawalRequests");
+                    b.ToTable("WithdrawalRequests", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.WithdrawalRequestAgent", b =>
@@ -4032,7 +4458,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("WithdrawalRequestId", "EnteredBy");
 
-                    b.ToTable("WithdrawalRequestAgents");
+                    b.ToTable("WithdrawalRequestAgents", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.WithdrawalRequestDenomination", b =>
@@ -4088,7 +4514,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("WithdrawalRequestId", "Origin");
 
-                    b.ToTable("WithdrawalRequestDenominations");
+                    b.ToTable("WithdrawalRequestDenominations", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.WithdrawalRequestDenominationBox", b =>
@@ -4139,7 +4565,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("WithdrawalRequestDenominationId");
 
-                    b.ToTable("WithdrawalRequestDenominationBoxes");
+                    b.ToTable("WithdrawalRequestDenominationBoxes", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.WithdrawalRequestStatusHistory", b =>
@@ -4196,7 +4622,7 @@ namespace VMSService.Data.Migrations
 
                     b.HasIndex("WithdrawalRequestId");
 
-                    b.ToTable("WithdrawalRequestStatusHistory");
+                    b.ToTable("WithdrawalRequestStatusHistory", (string)null);
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.AgentDetailStatusHistory", b =>
@@ -4208,6 +4634,17 @@ namespace VMSService.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("AgentDetail");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.AppliedPenalty", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.Penalty", "Penalty")
+                        .WithMany()
+                        .HasForeignKey("PenaltyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Penalty");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ApprovedCurrencyDenomination", b =>
@@ -4355,6 +4792,50 @@ namespace VMSService.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("PackingListDetails");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.CfbCashHolding", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.CfbBox", "CfbBox")
+                        .WithMany("Holdings")
+                        .HasForeignKey("CfbBoxId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CfbBox");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.CfbCashMovement", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.CfbBox", "CfbBox")
+                        .WithMany()
+                        .HasForeignKey("CfbBoxId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CfbBox");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.TopupLine", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.TopupRequest", "TopupRequest")
+                        .WithMany("Lines")
+                        .HasForeignKey("TopupRequestId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("TopupRequest");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.TopupRequestStatusHistory", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.TopupRequest", "TopupRequest")
+                        .WithMany("StatusHistory")
+                        .HasForeignKey("TopupRequestId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("TopupRequest");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.CountingRoomSession", b =>
@@ -5009,6 +5490,18 @@ namespace VMSService.Data.Migrations
             modelBuilder.Entity("VMSService.Data.Entities.BoardSessionSurplusShortage", b =>
                 {
                     b.Navigation("DifferentDenoms");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.CfbBox", b =>
+                {
+                    b.Navigation("Holdings");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.TopupRequest", b =>
+                {
+                    b.Navigation("Lines");
+
+                    b.Navigation("StatusHistory");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.DepositRequest", b =>

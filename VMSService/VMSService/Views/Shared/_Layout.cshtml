@@ -34,6 +34,8 @@
     bool isAssistantBranchManager = userRoles.Contains(SystemPolicy.Roles.StockVerifier);
     bool isPanelA = userRoles.Contains(SystemPolicy.Roles.PanelA);
     bool isPanelB = userRoles.Contains(SystemPolicy.Roles.PanelB);
+    bool isCfbSupervisor = userRoles.Contains(SystemPolicy.Roles.CfbSupervisor);
+    bool isVerificationOfficer = userRoles.Contains(SystemPolicy.Roles.VerificationOfficer);
 
     // bool isCommercialBank = userRoles.Contains($"{SystemSettings.AppAcronym}:Commercial Bank");
     // bool isStockReceiver = userRoles.Contains($"{SystemSettings.AppAcronym}:StockReceiver");
@@ -177,11 +179,7 @@
                                 <span class="sidebar-text">Commercial Banks</span>
                             </span>
                             <span class="link-arrow">
-                                <svg class="icon icon-sm" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                    <path fill-rule="evenodd"
-                                          d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                                          clip-rule="evenodd"></path>
-                                </svg>
+                                <i class="ti ti-chevron-right icon icon-sm"></i>
                             </span>
                         </span>
                         <div class="multi-level collapse" role="list" id="submenucb-app" aria-expanded="false">
@@ -254,6 +252,42 @@
                                 <li class="nav-item">
                                     <a asp-controller="StockProcessingPlan" asp-action="Index" class="nav-link">
                                         <span class="sidebar-text">Processing Plans</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </li>
+
+                }
+
+                @if (isCfbSupervisor || isVerificationOfficer || isCurrencyApprover || isRemittancesOfficer || isBackOffice || isPanelB || isPanelA  )
+                {
+                    <li class="nav-item">
+                        <span class="nav-link collapsed d-flex justify-content-between align-items-center"
+                              data-bs-toggle="collapse" data-bs-target="#submenucfb-app">
+                            <span class="d-flex align-items-center">
+                                <span class="sidebar-icon fs-5 me-4">
+                                    <i class="ti ti-cash"></i>
+                                </span>
+                                <span class="sidebar-text">CFB</span>
+                            </span>
+                            <span class="link-arrow">
+                                <i class="ti ti-chevron-right icon icon-sm"></i>
+                            </span>
+                        </span>
+                        <div class="multi-level collapse" role="list" id="submenucfb-app" aria-expanded="false">
+                            <ul class="flex-column nav">
+                                @if (isCfbSupervisor || isRemittancesOfficer || isBackOffice)
+                                {
+                                    <li class="nav-item">
+                                        <a asp-controller="Cfb" asp-action="Index" class="nav-link d-flex align-items-center">
+                                            <span class="sidebar-text">CFB Position</span>
+                                        </a>
+                                    </li>
+                                }
+                                <li class="nav-item">
+                                    <a asp-controller="CfbTopup" asp-action="Index" class="nav-link d-flex align-items-center">
+                                        <span class="sidebar-text">Top-Up Request</span>
                                     </a>
                                 </li>
                             </ul>
@@ -453,6 +487,11 @@
                                 <li class="nav-item">
                                     <a asp-controller="DepositProcessingFees" asp-action="Index" class="nav-link">
                                         <span class="sidebar-text">Deposit Processing Fees</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a asp-controller="Penalties" asp-action="Index" class="nav-link">
+                                        <span class="sidebar-text">Penalty Catalog</span>
                                     </a>
                                 </li>
                             </ul>

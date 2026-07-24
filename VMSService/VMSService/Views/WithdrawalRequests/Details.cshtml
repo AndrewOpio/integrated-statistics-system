@@ -7,6 +7,10 @@
 
 }
 
+<a asp-action="Index" asp-controller="WithdrawalRequests" class="d-inline-flex align-items-center gap-1 mb-3 text-muted text-decoration-none fw-bold">
+    <i class="ti ti-arrow-left"></i> Back to List
+</a>
+
 @* ── Hero Header ── *@
 <div class="rounded-2 p-4 mb-3" style="background:linear-gradient(135deg, #b31b34 15%, #c9973a 100%);">
 
@@ -134,7 +138,7 @@
                         {
                             @if (Model.StatusName == WithdrawConstants.WithdrawalStatusNames.Expired)
                             {
-                                <span class="badge bg-secondary">
+                                <span class="badge bg-danger">
                                     <i class="ti ti-ban me-1"></i> Not Provided — Request Expired
                                 </span>
                             }
@@ -431,6 +435,9 @@
         @* ── Denominations ── *@
         @await Html.PartialAsync("~/Views/Shared/_Withdrawal/_BouDenominationSection.cshtml", Model)
 
+        @* ── Penalties ── *@
+        @await Html.PartialAsync("_PenaltiesSection", Model)
+
         @* ── Comments / Status History ── *@
         <div class="card border-0 shadow-sm mb-3">
             <div class="card-body">
@@ -715,6 +722,13 @@
 @if (Model.CanEditDispatch)
 {
     @await Html.PartialAsync("~/Views/Shared/_Withdrawal/_BouDenominationEditModal.cshtml", Model)
+}
+
+@* Penalties Modal *@
+
+@if (Model.ApplicablePenalties.Any())
+{
+    @await Html.PartialAsync("_PenaltiesModal", Model)
 }
 
 
