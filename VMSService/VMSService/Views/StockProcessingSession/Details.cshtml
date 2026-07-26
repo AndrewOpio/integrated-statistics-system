@@ -76,6 +76,9 @@
         </div>
     </div>
     <div class="d-flex align-items-center gap-2 flex-wrap">
+        <a asp-action="SendCfbRequest" asp-route-sessionId="@Model.Id" class="btn btn-sm btn-outline-tertiary">
+            <i class="ti ti-send me-1"></i>New CFB Request
+        </a>
         <span class="badge bg-@statusColor px-3 py-2 rounded-pill fs-small">
             <i class="ti ti-circle-filled me-1"></i>@Model.CurrentStatusName
         </span>
@@ -320,15 +323,10 @@
                             <th class="ps-4 py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">#</th>
                             <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">COUNT</th>
                             <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">MONEY WITH BOARD</th>
-                            @if (Model.IsManual)
+                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">CANCELED VALUE</th>
+                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">REISSUE VALUE</th>
+                            @if (!Model.IsManual)
                             {
-                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">CANCELED VALUE</th>
-                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">REISSUE VALUE</th>
-                            }
-                            else
-                            {
-                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">FIT VALUE</th>
-                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">UNFIT/SHRED VALUE</th>
                                 <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">FIT/SHRED VALUE</th>
                             }
                             <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">VERIFIED</th>
@@ -349,23 +347,14 @@
                                     }
                                     else { <span class="text-muted">—</span> }
                                 </td>
-                                @if (Model.IsManual)
+                                <td class="py-2">
+                                    @if (r.CanceledValue > 0) { <text>UGX @r.CanceledValue.ToString("N0")</text> } else { <span class="text-muted">—</span> }
+                                </td>
+                                <td class="py-2">
+                                    @if (r.ReissueValue > 0) { <text>UGX @r.ReissueValue.ToString("N0")</text> } else { <span class="text-muted">—</span> }
+                                </td>
+                                @if (!Model.IsManual)
                                 {
-                                    <td class="py-2">
-                                        @if (r.CanceledValue > 0) { <text>UGX @r.CanceledValue.ToString("N0")</text> } else { <span class="text-muted">—</span> }
-                                    </td>
-                                    <td class="py-2">
-                                        @if (r.ReissueValue > 0) { <text>UGX @r.ReissueValue.ToString("N0")</text> } else { <span class="text-muted">—</span> }
-                                    </td>
-                                }
-                                else
-                                {
-                                    <td class="py-2">
-                                        @if (r.FitValue > 0) { <text>UGX @r.FitValue.ToString("N0")</text> } else { <span class="text-muted">—</span> }
-                                    </td>
-                                    <td class="py-2">
-                                        @if (r.UnfitShredValue > 0) { <text>UGX @r.UnfitShredValue.ToString("N0")</text> } else { <span class="text-muted">—</span> }
-                                    </td>
                                     <td class="py-2">
                                         @if (r.FitShredValue > 0) { <text>UGX @r.FitShredValue.ToString("N0")</text> } else { <span class="text-muted">—</span> }
                                     </td>
@@ -393,13 +382,9 @@
                                                 title="Edit result"
                                                 data-bs-toggle="modal" data-bs-target="#editResultModal"
                                                 data-id="@r.Id"
-                                                data-count="@r.Count"
-                                                data-unprocessed="@r.UnProcessedValue"
-                                                data-fit="@r.FitValue"
-                                                data-unfitshred="@r.UnfitShredValue"
-                                                data-fitshred="@r.FitShredValue"
-                                                data-canceled="@r.CanceledValue"
-                                                data-reissue="@r.ReissueValue">
+                                                data-fitshred="@r.FitShredValue.ToString("F0")"
+                                                data-canceled="@r.CanceledValue.ToString("F0")"
+                                                data-reissue="@r.ReissueValue.ToString("F0")">
                                             <i class="ti ti-pencil"></i>
                                         </button>
                                     }
@@ -436,7 +421,7 @@
                 && Model.CurrentStatusName == StatusConstants.StockProcessingSession.Open)
         {
             <div class="p-4 @(Model.Results.Any() ? "border-top" : "")">
-                <div class="d-flex align-items-center gap-2 mb-3">
+                <div class="d-flex align-items-center gap-2 mb-3 border-top pt-3">
                     <i class="ti ti-plus-circle" style="color:#31316A;font-size:1.1rem;"></i>
                     <h6 class="fw-bold mb-0" style="color:#31316A;">Save New Result</h6>
                 </div>
@@ -446,88 +431,68 @@
                     <input type="hidden" name="SessionId" value="@Model.Id" />
 
                     <div class="row g-3">
-                        <div class="col-12 col-md-3">
-                            <label class="form-label fw-semibold small" style="color:#31316A;">
-                                Count <span class="text-danger">*</span>
-                            </label>
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text bg-light"><i class="ti ti-hash"></i></span>
-                                <input type="text" inputmode="numeric" class="form-control num-input"
-                                       name="Count"
-                                       required autocomplete="off" />
-                            </div>
-                            <div class="form-text">Total note/coin count</div>
+                        <div class="col-12">
+                            <p class="small fw-semibold mb-0" style="color:#31316A;">
+                                <i class="ti ti-@(Model.IsManual ? "hand" : "cpu") me-1"></i>@(Model.IsManual ? "Manual" : "Machine") Processing Fields
+                                @if (!Model.IsManual && !string.IsNullOrEmpty(Model.MachineName))
+                                {
+                                    <span class="text-muted fw-normal">— @Model.MachineName</span>
+                                }
+                            </p>
                         </div>
-
-                        <div class="col-12 col-md-3">
-                            <label class="form-label fw-semibold small" style="color:#31316A;">
-                                Unprocessed Value
-                                <span class="badge bg-secondary-subtle text-secondary border ms-1" style="font-size:.6rem;">Money With Boards</span>
-                            </label>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold small" style="color:#31316A;">Reissue Value</label>
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text bg-light" style="font-size:.72rem;font-weight:600;">UGX</span>
-                                <input type="text" inputmode="numeric" class="form-control num-input" value="0"
-                                       name="UnProcessedValue"
-                                       autocomplete="off" />
+                                <input type="text" inputmode="numeric" class="form-control num-input calc-source" data-role="reissue" name="ReissueValue" autocomplete="off" />
                             </div>
-                            <div class="form-text">Balance remaining with board</div>
                         </div>
-
-                        @if (Model.IsManual)
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold small" style="color:#31316A;">Canceled Value</label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-light" style="font-size:.72rem;font-weight:600;">UGX</span>
+                                <input type="text" inputmode="numeric" class="form-control num-input calc-source" data-role="canceled" name="CanceledValue" autocomplete="off" />
+                            </div>
+                        </div>
+                        @if (!Model.IsManual)
                         {
-                            <div class="col-12">
-                                <hr class="my-1" />
-                                <p class="small fw-semibold mb-3" style="color:#31316A;"><i class="ti ti-hand me-1"></i>Manual Processing Fields</p>
-                            </div>
-                            <div class="col-12 col-md-3">
-                                <label class="form-label fw-semibold small" style="color:#31316A;">Canceled Value</label>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text bg-light" style="font-size:.72rem;font-weight:600;">UGX</span>
-                                    <input type="text" inputmode="numeric" class="form-control num-input" name="CanceledValue" autocomplete="off" />
-                                </div>
-                            </div>
-                            <div class="col-12 col-md-3">
-                                <label class="form-label fw-semibold small" style="color:#31316A;">Reissue Value</label>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text bg-light" style="font-size:.72rem;font-weight:600;">UGX</span>
-                                    <input type="text" inputmode="numeric" class="form-control num-input" name="ReissueValue" autocomplete="off" />
-                                </div>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="col-12">
-                                <hr class="my-1" />
-                                <p class="small fw-semibold mb-3" style="color:#31316A;">
-                                    <i class="ti ti-cpu me-1"></i>Machine Processing Fields
-                                    @if (!string.IsNullOrEmpty(Model.MachineName))
-                                    {
-                                        <span class="text-muted fw-normal">— @Model.MachineName</span>
-                                    }
-                                </p>
-                            </div>
-                            <div class="col-12 col-md-4">
-                                <label class="form-label fw-semibold small" style="color:#31316A;">Fit Value</label>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text" style="background:#e8f5e9;font-size:.72rem;font-weight:600;color:#2e7d32;">UGX</span>
-                                    <input type="text" inputmode="numeric" class="form-control num-input" name="FitValue" autocomplete="off" />
-                                </div>
-                            </div>
-                            <div class="col-12 col-md-4">
-                                <label class="form-label fw-semibold small" style="color:#31316A;">Unfit / Shred Value</label>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text" style="background:#fff3e0;font-size:.72rem;font-weight:600;color:#e65100;">UGX</span>
-                                    <input type="text" inputmode="numeric" class="form-control num-input" name="UnfitShredValue" autocomplete="off" />
-                                </div>
-                            </div>
                             <div class="col-12 col-md-4">
                                 <label class="form-label fw-semibold small" style="color:#31316A;">Fit / Shred Value</label>
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text" style="background:#e3f2fd;font-size:.72rem;font-weight:600;color:#1565c0;">UGX</span>
-                                    <input type="text" inputmode="numeric" class="form-control num-input" name="FitShredValue" placeholder="0" value="0" autocomplete="off" />
+                                    <input type="text" inputmode="numeric" class="form-control num-input calc-source" data-role="fitshred" name="FitShredValue" placeholder="0" value="0" autocomplete="off" />
                                 </div>
                             </div>
                         }
+
+                        <div class="col-12">
+                            <hr class="my-1" />
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold small text-muted">
+                                Count
+                                <span class="badge bg-secondary-subtle text-secondary border ms-1" style="font-size:.6rem;">Auto-calculated</span>
+                            </label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-light"><i class="ti ti-hash"></i></span>
+                                <input type="text" class="form-control bg-light" data-role="calc-count" readonly value="0" tabindex="-1" />
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold small text-muted">
+                                Unprocessed Value
+                                <span class="badge bg-secondary-subtle text-secondary border ms-1" style="font-size:.6rem;">Money With Boards · Auto-calculated</span>
+                            </label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-light" style="font-size:.72rem;font-weight:600;">UGX</span>
+                                <input type="text" class="form-control bg-light" data-role="calc-unprocessed" readonly value="0" tabindex="-1" />
+                            </div>
+                            <div class="form-text text-danger d-none" data-role="negative-warning">
+                                <i class="ti ti-alert-triangle me-1"></i>Cannot exceed Total Issued Value — Unprocessed Value cannot be less than 0.
+                            </div>
+                        </div>
 
                         <div class="col-12">
                             <hr class="my-2" />
@@ -547,7 +512,7 @@
                             <button type="button" class="btn btn-sm btn-outline-secondary" id="resultResetBtn">
                                 <i class="ti ti-refresh me-1"></i>Reset
                             </button>
-                            <button type="submit" class="btn btn-sm btn-primary fw-semibold">
+                            <button type="submit" class="btn btn-sm btn-primary fw-semibold" data-role="submit-result">
                                 <i class="ti ti-send me-1"></i>Save Result
                             </button>
                         </div>
@@ -580,87 +545,69 @@
 
                 <div class="modal-body p-4">
                     <div class="row g-3">
-                        <div class="col-12 col-md-4">
-                            <label class="form-label fw-semibold small" style="color:#31316A;">
-                                Count <span class="text-danger">*</span>
-                            </label>
+                        <div class="col-12">
+                            <p class="small fw-semibold mb-0" style="color:#31316A;">
+                                <i class="ti ti-@(Model.IsManual ? "hand" : "cpu") me-1"></i>@(Model.IsManual ? "Manual" : "Machine") Processing Fields
+                                @if (!Model.IsManual && !string.IsNullOrEmpty(Model.MachineName))
+                                {
+                                    <span class="text-muted fw-normal">— @Model.MachineName</span>
+                                }
+                            </p>
+                        </div>
+                        <div class="col-12 col-md-@(Model.IsManual ? "4" : "4")">
+                            <label class="form-label fw-semibold small" style="color:#31316A;">Reissue Value</label>
                             <div class="input-group input-group-sm">
-                                <span class="input-group-text bg-light"><i class="ti ti-hash"></i></span>
-                                <input type="text" inputmode="numeric" class="form-control num-input-modal"
-                                       id="editCount" name="Count" placeholder="0"
-                                       required autocomplete="off" />
+                                <span class="input-group-text bg-light" style="font-size:.72rem;font-weight:600;">UGX</span>
+                                <input type="text" inputmode="numeric" class="form-control num-input-modal calc-source" data-role="reissue" id="editReissue" name="ReissueValue" placeholder="0" autocomplete="off" />
                             </div>
-                            <div class="form-text">Total note/coin count</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold small" style="color:#31316A;">Canceled Value</label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-light" style="font-size:.72rem;font-weight:600;">UGX</span>
+                                <input type="text" inputmode="numeric" class="form-control num-input-modal calc-source" data-role="canceled" id="editCanceled" name="CanceledValue" placeholder="0" autocomplete="off" />
+                            </div>
+                        </div>
+                        @if (!Model.IsManual)
+                        {
+                            <div class="col-12 col-md-4">
+                                <label class="form-label fw-semibold small" style="color:#31316A;">Fit / Shred Value</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text" style="background:#e3f2fd;font-size:.72rem;font-weight:600;color:#1565c0;">UGX</span>
+                                    <input type="text" inputmode="numeric" class="form-control num-input-modal calc-source" data-role="fitshred" id="editFitShred" name="FitShredValue" placeholder="0" autocomplete="off" />
+                                </div>
+                            </div>
+                        }
+
+                        <div class="col-12">
+                            <hr class="my-1" />
                         </div>
 
                         <div class="col-12 col-md-4">
-                            <label class="form-label fw-semibold small" style="color:#31316A;">
+                            <label class="form-label fw-semibold small text-muted">
+                                Count
+                                <span class="badge bg-secondary-subtle text-secondary border ms-1" style="font-size:.6rem;">Auto-calculated</span>
+                            </label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-light"><i class="ti ti-hash"></i></span>
+                                <input type="text" class="form-control bg-light" data-role="calc-count" readonly value="0" tabindex="-1" />
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold small text-muted">
                                 Unprocessed Value
                                 <span class="badge bg-secondary-subtle text-secondary border ms-1" style="font-size:.6rem;">Money With Boards</span>
                             </label>
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text bg-light" style="font-size:.72rem;font-weight:600;">UGX</span>
-                                <input type="text" inputmode="numeric" class="form-control num-input-modal"
-                                       id="editUnprocessed" name="UnProcessedValue" placeholder="0"
-                                       autocomplete="off" />
+                                <input type="text" class="form-control bg-light" data-role="calc-unprocessed" readonly value="0" tabindex="-1" />
+                            </div>
+                            <div class="form-text text-danger d-none" data-role="negative-warning">
+                                <i class="ti ti-alert-triangle me-1"></i>Cannot exceed Total Issued Value — Unprocessed Value cannot be less than 0.
                             </div>
                         </div>
 
-                        @if (Model.IsManual)
-                        {
-                            <div class="col-12">
-                                <hr class="my-1" />
-                                <p class="small fw-semibold mb-0" style="color:#31316A;"><i class="ti ti-hand me-1"></i>Manual Processing Fields</p>
-                            </div>
-                            <div class="col-12 col-md-4">
-                                <label class="form-label fw-semibold small" style="color:#31316A;">Canceled Value</label>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text bg-light" style="font-size:.72rem;font-weight:600;">UGX</span>
-                                    <input type="text" inputmode="numeric" class="form-control num-input-modal" id="editCanceled" name="CanceledValue" placeholder="0" autocomplete="off" />
-                                </div>
-                            </div>
-                            <div class="col-12 col-md-4">
-                                <label class="form-label fw-semibold small" style="color:#31316A;">Reissue Value</label>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text bg-light" style="font-size:.72rem;font-weight:600;">UGX</span>
-                                    <input type="text" inputmode="numeric" class="form-control num-input-modal" id="editReissue" name="ReissueValue" placeholder="0" autocomplete="off" />
-                                </div>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="col-12">
-                                <hr class="my-1" />
-                                <p class="small fw-semibold mb-0" style="color:#31316A;">
-                                    <i class="ti ti-cpu me-1"></i>Machine Processing Fields
-                                    @if (!string.IsNullOrEmpty(Model.MachineName))
-                                    {
-                                        <span class="text-muted fw-normal">— @Model.MachineName</span>
-                                    }
-                                </p>
-                            </div>
-                            <div class="col-12 col-md-4">
-                                <label class="form-label fw-semibold small" style="color:#31316A;">Fit Value</label>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text" style="background:#e8f5e9;font-size:.72rem;font-weight:600;color:#2e7d32;">UGX</span>
-                                    <input type="text" inputmode="numeric" class="form-control num-input-modal" id="editFit" name="FitValue" placeholder="0" autocomplete="off" />
-                                </div>
-                            </div>
-                            <div class="col-12 col-md-4">
-                                <label class="form-label fw-semibold small" style="color:#31316A;">Unfit / Shred Value</label>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text" style="background:#fff3e0;font-size:.72rem;font-weight:600;color:#e65100;">UGX</span>
-                                    <input type="text" inputmode="numeric" class="form-control num-input-modal" id="editUnfitShred" name="UnfitShredValue" placeholder="0" autocomplete="off" />
-                                </div>
-                            </div>
-                            <div class="col-12 col-md-4">
-                                <label class="form-label fw-semibold small" style="color:#31316A;">Fit / Shred Value</label>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text" style="background:#e3f2fd;font-size:.72rem;font-weight:600;color:#1565c0;">UGX</span>
-                                    <input type="text" inputmode="numeric" class="form-control num-input-modal" id="editFitShred" name="FitShredValue" placeholder="0" autocomplete="off" />
-                                </div>
-                            </div>
-                        }
                         <div class="col-12">
                             <hr class="my-2" />
                             <div class="d-flex align-items-center justify-content-between mb-2">
@@ -681,7 +628,7 @@
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">
                         <i class="ti ti-x me-1"></i>Cancel
                     </button>
-                    <button type="submit" class="btn btn-sm btn-primary fw-semibold">
+                    <button type="submit" class="btn btn-sm btn-primary fw-semibold" data-role="submit-result">
                         <i class="ti ti-device-floppy me-1"></i>Save Changes
                     </button>
                 </div>
@@ -957,6 +904,44 @@
                 });
             }
 
+            // ── Auto-calculated Count / Unprocessed Value ─────────────────────
+            var SESSION_TOTAL_ISSUED = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.TotalIssuedValue));
+            var SESSION_DENOM_VALUE = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DenominationValue));
+
+            function parseNum(el) {
+                if (!el) return 0;
+                var raw = (el.value || '').replace(/,/g, '');
+                var n = parseFloat(raw);
+                return isNaN(n) ? 0 : n;
+            }
+
+            function formatCalc(el, value) {
+                if (!el) return;
+                el.value = Math.round(value).toLocaleString('en-US');
+            }
+
+            function recalcResultFields(scope) {
+                var reissueEl  = scope.querySelector('[data-role="reissue"]');
+                var canceledEl = scope.querySelector('[data-role="canceled"]');
+                var fitShredEl = scope.querySelector('[data-role="fitshred"]');
+                var countEl    = scope.querySelector('[data-role="calc-count"]');
+                var unprocEl   = scope.querySelector('[data-role="calc-unprocessed"]');
+                var warningEl  = scope.querySelector('[data-role="negative-warning"]');
+                var submitEl   = scope.querySelector('[data-role="submit-result"]');
+
+                var processedTotal = parseNum(reissueEl) + parseNum(canceledEl) + parseNum(fitShredEl);
+                var count = SESSION_DENOM_VALUE > 0 ? processedTotal / SESSION_DENOM_VALUE : 0;
+                var unprocessed = SESSION_TOTAL_ISSUED - processedTotal;
+                var isNegative = unprocessed < 0;
+
+                formatCalc(countEl, count);
+                formatCalc(unprocEl, unprocessed);
+
+                if (unprocEl) unprocEl.classList.toggle('text-danger', isNegative);
+                if (warningEl) warningEl.classList.toggle('d-none', !isNegative);
+                if (submitEl) submitEl.disabled = isNegative;
+            }
+
             // ── Shared denomination row helpers ──────────────────────────────
             var DENOMS = @Html.Raw(denomJson);
             var EXISTING_DENOMS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
@@ -1049,6 +1034,10 @@
             var resultForm = document.getElementById('resultForm');
             if (resultForm) {
                 resultForm.querySelectorAll('.num-input').forEach(wireNumInput);
+                resultForm.querySelectorAll('.calc-source').forEach(function (el) {
+                    el.addEventListener('input', function () { recalcResultFields(resultForm); });
+                });
+                recalcResultFields(resultForm);
 
                 var saveDenomContainer = document.getElementById('saveDenomRows');
                 var saveDenomRowIdx = 0;
@@ -1075,6 +1064,7 @@
                         });
                         if (saveDenomContainer) saveDenomContainer.innerHTML = '';
                         saveDenomRowIdx = 0;
+                        recalcResultFields(resultForm);
                     });
                 }
             }
@@ -1085,6 +1075,9 @@
 
             if (editModal && editForm) {
                 editForm.querySelectorAll('.num-input-modal').forEach(wireNumInput);
+                editForm.querySelectorAll('.calc-source').forEach(function (el) {
+                    el.addEventListener('input', function () { recalcResultFields(editForm); });
+                });
 
                 var editDenomContainer = document.getElementById('editDenomRows');
                 var editDenomRowIdx = 0;
@@ -1108,13 +1101,11 @@
                         applyFormat(el);
                     };
 
-                    setVal('editCount',      btn.dataset.count);
-                    setVal('editUnprocessed', btn.dataset.unprocessed);
                     setVal('editCanceled',   btn.dataset.canceled);
                     setVal('editReissue',    btn.dataset.reissue);
-                    setVal('editFit',        btn.dataset.fit);
-                    setVal('editUnfitShred', btn.dataset.unfitshred);
                     setVal('editFitShred',   btn.dataset.fitshred);
+
+                    recalcResultFields(editForm);
 
                     if (editDenomContainer) {
                         editDenomContainer.innerHTML = '';

@@ -167,7 +167,7 @@
         public class BoardSessionSurplusShortage
         {
             public const string PendingCFBSupervisor = "Pending CFB Supervisor";
-            public const string SettledByCFB = "Settled By CFB";
+            public const string BalancedByCFB = "Balanced By CFB";
         }
 
         public static class Entity

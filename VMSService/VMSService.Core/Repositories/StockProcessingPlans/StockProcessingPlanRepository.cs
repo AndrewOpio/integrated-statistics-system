@@ -117,7 +117,6 @@ namespace VMSService.Core.Repositories.StockProcessingPlans
                 .Select(r => new
                 {
                     r.StockProcessingSessionId,
-                    r.FitValue,
                     r.ReissueValue
                 })
                 .ToListAsync();
@@ -130,7 +129,7 @@ namespace VMSService.Core.Repositories.StockProcessingPlans
                 .Select(g => new StockMovementDenomination
                 {
                     DenominationId = g.Key,
-                    SubTotalValue = g.Sum(r => r.FitValue + r.ReissueValue)
+                    SubTotalValue = g.Sum(r => r.ReissueValue)
                 })
                 .ToList();
 
@@ -159,7 +158,6 @@ namespace VMSService.Core.Repositories.StockProcessingPlans
                 .Select(r => new
                 {
                     r.StockProcessingSessionId,
-                    r.UnfitShredValue,
                     r.FitShredValue,
                     r.CanceledValue
                 })
@@ -173,7 +171,7 @@ namespace VMSService.Core.Repositories.StockProcessingPlans
                 .Select(g => new StockMovementDenomination
                 {
                     DenominationId = g.Key,
-                    SubTotalValue = g.Sum(r => r.UnfitShredValue + r.FitShredValue + r.CanceledValue)
+                    SubTotalValue = g.Sum(r => r.FitShredValue + r.CanceledValue)
                 })
                 .ToList();
 

@@ -17,6 +17,5 @@ namespace VMSService.Data.Entities
         public int? CategoryId { get; set; }
         public int? SubCategoryId { get; set; }
         public bool IsLegacyBag { get; set; } = false;
-        public int? LegacyBagId { get; set; }
     }
 }

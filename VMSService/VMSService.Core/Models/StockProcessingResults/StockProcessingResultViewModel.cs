@@ -6,8 +6,6 @@ namespace VMSService.Core.Models.StockProcessingResults
         public int StockProcessingSessionId { get; set; }
         public string? SessionReferenceNumber { get; set; }
         public int Count { get; set; }
-        public decimal FitValue { get; set; }
-        public decimal UnfitShredValue { get; set; }
         public decimal FitShredValue { get; set; }
         public decimal CanceledValue { get; set; }
         public decimal ReissueValue { get; set; }

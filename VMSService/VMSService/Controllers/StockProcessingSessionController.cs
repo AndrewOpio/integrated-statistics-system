@@ -1,3 +1,4 @@
+using ConfigurationsService.Client;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +11,7 @@ using VMSService.Core.Models.StockProcessingResults;
 using VMSService.Core.Models.StockProcessingSessions;
 using VMSService.Core.Models.StockProcessingSessionStatusHistories;
 using VMSService.Core.Repositories.Attachments;
+using VMSService.Core.Repositories.CfbBoxes;
 using VMSService.Core.Repositories.CommercialBanks;
 using VMSService.Core.Repositories.StockProcessingResults;
 using VMSService.Core.Repositories.StockProcessingSessions;
@@ -32,6 +34,8 @@ namespace VMSService.Web.Controllers
         IStockProcessingResultRepository _resultRepository,
         ICommercialBankRepository _commercialBankRepository,
         IAttachmentRepository _attachmentRepository,
+        ICfbBoxRepository _cfbBoxRepository,
+        IConfigurationsServiceClient _configServiceClient,
         IStockService _stockService,
         IIdentityService _identityService,
         IWorkflowService _workflowService,
@@ -377,8 +381,6 @@ namespace VMSService.Web.Controllers
                     Id = r.Id,
                     StockProcessingSessionId = r.StockProcessingSessionId,
                     Count = r.Count,
-                    FitValue = r.FitValue,
-                    UnfitShredValue = r.UnfitShredValue,
                     FitShredValue = r.FitShredValue,
                     CanceledValue = r.CanceledValue,
                     ReissueValue = r.ReissueValue,
@@ -655,16 +657,32 @@ namespace VMSService.Web.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
+                var allDenominationsForResult = await _stockService.GetAllDenominations();
+                var denomDictForResult = allDenominationsForResult.ToDictionary(d => d.Id);
+                var denominationValue = denomDictForResult.GetValueOrDefault(session.DenominationId)?.Value ?? 0m;
+
+                var fitShredValue = session.IsManual ? 0m : model.FitShredValue;
+                decimal processedTotal = model.CanceledValue + model.ReissueValue + fitShredValue;
+                decimal unProcessedValue = session.TotalIssuedValue - processedTotal;
+
+                if (unProcessedValue < 0)
+                {
+                    TempData["ResultErrors"] = System.Text.Json.JsonSerializer.Serialize(new List<string>
+                    {
+                        "Reissue, Canceled" + (session.IsManual ? "" : " and Fit/Shred") +
+                        " values cannot exceed the Total Issued Value — Unprocessed Value cannot be less than 0."
+                    });
+                    return RedirectToAction(nameof(Details), new { id = model.SessionId });
+                }
+
                 var result = new StockProcessingResult
                 {
                     StockProcessingSessionId = model.SessionId,
-                    Count = model.Count,
-                    UnProcessedValue = model.UnProcessedValue,
-                    FitValue       = session.IsManual ? 0m : model.FitValue,
-                    UnfitShredValue = session.IsManual ? 0m : model.UnfitShredValue,
-                    FitShredValue  = session.IsManual ? 0m : model.FitShredValue,
-                    CanceledValue  = session.IsManual ? model.CanceledValue : 0m,
-                    ReissueValue   = session.IsManual ? model.ReissueValue  : 0m,
+                    Count = denominationValue > 0 ? (int)Math.Round(processedTotal / denominationValue) : 0,
+                    UnProcessedValue = unProcessedValue,
+                    FitShredValue = fitShredValue,
+                    CanceledValue = model.CanceledValue,
+                    ReissueValue = model.ReissueValue,
                 };
 
                 await _resultRepository.Create(result);
@@ -676,9 +694,6 @@ namespace VMSService.Web.Controllers
 
                 if (validDenomEntries.Count > 0)
                 {
-                    var allDenominationsForResult = await _stockService.GetAllDenominations();
-                    var denomDictForResult = allDenominationsForResult.ToDictionary(d => d.Id);
-
                     foreach (var entry in validDenomEntries)
                     {
                         denomDictForResult.TryGetValue(entry.DenominationId, out var denom);
@@ -690,30 +705,9 @@ namespace VMSService.Web.Controllers
                             Amount = (denom?.Value ?? 0m) * entry.NumberOfPieces
                         });
                     }
-                }
 
-                // Calculate and stage surplus/shortage
-                decimal saveProcessedTotal = session.IsManual
-                    ? result.CanceledValue + result.ReissueValue
-                    : result.FitValue + result.UnfitShredValue + result.FitShredValue;
-                decimal saveDiscrepancy = saveProcessedTotal - session.TotalIssuedValue;
-                if (saveDiscrepancy != 0)
-                {
-                    _context.BoardSessionSurplusShortages.Add(new BoardSessionSurplusShortage
-                    {
-                        StockProcessingSessionId = model.SessionId,
-                        CommercialBankId = session.CommercialBankId,
-                        BranchId = session.ProcessingBoard?.BranchId ?? 0,
-                        DenominationId = session.DenominationId,
-                        Amount = Math.Abs(saveDiscrepancy),
-                        IsSurplus = saveDiscrepancy > 0,
-                        IsDifferentDenomination = false,
-                        IsProcessedOnRtgs = false
-                    });
-                }
-
-                if (validDenomEntries.Count > 0 || saveDiscrepancy != 0)
                     await _context.SaveChangesAsync();
+                }
 
                 TempData["ResultSuccess"] = "Processing result saved successfully.";
             }
@@ -763,13 +757,29 @@ namespace VMSService.Web.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
-                result.Count          = model.Count;
-                result.UnProcessedValue = model.UnProcessedValue;
-                result.FitValue       = session.IsManual ? 0m : model.FitValue;
-                result.UnfitShredValue = session.IsManual ? 0m : model.UnfitShredValue;
-                result.FitShredValue  = session.IsManual ? 0m : model.FitShredValue;
-                result.CanceledValue  = session.IsManual ? model.CanceledValue : 0m;
-                result.ReissueValue   = session.IsManual ? model.ReissueValue  : 0m;
+                var allDenominationsForEdit = await _stockService.GetAllDenominations();
+                var denomDictForEdit = allDenominationsForEdit.ToDictionary(d => d.Id);
+                var denominationValue = denomDictForEdit.GetValueOrDefault(session.DenominationId)?.Value ?? 0m;
+
+                var fitShredValue = session.IsManual ? 0m : model.FitShredValue;
+                decimal processedTotal = model.CanceledValue + model.ReissueValue + fitShredValue;
+                decimal unProcessedValue = session.TotalIssuedValue - processedTotal;
+
+                if (unProcessedValue < 0)
+                {
+                    TempData["ResultErrors"] = System.Text.Json.JsonSerializer.Serialize(new List<string>
+                    {
+                        "Reissue, Canceled" + (session.IsManual ? "" : " and Fit/Shred") +
+                        " values cannot exceed the Total Issued Value — Unprocessed Value cannot be less than 0."
+                    });
+                    return RedirectToAction(nameof(Details), new { id = model.SessionId });
+                }
+
+                result.Count = denominationValue > 0 ? (int)Math.Round(processedTotal / denominationValue) : 0;
+                result.UnProcessedValue = unProcessedValue;
+                result.FitShredValue = fitShredValue;
+                result.CanceledValue = model.CanceledValue;
+                result.ReissueValue = model.ReissueValue;
 
                 await _resultRepository.Update(result);
 
@@ -785,9 +795,6 @@ namespace VMSService.Web.Controllers
 
                 if (validDenomEntries.Count > 0)
                 {
-                    var allDenominationsForEdit = await _stockService.GetAllDenominations();
-                    var denomDictForEdit = allDenominationsForEdit.ToDictionary(d => d.Id);
-
                     foreach (var entry in validDenomEntries)
                     {
                         denomDictForEdit.TryGetValue(entry.DenominationId, out var denom);
@@ -801,44 +808,6 @@ namespace VMSService.Web.Controllers
                     }
                 }
 
-                // Update or create surplus/shortage record
-                decimal editProcessedTotal = session.IsManual
-                    ? result.CanceledValue + result.ReissueValue
-                    : result.FitValue + result.UnfitShredValue + result.FitShredValue;
-                decimal editDiscrepancy = editProcessedTotal - session.TotalIssuedValue;
-
-                var existingSurplusShortage = await _context.BoardSessionSurplusShortages
-                    .Where(s => s.StockProcessingSessionId == model.SessionId)
-                    .OrderByDescending(s => s.CreatedDate)
-                    .FirstOrDefaultAsync();
-
-                if (editDiscrepancy != 0)
-                {
-                    if (existingSurplusShortage != null)
-                    {
-                        existingSurplusShortage.Amount = Math.Abs(editDiscrepancy);
-                        existingSurplusShortage.IsSurplus = editDiscrepancy > 0;
-                    }
-                    else
-                    {
-                        _context.BoardSessionSurplusShortages.Add(new BoardSessionSurplusShortage
-                        {
-                            StockProcessingSessionId = model.SessionId,
-                            CommercialBankId = session.CommercialBankId,
-                            BranchId = session.ProcessingBoard?.BranchId ?? 0,
-                            DenominationId = session.DenominationId,
-                            Amount = Math.Abs(editDiscrepancy),
-                            IsSurplus = editDiscrepancy > 0,
-                            IsDifferentDenomination = false,
-                            IsProcessedOnRtgs = false
-                        });
-                    }
-                }
-                else if (existingSurplusShortage != null)
-                {
-                    _context.BoardSessionSurplusShortages.Remove(existingSurplusShortage);
-                }
-
                 await _context.SaveChangesAsync();
                 TempData["ResultSuccess"] = "Processing result updated successfully.";
             }
@@ -849,6 +818,154 @@ namespace VMSService.Web.Controllers
             }
 
             return RedirectToAction(nameof(Details), new { id = model.SessionId });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> SendCfbRequest(int sessionId)
+        {
+            var session = await _sessionRepository.FindById(sessionId);
+            if (session == null)
+            {
+                TempData["Error"] = "Processing Session not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var branchId = session.ProcessingBoard?.BranchId ?? 0;
+
+            var allDenominations = await _stockService.GetAllDenominations();
+            var denomination = allDenominations.FirstOrDefault(d => d.Id == session.DenominationId);
+
+            var allBanks = await _commercialBankRepository.FindAll();
+            var bank = allBanks.FirstOrDefault(b => b.Id == session.CommercialBankId);
+
+            var cfbBox = await FindCfbBoxForSessionAsync(branchId, denomination?.DenominationType?.Name);
+            if (cfbBox == null)
+            {
+                TempData["Error"] = $"No CFB box is configured for this branch{(denomination?.DenominationType?.Name != null ? $" ({denomination.DenominationType.Name})" : "")}. Please contact CFB administration.";
+                return RedirectToAction(nameof(Details), new { id = sessionId });
+            }
+
+            var pendingCfbStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                EntityTypeName = StatusConstants.Entity.BoardSessionSurplusShortage,
+                StatusName = StatusConstants.BoardSessionSurplusShortage.PendingCFBSupervisor
+            });
+
+            if (pendingCfbStatus == null)
+            {
+                TempData["Error"] = "CFB request workflow status is not configured. Please contact an administrator.";
+                return RedirectToAction(nameof(Details), new { id = sessionId });
+            }
+
+            string? branchName = null;
+            try
+            {
+                var branch = await _configServiceClient.GetBouBranchByIdAsync(branchId);
+                branchName = branch?.Name;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not resolve branch name {BranchId} for CFB request form", branchId);
+            }
+
+            var model = new CfbRequestViewModel
+            {
+                StockProcessingSessionId = session.Id,
+                SessionReferenceNumber = session.ReferenceNumber,
+                CommercialBankId = session.CommercialBankId,
+                CommercialBankName = bank?.Name,
+                BranchId = branchId,
+                BranchName = branchName,
+                DenominationId = session.DenominationId,
+                DenominationName = denomination?.Name,
+                DenominationValue = denomination?.Value ?? 0m,
+                TotalIssuedValue = session.TotalIssuedValue,
+                CfbBoxId = cfbBox.Id,
+                CurrentStatusId = pendingCfbStatus.Id,
+            };
+
+            return View(model);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SendCfbRequest(CfbRequestViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                TempData["Error"] = "Please correct the errors and try again.";
+                return RedirectToAction(nameof(SendCfbRequest), new { sessionId = model.StockProcessingSessionId });
+            }
+
+            try
+            {
+                var session = await _sessionRepository.FindById(model.StockProcessingSessionId);
+                if (session == null)
+                {
+                    TempData["Error"] = "Processing Session not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                // Re-derive the autopopulated fields server-side rather than trusting the posted hidden values.
+                var branchId = session.ProcessingBoard?.BranchId ?? 0;
+
+                var allDenominations = await _stockService.GetAllDenominations();
+                var denomination = allDenominations.FirstOrDefault(d => d.Id == session.DenominationId);
+
+                var cfbBox = await FindCfbBoxForSessionAsync(branchId, denomination?.DenominationType?.Name);
+                if (cfbBox == null)
+                {
+                    TempData["Error"] = "No CFB box is configured for this branch. Please contact CFB administration.";
+                    return RedirectToAction(nameof(Details), new { id = model.StockProcessingSessionId });
+                }
+
+                var pendingCfbStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+                {
+                    ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                    EntityTypeName = StatusConstants.Entity.BoardSessionSurplusShortage,
+                    StatusName = StatusConstants.BoardSessionSurplusShortage.PendingCFBSupervisor
+                });
+
+                if (pendingCfbStatus == null)
+                {
+                    TempData["Error"] = "CFB request workflow status is not configured. Please contact an administrator.";
+                    return RedirectToAction(nameof(Details), new { id = model.StockProcessingSessionId });
+                }
+
+                var entity = new BoardSessionSurplusShortage
+                {
+                    StockProcessingSessionId = session.Id,
+                    CommercialBankId = session.CommercialBankId,
+                    BranchId = branchId,
+                    DenominationId = session.DenominationId,
+                    CfbBoxId = cfbBox.Id,
+                    CurrentStatusId = pendingCfbStatus.Id,
+                    Amount = model.Amount,
+                    IsSurplus = model.IsSurplus,
+                    IsDifferentDenomination = model.IsDifferentDenomination,
+                    IsProcessedOnRtgs = false,
+                    IsDeleted = false,
+                };
+
+                _context.BoardSessionSurplusShortages.Add(entity);
+                await _context.SaveChangesAsync();
+
+                TempData["Success"] = "CFB request sent successfully.";
+                return RedirectToAction(nameof(Details), new { id = session.Id });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending CFB request for Processing Session {Id}", model.StockProcessingSessionId);
+                TempData["Error"] = "An error occurred while sending the CFB request.";
+                return RedirectToAction(nameof(Details), new { id = model.StockProcessingSessionId });
+            }
+        }
+
+        private async Task<CfbBox?> FindCfbBoxForSessionAsync(int branchId, string? boxType)
+        {
+            var branchBoxes = await _cfbBoxRepository.FindByBranchId(branchId);
+            return branchBoxes.FirstOrDefault(b => b.BoxType == boxType);
         }
 
         [HttpPost]

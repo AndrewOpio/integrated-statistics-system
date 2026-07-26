@@ -12,8 +12,8 @@ using VMSService.Data.Configurations;
 namespace VMSService.Data.Migrations
 {
     [DbContext(typeof(VMSServiceDbContext))]
-    [Migration("20260706061134_ReturnRtgsCodeAndReturnRtgsDatefields")]
-    partial class ReturnRtgsCodeAndReturnRtgsDatefields
+    [Migration("20260726032951_RemovedLegacyBag")]
+    partial class RemovedLegacyBag
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -149,6 +149,69 @@ namespace VMSService.Data.Migrations
                     b.HasIndex("AgentDetailId");
 
                     b.ToTable("AgentDetailStatusHistory");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.AppliedPenalty", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("ChargeValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("DenomValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("IsSettledOnRtgs")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("PenaltyId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RtgsCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RtgsSettlingMessage")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("SourceId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PenaltyId");
+
+                    b.HasIndex("SourceId", "PenaltyId")
+                        .IsUnique();
+
+                    b.ToTable("AppliedPenalties");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ApprovedCurrencyDenomination", b =>
@@ -431,6 +494,9 @@ namespace VMSService.Data.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsLegacyBag")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsProcessed")
                         .HasColumnType("bit");
 
@@ -643,6 +709,236 @@ namespace VMSService.Data.Migrations
                     b.ToTable("BaggedBags");
                 });
 
+            modelBuilder.Entity("VMSService.Data.Entities.BankingShortage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CurrentStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CurrentStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("NetShortage")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("Period")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReferenceNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("TotalShortage")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalSurplus")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("BankingShortages");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.BankingShortageStatusHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AttachmentIds")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("BankingShortageId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ChangedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("NewStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("NewStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("OldStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("OldStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BankingShortageId");
+
+                    b.ToTable("BankingShortageStatusHistories");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.BankingSurplus", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("BranchId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CurrentStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CurrentStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DepositDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("Period")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReferenceNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("BankingSurpluses");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.BankingSurplusStatusHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AttachmentIds")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("BankingSurplusId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ChangedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("NewStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("NewStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("OldStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("OldStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BankingSurplusId");
+
+                    b.ToTable("BankingSurplusStatusHistories");
+                });
+
             modelBuilder.Entity("VMSService.Data.Entities.BoardSessionDifferentDenom", b =>
                 {
                     b.Property<int>("Id")
@@ -654,15 +950,23 @@ namespace VMSService.Data.Migrations
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<int>("BoardSessionSurplusShortageId")
+                    b.Property<int?>("BoardSessionSurplusShortageId")
                         .HasColumnType("int");
 
                     b.Property<int>("DenominationId")
                         .HasColumnType("int");
 
+                    b.Property<int>("NumberOfPieces")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StockProcessingSessionId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("BoardSessionSurplusShortageId");
+
+                    b.HasIndex("StockProcessingSessionId");
 
                     b.ToTable("BoardSessionDifferentDenoms");
                 });
@@ -681,6 +985,9 @@ namespace VMSService.Data.Migrations
                     b.Property<int>("BranchId")
                         .HasColumnType("int");
 
+                    b.Property<int>("CfbBoxId")
+                        .HasColumnType("int");
+
                     b.Property<int>("CommercialBankId")
                         .HasColumnType("int");
 
@@ -691,11 +998,17 @@ namespace VMSService.Data.Migrations
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("CurrentStatusId")
+                        .HasColumnType("int");
+
                     b.Property<int>("DenominationId")
                         .HasColumnType("int");
 
                     b.Property<Guid?>("DepositRequestId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
 
                     b.Property<bool>("IsDifferentDenomination")
                         .HasColumnType("bit");
@@ -719,11 +1032,72 @@ namespace VMSService.Data.Migrations
                     b.Property<int?>("SessionSourceBranch")
                         .HasColumnType("int");
 
+                    b.Property<int>("StockProcessingSessionId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("CfbBoxId");
 
                     b.HasIndex("DepositRequestId");
 
+                    b.HasIndex("StockProcessingSessionId");
+
                     b.ToTable("BoardSessionSurplusShortages");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.BoardSessionSurplusShortageStatusHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AttachmentIds")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("BoardSessionSurplusShortageId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ChangedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("NewStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OldStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BoardSessionSurplusShortageId");
+
+                    b.ToTable("BoardSessionSurplusShortageStatusHistory");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.BoxState", b =>
@@ -788,6 +1162,152 @@ namespace VMSService.Data.Migrations
                         .HasDatabaseName("UQ_BoxState_Box_Denom_Branch");
 
                     b.ToTable("BoxStates");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.CfbBox", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BouBranchCode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("BouBranchId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("BoxType")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BouBranchId", "BoxType")
+                        .IsUnique();
+
+                    b.ToTable("CfbBoxes");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.CfbCashHolding", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("CfbBoxId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DenomValue")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DenominationId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CfbBoxId", "DenominationId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_CfbCashHoldings_Active_Box_Denom")
+                        .HasFilter("[IsActive] = 1");
+
+                    b.ToTable("CfbCashHoldings");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.CfbCashMovement", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("AmountChange")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("CfbBoxId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DenomValue")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DenominationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("MovementType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("SourceId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CfbBoxId", "DenominationId", "OccurredAt");
+
+                    b.ToTable("CfbCashMovements");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.CountingRoom", b =>
@@ -1061,6 +1581,9 @@ namespace VMSService.Data.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsLegacyDeposit")
                         .HasColumnType("bit");
 
                     b.Property<string>("ModifiedBy")
@@ -2786,6 +3309,53 @@ namespace VMSService.Data.Migrations
                     b.ToTable("NewStockMovementLogs");
                 });
 
+            modelBuilder.Entity("VMSService.Data.Entities.NoteExaminer", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BranchId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("MiddleName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("NoteExaminers");
+                });
+
             modelBuilder.Entity("VMSService.Data.Entities.PackingListDetails", b =>
                 {
                     b.Property<long>("Id")
@@ -2882,6 +3452,73 @@ namespace VMSService.Data.Migrations
                     b.HasIndex("ExpectedStockId");
 
                     b.ToTable("PackingListRanges");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.Penalty", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("AppliesTo")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<TimeOnly?>("CutOffTime")
+                        .HasColumnType("time");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal?>("PenaltyMultiplier")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PenaltyPercent")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal?>("PenaltyValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PercentCutOff")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Penalties");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ProcessingBoard", b =>
@@ -3527,6 +4164,10 @@ namespace VMSService.Data.Migrations
                     b.Property<DateTime>("ProcessingDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("ReferenceNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int?>("StockMovementId")
                         .HasColumnType("int");
 
@@ -3621,6 +4262,9 @@ namespace VMSService.Data.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsVerified")
+                        .HasColumnType("bit");
+
                     b.Property<string>("ModifiedBy")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -3633,6 +4277,9 @@ namespace VMSService.Data.Migrations
 
                     b.Property<int>("StockProcessingSessionId")
                         .HasColumnType("int");
+
+                    b.Property<decimal>("UnProcessedValue")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("UnfitShredValue")
                         .HasColumnType("decimal(18,2)");
@@ -3671,6 +4318,9 @@ namespace VMSService.Data.Migrations
                     b.Property<int>("DenominationId")
                         .HasColumnType("int");
 
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
@@ -3693,6 +4343,9 @@ namespace VMSService.Data.Migrations
 
                     b.Property<int>("StockProcessingPlanId")
                         .HasColumnType("int");
+
+                    b.Property<decimal>("TotalIssuedValue")
+                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 
@@ -3755,6 +4408,156 @@ namespace VMSService.Data.Migrations
                     b.HasIndex("StockProcessingSessionId");
 
                     b.ToTable("StockProcessingSessionStatusHistory");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.TopupLine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("BaselineBeforeTopup")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("CfbBoxId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DenomValue")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DenominationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("TopupRequestId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TopupRequestId");
+
+                    b.ToTable("TopupLines");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.TopupRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BouBranchId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CurrentStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CurrentStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Justification")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BouBranchId");
+
+                    b.HasIndex("CurrentStatusId");
+
+                    b.ToTable("TopupRequests");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.TopupRequestStatusHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ChangedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("NewStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("NewStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("OldStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("OldStatusName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TopupRequestId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TopupRequestId");
+
+                    b.ToTable("TopupRequestStatusHistories");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.Vault", b =>
@@ -4213,6 +5016,17 @@ namespace VMSService.Data.Migrations
                     b.Navigation("AgentDetail");
                 });
 
+            modelBuilder.Entity("VMSService.Data.Entities.AppliedPenalty", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.Penalty", "Penalty")
+                        .WithMany()
+                        .HasForeignKey("PenaltyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Penalty");
+                });
+
             modelBuilder.Entity("VMSService.Data.Entities.ApprovedCurrencyDenomination", b =>
                 {
                     b.HasOne("VMSService.Data.Entities.ApprovedCurrencyProcurement", "ApprovedCurrency")
@@ -4328,25 +5142,77 @@ namespace VMSService.Data.Migrations
                     b.Navigation("ParentBag");
                 });
 
+            modelBuilder.Entity("VMSService.Data.Entities.BankingShortageStatusHistory", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.BankingShortage", "BankingShortage")
+                        .WithMany("StatusHistories")
+                        .HasForeignKey("BankingShortageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BankingShortage");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.BankingSurplusStatusHistory", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.BankingSurplus", "BankingSurplus")
+                        .WithMany("StatusHistories")
+                        .HasForeignKey("BankingSurplusId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BankingSurplus");
+                });
+
             modelBuilder.Entity("VMSService.Data.Entities.BoardSessionDifferentDenom", b =>
                 {
-                    b.HasOne("VMSService.Data.Entities.BoardSessionSurplusShortage", "BoardSessionSurplusShortage")
+                    b.HasOne("VMSService.Data.Entities.BoardSessionSurplusShortage", null)
                         .WithMany("DifferentDenoms")
+                        .HasForeignKey("BoardSessionSurplusShortageId");
+
+                    b.HasOne("VMSService.Data.Entities.StockProcessingSession", "StockProcessingSession")
+                        .WithMany()
+                        .HasForeignKey("StockProcessingSessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("StockProcessingSession");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.BoardSessionSurplusShortage", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.CfbBox", "CfbBox")
+                        .WithMany()
+                        .HasForeignKey("CfbBoxId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("VMSService.Data.Entities.DepositRequest", "DepositRequest")
+                        .WithMany("BoardSessionSurplusShortages")
+                        .HasForeignKey("DepositRequestId");
+
+                    b.HasOne("VMSService.Data.Entities.StockProcessingSession", "StockProcessingSession")
+                        .WithMany()
+                        .HasForeignKey("StockProcessingSessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CfbBox");
+
+                    b.Navigation("DepositRequest");
+
+                    b.Navigation("StockProcessingSession");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.BoardSessionSurplusShortageStatusHistory", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.BoardSessionSurplusShortage", "BoardSessionSurplusShortage")
+                        .WithMany()
                         .HasForeignKey("BoardSessionSurplusShortageId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("BoardSessionSurplusShortage");
-                });
-
-            modelBuilder.Entity("VMSService.Data.Entities.BoardSessionSurplusShortage", b =>
-                {
-                    b.HasOne("VMSService.Data.Entities.DepositRequest", "DepositRequest")
-                        .WithMany("BoardSessionSurplusShortages")
-                        .HasForeignKey("DepositRequestId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("DepositRequest");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.BoxState", b =>
@@ -4358,6 +5224,28 @@ namespace VMSService.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("PackingListDetails");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.CfbCashHolding", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.CfbBox", "CfbBox")
+                        .WithMany("Holdings")
+                        .HasForeignKey("CfbBoxId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CfbBox");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.CfbCashMovement", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.CfbBox", "CfbBox")
+                        .WithMany()
+                        .HasForeignKey("CfbBoxId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CfbBox");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.CountingRoomSession", b =>
@@ -4949,6 +5837,28 @@ namespace VMSService.Data.Migrations
                     b.Navigation("StockProcessingSession");
                 });
 
+            modelBuilder.Entity("VMSService.Data.Entities.TopupLine", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.TopupRequest", "TopupRequest")
+                        .WithMany("Lines")
+                        .HasForeignKey("TopupRequestId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("TopupRequest");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.TopupRequestStatusHistory", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.TopupRequest", "TopupRequest")
+                        .WithMany("StatusHistory")
+                        .HasForeignKey("TopupRequestId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("TopupRequest");
+                });
+
             modelBuilder.Entity("VMSService.Data.Entities.VaultSection", b =>
                 {
                     b.HasOne("VMSService.Data.Entities.Vault", "Vault")
@@ -5009,9 +5919,24 @@ namespace VMSService.Data.Migrations
                     b.Navigation("BagDenominations");
                 });
 
+            modelBuilder.Entity("VMSService.Data.Entities.BankingShortage", b =>
+                {
+                    b.Navigation("StatusHistories");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.BankingSurplus", b =>
+                {
+                    b.Navigation("StatusHistories");
+                });
+
             modelBuilder.Entity("VMSService.Data.Entities.BoardSessionSurplusShortage", b =>
                 {
                     b.Navigation("DifferentDenoms");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.CfbBox", b =>
+                {
+                    b.Navigation("Holdings");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.DepositRequest", b =>
@@ -5145,6 +6070,13 @@ namespace VMSService.Data.Migrations
             modelBuilder.Entity("VMSService.Data.Entities.StockProcessingSession", b =>
                 {
                     b.Navigation("ProcessingSessionBags");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.TopupRequest", b =>
+                {
+                    b.Navigation("Lines");
+
+                    b.Navigation("StatusHistory");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.WithdrawalRequest", b =>

@@ -643,6 +643,9 @@ namespace VMSService.Web.Controllers
                         EntityTypeName = StatusConstants.Entity.StockProcessingSession
                     });
 
+                    var editBranch = await _configServiceClient.GetBouBranchByIdAsync(plan.BranchId);
+                    var editBranchCode = editBranch?.BranchCode ?? plan.BranchId.ToString();
+
                     int sessionCounter = await _context.StockProcessingSessions
                         .CountAsync(s => s.StockProcessingPlanId == id && !s.IsDeleted);
 
@@ -719,7 +722,7 @@ namespace VMSService.Web.Controllers
                             sessionCounter++;
                             var session = new StockProcessingSession
                             {
-                                ReferenceNumber = $"SPS-{id:D4}-{sessionCounter:D3}",
+                                ReferenceNumber = $"SPS-{plan.ProcessingDate:ddMMyyyy}-{editBranchCode}-{sessionCounter:D2}",
                                 StockProcessingPlanId = id,
                                 ProcessingBoardId = assignment.ProcessingBoardId,
                                 CommercialBankId = group.Key.CbId,

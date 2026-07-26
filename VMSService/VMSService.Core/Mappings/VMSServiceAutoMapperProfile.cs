@@ -33,6 +33,7 @@ using VMSService.Core.Models.ReceivedStocksDetails;
 using VMSService.Core.Models.ReceivedStockStatusHistories;
 using VMSService.Core.Models.StockLedgers;
 using VMSService.Core.Models.SubCategories;
+using VMSService.Core.Models.NoteExaminers;
 using VMSService.Core.Models.Vaults;
 using VMSService.Core.Models.VaultSections;
 using VMSService.Core.Models.CbWithdrawRequest;
@@ -119,6 +120,7 @@ namespace VMSService.Core.Mappings
             CreateMap<BagMovement, BagMovementViewModel>().ReverseMap();
             CreateMap<StockProcessingSession, StockProcessingSessionViewModel>();
             CreateMap<StockProcessingResult, StockProcessingResultViewModel>().ReverseMap();
+            CreateMap<NoteExaminer, NoteExaminerViewModel>().ReverseMap();
         }
     }
 }
