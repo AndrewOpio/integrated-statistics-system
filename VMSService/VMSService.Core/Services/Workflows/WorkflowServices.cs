@@ -35,11 +35,15 @@ using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.StockMovementStatusHistories;
 using VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
+using VMSService.Core.Repositories.CfbTopupRequests;
+using VMSService.Core.Repositories.CfbTopupStatusHistories;
 using VMSService.Core.Services.Identity;
+using VMSService.Core.Services.Submissions;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
 using WorkflowService.Client;
 using WorkflowService.Client.Dto;
+using static VMSService.Core.Static.WithdrawConstants;
 
 namespace VMSService.Core.Services.Workflows
 {
@@ -77,6 +81,9 @@ namespace VMSService.Core.Services.Workflows
         IMonthlyShortageRepository _monthlyShortageRepository,
         IMonthlyShortageStatusHistoryRepository _monthlyShortageStatusHistoryRepository,
         IMonthlyCommercialBankSettlementRepository _cbSettlementRepository,
+        IMonthlyCommercialBankSettlementStatusHistoryRepository _cbSettlementStatusHistoryRepository,
+        ITopupRequestRepository _topupRequestRepository,
+        ITopupRequestStatusHistoryRepository _topupHistoryRepository) : IWorkflowService
         IMonthlyCommercialBankSettlementStatusHistoryRepository _cbSettlementStatusHistoryRepository,
         IBankingSurplusRepository _bankingSurplusRepository,
         IBankingSurplusStatusHistoryRepository _bankingSurplusStatusHistoryRepository,
@@ -150,6 +157,9 @@ namespace VMSService.Core.Services.Workflows
 
                     case StatusConstants.Entity.MonthlyCommercialBankSettlements:
                         return await HandleMonthlyCommercialBankSettlementTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
+
+                    case StatusConstants.Entity.CfbTopupRequest:
+                        return await HandleCfbTopupRequestTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
 
                     case StatusConstants.Entity.StockProcessingPlan:
                         return await HandleStockProcessingPlanTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
@@ -631,7 +641,33 @@ namespace VMSService.Core.Services.Workflows
             request.ModifiedBy = username;
             request.ModifiedDate = DateTime.Now;
 
-            // If supervisor is submitting to bank — generate ref number + copy denominations
+            // CB approval is the submission event — classify same-day submissions here
+            if (transition.ToStatus.Name == WithdrawalStatusNames.PendingRTGSVerification)
+            {
+                // TODO: isDayBeforeHoliday is simplified (always false). See SubmissionClassifier
+                // for the full TODO — a future implementation will look up the holiday calendar.
+                var classification = SubmissionClassifier.Classify(
+                    statusHistory.ChangedAt, request.CollectionDate, isDayBeforeHoliday: false);
+
+                if (classification == SubmissionClassification.LateInvalid)
+                {
+                    _logger.LogWarning(
+                        "WithdrawalRequest {Id} approval rejected: approval date is past collection date {CollectionDate}",
+                        entityId, request.CollectionDate);
+                    return false;
+                }
+
+                // Only derive from classification if not already explicitly set via SetSameDayReason.
+                if (!request.RequiresSpecialApproval)
+                {
+                    request.RequiresSpecialApproval = classification == SubmissionClassification.SameDayExceptional;
+                    request.SpecialApprovalReason = classification == SubmissionClassification.SameDayExceptional
+                        ? remarks
+                        : null;
+                }
+            }
+
+            // If supervisor is submitting to bank � generate ref number + copy denominations
             //if (transition.ToStatusId == WithdrawStatuses.WithdrawalStatusIds.SubmittedToBOU)
             //{
             //    //request.SupervisorUserId = username;
@@ -1279,6 +1315,57 @@ namespace VMSService.Core.Services.Workflows
 
             _logger.LogInformation("Stock Processing Session {Id} transitioned from status {From} to {To} by user {Username} with action {Action}. Attachments: {AttachmentCount}",
                 entityId, currentStatusId, transition.ToStatusId, username, actionName, attachmentIds?.Count ?? 0);
+
+            return true;
+        }
+
+        private async Task<bool> HandleCfbTopupRequestTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition)
+        {
+            var topup = await _topupRequestRepository.FindById(entityId);
+            if (topup == null)
+            {
+                _logger.LogWarning("TopupRequest {Id} not found", entityId);
+                return false;
+            }
+
+            if (topup.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("TopupRequest {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, topup.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new TopupRequestStatusHistory
+            {
+                TopupRequestId = entityId,
+                OldStatusId    = topup.CurrentStatusId,
+                OldStatusName  = topup.CurrentStatusName,
+                NewStatusId    = transition.ToStatusId,
+                NewStatusName  = transition.ToStatus.Name,
+                ChangedBy      = username,
+                ChangedAt      = DateTime.Now,
+                Remarks        = remarks,
+                IsDeleted      = false
+            };
+
+            await _topupHistoryRepository.Create(statusHistory);
+
+            topup.CurrentStatusId   = transition.ToStatusId;
+            topup.CurrentStatusName = transition.ToStatus.Name;
+            await _topupRequestRepository.Update(topup);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"CFB Top-Up Request #{entityId}",
+                    transition,
+                    statusHistory.NewStatusName,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("TopupRequest {Id} transitioned from {From} to {To} by {Username} via action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
 
             return true;
         }

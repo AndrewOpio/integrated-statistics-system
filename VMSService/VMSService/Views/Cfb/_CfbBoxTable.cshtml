@@ -1,0 +1,69 @@
+@model VMSService.Core.Models.Cfb.CfbBoxDetailViewModel
+
+<div class="card border shadow">
+    <div class="card-header bg-white d-flex align-items-center gap-2 py-2">
+        <i class="ti ti-@(Model.BoxType == "Note" ? "cash-banknote" : "coin") text-muted"></i>
+        <span class="fw-bold text-uppercase">
+            @Model.BoxName
+            <span class="badge bg-secondary ms-1 rounded-pill" style="font-size:12px;">@Model.BoxType</span>
+        </span>
+        @if (Model.Deviation != 0)
+        {
+            var devClass = Model.Deviation > 0 ? "bg-success" : "bg-danger";
+            var devSign = Model.Deviation > 0 ? "+" : "";
+            <span class="badge @devClass rounded-pill ms-auto" style="font-size:10px;">
+                @devSign@Model.Deviation.ToString("N0")
+            </span>
+        }
+    </div>
+    <div class="card-body p-0">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr style="background:#f8f9fa">
+                    <th class="ps-3" style="font-size:11px;">Denomination</th>
+                    <th class="text-end" style="font-size:11px;">Baseline (UGX)</th>
+                    <th class="text-end" style="font-size:11px;">Movement</th>
+                    <th class="text-end pe-3" style="font-size:11px;">Actual (UGX)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var line in Model.Lines)
+                {
+                    var devClass = line.Deviation > 0 ? "text-success" : line.Deviation < 0 ? "text-danger" : "text-muted";
+                    var devSign = line.Deviation > 0 ? "+" : "";
+                    <tr class="border-bottom">
+                        <td class="ps-3 fw-bold" style="font-size:12px;">@line.DenominationName</td>
+                        <td class="text-end text-muted" style="font-size:12px;">@line.BaselineAmount.ToString("N0")</td>
+                        <td class="text-end @devClass fw-bold" style="font-size:12px;">
+                            @if (line.MovementTotal != 0)
+                            {
+                                @($"{devSign}{line.MovementTotal:N0}")
+                            }
+                            else
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                        </td>
+                        <td class="text-end pe-3 fw-bold" style="font-size:12px;">@line.ActualAmount.ToString("N0")</td>
+                    </tr>
+                }
+                @if (!Model.Lines.Any())
+                {
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-3 small">
+                            <i class="ti ti-inbox me-1"></i>No opening balance set yet.
+                        </td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr class="table-light fw-bold border-top">
+                    <td class="ps-3">SUBTOTAL</td>
+                    <td class="text-end text-muted">@Model.BaselineTotal.ToString("N0")</td>
+                    <td class="text-end"></td>
+                    <td class="text-end pe-3">@Model.ActualTotal.ToString("N0")</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>

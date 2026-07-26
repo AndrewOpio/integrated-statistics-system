@@ -1,0 +1,234 @@
+@model VMSService.Core.Models.Cfb.CfbOverviewViewModel
+@{
+    ViewData["Title"] = "CFB Cash Holdings";
+}
+
+<div class="mb-2 d-flex align-items-center justify-content-between">
+    <div>
+        <h5 class="fw-bold mb-0">CFB Cash Holdings</h5>
+        <p class="text-muted small mb-0">Cash Operations &middot; @DateTime.Now.ToString("dddd d MMMM yyyy")</p>
+    </div>
+</div>
+
+@* ── TempData alerts ── *@
+@if (TempData["Error"] is string errMsg)
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2 mb-3" role="alert">
+        <i class="ti ti-alert-circle me-2"></i>@errMsg
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@* ── Branch pills (active branches) ── *@
+@if (Model.BranchRows.Any())
+{
+    <div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
+        <span class="text-muted small me-1" style="font-size:11px;">LOCATIONS</span>
+        @foreach (var row in Model.BranchRows.OrderBy(r => r.BouBranchCode))
+        {
+            <a asp-action="BranchDetail" asp-route-bouBranchId="@row.BouBranchId"
+               class="btn btn-sm rounded-pill d-inline-flex align-items-center gap-1 @(row.HasIncompleteSetup ? "btn-outline-warning" : "btn-outline-secondary")"
+               style="font-size:11px;">
+                <i class="ti ti-building-bank"></i>
+                @row.BouBranchCode
+                @if (row.HasIncompleteSetup)
+                {
+                    <span class="badge bg-warning text-dark ms-1" style="font-size:9px;">Incomplete</span>
+                }
+            </a>
+        }
+    </div>
+}
+
+@* ── Overview table ── *@
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white d-flex align-items-center gap-2 py-2">
+        <i class="ti ti-building-bank text-muted"></i>
+        <span class="fw-semibold text-uppercase">All Branches</span>
+        <span class="text-muted ms-2" style="font-size:11px;">Actual (Baseline)</span>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0" id="cfbOverviewTable">
+                <thead>
+                    <tr style="background:linear-gradient(90deg,#b31b34,#c44a1a,#BA7517)">
+                        <th class="text-white fw-semibold ps-3" style="font-size:11px;">Branch</th>
+                        @foreach (var col in Model.NoteDenomColumns)
+                        {
+                            <th class="text-white fw-semibold text-end" style="font-size:11px;">
+                                @* @col.Name<br /> *@
+                                @col.DenomValue.ToString("N0")
+                                @* <span class="opacity-75" style="font-size:10px;">UGX @col.DenomValue.ToString("N0")</span> *@
+                            </th>
+                        }
+                        <th class="text-white fw-semibold text-end" style="font-size:11px;">Notes Actual</th>
+                        <th class="text-white fw-semibold text-end" style="font-size:11px;">Coins Actual</th>
+                        <th class="text-white fw-semibold text-end pe-3" style="font-size:11px;">Branch Actual</th>
+                        <th class="text-white" style="font-size:11px;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.BranchRows)
+                    {
+                        <tr class="border-bottom">
+                            <td class="ps-3">
+                                <span class="fw-semibold" style="font-size:13px;">@row.BouBranchCode</span>
+                                <br />
+                                <span class="text-muted" style="font-size:11px;">@row.BouBranchName</span>
+                                @if (row.HasPendingTopUp)
+                                {
+                                    <span class="badge bg-warning text-dark rounded-pill ms-1 px-2" style="font-size:10px;">
+                                        <i class="ti ti-clock-hour-4 me-1"></i>Top-up pending
+                                    </span>
+                                }
+                                @if (row.HasIncompleteSetup)
+                                {
+                                    <span class="badge bg-warning text-dark rounded-pill ms-1 px-2" style="font-size:10px;">
+                                        <i class="ti ti-alert-triangle me-1"></i>Setup incomplete
+                                    </span>
+                                }
+                            </td>
+                            @foreach (var col in Model.NoteDenomColumns)
+                            {
+                                var baseline = row.NoteBaselines.GetValueOrDefault(col.DenominationId);
+                                var actual = row.NoteActuals.GetValueOrDefault(col.DenominationId);
+                                var dev = actual - baseline;
+                                var devClass = dev > 0 ? "text-success" : dev < 0 ? "text-danger" : "text-muted";
+                                var devSign = dev > 0 ? "+" : "";
+                                <td class="text-end @(actual == 0 && baseline == 0 ? "text-muted" : "")">
+                                    <span class="fw-semibold" style="font-size:12px;">@actual.ToString("N0")</span>
+                                    <br />
+                                    <span class="text-muted" style="font-size:10px;">@baseline.ToString("N0")</span>
+                                    @if (dev != 0)
+                                    {
+                                        <span class="@devClass ms-1" style="font-size:10px;">@devSign@dev.ToString("N0")</span>
+                                    }
+                                </td>
+                            }
+                            <td class="text-end" style="font-size:12px;">
+                                <span class="fw-semibold">@row.TotalNotesActual.ToString("N0")</span>
+                                <br /><span class="text-muted" style="font-size:10px;">@row.TotalNotesBaseline.ToString("N0")</span>
+                            </td>
+                            <td class="text-end" style="font-size:12px;">
+                                <span class="fw-semibold">@row.TotalCoinsActual.ToString("N0")</span>
+                                <br /><span class="text-muted" style="font-size:10px;">@row.TotalCoinsBaseline.ToString("N0")</span>
+                            </td>
+                            <td class="text-end pe-3" style="font-size:13px;">
+                                <span class="fw-bold">@row.TotalActual.ToString("N0")</span>
+                                <br /><span class="text-muted" style="font-size:10px;">@row.TotalBaseline.ToString("N0")</span>
+                            </td>
+                            <td class="pe-2">
+                                <div class="d-flex gap-1 justify-content-end">
+                                    <a asp-action="BranchDetail" asp-route-bouBranchId="@row.BouBranchId"
+                                       class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
+                                       style="font-size:11px;" title="View detail">
+                                        <i class="ti ti-eye"></i>
+                                    </a>
+                                    @if (row.HasIncompleteSetup)
+                                    {
+                                        <form asp-action="SetupBranch" method="post" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="bouBranchId" value="@row.BouBranchId" />
+                                            <button type="submit"
+                                                    class="btn btn-sm btn-warning d-flex align-items-center gap-1"
+                                                    style="font-size:11px;" title="Complete box setup">
+                                                <i class="ti ti-settings"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.BranchRows.Any())
+                    {
+                        <tr>
+                            <td colspan="@(Model.NoteDenomColumns.Count() + 5)" class="text-center text-muted py-4 small">
+                                <i class="ti ti-inbox me-1"></i> No boxes found.
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                @if (Model.BranchRows.Any())
+                {
+                    <tfoot>
+                        <tr class="table-light fw-bold border-top border-2">
+                            <td class="ps-3" style="font-size:12px;">TOTAL</td>
+                            @foreach (var col in Model.NoteDenomColumns)
+                            {
+                                var footBaseline = Model.FooterNoteBaselines.GetValueOrDefault(col.DenominationId);
+                                var footActual = Model.FooterNoteActuals.GetValueOrDefault(col.DenominationId);
+                                <td class="text-end" style="font-size:12px;">
+                                    <span>@footActual.ToString("N0")</span>
+                                    <br /><span class="text-muted fw-normal" style="font-size:10px;">@footBaseline.ToString("N0")</span>
+                                </td>
+                            }
+                            @{
+                                var footNotesActual = Model.FooterGrandActual - Model.FooterCoinsActual;
+                                var footNotesBaseline = Model.FooterGrandBaseline - Model.FooterCoinsBaseline;
+                            }
+                            <td class="text-end" style="font-size:12px;">
+                                <span>@footNotesActual.ToString("N0")</span>
+                                <br /><span class="text-muted fw-normal" style="font-size:10px;">@footNotesBaseline.ToString("N0")</span>
+                            </td>
+                            <td class="text-end" style="font-size:12px;">
+                                <span>@Model.FooterCoinsActual.ToString("N0")</span>
+                                <br /><span class="text-muted fw-normal" style="font-size:10px;">@Model.FooterCoinsBaseline.ToString("N0")</span>
+                            </td>
+                            <td class="text-end pe-3 fw-bold" style="font-size:13px;">
+                                @Model.FooterGrandActual.ToString("N0")
+                                <br /><span class="text-muted fw-normal" style="font-size:10px;">@Model.FooterGrandBaseline.ToString("N0")</span>
+                            </td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                }
+            </table>
+        </div>
+    </div>
+</div>
+
+@* ── Pending setup section ── *@
+@if (Model.BranchesWithoutBoxes.Any())
+{
+    <div class="card border-0 shadow-sm mt-4">
+        <div class="card-header bg-white py-2 d-flex align-items-center gap-2">
+            <i class="ti ti-alert-triangle text-warning"></i>
+            <span class="fw-semibold text-uppercase" style="font-size:12px;">Branches Pending Setup</span>
+            <span class="badge bg-secondary rounded-pill ms-auto">@Model.BranchesWithoutBoxes.Count()</span>
+        </div>
+        <div class="card-body py-3">
+            <p class="text-muted small mb-3">
+                The branches below have no CFB boxes. Click <strong>Set up</strong> to create the Notes and Coins boxes.
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+                @foreach (var branch in Model.BranchesWithoutBoxes.OrderBy(b => b.BranchCode))
+                {
+                    <form asp-action="SetupBranch" method="post" class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="bouBranchId" value="@branch.Id" />
+                        <button type="submit"
+                                class="btn btn-sm btn-outline-primary rounded-pill d-inline-flex align-items-center gap-1"
+                                style="font-size:11px;">
+                            <i class="ti ti-building-bank"></i>
+                            @branch.BranchCode
+                            <span class="ms-1 opacity-75">— Set up</span>
+                        </button>
+                    </form>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        if ($('#cfbOverviewTable tbody tr').length > 0 && !$('#cfbOverviewTable tbody tr td[colspan]').length) {
+            $('#cfbOverviewTable').DataTable({
+                order: [[0, 'asc']],
+                pageLength: 25,
+                columnDefs: [{ orderable: false, targets: -1 }]
+            });
+        }
+    </script>
+}

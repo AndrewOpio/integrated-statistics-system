@@ -13,5 +13,6 @@ namespace VMSService.Core.Repositories.WithdrawalRequests
         Task<WithdrawalRequest?> GetWithDetailsAsync(Guid id, CancellationToken ct = default);
         Task<IEnumerable<WithdrawalRequest>> GetByCbAsync(int cbId, CancellationToken ct = default);
         Task<int> CountByCbBranchAndDateAsync(int cbId, int bouBranchId, DateOnly date, CancellationToken ct = default);
+        Task<IEnumerable<WithdrawalRequest>> GetPendingRtgsWithoutCodeAsync(CancellationToken ct = default);
     }
 }

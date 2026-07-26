@@ -1,0 +1,258 @@
+@model VMSService.Core.Models.Cfb.TopupDetailsViewModel
+@{
+    ViewData["Title"] = $"Top-Up Request TR-{Model.Id:D4}";
+}
+
+<a asp-action="Index" class="d-inline-flex align-items-center gap-1 mb-3 text-muted text-decoration-none fw-bold">
+    <i class="ti ti-arrow-left"></i> Back to List
+</a>
+
+@* ── Hero ── *@
+<div class="rounded-2 p-4 mb-3" style="background:linear-gradient(135deg, #b31b34 15%, #c9973a 100%);">
+    <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-2">
+        <div>
+            <p class="text-uppercase mb-1 fs-6" style="letter-spacing:.08em;color:#e8e8f0;">
+                CFB Top-Up Request
+            </p>
+            <h4 class="fw-medium mb-1 text-white">TR-@Model.Id.ToString("D4")</h4>
+            <p class="small mb-2" style="color:#e8e8f0;">
+                @Model.BouBranchName &middot; Submitted by @Model.CreatedBy &middot; @Model.CreatedDate.ToString("dd MMM yyyy")
+            </p>
+            <span class="badge bg-primary rounded-pill px-3 py-2 bg-opacity-50">
+                <i class="ti ti-badge me-1"></i>@Model.CurrentStatusName
+            </span>
+        </div>
+        <div class="text-end">
+            <p class="text-uppercase mb-1" style="color:#e8e8f0;">Total Increment</p>
+            <h4 class="fw-medium mb-0 text-white">UGX @Model.TotalAmount.ToString("N0")</h4>
+        </div>
+    </div>
+</div>
+
+
+@* ── Two-column layout ── *@
+<div class="row g-3">
+
+    @* ── Left column ── *@
+    <div class="col-md-8 d-flex flex-column gap-3">
+
+        @* ── Lines table ── *@
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-2">
+                <span class="fw-semibold text-uppercase" style="font-size:12px;">
+                    <i class="ti ti-trending-up me-1 text-muted"></i>Requested Increments
+                </span>
+            </div>
+            <div class="card-body p-0">
+                <table class="table align-middle mb-0">
+                    <thead style="background:#f8f9fa;">
+                        <tr>
+                            <th class="ps-3" style="font-size:11px;">BOX</th>
+                            <th style="font-size:11px;">DENOMINATION</th>
+                            <th class="text-end" style="font-size:11px;">CURRENT BASELINE</th>
+                            <th class="text-end" style="font-size:11px;">INCREMENT</th>
+                            <th class="text-end pe-3" style="font-size:11px;">NEW BASELINE</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var line in Model.Lines)
+                        {
+                            <tr class="border-bottom">
+                                <td class="ps-3 small text-muted">@line.BoxName</td>
+                                <td class="fw-semibold small">@line.DenominationName</td>
+                                <td class="text-end text-muted small">@line.CurrentBaseline.ToString("N0")</td>
+                                <td class="text-end text-success fw-semibold small">+@line.IncrementAmount.ToString("N0")</td>
+                                <td class="text-end pe-3 fw-bold small">@line.NewBaseline.ToString("N0")</td>
+                            </tr>
+                        }
+                        @if (!Model.Lines.Any())
+                        {
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3 small">
+                                    <i class="ti ti-inbox me-1"></i>No lines found.
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        @* ── Status History ── *@
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-2 fw-bolder mb-3">
+                    <i class="ti ti-message"></i>
+                    <span class="text-uppercase">Comments</span>
+                </div>
+                @if (Model.StatusHistory.Any())
+                {
+                    <div class="timeline">
+                        @foreach (var h in Model.StatusHistory)
+                        {
+                            <div class="timeline-item mb-4">
+                                <div class="d-flex gap-3">
+                                    <div class="timeline-marker">
+                                        <i class="ti ti-circle-check text-success"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h6 class="mb-1 small">
+                                                    <strong>@h.OldStatusName</strong>
+                                                    <i class="ti ti-arrow-right text-muted"></i>
+                                                    <strong>@h.NewStatusName</strong>
+                                                </h6>
+                                                <small class="text-muted">By: <strong>@h.ChangedBy</strong></small>
+                                            </div>
+                                            <small class="text-muted">@h.ChangedAt.ToString("dd/MMM/yyyy HH:mm:ss")</small>
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(h.Remarks))
+                                        {
+                                            <div class="mt-2 p-2 bg-white rounded border">
+                                                <span class="d-block">@h.Remarks</span>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted text-center"><i class="ti ti-inbox me-2"></i>No comments yet.</p>
+                }
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between mb-5">
+            <a asp-action="Index" class="btn btn-outline-secondary">
+                <i class="ti ti-arrow-left me-1"></i>Back to List
+            </a>
+        </div>
+    </div>
+
+    @* ── Right column — sticky action panel ── *@
+    <div class="col-md-4">
+        <div class="sticky-top" style="top:80px;">
+            <div class="card border border-danger overflow-hidden">
+
+                <div class="card-header text-white d-flex align-items-center gap-2"
+                     style="background:#b31b34;">
+                    <i class="ti ti-circle-arrow-up-right-filled fs-4"></i>
+                    <div>
+                        <p class="fw-bold small mb-0 text-uppercase">
+                            @(Model.AvailableTransitions.Any() ? "Action Required" : "Request Summary")
+                        </p>
+                        <p class="mb-0 text-white-50" style="font-size:11px;">
+                            @(Model.AvailableTransitions.Any() ? "Review and take action" : "Overview of top-up request")
+                        </p>
+                    </div>
+                </div>
+
+                <div class="card-body pb-0">
+                    <div class="d-flex justify-content-between py-2 border-bottom small">
+                        <span class="text-muted">Request ID</span>
+                        <span class="fw-semibold">TR-@Model.Id.ToString("D4")</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-2 border-bottom small">
+                        <span class="text-muted">Branch</span>
+                        <span class="fw-semibold">@Model.BouBranchName</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-2 border-bottom small">
+                        <span class="text-muted">Total Increment</span>
+                        <span class="fw-semibold text-success">UGX @Model.TotalAmount.ToString("N0")</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-2 border-bottom small">
+                        <span class="text-muted">Created</span>
+                        <span class="fw-semibold">@Model.CreatedDate.ToString("dd MMM yyyy")</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center py-2 small">
+                        <span class="text-muted">Status</span>
+                        <span class="badge bg-primary rounded-pill px-3 py-2">
+                            <i class="ti ti-badge me-1"></i>@Model.CurrentStatusName
+                        </span>
+                    </div>
+                </div>
+
+                @if (Model.AvailableTransitions.Any())
+                {
+                    <div class="card-body border-top pt-3">
+                        <form method="post" asp-action="ExecuteAction" asp-route-id="@Model.Id"
+                              id="topupWorkflowForm">
+                            @Html.AntiForgeryToken()
+
+                            <label class="form-label text-uppercase text-muted fw-semibold" style="font-size:10px;">
+                                Comment
+                            </label>
+                            <textarea name="remarks" class="form-control form-control-sm mb-3"
+                                      rows="3" placeholder="Add a comment..."></textarea>
+
+                            @if (Model.AvailableTransitions.Count == 1)
+                            {
+                                var t = Model.AvailableTransitions.First();
+                                <input type="hidden" name="actionName" value="@t.ActionName" />
+                                <div class="d-grid">
+                                    <button type="submit" class="btn @t.ButtonClass text-white">
+                                        <i class="ti ti-check me-1"></i>@t.DisplayLabel
+                                    </button>
+                                </div>
+                            }
+                            else
+                            {
+                                <label class="form-label text-uppercase text-muted fw-semibold" style="font-size:10px;">
+                                    Select Action <span class="text-danger">*</span>
+                                </label>
+                                <select name="actionName" id="topupActionSelect"
+                                        class="form-select form-select-sm mb-3" required>
+                                    <option value="">— Choose an action —</option>
+                                    @foreach (var t in Model.AvailableTransitions)
+                                    {
+                                        <option value="@t.ActionName"
+                                                data-button-class="@t.ButtonClass"
+                                                data-display-label="@t.DisplayLabel">
+                                            @t.DisplayLabel
+                                        </option>
+                                    }
+                                </select>
+                                <div class="d-grid">
+                                    <button type="submit" id="topupSubmitBtn"
+                                            class="btn btn-primary text-white" disabled>
+                                        <i class="ti ti-check me-1"></i>
+                                        <span id="topupBtnLabel">Confirm Action</span>
+                                    </button>
+                                </div>
+                            }
+                        </form>
+                    </div>
+                }
+
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const select = document.getElementById('topupActionSelect');
+            const submitBtn = document.getElementById('topupSubmitBtn');
+            const btnLabel = document.getElementById('topupBtnLabel');
+            if (!select) return;
+            select.addEventListener('change', function () {
+                const opt = this.options[this.selectedIndex];
+                if (opt.value) {
+                    submitBtn.disabled = false;
+                    btnLabel.textContent = opt.dataset.displayLabel || 'Confirm Action';
+                    submitBtn.className = `btn text-white ${opt.dataset.buttonClass || 'btn-primary'}`;
+                } else {
+                    submitBtn.disabled = true;
+                    btnLabel.textContent = 'Confirm Action';
+                    submitBtn.className = 'btn text-white btn-primary';
+                }
+            });
+        })();
+    </script>
+}

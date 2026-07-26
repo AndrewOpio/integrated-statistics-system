@@ -27,6 +27,8 @@ namespace VMSService.Core.Models.WithdrawalRequests
         public int WithdrawalConfirmedCount { get; set; }
         public int RecallRequestedCount { get; set; }
         public int RecalledCount { get; set; }
+        public int PendingRtgsVerificationCount { get; set; }
+        public int ReturnRtgsPendingCount { get; set; }
 
         public string? SelectedBranch { get; set; }
         public bool CanViewAllLocations { get; set; } = false;

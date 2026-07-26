@@ -25,5 +25,6 @@ namespace VMSService.Core.Models.CbRequests
         public string RtgsCode { get; set; } = "—";
         public string CbName { get; set; } = "—";
         public string BouBranchCode { get; set; } = "—";
+        public bool ReturnRtgsPending { get; set; }
     }
 }

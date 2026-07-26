@@ -105,54 +105,92 @@
                 <label class="form-label text-uppercase text-muted small mb-1">
                     Collection Date <span class="text-danger">*</span>
                 </label>
-                @if (Model.IsEdit)
-                {
-                    <p class="fw-bold mb-0 @(Model.CollectionDate == DateOnly.FromDateTime(Model.CreatedDate) ? "text-danger" : "")">
-                        @Model.CollectionDate.ToString("dd MMM yyyy")
-                    </p>
-                    <small class="text-muted">Date the cash will be withdrawn</small>
-                }
-                else
-                {
-                    <input type="date"
-                           id="collectionDate"
-                           class="form-control"
-                           onchange="formState.collectionDate = this.value || null;
-                                 checkSpecialApproval();
-                                 document.getElementById('rtgsDate').min = this.value || new Date().toISOString().split('T')[0];" />
-                    <small class="text-muted">Date the cash will be withdrawn</small>
-                }
+                <input type="date"
+                       id="collectionDate"
+                       class="form-control"
+                       value="@(Model.IsEdit? Model.CollectionDate.ToString("yyyy-MM-dd") : "")"
+                       onchange="onCollectionDateChanged(this.value);" />
+                <small class="text-muted">Date the cash will be withdrawn</small>
             </div>
             <div class="col-md-6">
                 <label class="form-label text-uppercase text-muted small mb-1">
-                    Create Date
+                    Submission Date
                 </label>
                 <p class="fw-bold mb-0">
-                    @(Model.IsEdit? Model.CreatedDate.ToString("dd MMM yyyy") : DateTime.Now.ToString("dd MMM yyyy"))
+                    @(Model.SubmissionDate.HasValue? Model.SubmissionDate.Value.ToString("dd MMM yyyy HH:mm") : "—")
                 </p>
-                <small class="text-muted">Date request was created</small>
+                <small class="text-muted">Date CB approval was granted</small>
             </div>
-
-            <div id="specialApprovalWarning"
-                 class="alert alert-danger d-flex align-items-start gap-2 py-2 mt-3 mb-0"
-                 style="display:none!important;">
-                <i class="ti ti-alert-triangle text-danger fs-5 mt-1 flex-shrink-0"></i>
-                <div class="flex-grow-1">
-                    <p class="fw-bold mb-1">Exceptional Approval Required!</p>
-                    <p class="mb-1 small">
-                        Collection date matches RTGS date. This request will be routed for
-                        <strong>exceptional approval</strong> before processing.
+            <div col-md-6id="sameDayMakerWarning"
+                 class="col-md-12 alert alert-warning align-items-start gap-2 mb-0
+                        @(Model.IsEdit ? (Model.RequiresSpecialApproval ? "d-flex" : "d-none") : "d-none")">
+                <i class="ti ti-alert-triangle text-warning fs-5 flex-shrink-0 mt-1"></i>
+                <div class="w-100">
+                    <p class="fw-bold mb-1">Same-Day Collection</p>
+                    <p class="mb-0 small">
+                        Today is selected as the collection date. If your approver approves this request today,
+                        it will be flagged for exceptional approval. Consider selecting a future date if possible.
                     </p>
-                    <div class="border-top pt-2 mt-1">
-                        <p class="text-muted mb-0" style="font-size:9px;">REASON PROVIDED</p>
-                        <p class="fw-semibold small mb-0" id="specialApprovalReasonDisplay"></p>
+                    <div id="sameDayReasonDisplay"
+                         class="mt-2 pt-2 border-top border-warning
+                                @(Model.IsEdit && !string.IsNullOrWhiteSpace(Model.SpecialApprovalReason) ? "" : "d-none")">
+                        <p class="small text-muted mb-1">Reason for same-day collection:</p>
+                        <p class="small fw-semibold mb-2" id="sameDayReasonText">@Model.SpecialApprovalReason</p>
+                        <button type="button"
+                                class="btn btn-sm btn-outline-warning"
+                                onclick="openSameDayReasonModal()">
+                            <i class="ti ti-edit me-1"></i> Edit Reason
+                        </button>
                     </div>
-                    <button type="button"
-                            class="btn btn-sm btn-outline-danger mt-2"
-                            onclick="editSpecialApprovalReason()">
-                        <i class="ti ti-edit me-1"></i> Edit Reason
-                    </button>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Same-Day Collection Reason Modal -->
+<div class="modal fade"
+     id="sameDayReasonModal"
+     tabindex="-1"
+     aria-labelledby="sameDayReasonModalLabel"
+     aria-modal="true"
+     data-bs-backdrop="static"
+     data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-warning" style="background-color: #fff8e1;">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="ti ti-alert-triangle text-warning fs-4"></i>
+                    <h5 class="modal-title fw-bold mb-0" id="sameDayReasonModalLabel">Same-Day Collection</h5>
+                </div>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">
+                    Today is selected as the collection date. This request will require
+                    <strong>exceptional approval</strong>. Please provide a reason for the same-day collection.
+                </p>
+                <label for="sameDayReasonInput" class="form-label">
+                    Reason <span class="text-danger">*</span>
+                </label>
+                <textarea id="sameDayReasonInput"
+                          class="form-control"
+                          rows="3"
+                          maxlength="500"
+                          placeholder="e.g. Urgent liquidity requirement due to..."></textarea>
+                <div id="sameDayReasonError" class="text-danger small mt-1" style="display:none;">
+                    <i class="ti ti-alert-circle me-1"></i>Please enter a reason before continuing.
+                </div>
+                <div class="text-muted small text-end mt-1">
+                    <span id="sameDayReasonCount">0</span> / 500
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" id="sameDayReasonCancelBtn">
+                    <i class="ti ti-x me-1"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-warning" id="sameDayReasonConfirmBtn">
+                    <i class="ti ti-check me-1"></i> Confirm &amp; Continue
+                </button>
             </div>
         </div>
     </div>

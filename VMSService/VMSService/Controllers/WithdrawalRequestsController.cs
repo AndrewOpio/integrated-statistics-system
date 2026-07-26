@@ -8,18 +8,21 @@ using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.CbDepositRequests;
 using VMSService.Core.Models.CbRequests;
 using VMSService.Core.Models.CbWithdrawRequest;
+using VMSService.Core.Models.Penalties;
 using VMSService.Core.Models.WithdrawalRequestDenominations;
 using VMSService.Core.Models.WithdrawalRequests;
 using VMSService.Core.Repositories.AgentDetails;
+using VMSService.Core.Repositories.AppliedPenalties;
 using VMSService.Core.Repositories.Attachments;
+using VMSService.Core.Repositories.Categories;
+using VMSService.Core.Repositories.CounterPartyTypes;
 using VMSService.Core.Repositories.Denominations;
+using VMSService.Core.Repositories.Penalties;
+using VMSService.Core.Repositories.StockMovements;
+using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Repositories.WithdrawalRequestDenominations;
 using VMSService.Core.Repositories.WithdrawalRequests;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
-using VMSService.Core.Repositories.Categories;
-using VMSService.Core.Repositories.CounterPartyTypes;
-using VMSService.Core.Repositories.StockMovements;
-using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
@@ -27,7 +30,8 @@ using VMSService.Data.Entities;
 using VMSService.Web.Extensions;
 using WorkflowService.Client;
 using WorkflowService.Client.Dto;
-using static VMSService.Core.Static.WithdrawStatuses;
+using static VMSService.Core.Static.SystemPolicy;
+using static VMSService.Core.Static.WithdrawConstants;
 
 namespace VMSService.Web.Controllers
 {
@@ -41,12 +45,14 @@ namespace VMSService.Web.Controllers
         IWithdrawalRequestDenominationRepository _wrDenomRepo,
         IAttachmentRepository _attachmentRepository,
         IWithdrawalUnitOfWork _uow,
-        IWithdrawalStatusResolver _statusResolver,
+        //IWithdrawalStatusResolver _statusResolver,
         IWebHostEnvironment _environment,
         IStockMovementRepository _stockMovementRepository,
         IStockLedgerRepository _stockLedgerRepository,
         ICategoryRepository _categoryRepository,
         ICounterPartyTypeRepository _counterPartyTypeRepository,
+        IPenaltyRepository _penaltyRepository,
+        IAppliedPenaltyRepository _appliedPenaltyRepository,
         ILogger<WithdrawalRequestsController> _logger,
         IMapper _mapper) : Controller
     {
@@ -77,13 +83,13 @@ namespace VMSService.Web.Controllers
             var allBouBranches = await _configServiceClient.GetAllBouBranchesAsync();
 
             // Get user roles
-            var userRoles = User.FindAll("appRole")
-                .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
+            var userRoles = User.FindAll(ClaimType.AppRole)
+                .Where(c => c.Value.StartsWith($"{SystemSettings.AppAcronym}:"))
                 .Select(c => c.Value.Split(":")[1])
                 .ToList();
 
             // Determine if user can view all locations
-            bool canViewAllLocations = userRoles.Contains(SystemPolicy.Roles.RemittancesOfficer);
+            bool canViewAllLocations = userRoles.Contains(Roles.RemittancesOfficer);
 
             // Filter branches based on user roles
             var userBranches = new List<BranchDto>();
@@ -112,28 +118,40 @@ namespace VMSService.Web.Controllers
             }
 
             // Apply branch filter
-            var filteredRequests = allRequests.AsEnumerable();
+            var filteredRequests = allRequests
+                .Where(r => r.StatusTypeName != WithdrawalStatusNames.Approved
+                         && r.StatusTypeName != WithdrawalStatusNames.RejectExceptionalApprovalComplete
+                         && r.StatusTypeName != WithdrawalStatusNames.RecallComplete)
+                .AsEnumerable();
+
             if (!string.IsNullOrEmpty(branchCode))
-                filteredRequests = allRequests.Where(r => r.BouBranchCode == branchCode);
+                filteredRequests = filteredRequests.Where(r => r.BouBranchCode == branchCode);
 
             // ── Individual status counts ─────────────────────────────────────────────
             var active = filteredRequests.Where(r => !r.IsDeleted).ToList();
 
-            var pendingInternalApproval = active.Count(r => r.StatusTypeName == StatusConstants.WithdrawalRequest.PendingInternalApproval);
-            var pendingWithdrawalConfirmation = active.Count(r => r.StatusTypeName == StatusConstants.WithdrawalRequest.PendingWithdrawalConfirmation);
-            var pendingExceptionalApproval = active.Count(r => r.StatusTypeName == StatusConstants.WithdrawalRequest.PendingExceptionalApproval);
-            var pendingRecommendation = active.Count(r => r.StatusTypeName == StatusConstants.WithdrawalRequest.PendingRecommendation);
-            var pendingConfirmation = active.Count(r => r.StatusTypeName == StatusConstants.WithdrawalRequest.PendingConfirmation);
-            var withdrawalConfirmed = active.Count(r => r.StatusTypeName == StatusConstants.WithdrawalRequest.WithdrawalConfirmed);
-            var recallRequested = active.Count(r => r.StatusTypeName == StatusConstants.WithdrawalRequest.RecallRequested);
-            var recalled = active.Count(r => r.StatusTypeName == StatusConstants.WithdrawalRequest.Recalled);
+            var pendingInternalApproval = active.Count(r => r.StatusTypeName == WithdrawalStatusNames.PendingInternalApproval);
+            var pendingWithdrawalConfirmation = active.Count(r => r.StatusTypeName == WithdrawalStatusNames.PendingApproval);
+            var pendingExceptionalApproval = active.Count(r => r.StatusTypeName == WithdrawalStatusNames.PendingExceptionalApproval);
+            var pendingRecommendation = active.Count(r => r.StatusTypeName == WithdrawalStatusNames.PendingVerification);
+            var pendingConfirmation = active.Count(r => r.StatusTypeName == WithdrawalStatusNames.PendingApproval);
+            var withdrawalConfirmed = active.Count(r => r.StatusTypeName == WithdrawalStatusNames.Approved);
+            var recallRequested = active.Count(r => r.StatusTypeName == WithdrawalStatusNames.RecallRequested);
+            var recalled = active.Count(r => r.StatusTypeName == WithdrawalStatusNames.RecallApproved);
+            var pendingRtgsVerification = active.Count(r => r.StatusTypeName == WithdrawalStatusNames.PendingRTGSVerification);
+            var returnRtgsPending = active.Count(r =>
+                r.ReturnRtgsDate == null &&
+                (r.StatusTypeName == WithdrawalStatusNames.Cancelled ||
+                 r.StatusTypeName == WithdrawalStatusNames.Rejected ||
+                 r.StatusTypeName == WithdrawalStatusNames.RejectExceptionalApproval ||
+                 r.StatusTypeName == WithdrawalStatusNames.RecallApproved));
 
             // ── Hero card aggregates ─────────────────────────────────────────────────
             var pendingCb = pendingInternalApproval;
             var underBankProcessing = pendingWithdrawalConfirmation + pendingExceptionalApproval + pendingRecommendation + pendingConfirmation;
             var recallCount = recallRequested + recalled;
             var totalProcessed = active
-                .Where(r => r.StatusTypeName == StatusConstants.WithdrawalRequest.WithdrawalConfirmed)
+                .Where(r => r.StatusTypeName == WithdrawalStatusNames.Approved)
                 .Sum(r => r.TotalAmount);
 
             // ── Requests table ───────────────────────────────────────────────────────
@@ -149,7 +167,12 @@ namespace VMSService.Web.Controllers
                 RequiresSpecialApproval = r.RequiresSpecialApproval,
                 RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "—" : r.RtgsCode,
                 BouBranchCode = r.BouBranchCode,
-            }).ToList();
+                ReturnRtgsPending = r.ReturnRtgsDate == null &&
+                    (r.StatusTypeName == WithdrawalStatusNames.Cancelled ||
+                     r.StatusTypeName == WithdrawalStatusNames.Rejected ||
+                     r.StatusTypeName == WithdrawalStatusNames.RejectExceptionalApproval ||
+                     r.StatusTypeName == WithdrawalStatusNames.RecallApproved),
+            }).OrderBy(r => r.CollectionDate).ToList();
 
 
             var vm = new BouWithdrawalRequestViewModel
@@ -166,6 +189,8 @@ namespace VMSService.Web.Controllers
                 WithdrawalConfirmedCount = withdrawalConfirmed,
                 RecallRequestedCount = recallRequested,
                 RecalledCount = recalled,
+                PendingRtgsVerificationCount = pendingRtgsVerification,
+                ReturnRtgsPendingCount = returnRtgsPending,
                 Requests = rows,
                 BouBranches = userBranches,
                 SelectedBranch = branchCode,
@@ -209,8 +234,8 @@ namespace VMSService.Web.Controllers
 
             var denomVm = new DenomTableViewModel
             {
-                Notes = denomList.Where(d => d.DenominationType.Name.Equals("Note")),
-                Coins = denomList.Where(d => d.DenominationType.Name.Equals("Coin")),
+                Notes = denomList.Where(d => d.DenominationType.Name.Equals(StatusConstants.DenominationName.Note)),
+                Coins = denomList.Where(d => d.DenominationType.Name.Equals(StatusConstants.DenominationName.Coin)),
             };
 
             var displayOrigin = ResolveDisplayOrigin(request.StatusTypeName);
@@ -242,16 +267,16 @@ namespace VMSService.Web.Controllers
                 })
                 .ToList();
 
-            var userRoles = User.FindAll("appRole")
+            var userRoles = User.FindAll(SystemPolicy.ClaimType.AppRole)
                 .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
                 .Select(c => c.Value.Split(":")[1])
                 .ToList();
 
-            var isPanelA = userRoles.Contains(SystemPolicy.Roles.PanelA);
+            var isPanelB = userRoles.Contains(SystemPolicy.Roles.PanelB);
 
-            var canEditDispatch = isPanelA
-                && (request.StatusTypeName == StatusConstants.WithdrawalRequest.PendingRecommendation
-                    || request.StatusTypeName == StatusConstants.WithdrawalRequest.WithdrawalReturned);
+            var canEditDispatch = isPanelB
+                && (request.StatusTypeName == WithdrawConstants.WithdrawalStatusNames.PendingVerification
+                    || request.StatusTypeName == WithdrawConstants.WithdrawalStatusNames.ReturnedForRevision);
 
             var bankRows = request.WithdrawalRequestDenominations
                 .Where(d => d.Origin == WithdrawalOrigin.Bou)
@@ -398,6 +423,13 @@ namespace VMSService.Web.Controllers
                 }
             }
 
+            // Late submission: request first reached Pending Withdrawal Confirmation after 11am
+            var firstPwc = statusHistoryList
+                .Where(h => h.NewStatusName == WithdrawConstants.WithdrawalStatusNames.PendingWithdrawalConfirmation)
+                .OrderBy(h => h.ChangedAt)
+                .FirstOrDefault();
+            bool isLateSubmission = firstPwc != null && firstPwc.ChangedAt.Hour >= 11;
+
             // Load all attachments for this deposit request
             var allAttachments = await _attachmentRepository.FindByEntityId(id.ToString());
             var withdrawalAttachments = allAttachments
@@ -422,7 +454,7 @@ namespace VMSService.Web.Controllers
                 StatusId = request.StatusTypeId,
                 StatusName = request.StatusTypeName,
                 CollectionDate = request.CollectionDate,
-                RtgsDate = request.FundSettlementValueDate,
+                FundSettlementValueDate = request.FundSettlementValueDate,
                 RtgsCode = request.RtgsCode,
                 RequiresSpecialApproval = request.RequiresSpecialApproval,
                 CbName = cb?.Name ?? "—",
@@ -441,16 +473,21 @@ namespace VMSService.Web.Controllers
                 //CanEdit = canEdit,
                 IsLumpSum = request.IsLumpSum,
                 IsPostApprovalView = displayOrigin == WithdrawalOrigin.Bou,
+                IsLateSubmission = isLateSubmission,
                 Steps = BuildStepViewModel(request.StatusTypeName,
                            request.StatusTypeName == WithdrawalStatusNames.Approved, request.RequiresSpecialApproval),
                 RtgsVerificationStatus = request.RtgsVerificationStatus,
                 RtgsVerifiedDate = request.RtgsVerifiedDate,
-                CanVerifyRtgs = (string.IsNullOrEmpty(request.RtgsVerificationStatus) || request.RtgsVerificationStatus == RtgsVerification.Pending)
-                    && request.FundSettlementValueDate.HasValue
+                CanVerifyRtgs = userRoles.Contains(Roles.BackOffice)
+                    && (request.StatusTypeName == WithdrawalStatusNames.PendingWithdrawalConfirmation
+                        || request.StatusTypeName == WithdrawalStatusNames.RecallRequested)
+                    && (string.IsNullOrEmpty(request.RtgsVerificationStatus) || request.RtgsVerificationStatus == RtgsVerification.Pending)
                     && !string.IsNullOrEmpty(request.RtgsCode),
                 RecallRtgsPending = request.RecallRtgsPending,
                 RecallRtgsCode = request.RecallRtgsCode,
                 RecallRtgsDate = request.RecallRtgsDate,
+                ReturnRtgsCode = request.ReturnRtgsCode,
+                ReturnRtgsDate = request.ReturnRtgsDate,
                 CanEditDispatch = canEditDispatch,
                 HasDispatchData = bankRows.Count > 0,
                 EditableBankRows = editableBankRows,
@@ -458,12 +495,30 @@ namespace VMSService.Web.Controllers
                 DispatchedReissueBanknotes = dispatchedReissueBanknotes,
                 DispatchedCoins = dispatchedCoins,
                 AllAttachments = withdrawalAttachments,
-                StatusHistory = statusHistoryList
+                StatusHistory = statusHistoryList.OrderBy(h => h.ChangedAt),
+                SubmissionDate = statusHistoryList
+                    .Where(h => h.NewStatusName == WithdrawalStatusNames.PendingRTGSVerification
+                             || h.NewStatusName == WithdrawalStatusNames.PendingWithdrawalConfirmation)
+                    .OrderBy(h => h.ChangedAt)
+                    .Select(h => (DateTime?)h.ChangedAt.AddHours(3))
+                    .FirstOrDefault(),
+                ApprovalDate = statusHistoryList
+                    .Where(h => h.NewStatusName == WithdrawalStatusNames.Approved)
+                    .Select(h => (DateTime?)h.ChangedAt.AddHours(3))
+                    .FirstOrDefault(),
             };
-            vm.AvailableTransitions = (await _workflowService.GetAvailableTransitionsAsync(
-                StatusConstants.Entity.WithdrawalRequest,
-                request.StatusTypeId,
-                GetUserRole()))
+            var allRoleTransitions = new List<WorkflowTransitionDto>();
+            foreach (var roleId in GetUserRoleIds())
+            {
+                var roleTransitions = await _workflowService.GetAvailableTransitionsAsync(
+                    StatusConstants.Entity.WithdrawalRequest,
+                    request.StatusTypeId,
+                    roleId);
+                allRoleTransitions.AddRange(roleTransitions);
+            }
+
+            vm.AvailableTransitions = allRoleTransitions
+                .DistinctBy(t => t.ActionName)
                 .Where(t => t.ActionName switch
                 {
                     "Exceptional Approval" => request.RequiresSpecialApproval,
@@ -479,8 +534,115 @@ namespace VMSService.Web.Controllers
                 })
                 .ToList();
 
+            // ── Penalties ─────────────────────
+            if (!string.IsNullOrEmpty(request.TransactionRefNumber))
+            {
+                var appliedPenalties = await _appliedPenaltyRepository.FindBySourceId(request.TransactionRefNumber);
+                vm.AppliedPenalties = appliedPenalties.Select(a => new AppliedPenaltyViewModel
+                {
+                    Id = a.Id,
+                    PenaltyId = a.PenaltyId,
+                    PenaltyName = a.Penalty?.Name ?? string.Empty,
+                    ChargeValue = a.ChargeValue,
+                    Quantity = a.Quantity,
+                    IsSettledOnRtgs = a.IsSettledOnRtgs,
+                    RtgsCode = a.RtgsCode,
+                    RtgsSettlingMessage = a.RtgsSettlingMessage,
+                    AppliedBy = a.CreatedBy,
+                    AppliedAt = a.CreatedDate,
+                }).ToList();
+
+                if (request.StatusTypeName == WithdrawalStatusNames.PendingVerification && vm.AvailableTransitions.Any())
+                {
+                    var appliedPenaltyIds = appliedPenalties.Select(a => a.PenaltyId).ToHashSet();
+                    var applicablePenalties = await _penaltyRepository.FindApplicableFor(PenaltyConstants.AppliesTo.PreTransaction);
+                    vm.ApplicablePenalties = applicablePenalties.Select(p => new PenaltyChecklistItemViewModel
+                    {
+                        Id = p.Id,
+                        Name = p.Name,
+                        Description = p.Description,
+                        PenaltyValue = p.PenaltyValue,
+                        IsChecked = appliedPenaltyIds.Contains(p.Id),
+                    }).ToList();
+                }
+            }
 
             return View(vm);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ApplyPenalties(Guid id, List<int>? penaltyIds)
+        {
+            var request = await _uow.Requests.FindById(id);
+            if (request is null)
+            {
+                TempData["Error"] = "Withdrawal request not found.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (request.StatusTypeName != WithdrawalStatusNames.PendingVerification)
+            {
+                TempData["Error"] = "Penalties can only be applied while the request is Pending Verification.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (string.IsNullOrEmpty(request.TransactionRefNumber))
+            {
+                TempData["Error"] = "This request does not have a transaction reference number yet.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            // Same check used to gate the workflow action buttons — only someone whose role has an
+            // available transition on this request right now may apply/adjust its penalties.
+            var hasAvailableTransition = false;
+            foreach (var roleId in GetUserRoleIds())
+            {
+                var roleTransitions = await _workflowService.GetAvailableTransitionsAsync(
+                    StatusConstants.Entity.WithdrawalRequest, request.StatusTypeId, roleId);
+                if (roleTransitions.Any())
+                {
+                    hasAvailableTransition = true;
+                    break;
+                }
+            }
+
+            if (!hasAvailableTransition)
+            {
+                TempData["Error"] = "You are not authorized to act on this request at its current status.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            try
+            {
+                var checkedPenaltyIds = (penaltyIds ?? []).ToHashSet();
+                var currentlyApplied = await _appliedPenaltyRepository.FindBySourceId(request.TransactionRefNumber);
+
+                foreach (var penaltyId in checkedPenaltyIds)
+                {
+                    await _appliedPenaltyRepository.Apply(
+                        PenaltyConstants.Source.Withdrawal, request.TransactionRefNumber, penaltyId);
+                }
+
+                foreach (var applied in currentlyApplied.Where(a => !checkedPenaltyIds.Contains(a.PenaltyId)))
+                {
+                    await _appliedPenaltyRepository.Remove(applied.Id);
+                }
+
+                await _appliedPenaltyRepository.Save();
+                TempData["Success"] = "Penalties updated.";
+            }
+            catch (InvalidOperationException ex)
+            {
+                TempData["Error"] = ex.Message;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error applying penalties to withdrawal request {Id}", id);
+                TempData["Error"] = "An error occurred while updating penalties.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         [HttpGet]
@@ -512,8 +674,8 @@ namespace VMSService.Web.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
-                if (request.StatusTypeName != StatusConstants.WithdrawalRequest.PendingRecommendation
-                    && request.StatusTypeName != StatusConstants.WithdrawalRequest.WithdrawalReturned)
+                if (request.StatusTypeName != WithdrawalStatusNames.PendingVerification
+                    && request.StatusTypeName != WithdrawalStatusNames.ReturnedForRevision)
                 {
                     TempData["Error"] = "This request is not editable in its current status.";
                     return RedirectToAction(nameof(Details), new { id });
@@ -706,9 +868,9 @@ namespace VMSService.Web.Controllers
                     WithdrawalStatusNames.PendingWithdrawalConfirmation,
                 };
                 if (statusesRequiringRtgs.Contains(request.StatusTypeName)
-                    && (!request.FundSettlementValueDate.HasValue || string.IsNullOrEmpty(request.RtgsCode)))
+                    && string.IsNullOrEmpty(request.RtgsCode))
                 {
-                    TempData["Error"] = "RTGS date and RTGS code must be provided before this action can be taken.";
+                    TempData["Error"] = "RTGS code must be provided before this action can be taken.";
                     return RedirectToAction(nameof(Details), new { id });
                 }
 
@@ -745,17 +907,17 @@ namespace VMSService.Web.Controllers
 
                 if (isExecuted)
                 {
-                    if (actionName == "Approve Recall")
-                    {
-                        request.RecallRtgsPending = request.RtgsVerificationStatus is RtgsVerification.Confirmed or RtgsVerification.DateMismatch;
-                        request.ModifiedBy = username;
-                        request.ModifiedDate = DateTime.Now;
-                        await _uow.SaveAsync(ct);
-                    }
+                    //if (actionName == WithdrawalStatusActionNames.ApproveRecall)
+                    //{
+                    //    request.RecallRtgsPending = request.RtgsVerificationStatus is RtgsVerification.Confirmed or RtgsVerification.DateMismatch;
+                    //    request.ModifiedBy = username;
+                    //    request.ModifiedDate = DateTime.Now;
+                    //    await _uow.SaveAsync(ct);
+                    //}
 
                     // Create stock movement when withdrawal is confirmed
                     var updatedRequest = await _uow.Requests.GetWithDetailsAsync(id, ct);
-                    if (updatedRequest?.StatusTypeName == WithdrawalStatusNames.Completed)
+                    if (updatedRequest?.StatusTypeName == WithdrawalStatusNames.Approved)
                     {
                         var bouDenoms = updatedRequest.WithdrawalRequestDenominations
                             .Where(d => d.Origin == WithdrawalOrigin.Bou)
@@ -874,10 +1036,93 @@ namespace VMSService.Web.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SubmitVerification(Guid id, CancellationToken ct)
+        {
+            var request = await _uow.Requests.FindById(id);
+            if (request is null) return NotFound();
+
+            var userRoles = User.FindAll(ClaimType.AppRole)
+                .Where(c => c.Value.StartsWith($"{SystemSettings.AppAcronym}:"))
+                .Select(c => c.Value.Split(":")[1])
+                .ToList();
+
+            if (!userRoles.Contains(Roles.BackOffice))
+            {
+                TempData["Error"] = "Only Back Office users can submit verification.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (request.StatusTypeName != WithdrawalStatusNames.PendingWithdrawalConfirmation
+                && request.StatusTypeName != WithdrawalStatusNames.RecallRequested)
+            {
+                TempData["Error"] = "Verification can only be submitted when the request is Pending Withdrawal Confirmation or Recall Requested.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (string.IsNullOrEmpty(request.RtgsCode))
+            {
+                TempData["Error"] = "RTGS code must be provided before submitting verification.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            var username = User.GetUsernameOrSystem();
+            var userRoleIds = User.GetAppRoleIds();
+
+            request.RtgsVerificationStatus = RtgsVerification.Confirmed;
+            request.RtgsVerifiedDate = DateOnly.FromDateTime(DateTime.Now);
+            request.ModifiedBy = username;
+            request.ModifiedDate = DateTime.Now;
+
+            if (request.StatusTypeName == WithdrawalStatusNames.RecallRequested)
+            {
+                await _uow.SaveAsync(ct);
+                TempData["Success"] = "RTGS verification recorded. The recall request can now proceed.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            // Mark RTGS confirmed on the tracked entity — no SaveAsync yet.
+            // If the transition succeeds it saves everything in one go.
+            // If it fails nothing is committed and the DB stays consistent.
+            var actionName = request.RequiresSpecialApproval
+                ? WithdrawalStatusActionNames.Submit_Verification_Exceptional
+                : WithdrawalStatusActionNames.Submit_Verification;
+
+            var autoRemarks = request.RequiresSpecialApproval
+                ? $"Verification submitted by {username}. Request requires exceptional approval."
+                : $"Verification submitted by {username}.";
+
+            bool isExecuted = await _workflowService.ExecuteTransition(
+                entityType: StatusConstants.Entity.WithdrawalRequest,
+                entityId: id,
+                currentStatusId: request.StatusTypeId,
+                actionName: actionName,
+                username: username,
+                userRoles: userRoleIds,
+                remarks: autoRemarks,
+                ct: ct);
+
+            if (isExecuted)
+            {
+                TempData["Success"] = request.RequiresSpecialApproval
+                    ? "Verification submitted. Request moved to Pending Exceptional Approval."
+                    : "Verification submitted. Request moved to Pending Verification.";
+            }
+            else
+            {
+                TempData["Error"] = "Failed to submit verification. You may not have permission or the action is invalid.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> VerifyRtgs(Guid id, string verificationStatus, DateOnly? rtgsVerifiedDate, CancellationToken ct)
         {
             var request = await _uow.Requests.FindById(id);
             if (request is null) return NotFound();
+
+            var collectionDateSameAsFundSettlementValueDate = request.CollectionDate == request.FundSettlementValueDate;
 
             var validStatuses = new[] { RtgsVerification.Confirmed, RtgsVerification.AmountMismatch, RtgsVerification.DateMismatch, RtgsVerification.NotFound };
             if (!validStatuses.Contains(verificationStatus))
@@ -915,7 +1160,67 @@ namespace VMSService.Web.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CompleteRecall(Guid id, DateOnly recallRtgsDate, string recallRtgsCode, CancellationToken ct)
+        public async Task<IActionResult> CompleteCancel(Guid id, CancellationToken ct)
+            => await CompleteReturn(id, WithdrawalStatusNames.Cancelled, "Complete Cancel",
+                   "CXL", "Cancel return completed. Reverse RTGS details recorded.", ct);
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CompleteReject(Guid id, CancellationToken ct)
+            => await CompleteReturn(id, WithdrawalStatusNames.Rejected, "Complete Reject",
+                   "RJT", "Rejection return completed. Reverse RTGS details recorded.", ct);
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CompleteRejectExceptional(Guid id, CancellationToken ct)
+            => await CompleteReturn(id, WithdrawalStatusNames.RejectExceptionalApproval, "Complete Reject Exceptional",
+                   "REA", "Exceptional rejection return completed. Reverse RTGS details recorded.", ct);
+
+        private async Task<IActionResult> CompleteReturn(
+            Guid id, string expectedStatus, string actionName,
+            string codePrefix, string successMessage, CancellationToken ct)
+        {
+            var request = await _uow.Requests.FindById(id);
+            if (request is null) return NotFound();
+
+            if (request.StatusTypeName != expectedStatus)
+            {
+                TempData["Error"] = $"Return can only be completed when the request is in '{expectedStatus}' status.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            var now = DateTime.Now;
+            var returnRtgsCode = $"{codePrefix}-{now:ddMMyyyyHHmmssfff}";
+
+            var username = User.GetUsernameOrSystem();
+            var userRoles = User.GetAppRoleIds();
+
+            request.ReturnRtgsCode = returnRtgsCode;
+            request.ReturnRtgsDate = DateOnly.FromDateTime(now);
+            request.ModifiedBy = username;
+            request.ModifiedDate = now;
+
+            bool isExecuted = await _workflowService.ExecuteTransition(
+                entityType: StatusConstants.Entity.WithdrawalRequest,
+                entityId: id,
+                currentStatusId: request.StatusTypeId,
+                actionName: actionName,
+                username: username,
+                userRoles: userRoles,
+                remarks: $"Reverse RTGS processed. Return Code: {returnRtgsCode}, Date: {DateOnly.FromDateTime(now):dd MMM yyyy}",
+                ct: ct);
+
+            if (isExecuted)
+                TempData["Success"] = successMessage;
+            else
+                TempData["Error"] = "Failed to complete return. You may not have permission for this action.";
+
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CompleteRecall(Guid id, CancellationToken ct)
         {
             var request = await _uow.Requests.FindById(id);
             if (request is null) return NotFound();
@@ -926,11 +1231,9 @@ namespace VMSService.Web.Controllers
                 return RedirectToAction(nameof(Details), new { id });
             }
 
-            if (string.IsNullOrEmpty(recallRtgsCode))
-            {
-                TempData["Error"] = "Recall RTGS code is required.";
-                return RedirectToAction(nameof(Details), new { id });
-            }
+            var now = DateTime.Now;
+            var recallRtgsDate = DateOnly.FromDateTime(now);
+            var recallRtgsCode = $"RCC-{now:ddMMyyyyHHmmssfff}";
 
             var username = User.GetUsernameOrSystem();
             var userRoles = User.GetAppRoleIds();
@@ -939,7 +1242,7 @@ namespace VMSService.Web.Controllers
             request.RecallRtgsDate = recallRtgsDate;
             request.RecallRtgsPending = false;
             request.ModifiedBy = username;
-            request.ModifiedDate = DateTime.Now;
+            request.ModifiedDate = now;
 
             bool isExecuted = await _workflowService.ExecuteTransition(
                 entityType: StatusConstants.Entity.WithdrawalRequest,
@@ -948,7 +1251,7 @@ namespace VMSService.Web.Controllers
                 actionName: "Complete Recall",
                 username: username,
                 userRoles: userRoles,
-                remarks: string.Empty,
+                remarks: $"Reverse RTGS processed. Recall Code: {recallRtgsCode}, Date: {recallRtgsDate:dd MMM yyyy}",
                 ct: ct);
 
             if (isExecuted)
@@ -1044,19 +1347,26 @@ namespace VMSService.Web.Controllers
             WithdrawalStatusNames.PendingInternalApproval => "CbApprover",
             WithdrawalStatusNames.PendingExceptionalApproval or
             WithdrawalStatusNames.PendingWithdrawalConfirmation => "Remittance",
-            WithdrawalStatusNames.PendingVerification => "PanelA",
-            WithdrawalStatusNames.PendingApproval => "PanelB",
+            WithdrawalStatusNames.PendingVerification => "PanelB",
+            WithdrawalStatusNames.PendingApproval => "PanelA",
             WithdrawalStatusNames.Approved => "BOU",
             WithdrawalStatusNames.RejectExceptionalApproval => "BOU",
             WithdrawalStatusNames.RecallRequested or
             WithdrawalStatusNames.RecallApproved => "Remittance",
             _ => "CbMaker",
         };
-        private int GetUserRole()
-            => User.FindAll("appRoleId")
+        //private int GetUserRole()
+        //    => User.FindAll(SystemSettings.AppRoleClaimType)
+        //    .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
+        //    .Select(c => int.TryParse(c.Value.Split(":")[1], out var roleId) ? roleId : 0)
+        //    .FirstOrDefault(r => r > 0);
+
+        private List<int> GetUserRoleIds()
+            => User.FindAll(SystemSettings.AppRoleClaimType)
             .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
             .Select(c => int.TryParse(c.Value.Split(":")[1], out var roleId) ? roleId : 0)
-            .FirstOrDefault(r => r > 0);
+            .Where(r => r > 0)
+            .ToList();
 
         static BouDispatchCardViewModel BuildFullCard(BouDenominationEditRowViewModel row,
     List<DispatchedBoxDetail> boxesInSegment)

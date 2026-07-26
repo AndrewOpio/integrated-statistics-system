@@ -74,22 +74,20 @@
             <div class="alert alert-warning d-flex align-items-start gap-2 py-2 mb-3">
                 <i class="ti ti-info-circle text-warning mt-1 flex-shrink-0"></i>
                 <small>
-                    Enter the RTGS date and reference code once confirmed with the bank.
-                    RTGS date must be after the collection date.
+                    Enter the RTGS reference code that will be verified.
+                    Fund settlement value date is the same as the collection date.
                 </small>
             </div>
 
             <div class="row g-3">
                 <div class="col-md-6">
-                    <label class="form-label">RTGS Date</label>
-                    @* <input type="date"
-                           id="rtgsDate"
-                           class="form-control"
-                           onchange="formState.rtgsDate = this.value || null; checkSpecialApproval();" /> *@
+                    <label class="form-label">Fund Settlement Value Date</label>
                     <input type="date"
                            id="rtgsDate"
                            class="form-control"
+                           disabled
                            onchange="formState.rtgsDate = this.value || null;" />
+                    <small class="text-muted">Fund Settlement Value Date is the same as the collection date.</small>
 
                     @*  <small id="rtgsDateError" class="text-danger mt-1" style="display:none;">
                         <i class="ti ti-alert-circle me-1"></i>
@@ -104,64 +102,12 @@
                            class="form-control"
                            placeholder="e.g. RTGS-2026-001"
                            oninput="formState.rtgsCode = this.value || null" />
+                    <small id="rtgsCodeHint" class="text-danger d-none">
+                        <i class="ti ti-alert-triangle me-1"></i>Required for same-day exceptional approval.
+                    </small>
                 </div>
             </div>
 
-        </div>
-    </div>
-    @* ── Special Approval Modal ── *@
-    <div class="modal fade" id="specialApprovalModal" tabindex="-1"
-         data-bs-backdrop="static" data-bs-keyboard="false">
-        @* <div class="modal-dialog modal-dialog-centered"> *@
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content">
-                <div class="modal-header border-bottom">
-                    <div class="d-flex align-items-center gap-2">
-                        <div class="rounded-2 bg-danger bg-opacity-10 d-flex align-items-center justify-content-center"
-                             style="width:36px;height:36px;">
-                            <i class="ti ti-alert-triangle text-danger fs-5"></i>
-                        </div>
-                        <div>
-                            <h5 class="modal-title mb-0 fw-bold">Exceptional Approval Required</h5>
-                            <p class="text-muted small mb-0">Collection date matches Withdrawal Request creation date</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-danger d-flex gap-2 py-2 mb-3">
-                        <i class="ti ti-info-circle flex-shrink-0 mt-1"></i>
-                        <small>
-                            Same-day submission and collection requests require exceptional authorization.
-                            Please provide a reason — this will be reviewed before processing.
-                        </small>
-                    </div>
-                    <label class="form-label">
-                        Reason for Same-Day Submission <span class="text-danger">*</span>
-                    </label>
-                    <textarea id="specialApprovalReasonInput"
-                              class="form-control"
-                              rows="3"
-                              placeholder="type reason for same-day withdrawal"></textarea>
-                    <small id="specialApprovalReasonError"
-                           class="text-danger mt-1"
-                           style="display:none;">
-                        <i class="ti ti-alert-circle me-1"></i>
-                        Please provide a reason before continuing.
-                    </small>
-                </div>
-                <div class="modal-footer border-top">
-                    <button type="button"
-                            class="btn btn-outline-secondary"
-                            onclick="onSpecialApprovalCancelled()">
-                        <i class="ti ti-x me-1"></i> Clear Collection Date
-                    </button>
-                    <button type="button"
-                            class="btn btn-danger"
-                            onclick="onSpecialApprovalConfirmed()">
-                        <i class="ti ti-check me-1"></i> Confirm & Continue
-                    </button>
-                </div>
-            </div>
         </div>
     </div>
     @* ── Actions ── *@
@@ -191,9 +137,8 @@
         // const today = new Date().toISOString().split('T')[0];
 
         document.getElementById('collectionDate').min = today;
-        document.getElementById('rtgsDate').min = today;
+        document.getElementById('rtgsDate').min = today; // max is set dynamically when collection date is picked
 
-        formState.createdDate = today;
         formState.cbCode = document.getElementById('cbCode')?.textContent?.trim() || null;
 
         window.denomData = {

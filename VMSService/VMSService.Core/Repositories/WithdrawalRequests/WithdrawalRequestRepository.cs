@@ -69,6 +69,13 @@ namespace VMSService.Core.Repositories.WithdrawalRequests
             .ToListAsync(ct);
 
 
+        public async Task<IEnumerable<WithdrawalRequest>> GetPendingRtgsWithoutCodeAsync(CancellationToken ct = default)
+            => await _db.WithdrawalRequests
+                .Where(r => !r.IsDeleted
+                    && r.StatusTypeName == "Pending RTGS Verification"
+                    && (r.RtgsCode == null || r.RtgsCode == string.Empty))
+                .ToListAsync(ct);
+
         public async Task<bool> IsExists(Guid id)
         => await _db.WithdrawalRequests.AnyAsync(d => d.Id == id);
 

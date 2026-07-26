@@ -20,13 +20,14 @@ using VMSService.Core.Repositories.WithdrawalRequestStatusHistories;
 using VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 using VMSService.Core.Services.Identity;
+using VMSService.Core.Services.Submissions;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
 using VMSService.Web.Helpers;
 using WorkflowService.Client;
 using WorkflowService.Client.Dto;
-using static VMSService.Core.Static.WithdrawStatuses;
+using static VMSService.Core.Static.WithdrawConstants;
 
 namespace VMSService.Web.Controllers
 {
@@ -108,7 +109,9 @@ namespace VMSService.Web.Controllers
                 SelectedBouBranchId = request.BouBranchId,
                 IsEdit = true,
                 CollectionDate = request.CollectionDate,
-                CreatedDate = request.CreatedDate,
+                SubmissionDate = null,
+                RequiresSpecialApproval = request.RequiresSpecialApproval,
+                SpecialApprovalReason = request.SpecialApprovalReason,
             };
 
 
@@ -210,19 +213,15 @@ namespace VMSService.Web.Controllers
 
             WithdrawalRequest request;
 
-            // Guard: collection date must be present and not in the past
-            if (!vm.Id.HasValue)
-            {
-                if (!vm.CollectionDate.HasValue)
-                    return BadRequest(new { errors = new[] { "Please select a collection date." } });
+            // Guard: collection date must be present and not in the past (applies to create and edit)
+            if (!vm.CollectionDate.HasValue)
+                return BadRequest(new { errors = new[] { "Please select a collection date." } });
 
-                if (vm.CollectionDate.Value < DateOnly.FromDateTime(DateTime.Now))
-                    return BadRequest(new { errors = new[] { "Collection date cannot be in the past." } });
-            }
+            if (vm.CollectionDate.Value < DateOnly.FromDateTime(DateTime.Now))
+                return BadRequest(new { errors = new[] { "Collection date cannot be in the past." } });
 
-            // Guard: RTGS date cannot be in the future
-            if (vm.RtgsDate.HasValue && vm.RtgsDate.Value > DateOnly.FromDateTime(DateTime.Now))
-                return BadRequest(new { errors = new[] { "RTGS date cannot be in the future." } });
+            if (vm.CollectionDate.Value == DateOnly.FromDateTime(DateTime.Now) && string.IsNullOrWhiteSpace(vm.RtgsCode))
+                return BadRequest(new { errors = new[] { "RTGS code is required for same-day collection requests." } });
 
             // Guard: lump sum must be a whole bundle (multiple of 1,000)
             if (vm.IsLumpSum)
@@ -247,8 +246,28 @@ namespace VMSService.Web.Controllers
                 //if (!await CanAccessRequestAsync(request.CbId))  // CbId not Id
                 //    return Forbid();
 
+                // Submission date is derived from status history — the moment the request
+                // first entered "Pending RTGS Verification". The settlement-date rule only
+                // applies once the request has actually been submitted; before that the
+                // settlement date simply mirrors the collection date.
+                var statusHistory = await _uow.StatusHistory.GetByRequestAsync(request.Id, ct);
+                var submissionDate = statusHistory
+                    .Where(h => h.NewStatusName == WithdrawalStatusNames.PendingRTGSVerification)
+                    .OrderBy(h => h.ChangedAt)
+                    .Select(h => (DateTime?)h.ChangedAt)
+                    .FirstOrDefault();
+
+                if (submissionDate.HasValue
+                    && vm.RtgsDate.HasValue
+                    && vm.RtgsDate.Value > vm.CollectionDate.Value)
+                    return BadRequest(new { errors = new[] { "Fund settlement value date cannot be after the collection date." } });
+
+                var collectionDateChanged = request.CollectionDate != vm.CollectionDate.Value;
+                request.CollectionDate = vm.CollectionDate.Value;
                 request.FundSettlementValueDate = vm.RtgsDate;
                 request.RtgsCode = vm.RtgsCode;
+                request.RequiresSpecialApproval = !string.IsNullOrWhiteSpace(vm.SpecialApprovalReason);
+                request.SpecialApprovalReason = vm.SpecialApprovalReason?.Trim();
                 request.ModifiedDate = DateTime.Now;
                 request.ModifiedBy = userId;
 
@@ -261,11 +280,17 @@ namespace VMSService.Web.Controllers
                 request.TotalNotesAmount = vm.IsLumpSum ? 0 : vm.Denominations.Where(d => d.Bundles.HasValue).Sum(d => d.Amount);
                 request.TotalCoinsAmount = vm.IsLumpSum ? 0 : vm.Denominations.Where(d => d.Boxes.HasValue).Sum(d => d.Amount);
 
-                // Regenerate transaction ref number only if bank branch changed
-                if (request.BouBranchId != vm.BouBranchId)
+                // Regenerate transaction ref number if bank branch or collection date changed
+                // (both feed into the ref number).
+                var branchChanged = request.BouBranchId != vm.BouBranchId;
+                if (branchChanged)
                 {
                     request.BouBranchId = vm.BouBranchId;
                     request.BouBranchCode = vm.BouBranchCode;
+                }
+
+                if (branchChanged || collectionDateChanged)
+                {
                     request.TransactionRefNumber = await _txnrefNoGenerator
                         .GenerateAsync(request.BouBranchId, request.BouBranchCode,
                                        request.CbId, request.CbCode, request.CollectionDate);
@@ -274,6 +299,9 @@ namespace VMSService.Web.Controllers
             else
             {
                 // ── CREATE path — full initialisation ────────────────────────────
+                if (vm.RtgsDate.HasValue && vm.CollectionDate.HasValue && vm.RtgsDate.Value > vm.CollectionDate.Value)
+                    return BadRequest(new { errors = new[] { "Fund settlement value date cannot be after the collection date." } });
+
                 request = new WithdrawalRequest
                 {
                     CbId = GetCbIdFromClaims(),
@@ -283,8 +311,8 @@ namespace VMSService.Web.Controllers
                     CollectionDate = vm.CollectionDate ?? default,
                     FundSettlementValueDate = vm.RtgsDate,
                     RtgsCode = vm.RtgsCode,
-                    RequiresSpecialApproval = vm.CollectionDate.HasValue && vm.CollectionDate.Value == DateOnly.FromDateTime(DateTime.Now),
-                    SpecialApprovalReason = vm.SpecialApprovalReason,
+                    RequiresSpecialApproval = !string.IsNullOrWhiteSpace(vm.SpecialApprovalReason),
+                    SpecialApprovalReason = vm.SpecialApprovalReason?.Trim(),
                     StatusTypeId = await _statusResolver.GetStatusIdAsync(WithdrawalStatusNames.Draft),
                     StatusTypeName = WithdrawalStatusNames.Draft,
                     CreatedBy = userId,
@@ -314,12 +342,13 @@ namespace VMSService.Web.Controllers
             if (!vm.Id.HasValue)
             {
                 var draftStatusId = await _statusResolver.GetStatusIdAsync(WithdrawalStatusNames.Draft);
+                var username = User.FindFirst(ClaimTypes.Name)?.Value ?? "System";
                 await AddStatusHistoryAsync(
                     request.Id,
                     oldStatusId: 0, oldStatusName: string.Empty,
                     draftStatusId,
                     WithdrawalStatusNames.Draft,
-                    userId, "Saved as draft", ct);
+                    userId, "Saved as draft", ct, changedBy: username);
             }
 
             await _uow.SaveAsync(ct);
@@ -404,10 +433,11 @@ namespace VMSService.Web.Controllers
             {
                 WithdrawalStatusNames.Draft,
                 WithdrawalStatusNames.PendingInternalApproval,
-                WithdrawalStatusNames.PendingWithdrawalConfirmation,
+                WithdrawalStatusNames.ReturnedForRevision,
+                WithdrawalStatusNames.PendingRTGSVerification,
             };
             var canEditRtgs = rtgsEditableStatuses.Contains(request.StatusTypeName)
-                && userRoleNames.Contains(RolePolicy.CbApprover);
+                && (userRoleNames.Contains(RolePolicy.CbApprover) || userRoleNames.Contains(RolePolicy.CbMaker));
 
             // ── Status history ────────────────────────────────────────────────────
             var statusHistory = request.WithdrawalRequestStatusHistory
@@ -459,14 +489,32 @@ namespace VMSService.Web.Controllers
                     availableTransitions.AddRange(transitions);
             }
 
+            // Determine once whether the workflow exposes the exceptional CB-approval path.
+            var hasExceptionalApprovalTransition = availableTransitions
+                .Any(t => t.ActionName == "ExceptionalWithdrawaRequest");
+
             availableTransitions = availableTransitions
                 .Where(t => t.ActionName switch
                 {
-                    "Exceptional Approval" => request.RequiresSpecialApproval,
-                    "Request Withdraw" => !request.RequiresSpecialApproval,
+                    // Show the exceptional path only when the flag is set.
+                    "ExceptionalWithdrawaRequest" => request.RequiresSpecialApproval,
+                    // Show the normal approval on the normal path, OR as a fallback when
+                    // RequiresSpecialApproval is true but no dedicated exceptional transition exists.
+                    "ApproveToRTGSVefification" => !request.RequiresSpecialApproval || !hasExceptionalApprovalTransition,
                     _ => true,
                 })
                 .ToList();
+
+            // Override display labels based on the destination status.
+            foreach (var t in availableTransitions)
+            {
+                t.DisplayLabel = t.ToStatus?.Name switch
+                {
+                    WithdrawalStatusNames.PendingWithdrawalConfirmation => "Approve Exceptional Request",
+                    WithdrawalStatusNames.PendingRTGSVerification       => "Approve (Pending RTGS Verification)",
+                    _ => t.DisplayLabel,
+                };
+            }
 
             // ── Build ViewModel ───────────────────────────────────────────────────
             var vm = new WithdrawalRequestDetailsViewModel
@@ -476,10 +524,10 @@ namespace VMSService.Web.Controllers
                 StatusId = request.StatusTypeId,
                 StatusName = request.StatusTypeName,
                 CollectionDate = request.CollectionDate,
-                RtgsDate = request.FundSettlementValueDate,
+                FundSettlementValueDate = request.FundSettlementValueDate,
                 RtgsCode = request.RtgsCode,
                 RequiresSpecialApproval = request.RequiresSpecialApproval,
-                SpecialApprovalReason = request.SpecialApprovalReason,
+                ExceptionalApprovalReason = request.SpecialApprovalReason,
                 CbName = cb?.Name ?? "—",
                 CbCode = cb?.Code ?? "—",
                 BouBranchName = bankBranch?.Name ?? "—",
@@ -497,11 +545,34 @@ namespace VMSService.Web.Controllers
                 RecallRtgsPending = request.RecallRtgsPending,
                 RecallRtgsCode = request.RecallRtgsCode,
                 RecallRtgsDate = request.RecallRtgsDate,
+                ReturnRtgsCode = request.ReturnRtgsCode,
+                ReturnRtgsDate = request.ReturnRtgsDate,
                 IsLumpSum = request.IsLumpSum,
                 Steps = WithdrawalStepViewModelFactory.Build(stepKey, request.StatusTypeName == WithdrawalStatusNames.Approved, request.RequiresSpecialApproval, User),
                 AvailableTransitions = availableTransitions,
                 StatusHistory = statusHistory,
                 AllAttachments = allAttachments,
+                //ShowExceptionalApprovalWarning = availableTransitions.Any() &&
+                //    userRoleNames.Contains(RolePolicy.CbApprover) &&
+                //    SubmissionClassifier.Classify(DateTime.UtcNow, request.CollectionDate, isDayBeforeHoliday: false)
+                //        == SubmissionClassification.SameDayExceptional,
+                ShowSameDayMakerWarning = (userRoleNames.Contains(RolePolicy.CbMaker) || userRoleNames.Contains(RolePolicy.CbApprover)) &&
+                    SubmissionClassifier.Classify(DateTime.UtcNow, request.CollectionDate, isDayBeforeHoliday: false)
+                        == SubmissionClassification.SameDayExceptional,
+                ShowSameDayReasonCapture = availableTransitions.Any() &&
+                    userRoleNames.Contains(RolePolicy.CbApprover) &&
+                    !request.RequiresSpecialApproval &&
+                    SubmissionClassifier.Classify(DateTime.UtcNow, request.CollectionDate, isDayBeforeHoliday: false)
+                        == SubmissionClassification.SameDayExceptional,
+                CanEditSameDayReason = request.RequiresSpecialApproval &&
+                    userRoleNames.Contains(RolePolicy.CbApprover) &&
+                    request.StatusTypeName == WithdrawalStatusNames.PendingInternalApproval,
+                SubmissionDate = statusHistory
+                    .Where(h => h.NewStatusName == WithdrawalStatusNames.PendingRTGSVerification
+                             || h.NewStatusName == WithdrawalStatusNames.PendingWithdrawalConfirmation)
+                    .OrderBy(h => h.ChangedAt)
+                    .Select(h => (DateTime?)h.ChangedAt.AddHours(3))
+                    .FirstOrDefault(),
             };
 
             return View(vm);
@@ -547,8 +618,35 @@ namespace VMSService.Web.Controllers
                     // Reload to get the fresh status after the workflow transition
                     var updatedRequest = await _withdrawalRequestRepo.FindById(id);
 
+                    // If the CB Approver sent the request to RTGS Verification but the RTGS code
+                    // is already filled in, skip that step and advance directly to
+                    // Pending Withdrawal Confirmation.
                     if (updatedRequest is not null
-                        && updatedRequest.StatusTypeName is StatusConstants.WithdrawalRequest.PendingRecommendation or StatusConstants.WithdrawalRequest.PendingExceptionalApproval
+                        && updatedRequest.StatusTypeName == WithdrawalStatusNames.PendingRTGSVerification
+                        && !string.IsNullOrWhiteSpace(updatedRequest.RtgsCode))
+                    {
+                        var oldStatusId   = updatedRequest.StatusTypeId;
+                        var oldStatusName = updatedRequest.StatusTypeName;
+                        var newStatusId   = await _statusResolver.GetStatusIdAsync(WithdrawalStatusNames.PendingWithdrawalConfirmation);
+
+                        updatedRequest.StatusTypeId   = newStatusId;
+                        updatedRequest.StatusTypeName = WithdrawalStatusNames.PendingWithdrawalConfirmation;
+                        updatedRequest.ModifiedBy     = username;
+                        updatedRequest.ModifiedDate   = DateTime.Now;
+
+                        await AddStatusHistoryAsync(
+                            updatedRequest.Id,
+                            oldStatusId, oldStatusName,
+                            newStatusId, WithdrawalStatusNames.PendingWithdrawalConfirmation,
+                            GetUserId(),
+                            "RTGS code already provided — automatically advanced to Pending Withdrawal Confirmation.",
+                            ct, changedBy: username);
+
+                        await _uow.SaveAsync(ct);
+                    }
+
+                    if (updatedRequest is not null
+                        && updatedRequest.StatusTypeName is WithdrawConstants.WithdrawalStatusNames.PendingVerification or WithdrawConstants.WithdrawalStatusNames.PendingExceptionalApproval
                         && !updatedRequest.IsLumpSum
                         && !await _uow.Denominations.HasBouOriginAsync(id, ct))
                     {
@@ -581,6 +679,34 @@ namespace VMSService.Web.Controllers
                 TempData["Error"] = "An error occurred while executing the action.";
             }
 
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetSameDayReason(Guid id, string reason, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(reason))
+            {
+                TempData["Error"] = "A reason is required for same-day exceptional approval.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            var request = await _uow.Requests.FindById(id);
+            if (request is null)
+            {
+                TempData["Error"] = "Withdrawal request not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            request.RequiresSpecialApproval = true;
+            request.SpecialApprovalReason   = reason.Trim();
+            request.ModifiedDate            = DateTime.Now;
+            request.ModifiedBy              = User.FindFirst(ClaimTypes.Name)?.Value ?? "System";
+
+            await _uow.SaveAsync(ct);
+
+            TempData["Success"] = "Same-day reason saved. You may now proceed with the approval action.";
             return RedirectToAction(nameof(Details), new { id });
         }
 
@@ -621,7 +747,8 @@ namespace VMSService.Web.Controllers
             {
                 WithdrawalStatusNames.Draft,
                 WithdrawalStatusNames.PendingInternalApproval,
-                WithdrawalStatusNames.PendingWithdrawalConfirmation,
+                WithdrawalStatusNames.ReturnedForRevision,
+                WithdrawalStatusNames.PendingRTGSVerification,
             };
             if (!rtgsUpdateableStatuses.Contains(request.StatusTypeName))
             {
@@ -629,9 +756,9 @@ namespace VMSService.Web.Controllers
                 return RedirectToAction(nameof(Details), new { id });
             }
 
-            if (rtgsDate.HasValue && rtgsDate.Value > DateOnly.FromDateTime(DateTime.Now))
+            if (rtgsDate.HasValue && rtgsDate.Value > request.CollectionDate)
             {
-                TempData["Error"] = "RTGS date cannot be in the future.";
+                TempData["Error"] = "Fund settlement value date cannot be after the collection date.";
                 return RedirectToAction(nameof(Details), new { id });
             }
 
@@ -640,9 +767,35 @@ namespace VMSService.Web.Controllers
             request.ModifiedBy = GetUserId();
             request.ModifiedDate = DateTime.Now;
 
+            var autoTransitioned = false;
+
+            if (request.StatusTypeName == WithdrawalStatusNames.PendingRTGSVerification
+                && !string.IsNullOrWhiteSpace(rtgsCode))
+            {
+                var oldStatusId   = request.StatusTypeId;
+                var oldStatusName = request.StatusTypeName;
+                var newStatusId   = await _statusResolver.GetStatusIdAsync(WithdrawalStatusNames.PendingWithdrawalConfirmation);
+                var username      = User.FindFirst(ClaimTypes.Name)?.Value ?? "System";
+
+                request.StatusTypeId   = newStatusId;
+                request.StatusTypeName = WithdrawalStatusNames.PendingWithdrawalConfirmation;
+
+                await AddStatusHistoryAsync(
+                    request.Id,
+                    oldStatusId, oldStatusName,
+                    newStatusId, WithdrawalStatusNames.PendingWithdrawalConfirmation,
+                    GetUserId(),
+                    "RTGS code entered — automatically advanced to Pending Withdrawal Confirmation.",
+                    ct, changedBy: username);
+
+                autoTransitioned = true;
+            }
+
             await _uow.SaveAsync(ct);
 
-            TempData["Success"] = "RTGS details updated successfully.";
+            TempData["Success"] = autoTransitioned
+                ? "RTGS details saved. Request advanced to Pending Withdrawal Confirmation."
+                : "RTGS details updated successfully.";
             return RedirectToAction(nameof(Details), new { id });
         }
 
@@ -653,7 +806,8 @@ namespace VMSService.Web.Controllers
             if (request is null) return NotFound();
 
             if (request.StatusTypeName != WithdrawalStatusNames.Completed
-                && request.StatusTypeName != WithdrawalStatusNames.Approved)
+                && request.StatusTypeName != WithdrawalStatusNames.Approved
+                && request.StatusTypeName != WithdrawalStatusNames.PendingApproval)
                 return RedirectToAction(nameof(Details), new { id });
 
             var cb = await _configServiceClient.GetCbIdAsync(request.CbId);
@@ -994,7 +1148,8 @@ namespace VMSService.Web.Controllers
             string newStatusName,
             string userId,
             string remarks,
-            CancellationToken ct)
+            CancellationToken ct,
+            string? changedBy = null)
         {
             await _uow.StatusHistory.Create(new WithdrawalRequestStatusHistory
             {
@@ -1003,7 +1158,9 @@ namespace VMSService.Web.Controllers
                 OldStatusName = oldStatusName,
                 NewStatusId = newStatusId,
                 NewStatusName = newStatusName,
-                ChangedBy = userId,
+                // ChangedBy is shown in the Comments timeline, so store the readable
+                // username (matching workflow-driven entries). CreatedBy keeps the id for audit.
+                ChangedBy = changedBy ?? userId,
                 ChangedAt = DateTime.UtcNow,
                 Remarks = remarks,
                 CreatedBy = userId,

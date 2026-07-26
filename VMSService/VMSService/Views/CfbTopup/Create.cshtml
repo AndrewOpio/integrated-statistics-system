@@ -1,0 +1,197 @@
+@model VMSService.Core.Models.Cfb.TopupCreateViewModel
+@{
+    ViewData["Title"] = "New Top-Up Request";
+}
+
+<a asp-action="Index" class="d-inline-flex align-items-center gap-1 mb-3 text-muted text-decoration-none fw-bold">
+    <i class="ti ti-arrow-left"></i> Back to List
+</a>
+
+<div class="rounded-2 p-4 mb-3" style="background:linear-gradient(135deg, #b31b34 15%, #c9973a 100%);">
+    <h5 class="text-white fw-bold mb-1">New Top-Up Request</h5>
+    <p class="mb-0" style="color:#e8e8f0;font-size:13px;">
+        @Model.BouBranchName &middot; Add only the denominations you need topped up
+    </p>
+</div>
+
+@if (TempData["Error"] is string errorMsg)
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2 mb-3" role="alert">
+        <i class="ti ti-alert-circle me-2"></i>@errorMsg
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<form method="post" asp-action="SaveDraft">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="bouBranchId" value="@Model.BouBranchId" />
+
+    @foreach (var box in Model.Boxes)
+    {
+        var sid = "box" + box.BoxId;
+        var icon = box.BoxType == "Note" ? "banknote" : "coin";
+
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white d-flex align-items-center gap-2 py-2">
+                <i class="ti ti-@icon text-muted"></i>
+                <span class="fw-semibold text-uppercase" style="font-size:12px;">@box.BoxName</span>
+                <span class="badge bg-secondary ms-1 rounded-pill" style="font-size:10px;">@box.BoxType</span>
+            </div>
+            <div class="card-body">
+
+                <div id="@(sid)-empty" class="text-center text-muted py-4 small">
+                    <i class="ti ti-plus-circle fs-2 d-block mb-2 opacity-50"></i>
+                    No denominations added yet. Use the selector below.
+                </div>
+
+                <table id="@(sid)-table" class="table align-middle mb-3 d-none">
+                    <thead style="background:#f8f9fa;">
+                        <tr>
+                            <th class="ps-3" style="font-size:11px;">DENOMINATION</th>
+                            <th class="text-end" style="font-size:11px;">CURRENT BASELINE</th>
+                            <th class="text-end" style="font-size:11px;">INCREMENT (UGX)</th>
+                            <th class="text-end" style="font-size:11px;">NEW BASELINE</th>
+                            <th class="pe-3"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="@(sid)-tbody"></tbody>
+                </table>
+
+                <div class="d-flex align-items-center gap-2">
+                    <select id="@(sid)-select" class="form-select form-select-sm">
+                        <option value="">— Select a denomination to add —</option>
+                        @foreach (var line in box.Lines)
+                        {
+                            <option value="@line.DenominationId"
+                                    data-box-id="@box.BoxId"
+                                    data-denom-value="@line.DenomValue"
+                                    data-baseline="@line.CurrentBaseline"
+                                    data-name="@line.DenominationName">
+                                @line.DenominationName &mdash; Baseline: UGX @line.CurrentBaseline.ToString("N0")
+                            </option>
+                        }
+                    </select>
+                    <button type="button" class="btn btn-sm btn-outline-primary text-nowrap"
+                            onclick="addDenom('@sid')">
+                        <i class="ti ti-plus me-1"></i>Add
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    }
+
+    <div class="d-flex justify-content-between mt-3 mb-5">
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="ti ti-arrow-left me-1"></i>Cancel
+        </a>
+        <button type="submit" class="btn btn-primary">
+            <i class="ti ti-device-floppy me-1"></i>Save Draft
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        function ugxFmt(n) {
+            return 'UGX ' + Number(n).toLocaleString();
+        }
+
+        function esc(s) {
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function updateNewBase(cellId, baseline, val) {
+            const inc = parseInt(val) || 0;
+            const cell = document.getElementById(cellId);
+            cell.textContent = ugxFmt(baseline + inc);
+            cell.className = inc > 0
+                ? 'text-end fw-bold small text-success'
+                : 'text-end small text-muted';
+        }
+
+        function addDenom(sid) {
+            const select = document.getElementById(sid + '-select');
+            const opt = select.options[select.selectedIndex];
+            if (!opt || !opt.value) return;
+
+            const denomId = opt.value;
+            const boxId = opt.dataset.boxId;
+            const denomValue = opt.dataset.denomValue;
+            const baseline = parseInt(opt.dataset.baseline);
+            const name = opt.dataset.name;
+            const newBaseId = sid + '-nb-' + denomId;
+
+            const tr = document.createElement('tr');
+            tr.id = sid + '-row-' + denomId;
+            tr.dataset.denomId = denomId;
+            tr.dataset.boxId = boxId;
+            tr.dataset.denomValue = denomValue;
+            tr.dataset.baseline = baseline;
+            tr.dataset.name = name;
+            tr.innerHTML = `
+                <td class="ps-3 fw-semibold small">
+                    ${esc(name)}
+                    <input type="hidden" name="denominationIds" value="${esc(denomId)}">
+                    <input type="hidden" name="boxIds" value="${esc(boxId)}">
+                    <input type="hidden" name="denomValues" value="${esc(denomValue)}">
+                    <input type="hidden" name="baselineBeforeTopups" value="${baseline}">
+                </td>
+                <td class="text-end text-muted small">${ugxFmt(baseline)}</td>
+                <td class="text-end">
+                    <input type="number" name="amounts" min="1000" step="1000"
+                           class="form-control form-control-sm text-end" style="max-width:160px;margin-left:auto;"
+                           placeholder="0" required
+                           oninput="updateNewBase('${newBaseId}', ${baseline}, this.value)">
+                </td>
+                <td class="text-end small text-muted" id="${newBaseId}">${ugxFmt(baseline)}</td>
+                <td class="text-end pe-3">
+                    <button type="button" class="btn btn-sm btn-link text-danger p-0"
+                            onclick="removeDenom('${sid}', '${esc(denomId)}')">
+                        <i class="ti ti-x"></i>
+                    </button>
+                </td>
+            `;
+
+            document.getElementById(sid + '-tbody').appendChild(tr);
+            document.getElementById(sid + '-table').classList.remove('d-none');
+            document.getElementById(sid + '-empty').classList.add('d-none');
+
+            opt.remove();
+            select.value = '';
+        }
+
+        function removeDenom(sid, denomId) {
+            const tr = document.getElementById(sid + '-row-' + denomId);
+            const { boxId, denomValue, baseline, name } = tr.dataset;
+
+            const select = document.getElementById(sid + '-select');
+            const newOpt = new Option(
+                name + ' — Baseline: ' + ugxFmt(baseline),
+                denomId
+            );
+            newOpt.dataset.boxId = boxId;
+            newOpt.dataset.denomValue = denomValue;
+            newOpt.dataset.baseline = baseline;
+            newOpt.dataset.name = name;
+
+            let inserted = false;
+            for (let i = 1; i < select.options.length; i++) {
+                if (parseInt(select.options[i].dataset.denomValue) > parseInt(denomValue)) {
+                    select.insertBefore(newOpt, select.options[i]);
+                    inserted = true;
+                    break;
+                }
+            }
+            if (!inserted) select.appendChild(newOpt);
+
+            tr.remove();
+
+            const tbody = document.getElementById(sid + '-tbody');
+            if (tbody.children.length === 0) {
+                document.getElementById(sid + '-table').classList.add('d-none');
+                document.getElementById(sid + '-empty').classList.remove('d-none');
+            }
+        }
+    </script>
+}

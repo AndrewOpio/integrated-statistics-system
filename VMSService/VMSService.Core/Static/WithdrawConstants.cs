@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace VMSService.Core.Static
 {
-    public static class WithdrawStatuses
+    public static class WithdrawConstants
     {
         public static class WithdrawalStatusNames
         {
@@ -28,8 +28,16 @@ namespace VMSService.Core.Static
             public const string Rejected = "Rejected";
             public const string Completed = "Completed";
             public const string Expired = "Expired";
-            //public const string WithdrawalConfirmed = "Withdrawal Confirmed";
-            //public const string WithdrawalReturned = "Withdrawal Returned";
+            public const string RejectComplete = "Reject Complete";
+            public const string Cancelled = "Cancelled";
+            public const string CancelComplete = "Cancel Complete";
+            public const string RejectExceptionalApprovalComplete = "Reject Exceptional Approval Complete";
+        }
+        public static class WithdrawalStatusActionNames
+        {
+            public const string ApproveRecall = "ApproveRecall";
+            public const string Submit_Verification_Exceptional = "Submit_Verification_Exceptional";
+            public const string Submit_Verification = "Submit_Verification";
         }
 
         public static class RtgsVerification

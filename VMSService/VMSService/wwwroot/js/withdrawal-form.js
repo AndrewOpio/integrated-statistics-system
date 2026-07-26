@@ -18,7 +18,6 @@ const formState = {
     requiresSpecialApproval: false,
     specialApprovalReason: null,
     agentIds: [],
-    createdDate: null,
     //isLumpSum: false,
     //lumpSumAmount: null,
 };
@@ -30,6 +29,167 @@ const formState = {
 function onBouBranchSelected(id) {
     formState.bouBranchId = id ? parseInt(id) : null;
 }
+
+function onCollectionDateChanged(value) {
+    formState.collectionDate = value || null;
+
+    const isSameDay = value && value === today;
+
+    const sameDayWarning = document.getElementById('sameDayMakerWarning');
+    if (sameDayWarning) {
+        sameDayWarning.classList.toggle('d-none', !isSameDay);
+        sameDayWarning.classList.toggle('d-flex', isSameDay);
+    }
+
+    if (isSameDay) {
+        openSameDayReasonModal();
+        const rtgsCodeInput = document.getElementById('rtgsCode');
+        if (rtgsCodeInput) rtgsCodeInput.required = true;
+        const rtgsCodeHint = document.getElementById('rtgsCodeHint');
+        if (rtgsCodeHint) rtgsCodeHint.classList.remove('d-none');
+    } else {
+        formState.requiresSpecialApproval = false;
+        formState.specialApprovalReason = null;
+
+        const rtgsCodeInput = document.getElementById('rtgsCode');
+        if (rtgsCodeInput) rtgsCodeInput.required = false;
+        const rtgsCodeHint = document.getElementById('rtgsCodeHint');
+        if (rtgsCodeHint) rtgsCodeHint.classList.add('d-none');
+
+        const sameDayReasonDisplay = document.getElementById('sameDayReasonDisplay');
+        const sameDayReasonText    = document.getElementById('sameDayReasonText');
+        if (sameDayReasonDisplay) sameDayReasonDisplay.classList.add('d-none');
+        if (sameDayReasonText)    sameDayReasonText.textContent = '';
+
+        const specialApprovalWarning = document.getElementById('specialApprovalWarning');
+        if (specialApprovalWarning) {
+            specialApprovalWarning.classList.add('d-none');
+            specialApprovalWarning.classList.remove('d-flex');
+        }
+        const specialApprovalReasonDisplay = document.getElementById('specialApprovalReasonDisplay');
+        if (specialApprovalReasonDisplay) specialApprovalReasonDisplay.textContent = '';
+    }
+
+    // Fund settlement value date always mirrors the collection date.
+    // Update formState first so it stays in sync even when the settlement date
+    // field isn't present on the page (e.g. the Edit page renders it read-only).
+    formState.rtgsDate = value || null;
+
+    const rtgsDisplay = document.getElementById('rtgsDateDisplay');
+    if (rtgsDisplay) {
+        rtgsDisplay.textContent = value
+            ? new Date(value + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+            : '—';
+    }
+
+    const rtgsInput = document.getElementById('rtgsDate');
+    if (rtgsInput) rtgsInput.value = value || '';
+}
+
+// ─────────────────────────────────────────────
+// Same-Day Reason Modal
+// ─────────────────────────────────────────────
+
+function openSameDayReasonModal() {
+    const modalEl = document.getElementById('sameDayReasonModal');
+    if (!modalEl) return;
+
+    // Reset modal state each time it opens.
+    const textarea = document.getElementById('sameDayReasonInput');
+    const errorEl  = document.getElementById('sameDayReasonError');
+    const countEl  = document.getElementById('sameDayReasonCount');
+    if (textarea) textarea.value = formState.specialApprovalReason || '';
+    if (errorEl)  errorEl.style.display = 'none';
+    if (countEl)  countEl.textContent = textarea ? textarea.value.length : 0;
+
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+}
+
+function clearCollectionDate() {
+    const dateInput = document.getElementById('collectionDate');
+    if (dateInput) dateInput.value = '';
+
+    formState.collectionDate = null;
+    formState.rtgsDate = null;
+    formState.requiresSpecialApproval = false;
+    formState.specialApprovalReason = null;
+
+    const sameDayWarning = document.getElementById('sameDayMakerWarning');
+    if (sameDayWarning) {
+        sameDayWarning.classList.add('d-none');
+        sameDayWarning.classList.remove('d-flex');
+    }
+
+    const reasonDisplay = document.getElementById('sameDayReasonDisplay');
+    const reasonText    = document.getElementById('sameDayReasonText');
+    if (reasonDisplay) reasonDisplay.classList.add('d-none');
+    if (reasonText)    reasonText.textContent = '';
+
+    const rtgsInput = document.getElementById('rtgsDate');
+    if (rtgsInput) rtgsInput.value = '';
+
+    const rtgsDisplay = document.getElementById('rtgsDateDisplay');
+    if (rtgsDisplay) rtgsDisplay.textContent = '—';
+
+    const rtgsCodeInput = document.getElementById('rtgsCode');
+    if (rtgsCodeInput) rtgsCodeInput.required = false;
+    const rtgsCodeHint = document.getElementById('rtgsCodeHint');
+    if (rtgsCodeHint) rtgsCodeHint.classList.add('d-none');
+}
+
+// Wire up modal buttons once the DOM is ready.
+document.addEventListener('DOMContentLoaded', () => {
+    const modalEl     = document.getElementById('sameDayReasonModal');
+    const confirmBtn  = document.getElementById('sameDayReasonConfirmBtn');
+    const cancelBtn   = document.getElementById('sameDayReasonCancelBtn');
+    const textarea    = document.getElementById('sameDayReasonInput');
+    const errorEl     = document.getElementById('sameDayReasonError');
+    const countEl     = document.getElementById('sameDayReasonCount');
+
+    if (!modalEl) return;
+
+    if (textarea && countEl) {
+        textarea.addEventListener('input', () => {
+            countEl.textContent = textarea.value.length;
+            if (textarea.value.trim()) errorEl.style.display = 'none';
+        });
+    }
+
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', () => {
+            const reason = textarea ? textarea.value.trim() : '';
+            if (!reason) {
+                if (errorEl) errorEl.style.display = 'block';
+                return;
+            }
+            formState.requiresSpecialApproval = true;
+            formState.specialApprovalReason   = reason;
+            bootstrap.Modal.getInstance(modalEl).hide();
+
+            const reasonText    = document.getElementById('sameDayReasonText');
+            const reasonDisplay = document.getElementById('sameDayReasonDisplay');
+            if (reasonText)    reasonText.textContent = reason;
+            if (reasonDisplay) reasonDisplay.classList.remove('d-none');
+
+            // Sync the RTGS-card block on the Edit page.
+            const specialApprovalReasonDisplay = document.getElementById('specialApprovalReasonDisplay');
+            if (specialApprovalReasonDisplay) specialApprovalReasonDisplay.textContent = reason;
+            const specialApprovalWarning = document.getElementById('specialApprovalWarning');
+            if (specialApprovalWarning) {
+                specialApprovalWarning.classList.remove('d-none');
+                specialApprovalWarning.classList.add('d-flex');
+            }
+        });
+    }
+
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+            bootstrap.Modal.getInstance(modalEl).hide();
+            // On Create only — clear the date so the user cannot skip providing a reason.
+            if (!formState.id) clearCollectionDate();
+        });
+    }
+});
 
 // ─────────────────────────────────────────────
 // Agent selection — called from _AgentSelection
@@ -83,6 +243,12 @@ function validateForm(isDraft) {
     else if (formState.collectionDate < today)
         errors.push('Collection date cannot be in the past.');
 
+    if (formState.requiresSpecialApproval && !formState.specialApprovalReason)
+        errors.push('A reason is required for same-day collection requests.');
+
+    if (formState.collectionDate === today && !formState.rtgsCode)
+        errors.push('RTGS code is required for same-day collection requests.');
+
     if (!isDraft) {
 
         if (!formState.bouBranchId)
@@ -92,13 +258,13 @@ function validateForm(isDraft) {
             errors.push('Exactly 2 agents are required.');
 
         if (formState.rtgsCode && !formState.rtgsDate)
-            errors.push('RTGS date is required when an RTGS code is provided.');
+            errors.push('Fund settlement value date is required when an RTGS code is provided.');
 
         if (formState.rtgsDate && !formState.rtgsCode)
-            errors.push('RTGS code is required when an RTGS date is provided.');
+            errors.push('RTGS code is required when a fund settlement value date is provided.');
 
-        if (formState.rtgsDate && formState.rtgsDate > today)
-            errors.push('RTGS date cannot be in the future.');
+        if (formState.rtgsDate && formState.collectionDate && formState.rtgsDate > formState.collectionDate)
+            errors.push('Fund settlement value date cannot be after the collection date.');
 
         if (!window.dtHasValue())
             errors.push('Please add at least one denomination or enter a lump sum amount.');
@@ -166,6 +332,7 @@ async function submitForm(action) {
             id: formState.id,
             bouBranchId: parseInt(formState.bouBranchId) || 0,
             bouBranchCode: formState.bouBranchCode,
+            collectionDate: formState.collectionDate,
             rtgsDate: formState.rtgsDate,
             rtgsCode: formState.rtgsCode,
             requiresSpecialApproval: formState.requiresSpecialApproval,
@@ -238,76 +405,5 @@ document.addEventListener('denomChanged', e => {
     console.debug('Denom total:', e.detail.grandTotal);
 });
 
-
-// ── Special Approval ─────────────────────────────────────────────────────────
-
-function isSameDayApprovalRequired() {
-    // Always use Uganda time (EAT = UTC+3) regardless of browser locale
-    const nowUganda = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Kampala' }));
-    const isMonday = nowUganda.getDay() === 1;
-    const before11 = nowUganda.getHours() < 11;
-
-    // Monday before 11am EAT — grace period, no special approval
-    if (isMonday && before11) return false;
-
-    return formState.createdDate !== null
-        && formState.collectionDate !== null
-        && formState.createdDate === formState.collectionDate;
-}
-
-function checkSpecialApproval() {
-    const warning = document.getElementById('specialApprovalWarning');
-
-    if (isSameDayApprovalRequired()) {
-        formState.specialApprovalReason = null;
-        new bootstrap.Modal(document.getElementById('specialApprovalModal')).show();
-    } else {
-        formState.requiresSpecialApproval = false;
-        formState.specialApprovalReason = null;
-        if (warning) warning.style.setProperty('display', 'none', 'important');
-    }
-}
-
-function onSpecialApprovalConfirmed() {
-    const reasonInput = document.getElementById('specialApprovalReasonInput');
-    const reasonError = document.getElementById('specialApprovalReasonError');
-    const warning = document.getElementById('specialApprovalWarning');
-    const reason = reasonInput.value.trim();
-
-    if (!reason) {
-        reasonError.style.display = 'block';
-        return;
-    }
-
-    reasonError.style.display = 'none';
-    formState.specialApprovalReason = reason;
-    formState.requiresSpecialApproval = true;
-
-    document.getElementById('specialApprovalReasonDisplay').textContent = reason;
-
-    bootstrap.Modal.getInstance(document.getElementById('specialApprovalModal')).hide();
-
-    if (warning) warning.style.setProperty('display', 'flex', 'important');
-}
-
-function editSpecialApprovalReason() {
-    const input = document.getElementById('specialApprovalReasonInput');
-    input.value = formState.specialApprovalReason || '';
-    new bootstrap.Modal(document.getElementById('specialApprovalModal')).show();
-}
-
-function onSpecialApprovalCancelled() {
-    formState.collectionDate = null;
-    formState.specialApprovalReason = null;
-    formState.requiresSpecialApproval = false;
-
-    document.getElementById('collectionDate').value = '';
-    document.getElementById('specialApprovalReasonInput').value = '';
-
-    const warning = document.getElementById('specialApprovalWarning');
-    if (warning) warning.style.setProperty('display', 'none', 'important');
-
-    bootstrap.Modal.getInstance(document.getElementById('specialApprovalModal')).hide();
-}
 
 

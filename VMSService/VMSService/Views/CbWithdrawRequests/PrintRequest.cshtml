@@ -171,7 +171,7 @@
         <span class="info-label">Printed</span><span>@DateTime.Now.ToString("dd MMMM yyyy HH:mm")</span>
         @if (Model.RtgsDate.HasValue)
         {
-            <span class="info-label">RTGS Date</span><span>@Model.RtgsDate.Value.ToString("dd MMMM yyyy")</span>
+            <span class="info-label">Fund Settlement Value Date</span><span>@Model.RtgsDate.Value.ToString("dd MMMM yyyy")</span>
             <span class="info-label">RTGS Code</span><span class="monospace">@Model.RtgsCode</span>
         }
     </div>

@@ -1,0 +1,168 @@
+@model VMSService.Core.Models.Cfb.CfbBranchDetailViewModel
+@{
+    ViewData["Title"] = $"CFB — {Model.BouBranchCode}";
+}
+
+@* ── TempData alerts ── *@
+@if (TempData["Info"] is string infoMsg)
+{
+    <div class="alert alert-info alert-dismissible fade show py-2 mb-3" role="alert">
+        <i class="ti ti-info-circle me-2"></i>@infoMsg
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@* ── Branch pills ── *@
+@if (Model.IsRestricted)
+{
+    <div class="mb-3">
+        <span class="d-inline-flex align-items-center gap-2 px-3 py-2 rounded-pill"
+              style="background:#f4f4f4;color:#555;font-size:12px;border:1px solid #b31b34;">
+            <i class="ti ti-lock" style="font-size:13px;color:#888;"></i>
+            <span class="fw-semibold">@Model.BouBranchCode</span>
+            <span class="text-muted" style="font-size:11px;">Your branch</span>
+        </span>
+    </div>
+}
+else if (Model.AllBranches.Any())
+{
+    <div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
+        <span class="text-muted small me-1" style="font-size:11px;">LOCATIONS</span>
+        <a asp-action="Index" class="btn btn-sm btn-outline-secondary rounded-pill"
+           style="font-size:11px;" title="All branches overview">
+            <i class="ti ti-layout-grid me-1"></i>All
+        </a>
+        @foreach (var b in Model.AllBranches.OrderBy(b => b.BranchCode))
+        {
+            var isActive = b.Id == Model.BouBranchId;
+            @if (isActive)
+            {
+                <span class="btn btn-sm rounded-pill d-inline-flex align-items-center gap-1"
+                      style="background:#b31b34;color:white;font-size:11px;cursor:default;">
+                    <i class="ti ti-building-bank"></i>@b.BranchCode
+                </span>
+            }
+            else
+            {
+                <a asp-action="BranchDetail" asp-route-bouBranchId="@b.Id"
+                   class="btn btn-sm btn-outline-secondary rounded-pill d-inline-flex align-items-center gap-1"
+                   style="font-size:11px;">
+                    <i class="ti ti-building-bank"></i>@b.BranchCode
+                </a>
+            }
+        }
+    </div>
+}
+
+<div class="mb-3 d-flex align-items-center justify-content-between">
+    <div>
+        <h5 class="fw-bold mb-0">@Model.BouBranchName</h5>
+        <p class="text-muted small mb-0">CFB Cash Holdings &middot; @DateTime.Now.ToString("dddd d MMMM yyyy")</p>
+    </div>
+    @if (!Model.IsRestricted)
+    {
+        <a asp-action="Index" class="btn btn-sm btn-outline-secondary">
+            <i class="ti ti-arrow-left me-1"></i>All Branches
+        </a>
+    }
+</div>
+
+@* ── Branch total hero ── *@
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card-hover rounded-3 p-3 text-white" style="background:#b31b34">
+            <div class="small fw-semibold opacity-75 text-uppercase mb-2" style="font-size:11px;">Branch Actual (UGX)</div>
+            <div class="fw-bold" style="font-size:24px;">@Model.BranchActualTotal.ToString("N0")</div>
+            <div class="opacity-75" style="font-size:11px;">
+                Baseline: @Model.BranchBaselineTotal.ToString("N0")
+                @{
+                    var branchDev = Model.BranchActualTotal - Model.BranchBaselineTotal;
+                    if (branchDev != 0)
+                    {
+                        var sign = branchDev > 0 ? "+" : "";
+                        <span class="ms-2">(@sign@branchDev.ToString("N0"))</span>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+    @if (Model.NotesBox is not null)
+    {
+        <div class="col-md-4">
+            <div class="card-hover rounded-3 p-3 text-white" style="background:#c44a1a">
+                <div class="small fw-semibold opacity-75 text-uppercase mb-2" style="font-size:11px;">Notes Box Actual</div>
+                <div class="fw-bold" style="font-size:24px;">@Model.NotesBox.ActualTotal.ToString("N0")</div>
+                <div class="opacity-75" style="font-size:11px;">Baseline: @Model.NotesBox.BaselineTotal.ToString("N0")</div>
+            </div>
+        </div>
+    }
+    @if (Model.CoinsBox is not null)
+    {
+        <div class="col-md-4">
+            <div class="card-hover rounded-3 p-3 text-white" style="background:#BA7517">
+                <div class="small fw-semibold opacity-75 text-uppercase mb-2" style="font-size:11px;">Coins Box Actual</div>
+                <div class="fw-bold" style="font-size:24px;">@Model.CoinsBox.ActualTotal.ToString("N0")</div>
+                <div class="opacity-75" style="font-size:11px;">Baseline: @Model.CoinsBox.BaselineTotal.ToString("N0")</div>
+            </div>
+        </div>
+    }
+</div>
+
+@* ── Box tables ── *@
+<div class="row g-2">
+    @if (Model.NotesBox is not null)
+    {
+        <div class="col-lg-12 mb-3">
+            @if (!Model.IsRestricted && Model.NotesBox.HasUnsetDenominations)
+            {
+                <div class="mb-2">
+                    <a asp-action="SetOpeningBalance" asp-route-boxId="@Model.NotesBox.BoxId"
+                       class="btn btn-sm btn-outline-warning">
+                        <i class="ti ti-coins me-1"></i>Set opening balance
+                    </a>
+                </div>
+            }
+            @await Html.PartialAsync("_CfbBoxTable", Model.NotesBox)
+        </div>
+    }
+    @if (Model.CoinsBox is not null)
+    {
+        <div class="col-lg-12 mb-3">
+            @if (!Model.IsRestricted && Model.CoinsBox.HasUnsetDenominations)
+            {
+                <div class="mb-2">
+                    <a asp-action="SetOpeningBalance" asp-route-boxId="@Model.CoinsBox.BoxId"
+                       class="btn btn-sm btn-outline-warning">
+                        <i class="ti ti-coins me-1"></i>Set opening balance
+                    </a>
+                </div>
+            }
+            @await Html.PartialAsync("_CfbBoxTable", Model.CoinsBox)
+        </div>
+    }
+    @if (Model.NotesBox is null && Model.CoinsBox is null)
+    {
+        <div class="col-12">
+            @if (!Model.IsRestricted)
+            {
+                <div class="alert alert-warning d-flex align-items-center gap-3">
+                    <i class="ti ti-alert-triangle fs-4"></i>
+                    <div>
+                        No CFB boxes have been created for this branch.
+                        <form asp-action="SetupBranch" method="post" class="d-inline ms-3">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="bouBranchId" value="@Model.BouBranchId" />
+                            <button type="submit" class="btn btn-sm btn-primary">
+                                <i class="ti ti-plus me-1"></i>Set up boxes
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info">No boxes have been created for this branch yet.</div>
+            }
+        </div>
+    }
+</div>
