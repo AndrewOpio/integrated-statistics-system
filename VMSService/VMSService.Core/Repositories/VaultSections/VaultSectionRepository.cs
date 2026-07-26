@@ -92,6 +92,7 @@ namespace VMSService.Core.Repository.VaultSections
                 Name = section.Name,
                 VaultId = section.VaultId,
                 VaultName = section.Vault?.Name ?? string.Empty,
+                BranchId = section.Vault?.BranchId ?? 0,
                 IsActive = section.IsActive,
                 Bags = bags.Select(b => new VaultBagViewModel
                 {
@@ -105,10 +106,10 @@ namespace VMSService.Core.Repository.VaultSections
             };
         }
 
-        public async Task<List<VaultBagViewModel>> GetAvailableBagsAsync()
+        public async Task<List<VaultBagViewModel>> GetAvailableBagsAsync(int branchId)
         {
             var bags = await _db.Bags
-                .Where(b => !b.IsDeleted && !b.IsProcessed && b.VaultSectionId == null
+                .Where(b => !b.IsDeleted && !b.IsProcessed && b.VaultSectionId == null && b.BranchId == branchId
                 && !_db.BaggedBags.Any(bb => bb.ChildBagId == b.Id && !bb.IsDeleted))
                 .Include(b => b.BagDenominations.Where(bd => !bd.IsDeleted))
                 .OrderByDescending(b => b.CreatedDate)
@@ -169,6 +170,25 @@ namespace VMSService.Core.Repository.VaultSections
             bag.VaultSectionId = vaultSectionId;
             await _db.SaveChangesAsync();
             return true;
+        }
+
+        public async Task<int> AttachBagsAsync(List<int> bagIds, int vaultSectionId)
+        {
+            var section = await _db.VaultSections
+                .Include(s => s.Vault)
+                .FirstOrDefaultAsync(s => s.Id == vaultSectionId && !s.IsDeleted);
+
+            if (section?.Vault == null) return 0;
+
+            var bags = await _db.Bags
+                .Where(b => bagIds.Contains(b.Id) && !b.IsDeleted && b.BranchId == section.Vault.BranchId)
+                .ToListAsync();
+
+            foreach (var bag in bags)
+                bag.VaultSectionId = vaultSectionId;
+
+            await _db.SaveChangesAsync();
+            return bags.Count;
         }
 
         public async Task<bool> DetachBagAsync(int bagId)

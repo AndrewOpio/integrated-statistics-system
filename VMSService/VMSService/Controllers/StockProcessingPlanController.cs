@@ -111,18 +111,6 @@ namespace VMSService.Web.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetUsedDates(int branchId)
-        {
-            var plans = await _planRepository.FindAll();
-            var usedDates = plans
-                .Where(p => p.BranchId == branchId)
-                .Select(p => p.ProcessingDate.Date.ToString("yyyy-MM-dd"))
-                .Distinct()
-                .ToList();
-            return Json(usedDates);
-        }
-
-        [HttpGet]
         public async Task<IActionResult> GetBranchesJson()
         {
             var branches = await _configServiceClient.GetAllBouBranchesAsync();
@@ -233,11 +221,16 @@ namespace VMSService.Web.Controllers
                 var branch = await _configServiceClient.GetBouBranchByIdAsync(branchId);
                 var branchCode = branch?.BranchCode ?? branchId.ToString();
 
+                var planNumber = await _context.StockProcessingPlans
+                    .CountAsync(p => p.BranchId == branchId
+                        && p.ProcessingDate.Date == processingDate.Date
+                        && !p.IsDeleted) + 1;
+
                 var plan = new StockProcessingPlan
                 {
                     ProcessingDate = processingDate,
                     BranchId = branchId,
-                    ReferenceNumber = $"SPP-{processingDate:ddMMyyyy}-{branchCode}",
+                    ReferenceNumber = $"SPP-{processingDate:ddMMyyyy}-{branchCode}-{planNumber:D2}",
                     CurrentStatusId = draftStatus.Id,
                     IsDeleted = false
                 };
@@ -491,6 +484,15 @@ namespace VMSService.Web.Controllers
 
                 var bagDict = bags.ToDictionary(b => b.Id);
 
+                // Once the plan is Pending Verification, only bags already attached to a board in
+                // this plan may be reassigned between boards — no new bags may be pulled in.
+                var availableBags = bags;
+                if (statusType.Name == StatusConstants.StockProcessingPlan.PendingVerification)
+                {
+                    var assignedBagIds = assignedBagIdsByBoard.Values.SelectMany(ids => ids).ToHashSet();
+                    availableBags = bags.Where(b => assignedBagIds.Contains(b.Id)).ToList();
+                }
+
                 var model = new StockProcessingPlanEditViewModel
                 {
                     Id = plan.Id,
@@ -517,7 +519,7 @@ namespace VMSService.Web.Controllers
                             })
                             .ToList()
                     }).ToList(),
-                    AvailableBags = bags,
+                    AvailableBags = availableBags,
                     BoardSupervisors = boardSupervisors.ToList()
                 };
 
@@ -558,6 +560,27 @@ namespace VMSService.Web.Controllers
                 var currentSessionBags = await _context.SessionBags
                     .Where(sb => sb.StockProcessingPlanId == id && !sb.IsDeleted)
                     .ToListAsync();
+
+                // While Pending Verification, bags already attached to this plan may only be
+                // reassigned between boards — no new bags may be introduced, and none may be
+                // left unassigned.
+                if (statusType.Name == StatusConstants.StockProcessingPlan.PendingVerification)
+                {
+                    var currentPlanBagIds = currentSessionBags.Select(sb => sb.BagId).ToHashSet();
+                    var newPlanBagIds = newAssignments.SelectMany(a => a.BagIds).ToHashSet();
+
+                    if (!newPlanBagIds.IsSubsetOf(currentPlanBagIds))
+                    {
+                        TempData["Error"] = "Only bags already attached to this plan may be reassigned while it is Pending Verification.";
+                        return RedirectToAction(nameof(Edit), new { id });
+                    }
+
+                    if (!currentPlanBagIds.IsSubsetOf(newPlanBagIds))
+                    {
+                        TempData["Error"] = "All bags must be assigned to a processing board while this plan is Pending Verification.";
+                        return RedirectToAction(nameof(Edit), new { id });
+                    }
+                }
 
                 var currentBagsByBoard = currentSessionBags
                     .GroupBy(sb => sb.ProcessingBoardId)

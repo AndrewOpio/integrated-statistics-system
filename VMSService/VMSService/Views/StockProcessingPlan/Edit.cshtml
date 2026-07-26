@@ -320,6 +320,8 @@
 <script>
     let selectedBag = null;
     const assignments = {};
+    const currentStatusName = '@Model.CurrentStatusName';
+    const pendingVerificationStatus = '@StatusConstants.StockProcessingPlan.PendingVerification';
 
     // ── Filters ───────────────────────────────────────────────────
 
@@ -556,7 +558,19 @@
 
     // ── Submit ────────────────────────────────────────────────────
 
+    function getUnassignedBagCount() {
+        return document.querySelectorAll('#bagPool .bag-card:not(.hidden-assigned)').length;
+    }
+
     function submitPlan() {
+        if (currentStatusName === pendingVerificationStatus) {
+            const unassignedCount = getUnassignedBagCount();
+            if (unassignedCount > 0) {
+                alert(`All bags must be assigned to a processing board before saving. ${unassignedCount} bag${unassignedCount === 1 ? '' : 's'} still unassigned.`);
+                return;
+            }
+        }
+
         const result = Object.entries(assignments)
             .filter(([, bags]) => bags.length > 0)
             .map(([boardId, bags]) => ({ processingBoardId: +boardId, bagIds: bags.map(b => b.id) }));

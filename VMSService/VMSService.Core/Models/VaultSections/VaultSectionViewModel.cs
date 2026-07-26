@@ -15,6 +15,8 @@ namespace VMSService.Core.Models.VaultSections
         public int VaultId { get; set; }
         public VaultViewModel? Vault { get; set; }
         public string? VaultName { get; set; }
+        public int BranchId { get; set; }
+        public string? BranchName { get; set; }
         public bool IsDeleted { get; set; } = false;
         public bool IsActive { get; set; } = true;
         public int BagCount { get; set; }
@@ -24,5 +26,9 @@ namespace VMSService.Core.Models.VaultSections
         public DateTime ModifiedDate { get; set; }
 
         public List<SelectListItem> VaultList { get; set; } = new();
+        public List<SelectListItem> BranchList { get; set; } = new();
+
+        // All active vaults (with their BranchId) for client-side branch filtering on Create
+        public List<VaultViewModel> Vaults { get; set; } = new();
     }
 }

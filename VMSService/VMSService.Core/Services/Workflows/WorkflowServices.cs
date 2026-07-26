@@ -600,7 +600,7 @@ namespace VMSService.Core.Services.Workflows
                 return false;
             }
 
-            // Verify current status matches � prevents race conditions
+            // Verify current status matches — prevents race conditions
             if (request.StatusTypeId != currentStatusId)
             {
                 _logger.LogWarning(
@@ -631,7 +631,7 @@ namespace VMSService.Core.Services.Workflows
             request.ModifiedBy = username;
             request.ModifiedDate = DateTime.Now;
 
-            // If supervisor is submitting to bank � generate ref number + copy denominations
+            // If supervisor is submitting to bank — generate ref number + copy denominations
             //if (transition.ToStatusId == WithdrawStatuses.WithdrawalStatusIds.SubmittedToBOU)
             //{
             //    //request.SupervisorUserId = username;

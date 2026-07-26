@@ -283,11 +283,19 @@
 
                 @if (isBoardSupervisor) {
                     <li class="nav-item">
-                        <a asp-controller="StockProcessingSession" asp-action="Index" class="nav-link d-flex align-items-center">
+                        <a asp-controller="StockProcessingSession" asp-action="Index" asp-route-showClosed="false" class="nav-link d-flex align-items-center">
                             <span class="sidebar-icon fs-5 me-4">
                                 <i class="ti ti-package-export"></i>
                             </span>
                             <span class="sidebar-text">My Sessions</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a asp-controller="StockProcessingSession" asp-action="Index" asp-route-showClosed="true" class="nav-link d-flex align-items-center">
+                            <span class="sidebar-icon fs-5 me-4">
+                                <i class="ti ti-list-check"></i>
+                            </span>
+                            <span class="sidebar-text">All Sessions</span>
                         </a>
                     </li>
                 }

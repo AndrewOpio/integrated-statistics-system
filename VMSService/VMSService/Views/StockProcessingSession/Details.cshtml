@@ -697,186 +697,198 @@
     var denomJson = System.Text.Json.JsonSerializer.Serialize(
         denominations.Select(d => new { d.Id, d.Name, d.Value }));
 }
-<div class="card section-card mb-4">
-    <div class="card-header d-flex align-items-center gap-2 py-2">
-        <span class="section-icon"><i class="ti ti-exchange" style="color:#31316A;font-size:.9rem;"></i></span>
-        <div class="flex-grow-1">
-            <h6 class="fw-bold mb-0" style="color:#31316A;">Different Denominations Found</h6>
-            <span class="small text-muted">Unexpected denominations discovered during processing</span>
+@if (Model.DifferentDenoms.Any())
+{
+    <div class="card section-card mb-4">
+        <div class="card-header d-flex align-items-center gap-2 py-2">
+            <span class="section-icon"><i class="ti ti-exchange" style="color:#31316A;font-size:.9rem;"></i></span>
+            <div class="flex-grow-1">
+                <h6 class="fw-bold mb-0" style="color:#31316A;">Different Denominations Found</h6>
+                <span class="small text-muted">Unexpected denominations discovered during processing</span>
+            </div>
         </div>
-    </div>
 
-    <div class="card-body p-0">
-        @if (TempData["DifferentDenomSuccess"] != null)
-        {
-            <div class="alert alert-success alert-dismissible fade show mx-3 mt-3 mb-3" role="alert">
-                <i class="ti ti-circle-check me-2"></i>@TempData["DifferentDenomSuccess"]
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        }
+        <div class="card-body p-0">
+            @if (TempData["DifferentDenomSuccess"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show mx-3 mt-3 mb-3" role="alert">
+                    <i class="ti ti-circle-check me-2"></i>@TempData["DifferentDenomSuccess"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
 
-        @* ── Saved entries table ── *@
-        @if (Model.DifferentDenoms.Any())
-        {
-            <div class="table-responsive">
-                <table class="table table-hover small mb-0">
-                    <thead style="background:#f8fafc;">
-                        <tr>
-                            <th class="ps-4 py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">#</th>
-                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">DENOMINATION</th>
-                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">PIECES</th>
-                            <th class="py-2 pe-4 text-muted fw-semibold text-end" style="font-size:.7rem;letter-spacing:.05em;">TOTAL VALUE</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @{ int ddn = 1; }
-                        @foreach (var dd in Model.DifferentDenoms)
-                        {
+            @* ── Saved entries table ── *@
+            @if (Model.DifferentDenoms.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover small mb-0">
+                        <thead style="background:#f8fafc;">
                             <tr>
-                                <td class="ps-4 py-2 text-muted">@ddn</td>
-                                <td class="py-2">
-                                    <span class="fw-semibold">@(dd.DenominationName ?? $"ID {dd.DenominationId}")</span>
-                                    @if (dd.DenominationValue > 0)
-                                    {
-                                        <span class="text-muted small ms-1">(UGX @dd.DenominationValue.ToString("N0"))</span>
-                                    }
-                                </td>
-                                <td class="py-2 fw-semibold">@dd.NumberOfPieces.ToString("N0")</td>
-                                <td class="py-2 pe-4 text-end fw-semibold" style="color:#31316A;">
-                                    UGX @((dd.DenominationValue * dd.NumberOfPieces).ToString("N0"))
-                                </td>
+                                <th class="ps-4 py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">#</th>
+                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">DENOMINATION</th>
+                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">PIECES</th>
+                                <th class="py-2 pe-4 text-muted fw-semibold text-end" style="font-size:.7rem;letter-spacing:.05em;">TOTAL VALUE</th>
                             </tr>
-                            ddn++;
-                        }
-                    </tbody>
-                    <tfoot style="background:#f8fafc;border-top:2px solid #dee2e6;">
-                        <tr>
-                            <td colspan="2" class="ps-4 py-2 fw-semibold text-muted" style="font-size:.8rem;">TOTAL</td>
-                            <td class="py-2 fw-bold" style="color:#31316A;">@Model.DifferentDenoms.Sum(d => d.NumberOfPieces).ToString("N0")</td>
-                            <td class="py-2 pe-4 text-end fw-bold" style="color:#31316A;">
-                                UGX @Model.DifferentDenoms.Sum(d => d.DenominationValue * d.NumberOfPieces).ToString("N0")
-                            </td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-        }
-        else
-        {
-            <div class="text-center py-4 text-muted">
-                <i class="ti ti-exchange-off d-block mb-2" style="font-size:2rem;opacity:.3;"></i>
-                <p class="small mb-0">No different denominations recorded for this session</p>
-            </div>
-        }
-    </div>
-</div>
-
-@* ── Surplus / Shortage ─────────────────────────────────────────── *@
-<div class="card section-card mb-4">
-    <div class="card-header d-flex align-items-center gap-2 py-2">
-        <span class="section-icon">
-            @if (Model.SurplusShortages.Any(s => s.IsSurplus))
-            {
-                <i class="ti ti-trending-up" style="color:#31316A;font-size:.9rem;"></i>
-            }
-            else if (Model.SurplusShortages.Any(s => !s.IsSurplus))
-            {
-                <i class="ti ti-trending-down" style="color:#31316A;font-size:.9rem;"></i>
-            }
-            else
-            {
-                <i class="ti ti-scale" style="color:#31316A;font-size:.9rem;"></i>
-            }
-        </span>
-        <div class="flex-grow-1">
-            <h6 class="fw-bold mb-0" style="color:#31316A;">Surplus / Shortage</h6>
-            <span class="small text-muted">Discrepancies between processing results and issued value</span>
-        </div>
-        @if (Model.SurplusShortages.Any())
-        {
-            <span class="badge @(Model.SurplusShortages.Last().IsSurplus ? "bg-success" : "bg-danger") px-3 py-1 rounded-pill">
-                @(Model.SurplusShortages.Last().IsSurplus ? "Surplus" : "Shortage")
-            </span>
-        }
-    </div>
-
-    <div class="card-body p-0">
-        @if (!Model.SurplusShortages.Any())
-        {
-            <div class="text-center py-4 text-muted">
-                <i class="ti ti-scale d-block mb-2" style="font-size:2rem;opacity:.3;"></i>
-                <p class="small mb-0">No surplus or shortage recorded — results balance with issued value</p>
-            </div>
-        }
-        else
-        {
-            <div class="table-responsive">
-                <table class="table table-hover small mb-0">
-                    <thead style="background:#f8fafc;">
-                        <tr>
-                            <th class="ps-4 py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">#</th>
-                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">TYPE</th>
-                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">DENOMINATION</th>
-                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">COMMERCIAL BANK</th>
-                            <th class="py-2 pe-4 text-muted fw-semibold text-end" style="font-size:.7rem;letter-spacing:.05em;">AMOUNT</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @{ int ssn = 1; }
-                        @foreach (var ss in Model.SurplusShortages)
-                        {
-                            <tr>
-                                <td class="ps-4 py-2 text-muted">@ssn</td>
-                                <td class="py-2">
-                                    @if (ss.IsSurplus)
-                                    {
-                                        <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size:.68rem;">
-                                            <i class="ti ti-trending-up me-1"></i>Surplus
-                                        </span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size:.68rem;">
-                                            <i class="ti ti-trending-down me-1"></i>Shortage
-                                        </span>
-                                    }
-                                </td>
-                                <td class="py-2">
-                                    <span class="fw-semibold">@(ss.DenominationName ?? $"ID {ss.DenominationId}")</span>
-                                    @if (ss.DenominationValue > 0)
-                                    {
-                                        <span class="text-muted small ms-1">(UGX @ss.DenominationValue.ToString("N0"))</span>
-                                    }
-                                </td>
-                                <td class="py-2">@(ss.CommercialBankName ?? $"Bank {ss.CommercialBankId}")</td>
-                                <td class="py-2 pe-4 text-end fw-bold" style="color:@(ss.IsSurplus ? "#198754" : "#dc3545");">
-                                    UGX @ss.Amount.ToString("N0")
-                                </td>
-                            </tr>
-                            ssn++;
-                        }
-                    </tbody>
-                    @if (Model.SurplusShortages.Count > 1)
-                    {
+                        </thead>
+                        <tbody>
+                            @{
+                                int ddn = 1;
+                            }
+                            @foreach (var dd in Model.DifferentDenoms)
+                            {
+                                <tr>
+                                    <td class="ps-4 py-2 text-muted">@ddn</td>
+                                    <td class="py-2">
+                                        <span class="fw-semibold">@(dd.DenominationName ?? $"ID {dd.DenominationId}")</span>
+                                        @if (dd.DenominationValue > 0)
+                                        {
+                                            <span class="text-muted small ms-1">(UGX @dd.DenominationValue.ToString("N0"))</span>
+                                        }
+                                    </td>
+                                    <td class="py-2 fw-semibold">@dd.NumberOfPieces.ToString("N0")</td>
+                                    <td class="py-2 pe-4 text-end fw-semibold" style="color:#31316A;">
+                                        UGX @((dd.DenominationValue * dd.NumberOfPieces).ToString("N0"))
+                                    </td>
+                                </tr>
+                                ddn++;
+                            }
+                        </tbody>
                         <tfoot style="background:#f8fafc;border-top:2px solid #dee2e6;">
                             <tr>
-                                <td colspan="4" class="ps-4 py-2 fw-semibold text-muted" style="font-size:.8rem;">NET</td>
+                                <td colspan="2" class="ps-4 py-2 fw-semibold text-muted" style="font-size:.8rem;">TOTAL</td>
+                                <td class="py-2 fw-bold" style="color:#31316A;">@Model.DifferentDenoms.Sum(d => d.NumberOfPieces).ToString("N0")</td>
                                 <td class="py-2 pe-4 text-end fw-bold" style="color:#31316A;">
-                                    @{
-                                        var netSurplus  = Model.SurplusShortages.Where(s => s.IsSurplus).Sum(s => s.Amount);
-                                        var netShortage = Model.SurplusShortages.Where(s => !s.IsSurplus).Sum(s => s.Amount);
-                                        var net         = netSurplus - netShortage;
-                                    }
-                                    @(net >= 0 ? "+" : "")UGX @net.ToString("N0")
+                                    UGX @Model.DifferentDenoms.Sum(d => d.DenominationValue * d.NumberOfPieces).ToString("N0")
                                 </td>
                             </tr>
                         </tfoot>
-                    }
-                </table>
-            </div>
-        }
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-4 text-muted">
+                    <i class="ti ti-exchange-off d-block mb-2" style="font-size:2rem;opacity:.3;"></i>
+                    <p class="small mb-0">No different denominations recorded for this session</p>
+                </div>
+            }
+        </div>
     </div>
-</div>
+}
+
+
+@* ── Surplus / Shortage ─────────────────────────────────────────── *@
+@if (Model.SurplusShortages.Any())
+{
+    <div class="card section-card mb-4">
+        <div class="card-header d-flex align-items-center gap-2 py-2">
+            <span class="section-icon">
+                @if (Model.SurplusShortages.Any(s => s.IsSurplus))
+                {
+                    <i class="ti ti-trending-up" style="color:#31316A;font-size:.9rem;"></i>
+                }
+                else if (Model.SurplusShortages.Any(s => !s.IsSurplus))
+                {
+                    <i class="ti ti-trending-down" style="color:#31316A;font-size:.9rem;"></i>
+                }
+                else
+                {
+                    <i class="ti ti-scale" style="color:#31316A;font-size:.9rem;"></i>
+                }
+            </span>
+            <div class="flex-grow-1">
+                <h6 class="fw-bold mb-0" style="color:#31316A;">Surplus / Shortage</h6>
+                <span class="small text-muted">Discrepancies between processing results and issued value</span>
+            </div>
+            @if (Model.SurplusShortages.Any())
+            {
+                <span class="badge @(Model.SurplusShortages.Last().IsSurplus ? "bg-success" : "bg-danger") px-3 py-1 rounded-pill">
+                    @(Model.SurplusShortages.Last().IsSurplus ? "Surplus" : "Shortage")
+                </span>
+            }
+        </div>
+
+        <div class="card-body p-0">
+            @if (!Model.SurplusShortages.Any())
+            {
+                <div class="text-center py-4 text-muted">
+                    <i class="ti ti-scale d-block mb-2" style="font-size:2rem;opacity:.3;"></i>
+                    <p class="small mb-0">No surplus or shortage recorded — results balance with issued value</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover small mb-0">
+                        <thead style="background:#f8fafc;">
+                            <tr>
+                                <th class="ps-4 py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">#</th>
+                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">TYPE</th>
+                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">DENOMINATION</th>
+                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">COMMERCIAL BANK</th>
+                                <th class="py-2 pe-4 text-muted fw-semibold text-end" style="font-size:.7rem;letter-spacing:.05em;">AMOUNT</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                int ssn = 1;
+                            }
+                            @foreach (var ss in Model.SurplusShortages)
+                            {
+                                <tr>
+                                    <td class="ps-4 py-2 text-muted">@ssn</td>
+                                    <td class="py-2">
+                                        @if (ss.IsSurplus)
+                                        {
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size:.68rem;">
+                                                <i class="ti ti-trending-up me-1"></i>Surplus
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size:.68rem;">
+                                                <i class="ti ti-trending-down me-1"></i>Shortage
+                                            </span>
+                                        }
+                                    </td>
+                                    <td class="py-2">
+                                        <span class="fw-semibold">@(ss.DenominationName ?? $"ID {ss.DenominationId}")</span>
+                                        @if (ss.DenominationValue > 0)
+                                        {
+                                            <span class="text-muted small ms-1">(UGX @ss.DenominationValue.ToString("N0"))</span>
+                                        }
+                                    </td>
+                                    <td class="py-2">@(ss.CommercialBankName ?? $"Bank {ss.CommercialBankId}")</td>
+                                    <td class="py-2 pe-4 text-end fw-bold" style="color:@(ss.IsSurplus ? "#198754" : "#dc3545");">
+                                        UGX @ss.Amount.ToString("N0")
+                                    </td>
+                                </tr>
+                                ssn++;
+                            }
+                        </tbody>
+                        @if (Model.SurplusShortages.Count > 1)
+                        {
+                            <tfoot style="background:#f8fafc;border-top:2px solid #dee2e6;">
+                                <tr>
+                                    <td colspan="4" class="ps-4 py-2 fw-semibold text-muted" style="font-size:.8rem;">NET</td>
+                                    <td class="py-2 pe-4 text-end fw-bold" style="color:#31316A;">
+                                        @{
+                                            var netSurplus = Model.SurplusShortages.Where(s => s.IsSurplus).Sum(s => s.Amount);
+                                            var netShortage = Model.SurplusShortages.Where(s => !s.IsSurplus).Sum(s => s.Amount);
+                                            var net = netSurplus - netShortage;
+                                        }
+                                        @(net >= 0 ? "+" : "")UGX @net.ToString("N0")
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        }
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+}
+
 
 @* ── Workflow Attachments ───────────────────────────────────────── *@
 @await Html.PartialAsync("_WorkflowAttachments", Model.AllAttachments)

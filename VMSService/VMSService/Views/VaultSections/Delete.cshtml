@@ -40,6 +40,11 @@
                     <span class="d-block fw-normal">@(Model.VaultName ?? "-")</span>
                 </div>
 
+                <div class="field mb-4">
+                    <span class="d-block text-muted small mb-2 text-uppercase">Branch</span>
+                    <span class="d-block fw-normal">@(Model.BranchName ?? "-")</span>
+                </div>
+
                 <div class="field">
                     <span class="d-block text-muted small mb-2 text-uppercase">Status</span>
                     <span class="d-block fw-normal">@(Model.IsActive ? "Active" : "Inactive")</span>

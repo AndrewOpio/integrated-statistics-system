@@ -91,7 +91,7 @@ namespace VMSService.Web.Controllers
                     TransactionRefNumber = r.TransactionRefNumber ?? "Not Generated",
                     CreationDate = r.CreatedDate,
                     RequiresSpecialApproval = r.RequiresSpecialApproval,
-                    RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "—" : r.RtgsCode,
+                    RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "â€”" : r.RtgsCode,
                 }));
 
                 var vm = new DepositRequestIndexViewModel
@@ -178,9 +178,9 @@ namespace VMSService.Web.Controllers
                 agentNames = agent.AgentNames,
                 nin = agent.NIN,
                 phoneNumber = agent.PhoneNumber,
-                passportPhoto = agent.PassportPhoto,
-                workIdScan = agent.WorkIdScan,
-                signatureScan = agent.SignatureScan,
+                passportPhoto = VMSService.Core.Static.FileUrlHelper.ToWebPath(agent.PassportPhoto),
+                workIdScan = VMSService.Core.Static.FileUrlHelper.ToWebPath(agent.WorkIdScan),
+                signatureScan = VMSService.Core.Static.FileUrlHelper.ToWebPath(agent.SignatureScan),
             });
         }
 

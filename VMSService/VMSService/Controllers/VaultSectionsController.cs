@@ -1,10 +1,12 @@
 using AutoMapper;
+using ConfigurationsService.Client;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using SmartBreadcrumbs.Attributes;
 using VMSService.Controllers;
 using VMSService.Core.Models.VaultSections;
+using VMSService.Core.Models.Vaults;
 using VMSService.Core.Repository.VaultSections;
 using VMSService.Core.Repository.Vaults;
 using VMSService.Data.Entities;
@@ -15,6 +17,7 @@ namespace VMSService.Web.Controllers
     public class VaultSectionsController(
         IVaultSectionRepository _vaultSectionRepository,
         IVaultRepository _vaultRepository,
+        IConfigurationsServiceClient _configServiceClient,
         IMapper _mapper,
         ILogger<VaultSectionsController> _logger) : Controller
     {
@@ -23,8 +26,23 @@ namespace VMSService.Web.Controllers
         {
             try
             {
-                var sections = await _vaultSectionRepository.FindAll();
+                var sections = (await _vaultSectionRepository.FindAll()).ToList();
                 var model = _mapper.Map<List<VaultSectionViewModel>>(sections);
+
+                var branches = await _configServiceClient.GetAllBouBranchesAsync();
+                var branchDict = branches.ToDictionary(b => b.Id, b => b.Name);
+
+                for (int i = 0; i < sections.Count; i++)
+                {
+                    var branchId = sections[i].Vault?.BranchId;
+                    if (branchId.HasValue)
+                    {
+                        model[i].BranchId = branchId.Value;
+                        if (branchDict.TryGetValue(branchId.Value, out var branchName))
+                            model[i].BranchName = branchName;
+                    }
+                }
+
                 return View(model);
             }
             catch (Exception ex)
@@ -41,7 +59,8 @@ namespace VMSService.Web.Controllers
             try
             {
                 var model = new VaultSectionViewModel();
-                await PopulateVaultList(model);
+                await PopulateBranchList(model);
+                await PopulateAllVaultsWithBranch(model);
                 return View(model);
             }
             catch (Exception ex)
@@ -60,12 +79,26 @@ namespace VMSService.Web.Controllers
             if (!ModelState.IsValid)
             {
                 ModelState.AddModelError("", "Please correct the errors and try again.");
-                await PopulateVaultList(model);
+                await PopulateBranchList(model);
+                await PopulateAllVaultsWithBranch(model);
                 return View(model);
             }
 
             try
             {
+                var existingSections = await _vaultSectionRepository.FindAll();
+                bool isDuplicate = existingSections.Any(s =>
+                    s.VaultId == model.VaultId &&
+                    string.Equals(s.Name.Trim(), model.Name.Trim(), StringComparison.OrdinalIgnoreCase));
+
+                if (isDuplicate)
+                {
+                    ModelState.AddModelError(nameof(model.Name), "A vault section with this name already exists in the selected vault.");
+                    await PopulateBranchList(model);
+                    await PopulateAllVaultsWithBranch(model);
+                    return View(model);
+                }
+
                 var section = _mapper.Map<VaultSection>(model);
                 section.Vault = null;
                 bool isCreated = await _vaultSectionRepository.Create(section);
@@ -86,7 +119,8 @@ namespace VMSService.Web.Controllers
                 TempData["Error"] = ex.Message;
             }
 
-            await PopulateVaultList(model);
+            await PopulateBranchList(model);
+            await PopulateAllVaultsWithBranch(model);
             return View(model);
         }
 
@@ -104,7 +138,15 @@ namespace VMSService.Web.Controllers
                 if (section == null) return NotFound();
 
                 var model = _mapper.Map<VaultSectionViewModel>(section);
-                await PopulateVaultList(model);
+
+                model.BranchId = section.Vault?.BranchId ?? 0;
+                if (model.BranchId > 0)
+                {
+                    var branches = await _configServiceClient.GetAllBouBranchesAsync();
+                    model.BranchName = branches.FirstOrDefault(b => b.Id == model.BranchId)?.Name;
+                }
+
+                await PopulateVaultList(model, model.BranchId);
                 return View(model);
             }
             catch (Exception ex)
@@ -125,7 +167,7 @@ namespace VMSService.Web.Controllers
             if (!ModelState.IsValid)
             {
                 ModelState.AddModelError("", "Please correct the errors and try again.");
-                await PopulateVaultList(model);
+                await PopulateVaultList(model, model.BranchId);
                 return View(model);
             }
 
@@ -133,6 +175,18 @@ namespace VMSService.Web.Controllers
             {
                 var section = await _vaultSectionRepository.FindById(id);
                 if (section == null) return NotFound();
+
+                // The branch is read-only in Edit — enforce that the chosen vault still belongs to it.
+                var currentBranchId = section.Vault?.BranchId;
+                var newVault = await _vaultRepository.FindById(model.VaultId);
+
+                if (newVault == null || (currentBranchId.HasValue && newVault.BranchId != currentBranchId.Value))
+                {
+                    ModelState.AddModelError(nameof(model.VaultId), "Selected vault must belong to the section's branch.");
+                    model.BranchId = currentBranchId ?? model.BranchId;
+                    await PopulateVaultList(model, model.BranchId);
+                    return View(model);
+                }
 
                 section.Name = model.Name;
                 section.VaultId = model.VaultId;
@@ -155,7 +209,7 @@ namespace VMSService.Web.Controllers
                 TempData["Error"] = ex.Message;
             }
 
-            await PopulateVaultList(model);
+            await PopulateVaultList(model, model.BranchId);
             return View(model);
         }
 
@@ -173,6 +227,14 @@ namespace VMSService.Web.Controllers
                 if (section == null) return NotFound();
 
                 var model = _mapper.Map<VaultSectionViewModel>(section);
+
+                if (section.Vault != null)
+                {
+                    var branches = await _configServiceClient.GetAllBouBranchesAsync();
+                    model.BranchId = section.Vault.BranchId;
+                    model.BranchName = branches.FirstOrDefault(b => b.Id == section.Vault.BranchId)?.Name;
+                }
+
                 return View(model);
             }
             catch (Exception ex)
@@ -208,12 +270,33 @@ namespace VMSService.Web.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        private async Task PopulateVaultList(VaultSectionViewModel model)
+        private async Task PopulateVaultList(VaultSectionViewModel model, int? branchId = null)
         {
             var vaults = await _vaultRepository.FindAll();
-            model.VaultList = vaults
-                .Where(v => v.IsActive)
+            var activeVaults = vaults.Where(v => v.IsActive);
+
+            if (branchId.HasValue)
+                activeVaults = activeVaults.Where(v => v.BranchId == branchId.Value);
+
+            model.VaultList = activeVaults
                 .Select(v => new SelectListItem(v.Name, v.Id.ToString()))
+                .ToList();
+        }
+
+        private async Task PopulateBranchList(VaultSectionViewModel model)
+        {
+            var branches = await _configServiceClient.GetAllBouBranchesAsync();
+            model.BranchList = branches
+                .Select(b => new SelectListItem(b.Name, b.Id.ToString()))
+                .ToList();
+        }
+
+        private async Task PopulateAllVaultsWithBranch(VaultSectionViewModel model)
+        {
+            var vaults = await _vaultRepository.FindAll();
+            model.Vaults = vaults
+                .Where(v => v.IsActive)
+                .Select(v => new VaultViewModel { Id = v.Id, Name = v.Name, BranchId = v.BranchId })
                 .ToList();
         }
     }

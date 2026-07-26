@@ -131,7 +131,7 @@
                         <i class="ti ti-info-circle flex-shrink-0 mt-1"></i>
                         <small>
                             Same-day submission and deposit requests require exceptional authorization.
-                            Please provide a reason — this will be reviewed before processing.
+                            Please provide a reason â€” this will be reviewed before processing.
                         </small>
                     </div>
                     <label class="form-label">
@@ -202,7 +202,7 @@
         // Pre-populate form state for edit mode
         depositFormState.depositDate = '@Model.DepositDate.ToString("yyyy-MM-dd")';
         depositFormState.bouBranchId = @Model.Branches.SelectedBouBranchId;
-        depositFormState.rtgsDate = '@(Model.RtgsDate?.ToString("yyyy-MM-dd") ?? "")';
+        depositFormState.rtgsDate = @(Model.RtgsDate.HasValue ? $"'{Model.RtgsDate.Value:yyyy-MM-dd}'" : "null");
         depositFormState.rtgsCode = '@(Model.RtgsCode ?? "")';
         depositFormState.requiresSpecialApproval = @Model.RequiresSpecialApproval.ToString().ToLower();
         depositFormState.specialApprovalReason = '@Html.Raw(Model.SpecialApprovalReason ?? "")';
@@ -224,7 +224,7 @@
             // Pre-select agents
             const selectedAgents = @Html.Raw(Json.Serialize(Model.Agents.SelectedAgentIds));
             selectedAgents.forEach((agentId, index) => {
-                const agentSelect = document.getElementById(`agentId-${index + 1}`);
+                const agentSelect = document.getElementById(`agentSelect${index + 1}`);
                 if (agentSelect) {
                     agentSelect.value = agentId;
                     agentSelect.dispatchEvent(new Event('change'));

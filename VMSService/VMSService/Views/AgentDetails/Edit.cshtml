@@ -39,12 +39,12 @@
                                 @if (!string.IsNullOrEmpty(Model.PassportPhoto))
                                 {
                                     <div class="border rounded-2 p-3 bg-light d-flex align-items-center gap-3 mb-2">
-                                        <img src="@Model.PassportPhoto" alt="Current Photo" class="rounded" style="width: 48px; height: 48px; object-fit: cover; flex-shrink: 0;">
+                                        <img src="@FileUrlHelper.ToWebPath(Model.PassportPhoto)" alt="Current Photo" class="rounded" style="width: 48px; height: 48px; object-fit: cover; flex-shrink: 0;">
                                         <div class="flex-grow-1">
                                             <span class="d-block fw-semibold small">Current Passport Photo</span>
                                             <span class="d-block text-muted" style="font-size: 11px;">Uploaded attachment</span>
                                         </div>
-                                        <a href="@Model.PassportPhoto" target="_blank" class="btn btn-sm btn-outline-secondary" title="View full size">
+                                        <a href="@FileUrlHelper.ToWebPath(Model.PassportPhoto)" target="_blank" class="btn btn-sm btn-outline-secondary" title="View full size">
                                             <i class="ti ti-external-link"></i>
                                         </a>
                                     </div>
@@ -107,7 +107,7 @@
                                             <span class="d-block fw-semibold small">Current Work ID Scan</span>
                                             <span class="d-block text-muted" style="font-size: 11px;">Uploaded attachment</span>
                                         </div>
-                                        <a href="@Model.WorkIdScan" target="_blank" class="btn btn-sm btn-outline-secondary" title="View document">
+                                        <a href="@FileUrlHelper.ToWebPath(Model.WorkIdScan)" target="_blank" class="btn btn-sm btn-outline-secondary" title="View document">
                                             <i class="ti ti-external-link"></i>
                                         </a>
                                     </div>
@@ -130,7 +130,7 @@
                                             <span class="d-block fw-semibold small">Current Signature Scan</span>
                                             <span class="d-block text-muted" style="font-size: 11px;">Uploaded attachment</span>
                                         </div>
-                                        <a href="@Model.SignatureScan" target="_blank" class="btn btn-sm btn-outline-secondary" title="View document">
+                                        <a href="@FileUrlHelper.ToWebPath(Model.SignatureScan)" target="_blank" class="btn btn-sm btn-outline-secondary" title="View document">
                                             <i class="ti ti-external-link"></i>
                                         </a>
                                     </div>
@@ -153,7 +153,7 @@
                                             <span class="d-block fw-semibold small">Current MD Approval</span>
                                             <span class="d-block text-muted" style="font-size: 11px;">Uploaded attachment</span>
                                         </div>
-                                        <a href="@Model.ApprovalAttachment" target="_blank" class="btn btn-sm btn-outline-secondary" title="View document">
+                                        <a href="@FileUrlHelper.ToWebPath(Model.ApprovalAttachment)" target="_blank" class="btn btn-sm btn-outline-secondary" title="View document">
                                             <i class="ti ti-external-link"></i>
                                         </a>
                                     </div>

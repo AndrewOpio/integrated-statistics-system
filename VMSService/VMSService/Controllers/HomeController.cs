@@ -118,10 +118,14 @@ namespace VMSService.Controllers
                     }
                 }
                 
-                // Fallback to Kampala if no valid branchId provided
+                // Fallback to the user's branch (from roles), then Kampala, if no valid branchId provided
                 if (selectedBranch == null)
                 {
-                    var kampalaBranch = allBranches.FirstOrDefault(b => b.Name == "Kampala Branch");
+                    var userBranchName = roles.FirstOrDefault(r => allBranches.Any(b => b.Name == r));
+
+                    var kampalaBranch = userBranchName != null
+                        ? allBranches.FirstOrDefault(b => b.Name == userBranchName)
+                        : allBranches.FirstOrDefault(b => b.Name == "Kampala Branch");
 
                     if (kampalaBranch != null)
                     {

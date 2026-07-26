@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using NotificationService.Client;
 using OpenTelemetry;
@@ -38,6 +39,7 @@ using VMSService.Core.Repositories.StockProcessingSessions;
 using VMSService.Core.Repositories.StockProcessingSessionStatusHistories;
 using VMSService.Core.Repositories.StockProcessingResults;
 using VMSService.Core.Repositories.CurrencyVendors;
+using VMSService.Core.Repositories.LegacyBags;
 using VMSService.Core.Repositories.ProcessingBoards;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.DenominationTypes;
@@ -240,6 +242,7 @@ builder.Services.AddScoped<IExPrintMintDetailRepository, ExPrintMintDetailReposi
 builder.Services.AddScoped<IApprovedCurrencyProcurementRepository, ApprovedCurrencyProcurementRepository>();
 builder.Services.AddScoped<IApprovedCurrencyDenominationRepository, ApprovedCurrencyDenominationRepository>();
 builder.Services.AddScoped<ICurrencyVendorRepository, CurrencyVendorRepository>();
+builder.Services.AddScoped<ILegacyBagRepository, LegacyBagRepository>();
 builder.Services.AddScoped<IBPSMachineRepository, BPSMachineRepository>();
 builder.Services.AddScoped<IProcessingBoardRepository, ProcessingBoardRepository>();
 builder.Services.AddScoped<ICountingRoomRepository, CountingRoomRepository>();
@@ -413,6 +416,14 @@ if (!app.Environment.IsDevelopment())
 
 //app.UseHttpsRedirection();
 app.UseStaticFiles();
+
+const string casFilesUploadsPath = @"E:\CASFiles\uploads";
+Directory.CreateDirectory(casFilesUploadsPath);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(casFilesUploadsPath),
+    RequestPath = "/uploads"
+});
 
 app.UseRouting();
 

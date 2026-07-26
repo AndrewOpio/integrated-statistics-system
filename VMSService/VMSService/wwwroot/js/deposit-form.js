@@ -182,7 +182,7 @@ function isSameDayApprovalRequired() {
     const isMonday = nowUganda.getDay() === 1;
     const before11 = nowUganda.getHours() < 11;
 
-    // Monday before 11am EAT — grace period, no special approval
+    // Monday before 11am EAT â€” grace period, no special approval
     if (isMonday && before11) return false;
 
     let today = new Date();
@@ -270,10 +270,7 @@ function buildDepositFormData() {
         rtgsCode: depositFormState.rtgsCode,
         requiresSpecialApproval: depositFormState.requiresSpecialApproval,
         specialApprovalReason: depositFormState.specialApprovalReason,
-        agentIds: [
-            parseInt(document.getElementById('agentId-1')?.value || 0),
-            parseInt(document.getElementById('agentId-2')?.value || 0)
-        ],
+        agentIds: depositFormState.agentIds.filter(Boolean).map(id => parseInt(id)),
         denominations: Object.values(depDtGetRows())
             .filter(r => r.valid && r.amount > 0 && r.denomValue > 0)
             .map(r => ({

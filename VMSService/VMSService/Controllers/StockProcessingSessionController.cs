@@ -42,10 +42,12 @@ namespace VMSService.Web.Controllers
     {
         [HttpGet]
         [Breadcrumb("My Sessions")]
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(bool showClosed = false)
         {
             try
             {
+                ViewBag.ShowClosed = showClosed;
+
                 var username = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value;
                 if (string.IsNullOrEmpty(username))
                     return View(new List<StockProcessingSessionIndexItemViewModel>());
@@ -152,6 +154,10 @@ namespace VMSService.Web.Controllers
                             CreatedDate = s.CreatedDate
                         };
                     }).ToList();
+
+                viewModel = showClosed
+                    ? viewModel.Where(s => s.CurrentStatusName == StatusConstants.StockProcessingSession.Closed).ToList()
+                    : viewModel.Where(s => s.CurrentStatusName != StatusConstants.StockProcessingSession.Closed).ToList();
 
                 return View(viewModel);
             }

@@ -428,8 +428,14 @@ namespace VMSService.Data.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsLegacyBag")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsProcessed")
                         .HasColumnType("bit");
+
+                    b.Property<int?>("LegacyBagId")
+                        .HasColumnType("int");
 
                     b.Property<string>("ModifiedBy")
                         .IsRequired()
@@ -2268,6 +2274,42 @@ namespace VMSService.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("FeeTypes");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.LegacyBag", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateOnly>("DepositDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("SourceDepositBranchId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Value")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("LegacyBags");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.Logistics", b =>
