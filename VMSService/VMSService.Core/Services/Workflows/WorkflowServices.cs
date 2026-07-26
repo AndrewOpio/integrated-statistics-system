@@ -83,8 +83,7 @@ namespace VMSService.Core.Services.Workflows
         IMonthlyCommercialBankSettlementRepository _cbSettlementRepository,
         IMonthlyCommercialBankSettlementStatusHistoryRepository _cbSettlementStatusHistoryRepository,
         ITopupRequestRepository _topupRequestRepository,
-        ITopupRequestStatusHistoryRepository _topupHistoryRepository) : IWorkflowService
-        IMonthlyCommercialBankSettlementStatusHistoryRepository _cbSettlementStatusHistoryRepository,
+        ITopupRequestStatusHistoryRepository _topupHistoryRepository,
         IBankingSurplusRepository _bankingSurplusRepository,
         IBankingSurplusStatusHistoryRepository _bankingSurplusStatusHistoryRepository,
         IBankingShortageRepository _bankingShortageRepository,
