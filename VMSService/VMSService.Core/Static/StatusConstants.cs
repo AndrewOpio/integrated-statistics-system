@@ -184,6 +184,12 @@ namespace VMSService.Core.Static
             public const string Verified = "Verified";
         }
 
+        public class BoardSessionSurplusShortage
+        {
+            public const string PendingCFBSupervisor = "Pending CFB Supervisor";
+            public const string SettledByCFB = "Settled By CFB";
+        }
+
         public static class Entity
         {
             public const string ApprovedCurrencyProcurement = "ApprovedCurrencyProcurement";
@@ -207,6 +213,7 @@ namespace VMSService.Core.Static
             public const string MonthlyCommercialBankSettlements = "MonthlyCommercialBankSettlements";
             public const string BankingSurpluses                  = "BankingSurpluses";
             public const string BankingShortages                  = "BankingShortages";
+            public const string BoardSessionSurplusShortage = "BoardSessionSurplusShortage";
         }
     }
 }

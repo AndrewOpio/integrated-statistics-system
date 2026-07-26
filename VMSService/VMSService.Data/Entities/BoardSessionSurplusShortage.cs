@@ -20,5 +20,7 @@ namespace VMSService.Data.Entities
         public virtual ICollection<BoardSessionDifferentDenom> DifferentDenoms { get; set; } = [];
         public int StockProcessingSessionId { get; set; }
         public virtual StockProcessingSession? StockProcessingSession { get; set; }
+        public bool IsDeleted { get; set; }
+        public int CurrentStatusId { get; set; }
     }
 }

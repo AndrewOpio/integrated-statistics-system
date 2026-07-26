@@ -82,6 +82,8 @@ namespace VMSService.Data.Configurations
         public DbSet<CountingRoomSession> CountingRoomSessions { get; set; }
         public DbSet<ProcessingSessionBag> ProcessingSessionBags { get; set; }
         public DbSet<LegacyBag> LegacyBags { get; set; }
+        public DbSet<BoardSessionSurplusShortageStatusHistory> BoardSessionSurplusShortageStatusHistory { get; set; }
+        public DbSet<NoteExaminer> NoteExaminers { get; set; }
 
         // End of Day Discrepancies
         public DbSet<EodDiscrepancyReport> EodDiscrepancyReports { get; set; }

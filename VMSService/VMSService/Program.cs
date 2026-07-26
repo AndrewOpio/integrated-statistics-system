@@ -97,6 +97,8 @@ using VMSService.Core.Repositories.MonthlyCommercialBankSettlements;
 using VMSService.Core.Repositories.MonthlyCommercialBankSettlementStatusHistories;
 using VMSService.Core.Repositories.BankingSurpluses;
 using VMSService.Core.Repositories.BankingSurplusStatusHistories;
+using VMSService.Core.Repositories.BoardSessionSurplusShortageStatusHistories;
+using VMSService.Core.Repositories.NoteExaminers;
 using VMSService.Core.Repositories.BankingShortages;
 using VMSService.Core.Repositories.BankingShortageStatusHistories;
 using VMSService.Web.Services;
@@ -300,6 +302,8 @@ builder.Services.AddScoped<IMonthlyCommercialBankSettlementRepository, MonthlyCo
 builder.Services.AddScoped<IMonthlyCommercialBankSettlementStatusHistoryRepository, MonthlyCommercialBankSettlementStatusHistoryRepository>();
 builder.Services.AddScoped<IBankingSurplusRepository, BankingSurplusRepository>();
 builder.Services.AddScoped<IBankingSurplusStatusHistoryRepository, BankingSurplusStatusHistoryRepository>();
+builder.Services.AddScoped<IBoardSessionSurplusShortageStatusHistoryRepository, BoardSessionSurplusShortageStatusHistoryRepository>();
+builder.Services.AddScoped<INoteExaminerRepository, NoteExaminerRepository>();
 builder.Services.AddScoped<IBankingShortageRepository, BankingShortageRepository>();
 builder.Services.AddScoped<IBankingShortageStatusHistoryRepository, BankingShortageStatusHistoryRepository>();
 builder.Services.AddScoped<IAttachmentRepository, AttachmentRepository>();
