@@ -40,6 +40,14 @@ namespace VMSService.Core.Models.StockProcessingSessions
         public ICollection<WorkflowTransitionDto> AvailableTransitions { get; set; } = [];
         public IEnumerable<AttachmentViewModel> AllAttachments { get; set; } = [];
         public string BoardSupervisorUserId { get; set; } = string.Empty;
+        public ICollection<SessionNoteExaminerViewModel> NoteExaminers { get; set; } = [];
+        public List<NoteExaminerOptionViewModel> AvailableNoteExaminers { get; set; } = [];
+    }
+
+    public class NoteExaminerOptionViewModel
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
     }
 
     public class SessionBagDetailsInfo

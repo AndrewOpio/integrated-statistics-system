@@ -76,9 +76,12 @@
         </div>
     </div>
     <div class="d-flex align-items-center gap-2 flex-wrap">
-        <a asp-action="SendCfbRequest" asp-route-sessionId="@Model.Id" class="btn btn-sm btn-outline-tertiary">
-            <i class="ti ti-send me-1"></i>New CFB Request
-        </a>
+        @if (Model.CurrentStatusName == StatusConstants.StockProcessingSession.Open && !Model.SurplusShortages.Any())
+        {
+            <a asp-action="SendCfbRequest" asp-route-sessionId="@Model.Id" class="btn btn-sm btn-outline-tertiary">
+                <i class="ti ti-send me-1"></i>New CFB Request
+            </a>
+        }
         <span class="badge bg-@statusColor px-3 py-2 rounded-pill fs-small">
             <i class="ti ti-circle-filled me-1"></i>@Model.CurrentStatusName
         </span>
@@ -508,6 +511,30 @@
                             <div id="saveDenomRows"></div>
                         </div>
 
+                        @if (Model.IsManual)
+                        {
+                            <div class="col-12">
+                                <hr class="my-2" />
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <p class="small fw-semibold mb-0" style="color:#31316A;">
+                                        <i class="ti ti-users me-1"></i>Note Examiners
+                                        <span class="text-danger">*</span>
+                                        <span class="text-muted fw-normal small ms-1">who worked this board, and bundles each processed — required</span>
+                                    </p>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="addSaveNoteExaminerRowBtn">
+                                        <i class="ti ti-plus me-1"></i>Add Examiner
+                                    </button>
+                                </div>
+                                @if (!Model.AvailableNoteExaminers.Any())
+                                {
+                                    <div class="alert alert-warning py-2 px-3 small mb-0">
+                                        <i class="ti ti-alert-triangle me-1"></i>No Note Examiners are configured for this branch. Contact an administrator.
+                                    </div>
+                                }
+                                <div id="saveNoteExaminerRows"></div>
+                            </div>
+                        }
+
                         <div class="col-12 d-flex justify-content-end gap-2 pt-1">
                             <button type="button" class="btn btn-sm btn-outline-secondary" id="resultResetBtn">
                                 <i class="ti ti-refresh me-1"></i>Reset
@@ -723,6 +750,53 @@
     </div>
 }
 
+@* ── Note Examiners ────────────────────────────────────────────── *@
+@if (Model.IsManual && Model.NoteExaminers.Any())
+{
+    <div class="card section-card mb-4">
+        <div class="card-header d-flex align-items-center gap-2 py-2">
+            <span class="section-icon"><i class="ti ti-users" style="color:#31316A;font-size:.9rem;"></i></span>
+            <div class="flex-grow-1">
+                <h6 class="fw-bold mb-0" style="color:#31316A;">Note Examiners</h6>
+                <span class="small text-muted">Examiners who worked this board and the bundles each processed</span>
+            </div>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover small mb-0">
+                    <thead style="background:#f8fafc;">
+                        <tr>
+                            <th class="ps-4 py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">#</th>
+                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">NOTE EXAMINER</th>
+                            <th class="py-2 pe-4 text-muted fw-semibold text-end" style="font-size:.7rem;letter-spacing:.05em;">BUNDLES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{
+                            int nen = 1;
+                        }
+                        @foreach (var ne in Model.NoteExaminers)
+                        {
+                            <tr>
+                                <td class="ps-4 py-2 text-muted">@nen</td>
+                                <td class="py-2 fw-semibold">@(ne.NoteExaminerName ?? $"Examiner {ne.NoteExaminerId}")</td>
+                                <td class="py-2 pe-4 text-end fw-semibold" style="color:#31316A;">@ne.NumberOfBundles.ToString("N0")</td>
+                            </tr>
+                            nen++;
+                        }
+                    </tbody>
+                    <tfoot style="background:#f8fafc;border-top:2px solid #dee2e6;">
+                        <tr>
+                            <td colspan="2" class="ps-4 py-2 fw-semibold text-muted" style="font-size:.8rem;">TOTAL</td>
+                            <td class="py-2 pe-4 text-end fw-bold" style="color:#31316A;">@Model.NoteExaminers.Sum(n => n.NumberOfBundles).ToString("N0")</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+}
 
 @* ── Surplus / Shortage ─────────────────────────────────────────── *@
 @if (Model.SurplusShortages.Any())
@@ -773,7 +847,9 @@
                                 <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">TYPE</th>
                                 <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">DENOMINATION</th>
                                 <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">COMMERCIAL BANK</th>
-                                <th class="py-2 pe-4 text-muted fw-semibold text-end" style="font-size:.7rem;letter-spacing:.05em;">AMOUNT</th>
+                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">STATUS</th>
+                                <th class="py-2 text-muted fw-semibold text-end" style="font-size:.7rem;letter-spacing:.05em;">AMOUNT</th>
+                                <th class="py-2 pe-4 text-muted fw-semibold text-center" style="font-size:.7rem;letter-spacing:.05em;width:60px;">ACTIONS</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -806,8 +882,24 @@
                                         }
                                     </td>
                                     <td class="py-2">@(ss.CommercialBankName ?? $"Bank {ss.CommercialBankId}")</td>
-                                    <td class="py-2 pe-4 text-end fw-bold" style="color:@(ss.IsSurplus ? "#198754" : "#dc3545");">
+                                    <td class="py-2">
+                                        @if (!string.IsNullOrEmpty(ss.CurrentStatusName))
+                                        {
+                                            <span class="badge bg-info"><i class="ti ti-badge me-1"></i>@ss.CurrentStatusName</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
+                                    <td class="py-2 text-end fw-bold" style="color:@(ss.IsSurplus ? "#198754" : "#dc3545");">
                                         UGX @ss.Amount.ToString("N0")
+                                    </td>
+                                    <td class="py-2 pe-4 text-center">
+                                        <a asp-controller="BoardSessionSurplusShortages" asp-action="Details" asp-route-id="@ss.Id"
+                                           class="btn btn-sm btn-outline-info" title="View CFB Request">
+                                            <i class="ti ti-eye"></i>
+                                        </a>
                                     </td>
                                 </tr>
                                 ssn++;
@@ -817,8 +909,8 @@
                         {
                             <tfoot style="background:#f8fafc;border-top:2px solid #dee2e6;">
                                 <tr>
-                                    <td colspan="4" class="ps-4 py-2 fw-semibold text-muted" style="font-size:.8rem;">NET</td>
-                                    <td class="py-2 pe-4 text-end fw-bold" style="color:#31316A;">
+                                    <td colspan="5" class="ps-4 py-2 fw-semibold text-muted" style="font-size:.8rem;">NET</td>
+                                    <td class="py-2 text-end fw-bold" style="color:#31316A;">
                                         @{
                                             var netSurplus = Model.SurplusShortages.Where(s => s.IsSurplus).Sum(s => s.Amount);
                                             var netShortage = Model.SurplusShortages.Where(s => !s.IsSurplus).Sum(s => s.Amount);
@@ -826,6 +918,7 @@
                                         }
                                         @(net >= 0 ? "+" : "")UGX @net.ToString("N0")
                                     </td>
+                                    <td class="pe-4"></td>
                                 </tr>
                             </tfoot>
                         }
@@ -907,6 +1000,7 @@
             // ── Auto-calculated Count / Unprocessed Value ─────────────────────
             var SESSION_TOTAL_ISSUED = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.TotalIssuedValue));
             var SESSION_DENOM_VALUE = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DenominationValue));
+            var SESSION_IS_MANUAL = @Html.Raw(Model.IsManual ? "true" : "false");
 
             function parseNum(el) {
                 if (!el) return 0;
@@ -1030,6 +1124,73 @@
                 });
             }
 
+            // ── Note Examiner row helpers ─────────────────────────────────────
+            var NOTE_EXAMINERS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                Model.AvailableNoteExaminers.Select(ne => new { ne.Id, ne.Name })));
+
+            function buildNoteExaminerOptions(selectedId) {
+                return NOTE_EXAMINERS.map(function (ne) {
+                    var sel = selectedId && ne.Id === selectedId ? ' selected' : '';
+                    return '<option value="' + ne.Id + '"' + sel + '>' + ne.Name + '</option>';
+                }).join('');
+            }
+
+            function addNoteExaminerRow(container, namePrefix, rowIdx, preData) {
+                var div = document.createElement('div');
+                div.className = 'row g-2 align-items-center mb-2';
+                var selectedId = preData ? preData.NoteExaminerId : null;
+                div.innerHTML =
+                    '<div class="col-12 col-md-7">' +
+                        '<label class="form-label fw-semibold small mb-1" style="color:#31316A;">Note Examiner</label>' +
+                        '<select name="' + namePrefix + '[' + rowIdx + '].NoteExaminerId" class="form-select form-select-sm" required>' +
+                            '<option value="">— select examiner —</option>' +
+                            buildNoteExaminerOptions(selectedId) +
+                        '</select>' +
+                    '</div>' +
+                    '<div class="col-8 col-md-3">' +
+                        '<label class="form-label fw-semibold small mb-1" style="color:#31316A;">Bundles</label>' +
+                        '<input type="text" inputmode="numeric" name="' + namePrefix + '[' + rowIdx + '].NumberOfBundles" ' +
+                               'class="form-control form-control-sm ne-bundles-input" placeholder="0" required autocomplete="off" />' +
+                    '</div>' +
+                    '<div class="col-4 col-md-2 d-flex align-items-end pb-1">' +
+                        '<button type="button" class="btn btn-sm btn-outline-danger remove-row-btn" title="Remove row">' +
+                            '<i class="ti ti-trash"></i>' +
+                        '</button>' +
+                    '</div>';
+
+                container.appendChild(div);
+
+                if (preData && preData.NumberOfBundles) {
+                    div.querySelector('.ne-bundles-input').value =
+                        parseInt(preData.NumberOfBundles, 10).toLocaleString('en-US');
+                }
+
+                var bundlesInput = div.querySelector('.ne-bundles-input');
+
+                bundlesInput.addEventListener('input', function () {
+                    var raw = this.value.replace(/[^0-9]/g, '');
+                    var pos = this.selectionStart;
+                    var digBefore = this.value.substring(0, pos).replace(/,/g, '').length;
+                    this.value = raw ? parseInt(raw, 10).toLocaleString('en-US') : '';
+                    var digits = 0, newPos = 0;
+                    for (var i = 0; i < this.value.length; i++) {
+                        if (this.value[i] !== ',') digits++;
+                        if (digits === digBefore) { newPos = i + 1; break; }
+                    }
+                    this.setSelectionRange(newPos, newPos);
+                });
+
+                bundlesInput.addEventListener('keydown', function (e) {
+                    var nav = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Tab'];
+                    if (nav.includes(e.key) || e.ctrlKey || e.metaKey) return;
+                    if (!/^[0-9]$/.test(e.key)) e.preventDefault();
+                });
+
+                div.querySelector('.remove-row-btn').addEventListener('click', function () {
+                    container.removeChild(div);
+                });
+            }
+
             // ── Save form ────────────────────────────────────────────────────
             var resultForm = document.getElementById('resultForm');
             if (resultForm) {
@@ -1048,10 +1209,28 @@
                     });
                 }
 
-                resultForm.addEventListener('submit', function () {
+                var saveNoteExaminerContainer = document.getElementById('saveNoteExaminerRows');
+                var saveNoteExaminerRowIdx = 0;
+                var addSaveNoteExaminerBtn = document.getElementById('addSaveNoteExaminerRowBtn');
+                if (addSaveNoteExaminerBtn && saveNoteExaminerContainer) {
+                    addSaveNoteExaminerBtn.addEventListener('click', function () {
+                        addNoteExaminerRow(saveNoteExaminerContainer, 'NoteExaminerEntries', saveNoteExaminerRowIdx++, null);
+                    });
+                }
+
+                resultForm.addEventListener('submit', function (e) {
+                    if (SESSION_IS_MANUAL && saveNoteExaminerContainer && saveNoteExaminerContainer.children.length === 0) {
+                        e.preventDefault();
+                        alert('Please capture at least one Note Examiner and the bundles they processed before saving.');
+                        return;
+                    }
+
                     this.querySelectorAll('.num-input').forEach(stripCommas);
                     if (saveDenomContainer) {
                         saveDenomContainer.querySelectorAll('.pieces-input').forEach(stripCommas);
+                    }
+                    if (saveNoteExaminerContainer) {
+                        saveNoteExaminerContainer.querySelectorAll('.ne-bundles-input').forEach(stripCommas);
                     }
                 });
 
@@ -1064,6 +1243,8 @@
                         });
                         if (saveDenomContainer) saveDenomContainer.innerHTML = '';
                         saveDenomRowIdx = 0;
+                        if (saveNoteExaminerContainer) saveNoteExaminerContainer.innerHTML = '';
+                        saveNoteExaminerRowIdx = 0;
                         recalcResultFields(resultForm);
                     });
                 }

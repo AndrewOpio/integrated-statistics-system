@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using VMSService.Core.Models.BoardSessionDifferentDenoms;
+using VMSService.Core.Models.StockProcessingSessions;
 
 namespace VMSService.Core.Models.StockProcessingResults
 {
@@ -22,5 +23,8 @@ namespace VMSService.Core.Models.StockProcessingResults
         public decimal ReissueValue { get; set; } = 0;
 
         public List<DifferentDenomEntryViewModel> DifferentDenomEntries { get; set; } = [];
+
+        // Manual-only: note examiners who worked this board, and the bundles each processed
+        public List<NoteExaminerEntryViewModel> NoteExaminerEntries { get; set; } = [];
     }
 }

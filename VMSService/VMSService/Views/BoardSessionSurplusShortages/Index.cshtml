@@ -1,0 +1,98 @@
+@model List<VMSService.Core.Models.BoardSessionSurplusShortages.BoardSessionSurplusShortageIndexItemViewModel>
+
+@{
+    ViewData["Title"] = "CFB Requests";
+}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h2 class="fs-5 fw-bold mb-0">CFB Requests</h2>
+                        <p class="text-muted small mb-0 mt-1">Surplus / shortage requests sent to the Central Float Board</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-centered table-nowrap mb-0 rounded" id="cfbRequestsTable">
+                        <thead class="thead-light">
+                            <tr>
+                                <th class="border-0 rounded-start">#</th>
+                                <th class="border-0">Session</th>
+                                <th class="border-0">Branch</th>
+                                <th class="border-0">Type</th>
+                                <th class="border-0">Denomination</th>
+                                <th class="border-0">Commercial Bank</th>
+                                <th class="border-0 text-end">Amount</th>
+                                <th class="border-0">Status</th>
+                                <th class="border-0 rounded-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                int rowNumber = 1;
+                            }
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td><span class="text-primary fw-bold">@rowNumber</span></td>
+                                    <td class="fw-bold">@(item.SessionReferenceNumber ?? $"Session {item.StockProcessingSessionId}")</td>
+                                    <td>@(item.BranchName ?? "-")</td>
+                                    <td>
+                                        @if (item.IsSurplus)
+                                        {
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                <i class="ti ti-trending-up me-1"></i>Surplus
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                                                <i class="ti ti-trending-down me-1"></i>Shortage
+                                            </span>
+                                        }
+                                        @if (item.IsDifferentDenomination)
+                                        {
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle ms-1" title="Different denomination found">
+                                                <i class="ti ti-exchange"></i>
+                                            </span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @(item.DenominationName ?? "-")
+                                    </td>
+                                    <td>@(item.CommercialBankName ?? "-")</td>
+                                    <td class="text-end fw-semibold" style="color:@(item.IsSurplus ? "#198754" : "#dc3545");">
+                                        UGX @item.Amount.ToString("N0")
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info"><i class="ti ti-badge me-1"></i>@item.CurrentStatusName</span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
+                                                <i class="ti ti-eye"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                    @{ rowNumber++; }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            $('#cfbRequestsTable').DataTable({ order: [] });
+        });
+    </script>
+}

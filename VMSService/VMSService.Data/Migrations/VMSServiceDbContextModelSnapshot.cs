@@ -4347,6 +4347,49 @@ namespace VMSService.Data.Migrations
                     b.ToTable("StockProcessingSessions");
                 });
 
+            modelBuilder.Entity("VMSService.Data.Entities.StockProcessingSessionNoteExaminer", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("NoteExaminerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("NumberOfBundles")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StockProcessingSessionId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NoteExaminerId");
+
+                    b.HasIndex("StockProcessingSessionId");
+
+                    b.ToTable("StockProcessingSessionNoteExaminers");
+                });
+
             modelBuilder.Entity("VMSService.Data.Entities.StockProcessingSessionStatusHistory", b =>
                 {
                     b.Property<int>("Id")
@@ -5815,6 +5858,25 @@ namespace VMSService.Data.Migrations
                     b.Navigation("ProcessingBoard");
 
                     b.Navigation("StockProcessingPlan");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.StockProcessingSessionNoteExaminer", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.NoteExaminer", "NoteExaminer")
+                        .WithMany()
+                        .HasForeignKey("NoteExaminerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("VMSService.Data.Entities.StockProcessingSession", "StockProcessingSession")
+                        .WithMany()
+                        .HasForeignKey("StockProcessingSessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("NoteExaminer");
+
+                    b.Navigation("StockProcessingSession");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.StockProcessingSessionStatusHistory", b =>

@@ -37,6 +37,8 @@ using VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 using VMSService.Core.Repositories.CfbTopupRequests;
 using VMSService.Core.Repositories.CfbTopupStatusHistories;
+using VMSService.Core.Repositories.BoardSessionSurplusShortages;
+using VMSService.Core.Repositories.BoardSessionSurplusShortageStatusHistories;
 using VMSService.Core.Services.Identity;
 using VMSService.Core.Services.Submissions;
 using VMSService.Core.Static;
@@ -87,7 +89,9 @@ namespace VMSService.Core.Services.Workflows
         IBankingSurplusRepository _bankingSurplusRepository,
         IBankingSurplusStatusHistoryRepository _bankingSurplusStatusHistoryRepository,
         IBankingShortageRepository _bankingShortageRepository,
-        IBankingShortageStatusHistoryRepository _bankingShortageStatusHistoryRepository) : IWorkflowService
+        IBankingShortageStatusHistoryRepository _bankingShortageStatusHistoryRepository,
+        IBoardSessionSurplusShortageRepository _boardSessionSurplusShortageRepository,
+        IBoardSessionSurplusShortageStatusHistoryRepository _boardSessionSurplusShortageStatusHistoryRepository) : IWorkflowService
     {
 
 
@@ -171,6 +175,9 @@ namespace VMSService.Core.Services.Workflows
 
                     case StatusConstants.Entity.BankingShortages:
                         return await HandleBankingShortageTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
+
+                    case StatusConstants.Entity.BoardSessionSurplusShortage:
+                        return await HandleBoardSessionSurplusShortageTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
 
                     default:
                         _logger.LogWarning("Unknown entity type: {EntityType}", entityType);
@@ -1263,6 +1270,57 @@ namespace VMSService.Core.Services.Workflows
 
             _logger.LogInformation("Banking Shortage {Id} transitioned from {From} to {To} by {Username} via action {Action}",
                 entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
+        private async Task<bool> HandleBoardSessionSurplusShortageTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
+        {
+            var record = await _boardSessionSurplusShortageRepository.FindById(entityId);
+            if (record == null)
+            {
+                _logger.LogWarning("BoardSessionSurplusShortage {Id} not found", entityId);
+                return false;
+            }
+
+            if (record.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("BoardSessionSurplusShortage {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, record.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new BoardSessionSurplusShortageStatusHistory
+            {
+                BoardSessionSurplusShortageId = entityId,
+                OldStatusId = record.CurrentStatusId,
+                NewStatusId = transition.ToStatusId,
+                ChangedBy = username,
+                ChangedAt = DateTime.Now,
+                Remarks = remarks,
+                AttachmentIds = attachmentIds != null && attachmentIds.Any()
+                    ? string.Join(",", attachmentIds)
+                    : null,
+                IsDeleted = false
+            };
+
+            await _boardSessionSurplusShortageStatusHistoryRepository.Create(statusHistory);
+
+            record.CurrentStatusId = transition.ToStatusId;
+            await _boardSessionSurplusShortageRepository.Update(record);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"CFB Request #{entityId} (UGX {record.Amount.ToString("N0")})",
+                    transition,
+                    transition.ToStatus.Name,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("BoardSessionSurplusShortage {Id} transitioned from status {From} to {To} by user {Username} with action {Action}. Attachments: {AttachmentCount}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName, attachmentIds?.Count ?? 0);
 
             return true;
         }

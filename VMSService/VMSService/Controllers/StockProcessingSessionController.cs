@@ -13,6 +13,7 @@ using VMSService.Core.Models.StockProcessingSessionStatusHistories;
 using VMSService.Core.Repositories.Attachments;
 using VMSService.Core.Repositories.CfbBoxes;
 using VMSService.Core.Repositories.CommercialBanks;
+using VMSService.Core.Repositories.NoteExaminers;
 using VMSService.Core.Repositories.StockProcessingResults;
 using VMSService.Core.Repositories.StockProcessingSessions;
 using VMSService.Core.Repositories.StockProcessingSessionStatusHistories;
@@ -35,6 +36,7 @@ namespace VMSService.Web.Controllers
         ICommercialBankRepository _commercialBankRepository,
         IAttachmentRepository _attachmentRepository,
         ICfbBoxRepository _cfbBoxRepository,
+        INoteExaminerRepository _noteExaminerRepository,
         IConfigurationsServiceClient _configServiceClient,
         IStockService _stockService,
         IIdentityService _identityService,
@@ -374,6 +376,38 @@ namespace VMSService.Web.Controllers
                     }
                 }
 
+                // Note Examiners captured for this session (manual boards)
+                var branchId = session.ProcessingBoard?.BranchId ?? 0;
+
+                var noteExaminerEntities = await _context.StockProcessingSessionNoteExaminers
+                    .Include(ne => ne.NoteExaminer)
+                    .Where(ne => ne.StockProcessingSessionId == id && !ne.IsDeleted)
+                    .OrderBy(ne => ne.CreatedDate)
+                    .ToListAsync();
+
+                var noteExaminers = noteExaminerEntities.Select(ne => new SessionNoteExaminerViewModel
+                {
+                    Id = ne.Id,
+                    NoteExaminerId = ne.NoteExaminerId,
+                    NoteExaminerName = ne.NoteExaminer != null
+                        ? $"{ne.NoteExaminer.FirstName} {ne.NoteExaminer.LastName}".Trim()
+                        : $"Examiner {ne.NoteExaminerId}",
+                    NumberOfBundles = ne.NumberOfBundles,
+                    CreatedDate = ne.CreatedDate
+                }).ToList();
+
+                var availableNoteExaminers = (await _noteExaminerRepository.FindAll())
+                    .Where(ne => ne.BranchId == branchId && ne.IsActive)
+                    .OrderBy(ne => ne.FirstName).ThenBy(ne => ne.LastName)
+                    .Select(ne => new NoteExaminerOptionViewModel
+                    {
+                        Id = ne.Id,
+                        Name = string.IsNullOrWhiteSpace(ne.MiddleName)
+                            ? $"{ne.FirstName} {ne.LastName}"
+                            : $"{ne.FirstName} {ne.MiddleName} {ne.LastName}"
+                    })
+                    .ToList();
+
                 // Existing processing results for this session
                 var resultEntities = await _resultRepository.FindBySessionIdAsync(id);
                 var results = resultEntities.Select(r => new StockProcessingResultViewModel
@@ -416,6 +450,14 @@ namespace VMSService.Web.Controllers
                     .OrderByDescending(s => s.CreatedDate)
                     .ToListAsync();
 
+                var surplusShortageStatusIds = surplusShortageEntities.Select(s => s.CurrentStatusId).Distinct().ToList();
+                var surplusShortageStatusNameDict = new Dictionary<int, string?>();
+                foreach (var statusId in surplusShortageStatusIds)
+                {
+                    var status = await _workflowServiceClient.FindStatusById(statusId);
+                    surplusShortageStatusNameDict[statusId] = status?.Name;
+                }
+
                 var surplusShortages = surplusShortageEntities.Select(s =>
                 {
                     var sd = denomDict.GetValueOrDefault(s.DenominationId);
@@ -429,6 +471,8 @@ namespace VMSService.Web.Controllers
                         DenominationValue = sd?.Value ?? 0m,
                         CommercialBankId = s.CommercialBankId,
                         CommercialBankName = bankDict.GetValueOrDefault(s.CommercialBankId),
+                        CurrentStatusId = s.CurrentStatusId,
+                        CurrentStatusName = surplusShortageStatusNameDict.GetValueOrDefault(s.CurrentStatusId),
                         CreatedDate = s.CreatedDate
                     };
                 }).ToList();
@@ -468,7 +512,9 @@ namespace VMSService.Web.Controllers
                     StatusHistory = statusHistory,
                     AvailableTransitions = availableTransitions.Distinct().ToList(),
                     AllAttachments = allAttachments,
-                    BoardSupervisorUserId = supervisorId ?? ""
+                    BoardSupervisorUserId = supervisorId ?? "",
+                    NoteExaminers = noteExaminers,
+                    AvailableNoteExaminers = availableNoteExaminers
                 };
 
                 return View(model);
@@ -501,6 +547,17 @@ namespace VMSService.Web.Controllers
                     {
                         TempData["Error"] = "No processing results have been saved for this session. Please save results before submitting.";
                         return RedirectToAction(nameof(Details), new { id });
+                    }
+
+                    if (session.IsManual)
+                    {
+                        var hasNoteExaminers = await _context.StockProcessingSessionNoteExaminers
+                            .AnyAsync(ne => ne.StockProcessingSessionId == id && !ne.IsDeleted);
+                        if (!hasNoteExaminers)
+                        {
+                            TempData["Error"] = "Please capture the Note Examiners who worked this board, and the bundles each processed, before submitting results.";
+                            return RedirectToAction(nameof(Details), new { id });
+                        }
                     }
                 }
 
@@ -709,6 +766,30 @@ namespace VMSService.Web.Controllers
                     await _context.SaveChangesAsync();
                 }
 
+                // Stage note examiner entries (manual boards only)
+                if (session.IsManual)
+                {
+                    var validNoteExaminerEntries = model.NoteExaminerEntries
+                        .Where(e => e.NoteExaminerId > 0 && e.NumberOfBundles > 0)
+                        .ToList();
+
+                    if (validNoteExaminerEntries.Count > 0)
+                    {
+                        foreach (var entry in validNoteExaminerEntries)
+                        {
+                            _context.StockProcessingSessionNoteExaminers.Add(new StockProcessingSessionNoteExaminer
+                            {
+                                StockProcessingSessionId = model.SessionId,
+                                NoteExaminerId = entry.NoteExaminerId,
+                                NumberOfBundles = entry.NumberOfBundles,
+                                IsDeleted = false
+                            });
+                        }
+
+                        await _context.SaveChangesAsync();
+                    }
+                }
+
                 TempData["ResultSuccess"] = "Processing result saved successfully.";
             }
             catch (Exception ex)
@@ -830,6 +911,12 @@ namespace VMSService.Web.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            if (!await CanSendCfbRequestAsync(session))
+            {
+                TempData["Error"] = "A CFB request can only be sent while the session is Open and only if one hasn't already been sent.";
+                return RedirectToAction(nameof(Details), new { id = sessionId });
+            }
+
             var branchId = session.ProcessingBoard?.BranchId ?? 0;
 
             var allDenominations = await _stockService.GetAllDenominations();
@@ -907,6 +994,12 @@ namespace VMSService.Web.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
+                if (!await CanSendCfbRequestAsync(session))
+                {
+                    TempData["Error"] = "A CFB request can only be sent while the session is Open and only if one hasn't already been sent.";
+                    return RedirectToAction(nameof(Details), new { id = model.StockProcessingSessionId });
+                }
+
                 // Re-derive the autopopulated fields server-side rather than trusting the posted hidden values.
                 var branchId = session.ProcessingBoard?.BranchId ?? 0;
 
@@ -966,6 +1059,18 @@ namespace VMSService.Web.Controllers
         {
             var branchBoxes = await _cfbBoxRepository.FindByBranchId(branchId);
             return branchBoxes.FirstOrDefault(b => b.BoxType == boxType);
+        }
+
+        private async Task<bool> CanSendCfbRequestAsync(StockProcessingSession session)
+        {
+            var statusType = await _workflowServiceClient.FindStatusById(session.CurrentStatusId);
+            if (statusType?.Name != StatusConstants.StockProcessingSession.Open)
+                return false;
+
+            var hasExistingRequest = await _context.BoardSessionSurplusShortages
+                .AnyAsync(s => s.StockProcessingSessionId == session.Id);
+
+            return !hasExistingRequest;
         }
 
         [HttpPost]

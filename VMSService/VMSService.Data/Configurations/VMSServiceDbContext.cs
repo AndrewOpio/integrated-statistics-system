@@ -83,6 +83,7 @@ namespace VMSService.Data.Configurations
         public DbSet<ProcessingSessionBag> ProcessingSessionBags { get; set; }
         public DbSet<BoardSessionSurplusShortageStatusHistory> BoardSessionSurplusShortageStatusHistory { get; set; }
         public DbSet<NoteExaminer> NoteExaminers { get; set; }
+        public DbSet<StockProcessingSessionNoteExaminer> StockProcessingSessionNoteExaminers { get; set; }
 
         // End of Day Discrepancies
         public DbSet<EodDiscrepancyReport> EodDiscrepancyReports { get; set; }

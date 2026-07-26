@@ -28,43 +28,63 @@
     }
     .cfb-choice-label.surplus .cfb-choice-icon { background: rgba(25,135,84,.12); color: #198754; }
     .cfb-choice-label.shortage .cfb-choice-icon { background: rgba(220,53,69,.12); color: #dc3545; }
-    .cfb-context-row { font-size: .78rem; }
-    .cfb-context-label { color: #6c757d; font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; }
+    .session-stat-card {
+        border: 1.5px solid #e9ecef;
+        border-radius: .75rem;
+        padding: 1rem 1.25rem;
+        background: #fff;
+        transition: box-shadow .15s;
+    }
+    .session-stat-card:hover { box-shadow: 0 2px 8px rgba(49,49,106,.08); }
+    .stat-label {
+        font-size: .68rem;
+        font-weight: 600;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+        color: #6c757d;
+        margin-bottom: .25rem;
+    }
+    .stat-value {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #31316A;
+    }
+    .stat-sub { font-size: .75rem; color: #6c757d; }
 </style>
 
 <div class="row">
     <div class="col-12 col-lg-12 col-xl-12 mx-auto">
 
         @* ── Session context (read-only) ─────────────────────────────── *@
-        <div class="rounded-3 p-3 mb-3" style="background:linear-gradient(135deg,#31316A 30%,#BA7517 100%);">
-            <p class="text-uppercase mb-1" style="font-size:10px;letter-spacing:.08em;color:rgba(255,255,255,.7);">
-                <i class="ti ti-send me-1"></i>Send CFB Request
-            </p>
-            <h5 class="fw-semibold text-white mb-2">@Model.SessionReferenceNumber</h5>
-            <div class="row g-2 cfb-context-row">
-                <div class="col-6 col-md-3">
-                    <div class="rounded-3 p-2" style="background:rgba(255,255,255,.12);">
-                        <p class="cfb-context-label mb-1" style="color:rgba(255,255,255,.7);">Branch</p>
-                        <p class="fw-bold mb-0 text-white">@(Model.BranchName ?? "—")</p>
-                    </div>
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <div>
+                <p class="text-muted small mb-0">Send CFB Request</p>
+                <h4 class="fw-bold mb-0" style="color:#31316A;">@Model.SessionReferenceNumber</h4>
+            </div>
+        </div>
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3">
+                <div class="session-stat-card">
+                    <div class="stat-label">Branch</div>
+                    <div class="stat-value">@(Model.BranchName ?? "—")</div>
                 </div>
-                <div class="col-6 col-md-3">
-                    <div class="rounded-3 p-2" style="background:rgba(255,255,255,.12);">
-                        <p class="cfb-context-label mb-1" style="color:rgba(255,255,255,.7);">Commercial Bank</p>
-                        <p class="fw-bold mb-0 text-white">@(Model.CommercialBankName ?? "—")</p>
-                    </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="session-stat-card">
+                    <div class="stat-label">Commercial Bank</div>
+                    <div class="stat-value">@(Model.CommercialBankName ?? "—")</div>
                 </div>
-                <div class="col-6 col-md-3">
-                    <div class="rounded-3 p-2" style="background:rgba(255,255,255,.12);">
-                        <p class="cfb-context-label mb-1" style="color:rgba(255,255,255,.7);">Denomination</p>
-                        <p class="fw-bold mb-0 text-white">@(Model.DenominationName ?? "—")</p>
-                    </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="session-stat-card">
+                    <div class="stat-label">Denomination</div>
+                    <div class="stat-value">@(Model.DenominationName ?? "—")</div>
                 </div>
-                <div class="col-6 col-md-3">
-                    <div class="rounded-3 p-2" style="background:rgba(255,255,255,.12);">
-                        <p class="cfb-context-label mb-1" style="color:rgba(255,255,255,.7);">Total Issued</p>
-                        <p class="fw-bold mb-0 text-white">UGX @Model.TotalIssuedValue.ToString("N0")</p>
-                    </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="session-stat-card">
+                    <div class="stat-label">Total Issued Value</div>
+                    <div class="stat-value">UGX @Model.TotalIssuedValue.ToString("N0")</div>
                 </div>
             </div>
         </div>
