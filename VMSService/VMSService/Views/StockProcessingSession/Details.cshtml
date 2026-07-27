@@ -185,7 +185,7 @@
 
 @* ── Assigned Bags ──────────────────────────────────────────────── *@
 <div class="card section-card mb-4">
-    <div class="card-header d-flex align-items-center gap-2 py-2">
+    <div class="p-4 d-flex align-items-center gap-2 py-2">
         <span class="section-icon"><i class="ti ti-packages" style="color:#31316A;font-size:.9rem;"></i></span>
         <div>
             <h6 class="fw-bold mb-0" style="color:#31316A;">Assigned Bags</h6>
@@ -648,6 +648,30 @@
                             </div>
                             <div id="editDenomRows"></div>
                         </div>
+
+                        @if (Model.IsManual)
+                        {
+                            <div class="col-12">
+                                <hr class="my-2" />
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <p class="small fw-semibold mb-0" style="color:#31316A;">
+                                        <i class="ti ti-users me-1"></i>Note Examiners
+                                        <span class="text-danger">*</span>
+                                        <span class="text-muted fw-normal small ms-1">who worked this board, and bundles each processed — required</span>
+                                    </p>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="addEditNoteExaminerRowBtn">
+                                        <i class="ti ti-plus me-1"></i>Add Examiner
+                                    </button>
+                                </div>
+                                @if (!Model.AvailableNoteExaminers.Any())
+                                {
+                                    <div class="alert alert-warning py-2 px-3 small mb-0">
+                                        <i class="ti ti-alert-triangle me-1"></i>No Note Examiners are configured for this branch. Contact an administrator.
+                                    </div>
+                                }
+                                <div id="editNoteExaminerRows"></div>
+                            </div>
+                        }
                     </div>
                 </div>
 
@@ -674,7 +698,7 @@
 @if (Model.DifferentDenoms.Any())
 {
     <div class="card section-card mb-4">
-        <div class="card-header d-flex align-items-center gap-2 py-2">
+        <div class="p-4 d-flex align-items-center gap-2 py-2">
             <span class="section-icon"><i class="ti ti-exchange" style="color:#31316A;font-size:.9rem;"></i></span>
             <div class="flex-grow-1">
                 <h6 class="fw-bold mb-0" style="color:#31316A;">Different Denominations Found</h6>
@@ -754,7 +778,7 @@
 @if (Model.IsManual && Model.NoteExaminers.Any())
 {
     <div class="card section-card mb-4">
-        <div class="card-header d-flex align-items-center gap-2 py-2">
+        <div class="p-4 d-flex align-items-center gap-2 py-2">
             <span class="section-icon"><i class="ti ti-users" style="color:#31316A;font-size:.9rem;"></i></span>
             <div class="flex-grow-1">
                 <h6 class="fw-bold mb-0" style="color:#31316A;">Note Examiners</h6>
@@ -802,7 +826,7 @@
 @if (Model.SurplusShortages.Any())
 {
     <div class="card section-card mb-4">
-        <div class="card-header d-flex align-items-center gap-2 py-2">
+        <div class="p-4 d-flex align-items-center gap-2 py-2">
             <span class="section-icon">
                 @if (Model.SurplusShortages.Any(s => s.IsSurplus))
                 {
@@ -1001,6 +1025,11 @@
             var SESSION_TOTAL_ISSUED = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.TotalIssuedValue));
             var SESSION_DENOM_VALUE = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DenominationValue));
             var SESSION_IS_MANUAL = @Html.Raw(Model.IsManual ? "true" : "false");
+            // Shortages count as processed (add); surpluses were over-counted in what was reported as processed (subtract).
+            // Only records the CFB has confirmed as balanced are counted.
+            var SESSION_SURPLUS_SHORTAGE_ADJUSTMENT = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                Model.SurplusShortages.Where(s => !s.IsSurplus && s.CurrentStatusName == StatusConstants.BoardSessionSurplusShortage.BalancedByCFB).Sum(s => s.Amount)
+                - Model.SurplusShortages.Where(s => s.IsSurplus && s.CurrentStatusName == StatusConstants.BoardSessionSurplusShortage.BalancedByCFB).Sum(s => s.Amount)));
 
             function parseNum(el) {
                 if (!el) return 0;
@@ -1023,8 +1052,9 @@
                 var warningEl  = scope.querySelector('[data-role="negative-warning"]');
                 var submitEl   = scope.querySelector('[data-role="submit-result"]');
 
-                var processedTotal = parseNum(reissueEl) + parseNum(canceledEl) + parseNum(fitShredEl);
-                var count = SESSION_DENOM_VALUE > 0 ? processedTotal / SESSION_DENOM_VALUE : 0;
+                var processedTotal = parseNum(reissueEl) + parseNum(canceledEl) + parseNum(fitShredEl) + SESSION_SURPLUS_SHORTAGE_ADJUSTMENT;
+                var countTotal = parseNum(reissueEl) + parseNum(canceledEl) + parseNum(fitShredEl) - SESSION_SURPLUS_SHORTAGE_ADJUSTMENT
+                var count = SESSION_DENOM_VALUE > 0 ? countTotal / SESSION_DENOM_VALUE : 0;
                 var unprocessed = SESSION_TOTAL_ISSUED - processedTotal;
                 var isNegative = unprocessed < 0;
 
@@ -1040,6 +1070,8 @@
             var DENOMS = @Html.Raw(denomJson);
             var EXISTING_DENOMS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
                 Model.DifferentDenoms.Select(d => new { d.DenominationId, d.NumberOfPieces })));
+            var EXISTING_NOTE_EXAMINERS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                Model.NoteExaminers.Select(ne => new { ne.NoteExaminerId, ne.NumberOfBundles })));
 
             function buildDenomOptions(selectedId) {
                 return DENOMS.map(function (d) {
@@ -1128,23 +1160,44 @@
             var NOTE_EXAMINERS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
                 Model.AvailableNoteExaminers.Select(ne => new { ne.Id, ne.Name })));
 
-            function buildNoteExaminerOptions(selectedId) {
+            function buildNoteExaminerOptions(selectedId, excludeIds) {
                 return NOTE_EXAMINERS.map(function (ne) {
+                    if (excludeIds && excludeIds.indexOf(ne.Id) !== -1 && ne.Id !== selectedId) return '';
                     var sel = selectedId && ne.Id === selectedId ? ' selected' : '';
                     return '<option value="' + ne.Id + '"' + sel + '>' + ne.Name + '</option>';
                 }).join('');
+            }
+
+            function getSelectedNoteExaminerIds(container, exceptSelect) {
+                var ids = [];
+                container.querySelectorAll('.ne-examiner-select').forEach(function (sel) {
+                    if (sel === exceptSelect) return;
+                    var v = parseInt(sel.value, 10);
+                    if (v) ids.push(v);
+                });
+                return ids;
+            }
+
+            function refreshNoteExaminerOptions(container) {
+                container.querySelectorAll('.ne-examiner-select').forEach(function (sel) {
+                    var currentVal = sel.value ? parseInt(sel.value, 10) : null;
+                    var excludeIds = getSelectedNoteExaminerIds(container, sel);
+                    sel.innerHTML = '<option value="">— select examiner —</option>' +
+                        buildNoteExaminerOptions(currentVal, excludeIds);
+                });
             }
 
             function addNoteExaminerRow(container, namePrefix, rowIdx, preData) {
                 var div = document.createElement('div');
                 div.className = 'row g-2 align-items-center mb-2';
                 var selectedId = preData ? preData.NoteExaminerId : null;
+                var excludeIds = getSelectedNoteExaminerIds(container, null);
                 div.innerHTML =
                     '<div class="col-12 col-md-7">' +
                         '<label class="form-label fw-semibold small mb-1" style="color:#31316A;">Note Examiner</label>' +
-                        '<select name="' + namePrefix + '[' + rowIdx + '].NoteExaminerId" class="form-select form-select-sm" required>' +
+                        '<select name="' + namePrefix + '[' + rowIdx + '].NoteExaminerId" class="form-select form-select-sm ne-examiner-select" required>' +
                             '<option value="">— select examiner —</option>' +
-                            buildNoteExaminerOptions(selectedId) +
+                            buildNoteExaminerOptions(selectedId, excludeIds) +
                         '</select>' +
                     '</div>' +
                     '<div class="col-8 col-md-3">' +
@@ -1186,8 +1239,14 @@
                     if (!/^[0-9]$/.test(e.key)) e.preventDefault();
                 });
 
+                var examinerSelect = div.querySelector('.ne-examiner-select');
+                examinerSelect.addEventListener('change', function () {
+                    refreshNoteExaminerOptions(container);
+                });
+
                 div.querySelector('.remove-row-btn').addEventListener('click', function () {
                     container.removeChild(div);
+                    refreshNoteExaminerOptions(container);
                 });
             }
 
@@ -1269,6 +1328,15 @@
                     });
                 }
 
+                var editNoteExaminerContainer = document.getElementById('editNoteExaminerRows');
+                var editNoteExaminerRowIdx = 0;
+                var addEditNoteExaminerBtn = document.getElementById('addEditNoteExaminerRowBtn');
+                if (addEditNoteExaminerBtn && editNoteExaminerContainer) {
+                    addEditNoteExaminerBtn.addEventListener('click', function () {
+                        addNoteExaminerRow(editNoteExaminerContainer, 'NoteExaminerEntries', editNoteExaminerRowIdx++, null);
+                    });
+                }
+
                 editModal.addEventListener('show.bs.modal', function (e) {
                     var btn = e.relatedTarget;
                     if (!btn) return;
@@ -1295,12 +1363,29 @@
                             addDenomRow(editDenomContainer, 'DifferentDenomEntries', editDenomRowIdx++, d);
                         });
                     }
+
+                    if (editNoteExaminerContainer) {
+                        editNoteExaminerContainer.innerHTML = '';
+                        editNoteExaminerRowIdx = 0;
+                        EXISTING_NOTE_EXAMINERS.forEach(function (ne) {
+                            addNoteExaminerRow(editNoteExaminerContainer, 'NoteExaminerEntries', editNoteExaminerRowIdx++, ne);
+                        });
+                    }
                 });
 
-                editForm.addEventListener('submit', function () {
+                editForm.addEventListener('submit', function (e) {
+                    if (SESSION_IS_MANUAL && editNoteExaminerContainer && editNoteExaminerContainer.children.length === 0) {
+                        e.preventDefault();
+                        alert('Please capture at least one Note Examiner and the bundles they processed before saving.');
+                        return;
+                    }
+
                     this.querySelectorAll('.num-input-modal').forEach(stripCommas);
                     if (editDenomContainer) {
                         editDenomContainer.querySelectorAll('.pieces-input').forEach(stripCommas);
+                    }
+                    if (editNoteExaminerContainer) {
+                        editNoteExaminerContainer.querySelectorAll('.ne-bundles-input').forEach(stripCommas);
                     }
                 });
             }

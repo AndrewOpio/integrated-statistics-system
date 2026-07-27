@@ -558,6 +558,25 @@ namespace VMSService.Web.Controllers
                             TempData["Error"] = "Please capture the Note Examiners who worked this board, and the bundles each processed, before submitting results.";
                             return RedirectToAction(nameof(Details), new { id });
                         }
+
+                        var bagIds = session.ProcessingSessionBags
+                            .Where(psb => !psb.IsDeleted)
+                            .Select(psb => psb.BagId)
+                            .ToList();
+
+                        var totalBagBundles = await _context.BagDenominations
+                            .Where(bd => bagIds.Contains(bd.BagId) && !bd.IsDeleted)
+                            .SumAsync(bd => bd.NumberOfBundlesOrBoxes);
+
+                        var totalExaminerBundles = await _context.StockProcessingSessionNoteExaminers
+                            .Where(ne => ne.StockProcessingSessionId == id && !ne.IsDeleted)
+                            .SumAsync(ne => ne.NumberOfBundles);
+
+                        if (totalExaminerBundles != totalBagBundles)
+                        {
+                            TempData["Error"] = $"The total bundles captured for Note Examiners ({totalExaminerBundles}) does not match the total bundles in the bags assigned to this session ({totalBagBundles}). Please correct the Note Examiner entries before submitting results.";
+                            return RedirectToAction(nameof(Details), new { id });
+                        }
                     }
                 }
 
@@ -719,15 +738,17 @@ namespace VMSService.Web.Controllers
                 var denominationValue = denomDictForResult.GetValueOrDefault(session.DenominationId)?.Value ?? 0m;
 
                 var fitShredValue = session.IsManual ? 0m : model.FitShredValue;
-                decimal processedTotal = model.CanceledValue + model.ReissueValue + fitShredValue;
+                var surplusShortageAdjustment = await GetSurplusShortageAdjustmentAsync(session.Id);
+                decimal processedTotal = model.CanceledValue + model.ReissueValue + fitShredValue + surplusShortageAdjustment;
                 decimal unProcessedValue = session.TotalIssuedValue - processedTotal;
+                decimal countTotal = model.CanceledValue + model.ReissueValue + fitShredValue - surplusShortageAdjustment;
 
                 if (unProcessedValue < 0)
                 {
                     TempData["ResultErrors"] = System.Text.Json.JsonSerializer.Serialize(new List<string>
                     {
                         "Reissue, Canceled" + (session.IsManual ? "" : " and Fit/Shred") +
-                        " values cannot exceed the Total Issued Value — Unprocessed Value cannot be less than 0."
+                        " values (adjusted for recorded surpluses/shortages) cannot exceed the Total Issued Value — Unprocessed Value cannot be less than 0."
                     });
                     return RedirectToAction(nameof(Details), new { id = model.SessionId });
                 }
@@ -735,7 +756,7 @@ namespace VMSService.Web.Controllers
                 var result = new StockProcessingResult
                 {
                     StockProcessingSessionId = model.SessionId,
-                    Count = denominationValue > 0 ? (int)Math.Round(processedTotal / denominationValue) : 0,
+                    Count = denominationValue > 0 ? (int)Math.Round(countTotal / denominationValue) : 0,
                     UnProcessedValue = unProcessedValue,
                     FitShredValue = fitShredValue,
                     CanceledValue = model.CanceledValue,
@@ -843,7 +864,8 @@ namespace VMSService.Web.Controllers
                 var denominationValue = denomDictForEdit.GetValueOrDefault(session.DenominationId)?.Value ?? 0m;
 
                 var fitShredValue = session.IsManual ? 0m : model.FitShredValue;
-                decimal processedTotal = model.CanceledValue + model.ReissueValue + fitShredValue;
+                var surplusShortageAdjustment = await GetSurplusShortageAdjustmentAsync(session.Id);
+                decimal processedTotal = model.CanceledValue + model.ReissueValue + fitShredValue + surplusShortageAdjustment;
                 decimal unProcessedValue = session.TotalIssuedValue - processedTotal;
 
                 if (unProcessedValue < 0)
@@ -851,7 +873,7 @@ namespace VMSService.Web.Controllers
                     TempData["ResultErrors"] = System.Text.Json.JsonSerializer.Serialize(new List<string>
                     {
                         "Reissue, Canceled" + (session.IsManual ? "" : " and Fit/Shred") +
-                        " values cannot exceed the Total Issued Value — Unprocessed Value cannot be less than 0."
+                        " values (adjusted for recorded surpluses/shortages) cannot exceed the Total Issued Value — Unprocessed Value cannot be less than 0."
                     });
                     return RedirectToAction(nameof(Details), new { id = model.SessionId });
                 }
@@ -889,6 +911,30 @@ namespace VMSService.Web.Controllers
                     }
                 }
 
+                // Replace note examiner entries (manual boards only)
+                if (session.IsManual)
+                {
+                    var existingNoteExaminers = await _context.StockProcessingSessionNoteExaminers
+                        .Where(ne => ne.StockProcessingSessionId == model.SessionId && !ne.IsDeleted)
+                        .ToListAsync();
+                    _context.StockProcessingSessionNoteExaminers.RemoveRange(existingNoteExaminers);
+
+                    var validNoteExaminerEntries = model.NoteExaminerEntries
+                        .Where(e => e.NoteExaminerId > 0 && e.NumberOfBundles > 0)
+                        .ToList();
+
+                    foreach (var entry in validNoteExaminerEntries)
+                    {
+                        _context.StockProcessingSessionNoteExaminers.Add(new StockProcessingSessionNoteExaminer
+                        {
+                            StockProcessingSessionId = model.SessionId,
+                            NoteExaminerId = entry.NoteExaminerId,
+                            NumberOfBundles = entry.NumberOfBundles,
+                            IsDeleted = false
+                        });
+                    }
+                }
+
                 await _context.SaveChangesAsync();
                 TempData["ResultSuccess"] = "Processing result updated successfully.";
             }
@@ -919,8 +965,7 @@ namespace VMSService.Web.Controllers
 
             var branchId = session.ProcessingBoard?.BranchId ?? 0;
 
-            var allDenominations = await _stockService.GetAllDenominations();
-            var denomination = allDenominations.FirstOrDefault(d => d.Id == session.DenominationId);
+            var denomination = await _stockService.GetDenominationById(session.DenominationId);
 
             var allBanks = await _commercialBankRepository.FindAll();
             var bank = allBanks.FirstOrDefault(b => b.Id == session.CommercialBankId);
@@ -1003,8 +1048,7 @@ namespace VMSService.Web.Controllers
                 // Re-derive the autopopulated fields server-side rather than trusting the posted hidden values.
                 var branchId = session.ProcessingBoard?.BranchId ?? 0;
 
-                var allDenominations = await _stockService.GetAllDenominations();
-                var denomination = allDenominations.FirstOrDefault(d => d.Id == session.DenominationId);
+                var denomination = await _stockService.GetDenominationById(session.DenominationId);
 
                 var cfbBox = await FindCfbBoxForSessionAsync(branchId, denomination?.DenominationType?.Name);
                 if (cfbBox == null)
@@ -1114,6 +1158,33 @@ namespace VMSService.Web.Controllers
             }
 
             return RedirectToAction(nameof(Details), new { id = model.SessionId });
+        }
+
+        // Net adjustment to add to the raw processed total: shortages count as processed (add),
+        // surpluses were over-counted in what was reported as processed (subtract).
+        // Only records the CFB has confirmed as balanced are counted.
+        private async Task<decimal> GetSurplusShortageAdjustmentAsync(int stockProcessingSessionId)
+        {
+            var balancedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                EntityTypeName = StatusConstants.Entity.BoardSessionSurplusShortage,
+                StatusName = StatusConstants.BoardSessionSurplusShortage.BalancedByCFB
+            });
+
+            if (balancedStatus == null)
+                return 0m;
+
+            var surplusShortages = await _context.BoardSessionSurplusShortages
+                .Where(s => s.StockProcessingSessionId == stockProcessingSessionId
+                            && !s.IsDeleted
+                            && s.CurrentStatusId == balancedStatus.Id)
+                .ToListAsync();
+
+            var totalSurplus = surplusShortages.Where(s => s.IsSurplus).Sum(s => s.Amount);
+            var totalShortage = surplusShortages.Where(s => !s.IsSurplus).Sum(s => s.Amount);
+
+            return totalShortage - totalSurplus;
         }
 
         private async Task<List<long>> HandleAttachmentUploads(
