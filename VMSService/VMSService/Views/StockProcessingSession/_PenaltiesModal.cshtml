@@ -1,0 +1,89 @@
+@model VMSService.Core.Models.StockProcessingSessions.StockProcessingSessionDetailsViewModel
+
+<div class="modal fade" id="penaltiesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Manage Penalties</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="penaltiesForm" method="post" asp-action="ApplyPenalties" asp-route-id="@Model.Id">
+                    @Html.AntiForgeryToken()
+                    <p class="text-muted small mb-2">Check the penalties that apply to this processing session.</p>
+                    <div class="d-flex flex-column gap-2">
+                        @foreach (var penalty in Model.ApplicablePenalties)
+                        {
+                            string basisLabel;
+                            if (penalty.PenaltyMultiplier.HasValue)
+                            {
+                                basisLabel = $"UGX {penalty.PenaltyMultiplier.Value.ToString("N0")} {(string.IsNullOrEmpty(penalty.Unit) ? "per unit" : penalty.Unit)}";
+                            }
+                            else if (penalty.PenaltyPercent.HasValue)
+                            {
+                                var cutOffText = penalty.PercentCutOff.HasValue
+                                    ? $" (waived at ≥{(penalty.PercentCutOff.Value * 100).ToString("N0")}% correctly classified)"
+                                    : "";
+                                basisLabel = $"{(penalty.PenaltyPercent.Value * 100).ToString("N2")}% of issued value{cutOffText}";
+                            }
+                            else
+                            {
+                                basisLabel = $"UGX {penalty.PenaltyValue?.ToString("N0") ?? "-"} flat";
+                            }
+
+                            <div class="form-check border rounded-3 p-3">
+                                <input class="form-check-input penalty-checkbox" type="checkbox" name="penaltyIds"
+                                       value="@penalty.Id" id="penalty_@penalty.Id"
+                                       data-requires-quantity="@(penalty.PenaltyMultiplier.HasValue ? "true" : "false")"
+                                       checked="@penalty.IsChecked">
+                                <label class="form-check-label w-100" for="penalty_@penalty.Id">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <p class="fw-semibold mb-0">@penalty.Name</p>
+                                            @if (!string.IsNullOrEmpty(penalty.Description))
+                                            {
+                                                <p class="text-muted small mb-0">@penalty.Description</p>
+                                            }
+                                        </div>
+                                        <span class="fw-semibold text-danger text-nowrap ms-2">@basisLabel</span>
+                                    </div>
+                                </label>
+
+                                @if (penalty.PenaltyMultiplier.HasValue)
+                                {
+                                    <div class="mt-2 ms-4 quantity-row" style="max-width:220px;">
+                                        <label class="form-label small text-muted mb-1" for="quantity_@penalty.Id">
+                                            Quantity (@(string.IsNullOrEmpty(penalty.Unit) ? "units" : penalty.Unit))
+                                        </label>
+                                        <input type="number" min="1" step="1" required class="form-control form-control-sm penalty-quantity"
+                                               name="quantities[@penalty.Id]" id="quantity_@penalty.Id"
+                                               value="@(penalty.Quantity?.ToString() ?? "")"
+                                               disabled="@(!penalty.IsChecked ? "disabled" : null)">
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="penaltiesForm" class="btn btn-danger" title="Save">
+                    <i class="ti ti-device-floppy"></i> Save
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        document.querySelectorAll('#penaltiesForm .penalty-checkbox').forEach(function (checkbox) {
+            checkbox.addEventListener('change', function () {
+                var row = checkbox.closest('.form-check').querySelector('.quantity-row');
+                if (!row) return;
+                row.querySelector('.penalty-quantity').disabled = !checkbox.checked;
+            });
+        });
+    })();
+</script>

@@ -1,6 +1,7 @@
 using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.BoardSessionDifferentDenoms;
 using VMSService.Core.Models.BoardSessionSurplusShortages;
+using VMSService.Core.Models.Penalties;
 using VMSService.Core.Models.StockProcessingResults;
 using VMSService.Core.Models.StockProcessingSessionStatusHistories;
 using WorkflowService.Client.Dto;
@@ -42,6 +43,8 @@ namespace VMSService.Core.Models.StockProcessingSessions
         public string BoardSupervisorUserId { get; set; } = string.Empty;
         public ICollection<SessionNoteExaminerViewModel> NoteExaminers { get; set; } = [];
         public List<NoteExaminerOptionViewModel> AvailableNoteExaminers { get; set; } = [];
+        public ICollection<AppliedPenaltyViewModel> AppliedPenalties { get; set; } = [];
+        public List<PenaltyChecklistItemViewModel> ApplicablePenalties { get; set; } = [];
     }
 
     public class NoteExaminerOptionViewModel

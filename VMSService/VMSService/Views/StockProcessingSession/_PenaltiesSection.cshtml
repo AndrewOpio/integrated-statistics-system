@@ -1,0 +1,94 @@
+@model VMSService.Core.Models.StockProcessingSessions.StockProcessingSessionDetailsViewModel
+
+@if (Model.ApplicablePenalties.Any() || Model.AppliedPenalties.Any())
+{
+    <div class="card section-card mb-4 border-top-0 border-end-0 border-bottom-0 border-4 border-danger">
+        <div class="p-4 d-flex justify-content-between align-items-center py-2">
+            <div class="d-flex align-items-center gap-2">
+                <span class="section-icon"><i class="ti ti-gavel" style="color:#31316A;font-size:.9rem;"></i></span>
+                <div>
+                    <h6 class="fw-bold mb-0" style="color:#31316A;">Penalties</h6>
+                    <span class="small text-muted">Processing penalties applied to this session</span>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                @if (Model.AppliedPenalties.Any())
+                {
+                    <span class="badge bg-danger rounded-pill px-3 py-2">
+                        Total Applied: UGX @Model.AppliedPenalties.Sum(a => a.ChargeValue).ToString("N0")
+                    </span>
+                }
+                @if (Model.ApplicablePenalties.Any())
+                {
+                    var checkedCount = Model.ApplicablePenalties.Count(p => p.IsChecked);
+                    <button type="button" class="btn btn-sm btn-outline-danger"
+                            data-bs-toggle="modal" data-bs-target="#penaltiesModal">
+                        <i class="ti ti-edit me-1"></i>Manage Penalties
+                        @if (checkedCount > 0)
+                        {
+                            <span class="badge bg-danger ms-1">@checkedCount</span>
+                        }
+                    </button>
+                }
+            </div>
+        </div>
+
+        <div class="card-body p-0">
+            @if (TempData["Success"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show mx-3 mt-3 mb-3" role="alert">
+                    <i class="ti ti-circle-check me-2"></i>@TempData["Success"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+            @if (Model.AppliedPenalties.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover small mb-0">
+                        <thead style="background:#f8fafc;">
+                            <tr>
+                                <th class="ps-4 py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">PENALTY</th>
+                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">QUANTITY</th>
+                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">CHARGE (UGX)</th>
+                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">APPLIED BY</th>
+                                <th class="py-2 pe-4 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">RTGS SETTLEMENT</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var applied in Model.AppliedPenalties)
+                            {
+                                <tr>
+                                    <td class="ps-4 py-2">@applied.PenaltyName</td>
+                                    <td class="py-2">@(applied.Quantity?.ToString("N0") ?? "-")</td>
+                                    <td class="py-2 fw-semibold" style="color:#31316A;">@applied.ChargeValue.ToString("N0")</td>
+                                    <td class="py-2 small text-muted">@applied.AppliedBy</td>
+                                    <td class="py-2 pe-4">
+                                        @if (applied.IsSettledOnRtgs)
+                                        {
+                                            <span class="badge bg-success">Settled @(!string.IsNullOrEmpty(applied.RtgsCode) ? $"— {applied.RtgsCode}" : "")</span>
+                                        }
+                                        else if (!string.IsNullOrEmpty(applied.RtgsSettlingMessage))
+                                        {
+                                            <span class="badge bg-danger" title="@applied.RtgsSettlingMessage">Failed</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">Pending</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-4 text-muted">
+                    <i class="ti ti-gavel-off d-block mb-2" style="font-size:2rem;opacity:.3;"></i>
+                    <p class="small mb-0">No penalties applied to this session</p>
+                </div>
+            }
+        </div>
+    </div>
+}

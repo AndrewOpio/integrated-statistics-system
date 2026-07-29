@@ -17,6 +17,7 @@ namespace VMSService.Core.Models.StockProcessingPlans
         public string CurrentStatusName { get; set; } = string.Empty;
         public List<CountingRoomWithBagsViewModel> CountingRooms { get; set; } = new();
         public List<ProcessingSessionViewModel> Sessions { get; set; } = new();
+        public List<SessionResultSummaryViewModel> ResultSummaries { get; set; } = new();
         public ICollection<StockProcessingPlanStatusHistoryViewModel> StatusHistory { get; set; } = [];
         public ICollection<WorkflowTransitionDto> AvailableTransitions { get; set; } = [];
         public IEnumerable<AttachmentViewModel> AllAttachments { get; set; } = [];
@@ -57,5 +58,17 @@ namespace VMSService.Core.Models.StockProcessingPlans
         public decimal DenominationValue { get; set; }
         public int TotalBundles { get; set; }
         public decimal TotalAmount { get; set; }
+    }
+
+    public class SessionResultSummaryViewModel
+    {
+        public int SessionId { get; set; }
+        public string SessionReferenceNumber { get; set; } = string.Empty;
+        public decimal DenominationValue { get; set; }
+        public decimal TotalIssuedValue { get; set; }
+        public decimal ReissueValue { get; set; }
+        public decimal CanceledValue { get; set; }
+        public decimal FitShredValue { get; set; }
+        public decimal UnProcessedValue { get; set; }
     }
 }

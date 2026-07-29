@@ -7,13 +7,16 @@ using VMSService.Controllers;
 using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.BoardSessionDifferentDenoms;
 using VMSService.Core.Models.BoardSessionSurplusShortages;
+using VMSService.Core.Models.Penalties;
 using VMSService.Core.Models.StockProcessingResults;
 using VMSService.Core.Models.StockProcessingSessions;
 using VMSService.Core.Models.StockProcessingSessionStatusHistories;
+using VMSService.Core.Repositories.AppliedPenalties;
 using VMSService.Core.Repositories.Attachments;
 using VMSService.Core.Repositories.CfbBoxes;
 using VMSService.Core.Repositories.CommercialBanks;
 using VMSService.Core.Repositories.NoteExaminers;
+using VMSService.Core.Repositories.Penalties;
 using VMSService.Core.Repositories.StockProcessingResults;
 using VMSService.Core.Repositories.StockProcessingSessions;
 using VMSService.Core.Repositories.StockProcessingSessionStatusHistories;
@@ -37,6 +40,8 @@ namespace VMSService.Web.Controllers
         IAttachmentRepository _attachmentRepository,
         ICfbBoxRepository _cfbBoxRepository,
         INoteExaminerRepository _noteExaminerRepository,
+        IPenaltyRepository _penaltyRepository,
+        IAppliedPenaltyRepository _appliedPenaltyRepository,
         IConfigurationsServiceClient _configServiceClient,
         IStockService _stockService,
         IIdentityService _identityService,
@@ -477,6 +482,42 @@ namespace VMSService.Web.Controllers
                     };
                 }).ToList();
 
+                // Penalties applied to this processing session
+                var appliedPenaltyEntities = await _appliedPenaltyRepository.FindBySourceId(session.ReferenceNumber);
+                var appliedPenalties = appliedPenaltyEntities.Select(a => new AppliedPenaltyViewModel
+                {
+                    Id = a.Id,
+                    PenaltyId = a.PenaltyId,
+                    PenaltyName = a.Penalty?.Name ?? string.Empty,
+                    ChargeValue = a.ChargeValue,
+                    Quantity = a.Quantity,
+                    IsSettledOnRtgs = a.IsSettledOnRtgs,
+                    RtgsCode = a.RtgsCode,
+                    RtgsSettlingMessage = a.RtgsSettlingMessage,
+                    AppliedBy = a.CreatedBy,
+                    AppliedAt = a.CreatedDate,
+                }).ToList();
+
+                var applicablePenalties = new List<PenaltyChecklistItemViewModel>();
+                if (statusType?.Name == StatusConstants.StockProcessingSession.Open && availableTransitions.Distinct().Any())
+                {
+                    var appliedPenaltyIds = appliedPenaltyEntities.Select(a => a.PenaltyId).ToHashSet();
+                    var processingPenalties = await _penaltyRepository.FindApplicableFor(PenaltyConstants.AppliesTo.Processing);
+                    applicablePenalties = processingPenalties.Select(p => new PenaltyChecklistItemViewModel
+                    {
+                        Id = p.Id,
+                        Name = p.Name,
+                        Description = p.Description,
+                        Unit = p.Unit,
+                        PenaltyValue = p.PenaltyValue,
+                        PenaltyPercent = p.PenaltyPercent,
+                        PercentCutOff = p.PercentCutOff,
+                        PenaltyMultiplier = p.PenaltyMultiplier,
+                        IsChecked = appliedPenaltyIds.Contains(p.Id),
+                        Quantity = appliedPenaltyEntities.FirstOrDefault(a => a.PenaltyId == p.Id)?.Quantity,
+                    }).ToList();
+                }
+
                 ViewBag.Denominations = allDenominations
                     .OrderBy(d => d.DenominationTypeId)
                     .ThenBy(d => d.Value)
@@ -514,7 +555,9 @@ namespace VMSService.Web.Controllers
                     AllAttachments = allAttachments,
                     BoardSupervisorUserId = supervisorId ?? "",
                     NoteExaminers = noteExaminers,
-                    AvailableNoteExaminers = availableNoteExaminers
+                    AvailableNoteExaminers = availableNoteExaminers,
+                    AppliedPenalties = appliedPenalties,
+                    ApplicablePenalties = applicablePenalties
                 };
 
                 return View(model);
@@ -1098,6 +1141,115 @@ namespace VMSService.Web.Controllers
                 return RedirectToAction(nameof(Details), new { id = model.StockProcessingSessionId });
             }
         }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ApplyPenalties(int id, List<int>? penaltyIds, Dictionary<int, int>? quantities)
+        {
+            var session = await _sessionRepository.FindById(id);
+            if (session is null)
+            {
+                TempData["Error"] = "Processing Session not found.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            var statusType = await _workflowServiceClient.FindStatusById(session.CurrentStatusId);
+            if (statusType?.Name != StatusConstants.StockProcessingSession.Open)
+            {
+                TempData["Error"] = "Penalties can only be applied while the session is Open.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (string.IsNullOrEmpty(session.ReferenceNumber))
+            {
+                TempData["Error"] = "This session does not have a reference number yet.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            // Same check used to gate the workflow action buttons — only someone whose role has an
+            // available transition on this session right now may apply/adjust its penalties.
+            var hasAvailableTransition = false;
+            foreach (var roleId in GetUserRoleIds())
+            {
+                var roleTransitions = await _workflowService.GetAvailableTransitionsAsync(
+                    StatusConstants.Entity.StockProcessingSession, session.CurrentStatusId, roleId);
+                if (roleTransitions.Count > 0)
+                {
+                    hasAvailableTransition = true;
+                    break;
+                }
+            }
+
+            if (!hasAvailableTransition)
+            {
+                TempData["Error"] = "You are not authorized to act on this session at its current status.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            try
+            {
+                var checkedPenaltyIds = (penaltyIds ?? []).ToHashSet();
+
+                // Restrict to active Processing penalties — also blocks tampered penaltyIds for other categories.
+                var processingPenalties = await _penaltyRepository.FindApplicableFor(PenaltyConstants.AppliesTo.Processing);
+                var processingPenaltiesById = processingPenalties.ToDictionary(p => p.Id);
+
+                var currentlyApplied = await _appliedPenaltyRepository.FindBySourceId(session.ReferenceNumber);
+                var denomination = await _stockService.GetDenominationById(session.DenominationId);
+
+                foreach (var penaltyId in checkedPenaltyIds)
+                {
+                    if (!processingPenaltiesById.TryGetValue(penaltyId, out var penalty))
+                        throw new InvalidOperationException($"Penalty {penaltyId} is not a valid Processing penalty.");
+
+                    int? quantity = null;
+                    if (penalty.PenaltyMultiplier.HasValue)
+                    {
+                        quantity = quantities?.GetValueOrDefault(penaltyId);
+                        if (!quantity.HasValue || quantity <= 0)
+                            throw new InvalidOperationException($"Please enter a quantity for '{penalty.Name}'.");
+                    }
+
+                    await _appliedPenaltyRepository.Apply(
+                        PenaltyConstants.Source.Processing,
+                        session.ReferenceNumber,
+                        penaltyId,
+                        quantity: quantity,
+                        denomValue: penalty.PenaltyMultiplier.HasValue ? denomination?.Value : null,
+                        baseValue: penalty.PenaltyPercent.HasValue ? session.TotalIssuedValue : null,
+                        // TODO: correctlyClassifiedValue should come from a fit/unfit-style breakdown on
+                        // StockProcessingResult once one exists again; until then this always applies the
+                        // percent-cutoff penalty in full when checked (correctlyClassifiedValue / baseValue = 0).
+                        correctlyClassifiedValue: 0);
+                }
+
+                foreach (var applied in currentlyApplied.Where(a => !checkedPenaltyIds.Contains(a.PenaltyId)))
+                {
+                    await _appliedPenaltyRepository.Remove(applied.Id);
+                }
+
+                await _appliedPenaltyRepository.Save();
+                TempData["Success"] = "Penalties updated.";
+            }
+            catch (InvalidOperationException ex)
+            {
+                TempData["Error"] = ex.Message;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error applying penalties to stock processing session {Id}", id);
+                TempData["Error"] = "An error occurred while updating penalties.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        private List<int> GetUserRoleIds()
+            => User.FindAll(SystemPolicy.SystemSettings.AppRoleClaimType)
+                .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
+                .Select(c => int.TryParse(c.Value.Split(":")[1], out var roleId) ? roleId : 0)
+                .Where(r => r > 0)
+                .ToList();
 
         private async Task<CfbBox?> FindCfbBoxForSessionAsync(int branchId, string? boxType)
         {

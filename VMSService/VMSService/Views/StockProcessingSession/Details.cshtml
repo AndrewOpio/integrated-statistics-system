@@ -953,6 +953,8 @@
     </div>
 }
 
+@* ── Penalties ──────────────────────────────────────────────────── *@
+@await Html.PartialAsync("_PenaltiesSection", Model)
 
 @* ── Workflow Attachments ───────────────────────────────────────── *@
 @await Html.PartialAsync("_WorkflowAttachments", Model.AllAttachments)
@@ -984,6 +986,11 @@
 @if (Model.BoardSupervisorUserId == userId)
 {
     @await Html.PartialAsync("_WorkflowActions", workflowActionsViewModel)
+}
+
+@if (Model.ApplicablePenalties.Any())
+{
+    @await Html.PartialAsync("_PenaltiesModal", Model)
 }
 
 @section Scripts {

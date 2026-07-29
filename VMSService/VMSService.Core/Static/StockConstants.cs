@@ -41,6 +41,7 @@
             public const string PaidsToMWB = "Paids To Money With Boards";
             public const string MWBToReIssue = "Money With Boards To Re-Issue";
             public const string MWBToCancelled = "Money With Boards To Cancelled";
+            public const string MWBToShredded = "Money With Boards To Shredded";
         }
 
         public static readonly (string Key, string Value)[] MovementTypes = new[]
