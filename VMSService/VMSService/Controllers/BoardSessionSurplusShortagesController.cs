@@ -349,7 +349,7 @@ namespace VMSService.Web.Controllers
             string username)
         {
             var uploadedAttachmentIds = new List<long>();
-            var uploadsPath = Path.Combine(_environment.WebRootPath, "uploads", "boardsessionsurplusshortage", entityId.ToString());
+            var uploadsPath = Path.Combine(FileStorageConstants.UploadsRoot, "boardsessionsurplusshortage", entityId.ToString());
             Directory.CreateDirectory(uploadsPath);
 
             foreach (var requirement in requirements)

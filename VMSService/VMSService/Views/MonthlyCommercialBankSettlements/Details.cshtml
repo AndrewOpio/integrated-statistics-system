@@ -214,7 +214,7 @@
                                     <div class="mt-2 d-flex flex-wrap gap-1">
                                         @foreach (var att in h.Attachments)
                                         {
-                                            <a asp-action="DownloadAttachment" asp-route-id="@att.Id"
+                                            <a href="@FileUrlHelper.ToWebPath(att.FilePath)" download="@att.FileName" target="_blank"
                                                class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1 py-0 px-2">
                                                 <i class="ti ti-paperclip"></i>
                                                 <span class="small">@att.FileName</span>

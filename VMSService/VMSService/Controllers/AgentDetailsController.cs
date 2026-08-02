@@ -539,7 +539,7 @@ namespace VMSService.Controllers
             if (file == null || file.Length == 0)
                 return string.Empty;
 
-            var uploadsFolder = Path.Combine(@"E:\CASFiles\uploads", folderName);
+            var uploadsFolder = Path.Combine(FileStorageConstants.UploadsRoot, folderName);
             if (!Directory.Exists(uploadsFolder))
             {
                 Directory.CreateDirectory(uploadsFolder);

@@ -446,7 +446,7 @@ namespace VMSService.Web.Controllers
             string username)
         {
             var uploadedIds = new List<long>();
-            var uploadDir   = Path.Combine(_environment.WebRootPath, "uploads", "shortages", entityId.ToString());
+            var uploadDir   = Path.Combine(FileStorageConstants.UploadsRoot, "shortages", entityId.ToString());
             Directory.CreateDirectory(uploadDir);
 
             foreach (var req in requirements)

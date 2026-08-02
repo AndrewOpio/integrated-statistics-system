@@ -639,8 +639,9 @@
                                                                                 <i class="ti ti-external-link"></i>
                                                                             </a>
                                                                         }
-                                                                        <a asp-action="DownloadAttachment"
-                                                                           asp-route-id="@attachment.Id"
+                                                                        <a href="@FileUrlHelper.ToWebPath(attachment.FilePath)"
+                                                                           download="@attachment.FileName"
+                                                                           target="_blank"
                                                                            class="btn btn-sm btn-outline-primary"
                                                                            title="Download">
                                                                             <i class="ti ti-download"></i>
@@ -762,8 +763,9 @@
                                                     @(attachment.IsPdf ? "Open PDF" : "Open")
                                                 </a>
                                             }
-                                            <a asp-action="DownloadAttachment"
-                                               asp-route-id="@attachment.Id"
+                                            <a href="@FileUrlHelper.ToWebPath(attachment.FilePath)"
+                                               download="@attachment.FileName"
+                                               target="_blank"
                                                class="btn btn-sm btn-outline-primary flex-fill">
                                                 <i class="ti ti-download me-1"></i>Download
                                             </a>

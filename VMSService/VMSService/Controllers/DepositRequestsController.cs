@@ -157,8 +157,8 @@ namespace VMSService.Web.Controllers
                 CollectionDate = r.DepositDate,
                 CreationDate = r.CreatedDate,
                 RequiresSpecialApproval = r.RequiresSpecialApproval,
-                RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "—" : r.RtgsCode,
-                BouBranchCode = (await _configServiceClient.GetBouBranchByIdAsync(r.BouBranchId))?.BranchCode ?? "—"
+                RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "ï¿½" : r.RtgsCode,
+                BouBranchCode = (await _configServiceClient.GetBouBranchByIdAsync(r.BouBranchId))?.BranchCode ?? "ï¿½"
             }).ToList());
 
             var vm = new BouDepositRequestViewModel
@@ -386,12 +386,12 @@ namespace VMSService.Web.Controllers
                 RequiresSpecialApproval = request.RequiresSpecialApproval,
                 SpecialApprovalReason = request.SpecialApprovalReason,
                 DepositAgents = agentDetails,
-                CbName = cb?.Name ?? "—",
+                CbName = cb?.Name ?? "ï¿½",
                 CbBranchName = cbBranchName,
-                CbBicCode = cb?.Code ?? "—",
-                CbCode = cb?.CBCode ?? "—",
-                BouBranchName = bouBranch?.Name ?? "—",
-                BouBranchCode = bouBranch?.BranchCode ?? "—",
+                CbBicCode = cb?.Code ?? "ï¿½",
+                CbCode = cb?.CBCode ?? "ï¿½",
+                BouBranchName = bouBranch?.Name ?? "ï¿½",
+                BouBranchCode = bouBranch?.BranchCode ?? "ï¿½",
                 BouBranchId = bouBranch?.Id ?? 0,
                 FitNotes = cbDenoms
                     .Where(d => d.DenominationTypeId == noteTypeId && d.SubCategoryId == 1)
@@ -723,7 +723,7 @@ namespace VMSService.Web.Controllers
             var uploadedAttachmentIds = new List<long>();
 
             // Create uploads directory if it doesn't exist
-            var uploadsPath = Path.Combine(_environment.WebRootPath, "uploads", "deposits", entityId.ToString());
+            var uploadsPath = Path.Combine(FileStorageConstants.UploadsRoot, "deposits", entityId.ToString());
             Directory.CreateDirectory(uploadsPath);
 
             foreach (var requirement in requirements)

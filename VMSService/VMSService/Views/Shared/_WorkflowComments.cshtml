@@ -59,7 +59,7 @@
 															<div class="flex-grow-1">
 																<p class="mb-0 small fw-semibold">@attachment.FileName</p>
 																<small class="text-muted">
-																	@attachment.FileSizeFormatted ·
+																	@attachment.FileSizeFormatted ï¿½
 																	Uploaded @attachment.UploadedDate.ToString("dd MMM yyyy HH:mm")
 																</small>
 															</div>
@@ -73,8 +73,9 @@
 																		<i class="ti ti-external-link"></i>
 																	</a>
 																}
-																<a asp-action="DownloadAttachment"
-																   asp-route-id="@attachment.Id"
+																<a href="@FileUrlHelper.ToWebPath(attachment.FilePath)"
+																   download="@attachment.FileName"
+																   target="_blank"
 																   class="btn btn-sm btn-outline-primary"
 																   title="Download">
 																	<i class="ti ti-download"></i>

@@ -13,6 +13,7 @@ using SmartBreadcrumbs.Extensions;
 using System.Reflection;
 using System.Text;
 using VMSService.Core.Authorization;
+using VMSService.Core.Static;
 using VMSService.Core.Mappings;
 using VMSService.Core.Models.Authentication;
 using VMSService.Core.Repositories.Attachments;
@@ -441,11 +442,10 @@ if (!app.Environment.IsDevelopment())
 //app.UseHttpsRedirection();
 app.UseStaticFiles();
 
-const string casFilesUploadsPath = @"E:\CASFiles\uploads";
-Directory.CreateDirectory(casFilesUploadsPath);
+Directory.CreateDirectory(FileStorageConstants.UploadsRoot);
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new PhysicalFileProvider(casFilesUploadsPath),
+    FileProvider = new PhysicalFileProvider(FileStorageConstants.UploadsRoot),
     RequestPath = "/uploads"
 });
 
