@@ -270,7 +270,7 @@
                                     {
                                         <div class="text-center py-3">
                                             <p class="small text-muted mb-2">No bags in this section</p>
-                                            @if (!string.Equals(sec.Name?.Trim(), VaultConstants.BagsWithBoardsSectionName, StringComparison.OrdinalIgnoreCase))
+                                            @if (!VaultConstants.IsSystemManagedSectionName(sec.Name))
                                             {
                                                 <a asp-action="Section" asp-route-id="@sec.Id"
                                                    class="btn btn-xs btn-outline-secondary" style="padding:.2rem .6rem;font-size:.75rem;">

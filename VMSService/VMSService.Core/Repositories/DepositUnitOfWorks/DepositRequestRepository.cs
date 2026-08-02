@@ -7,7 +7,7 @@ namespace VMSService.Core.Repositories.DepositUnitOfWorks
     public class DepositRequestRepository(VMSServiceDbContext _db) : IDepositRequestRepository
     {
         public async Task<ICollection<DepositRequest>> FindAll()
-            => await _db.DepositRequests.Where(r => !r.IsDeleted).ToListAsync();
+            => await _db.DepositRequests.Where(r => !r.IsDeleted && !r.IsLegacyDeposit).ToListAsync();
 
         public async Task<DepositRequest> FindById(Guid id)
             => await _db.DepositRequests.Include(x => x.DepositRequestDenominations).FirstOrDefaultAsync(x => x.Id == id)
@@ -52,11 +52,11 @@ namespace VMSService.Core.Repositories.DepositUnitOfWorks
 
         public async Task<ICollection<DepositRequest>> FindByBouBranchId(int branchId)
             => await _db.DepositRequests
-                .Where(r => r.BouBranchId == branchId && !r.IsDeleted)
+                .Where(r => r.BouBranchId == branchId && !r.IsDeleted && !r.IsLegacyDeposit)
                 .ToListAsync();
 
         public async Task<ICollection<DepositRequest>> FindByBouBranchIds(List<int> branchIds)
             => await _db.DepositRequests
-                .Where(r => branchIds.Contains(r.BouBranchId) && !r.IsDeleted).ToListAsync();
+                .Where(r => branchIds.Contains(r.BouBranchId) && !r.IsDeleted && !r.IsLegacyDeposit).ToListAsync();
     }
 }

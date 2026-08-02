@@ -1,0 +1,115 @@
+@model VMSService.Core.Models.BagMovements.CreateBagMovementViewModel
+
+@{
+    ViewData["Title"] = "Edit Bag Movement Request";
+}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header pb-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="d-flex flex-column">
+                        <span class="text-muted small mb-2">Bag Movements @(!string.IsNullOrEmpty(Model.BranchName) ? $"— {Model.BranchName}" : "")</span>
+                        <h2 class="fs-4 fw-bold mb-0">Edit Movement Request</h2>
+                    </div>
+                    <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary">
+                        <i class="ti ti-arrow-left me-1"></i> Back to Details
+                    </a>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                <div id="bagSelectionAlert" class="alert alert-danger d-none"></div>
+
+                <form asp-action="Edit" asp-route-id="@Model.Id" method="post" id="bagMovementForm">
+                    <div class="mb-3">
+                        <label class="form-label">Bags to Move <span class="text-danger">*</span></label>
+                        <div class="table-responsive">
+                            <table class="table table-centered table-nowrap mb-0 rounded" id="bagsTable">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th class="border-0 rounded-start">
+                                            <input type="checkbox" id="selectAllBags" class="form-check-input" />
+                                        </th>
+                                        <th class="border-0">Bag Reference</th>
+                                        <th class="border-0">Vault</th>
+                                        <th class="border-0">Vault Section</th>
+                                        <th class="border-0">Subcategory</th>
+                                        <th class="border-0 rounded-end text-end">Total Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var bag in Model.Bags)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <input type="checkbox" name="SelectedBagIds" value="@bag.BagId" class="form-check-input bag-checkbox" @(bag.IsSelected ? "checked" : "") />
+                                            </td>
+                                            <td class="fw-bold">@bag.ReferenceNumber</td>
+                                            <td>@(bag.VaultName ?? "-")</td>
+                                            <td>@(bag.VaultSectionName ?? "-")</td>
+                                            <td>@(bag.SubCategoryName ?? "-")</td>
+                                            <td class="text-end">UGX @bag.TotalAmount.ToString("N0")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Destination Section <span class="text-danger">*</span></label>
+                        <select asp-for="NewVaultSectionId" asp-items="Model.VaultSectionList" class="form-select">
+                            <option value="">-- Select Destination Section --</option>
+                        </select>
+                        <span asp-validation-for="NewVaultSectionId" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Remarks</label>
+                        <textarea asp-for="Remarks" class="form-control" rows="3" placeholder="Optional remarks..."></textarea>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-check me-1"></i>Save Changes
+                        </button>
+                        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary">
+                            <i class="ti ti-arrow-left me-1"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+    <script>
+        $(document).ready(function () {
+            // Paging disabled so every row (and its checkbox) stays in the DOM regardless of the search filter,
+            // which keeps checkbox-based selection reliable when submitting the form.
+            var table = $('#bagsTable').DataTable({ paging: false, order: [] });
+
+            $('#selectAllBags').on('change', function () {
+                var checked = this.checked;
+                table.rows({ search: 'applied' }).nodes().to$().find('.bag-checkbox').prop('checked', checked);
+            });
+
+            $('#bagMovementForm').on('submit', function (e) {
+                var $alert = $('#bagSelectionAlert');
+                if ($('.bag-checkbox:checked').length === 0) {
+                    e.preventDefault();
+                    $alert.text('Select at least one bag to move.').removeClass('d-none');
+                    return false;
+                }
+                $alert.addClass('d-none');
+            });
+        });
+    </script>
+}

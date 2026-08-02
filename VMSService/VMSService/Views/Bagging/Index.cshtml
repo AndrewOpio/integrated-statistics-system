@@ -1,4 +1,5 @@
 @using ConfigurationsService.Client
+@using VMSService.Core.Models.Vaults
 @model List<VMSService.Core.Models.Bags.BagViewModel>
 
 @{
@@ -155,12 +156,18 @@
                 </select>
             </div>
             <div class="col-sm-6 col-md-2">
-                <label class="form-label small fw-semibold mb-1">Start Date</label>
+                <label class="form-label small fw-semibold mb-1">Start Date (Deposit Date)</label>
                 <input type="date" id="filterStartDate" class="form-control form-control-sm" />
             </div>
             <div class="col-sm-6 col-md-2">
-                <label class="form-label small fw-semibold mb-1">End Date</label>
+                <label class="form-label small fw-semibold mb-1">End Date (Deposit Date)</label>
                 <input type="date" id="filterEndDate" class="form-control form-control-sm" />
+            </div>
+            <div class="col-sm-6 col-md-auto">
+                <div class="form-check form-switch mb-1">
+                    <input class="form-check-input" type="checkbox" role="switch" id="filterPartial" />
+                    <label class="form-check-label small fw-semibold" for="filterPartial">Partial</label>
+                </div>
             </div>
             <div class="col-sm-12 col-md-auto d-flex gap-2">
                 <button id="btnFilter" class="btn btn-sm btn-tertiary">
@@ -220,6 +227,7 @@
                             data-vault-section-id="@bag.VaultSectionId"
                             data-category-name="@bag.CategoryName"
                             data-subcategory-name="@bag.SubCategoryName"
+                            data-is-partial="@((bag.TotalBundles < VaultBagViewModel.MaxBundles).ToString().ToLower())"
                             data-created-date="@bag.CreatedDate.ToString("yyyy-MM-dd")">
                             <td>
                                 <a asp-action="Details" asp-route-id="@bag.Id" class="fw-bold text-nowrap">
@@ -313,6 +321,7 @@
                 var vaultSectionId = $('#filterVaultSection').val();
                 var category = $('#filterCategory').val();
                 var subCategory = $('#filterSubCategory').val();
+                var partialOnly = $('#filterPartial').is(':checked');
                 var startDate = $('#filterStartDate').val();
                 var endDate = $('#filterEndDate').val();
 
@@ -327,6 +336,7 @@
                 if (vaultSectionId && String($row.data('vault-section-id')) !== vaultSectionId) return false;
                 if (category && $row.data('category-name') !== category) return false;
                 if (subCategory && $row.data('subcategory-name') !== subCategory) return false;
+                if (partialOnly && $row.data('is-partial') !== true) return false;
 
                 if (startDate || endDate) {
                     var rowDate = String($row.data('created-date') || '');
@@ -349,6 +359,7 @@
             // Clear all filters
             $('#btnClearFilter').on('click', function () {
                 $('#filterDenomination, #filterBank, #filterVault, #filterCategory, #filterSubCategory').val('');
+                $('#filterPartial').prop('checked', false);
                 $('#filterStartDate, #filterEndDate').val('');
                 populateVaultSections('');
                 table.draw();

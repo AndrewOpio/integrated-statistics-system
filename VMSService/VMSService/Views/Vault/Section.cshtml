@@ -2,7 +2,7 @@
 
 @{
     ViewData["Title"] = $"Vault Section — {Model.Name}";
-    bool isBagsWithBoardsSection = string.Equals(Model.Name?.Trim(), VaultConstants.BagsWithBoardsSectionName, StringComparison.OrdinalIgnoreCase);
+    bool isSystemManagedSection = VaultConstants.IsSystemManagedSectionName(Model.Name);
 }
 
 @* Hero Card *@
@@ -149,13 +149,13 @@
                 </h5>
                 <p class="text-muted small mb-0 mt-1">Bags not yet assigned to any vault section.</p>
             </div>
-            <div class="card-body @(isBagsWithBoardsSection || !Model.AvailableBags.Any() ? "p-4" : "p-1")">
-                @if (isBagsWithBoardsSection)
+            <div class="card-body @(isSystemManagedSection || !Model.AvailableBags.Any() ? "p-4" : "p-1")">
+                @if (isSystemManagedSection)
                 {
                     <div class="text-center py-5">
                         <i class="ti ti-lock d-block mb-3 text-secondary" style="font-size:2.5rem;opacity:.4;"></i>
                         <p class="fw-semibold text-muted mb-1">Manual attachment disabled</p>
-                        <p class="text-muted small">Bags cannot be manually attached to the "@VaultConstants.BagsWithBoardsSectionName" section.</p>
+                        <p class="text-muted small">Bags cannot be manually attached to the "@Model.Name" section.</p>
                     </div>
                 }
                 else if (!Model.AvailableBags.Any())

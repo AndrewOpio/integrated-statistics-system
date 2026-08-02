@@ -704,7 +704,17 @@
         if (!dateVal)                          errors.push('Deposit Date is required.');
         if (!branchVal)                        errors.push('Source Deposit Branch is required.');
         if (!denomId)                          errors.push('Denomination is required.');
-        if (!rawVal || isNaN(numVal) || numVal <= 0) errors.push('A valid Value is required.');
+        if (!rawVal || isNaN(numVal) || numVal <= 0) {
+            errors.push('A valid Value is required.');
+        } else if (denomId && denomVal > 0) {
+            const maxBagValue = denomVal * 1000 * 50;
+            if (numVal % denomVal !== 0) {
+                errors.push(`Value must be an exact multiple of the denomination value (UGX ${denomVal.toLocaleString()}).`);
+            }
+            if (numVal > maxBagValue) {
+                errors.push(`Value cannot exceed UGX ${maxBagValue.toLocaleString()} (a full bag of 50 bundles/boxes for this denomination).`);
+            }
+        }
 
         if (errors.length) {
             errEl.innerHTML = errors.map(e => `<span>${e}</span>`).join('<br>');
@@ -763,7 +773,7 @@
         card.dataset.bankNames        = bankName;
         card.innerHTML =
             `<span class="bag-ref"><i class="ti ti-package" style="font-size:.7rem;"></i> ${refNum}</span>` +
-            `<span class="bag-denom">UGX ${parseFloat(denomValue).toLocaleString()} &middot; ${denomName}</span>` +
+            `<span class="bag-denom">UGX ${parseFloat(denomValue).toLocaleString()} &middot; N/A</span>` +
             `<span class="bag-meta">${bankName}</span>` +
             `<span class="bag-meta" style="font-size:.62rem;color:#31316A;font-weight:600;">` +
                 `<i class="ti ti-sparkles" style="font-size:.6rem;"></i> Newly added</span>`;

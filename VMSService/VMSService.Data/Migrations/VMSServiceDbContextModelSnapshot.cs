@@ -572,7 +572,7 @@ namespace VMSService.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("BagId")
+                    b.Property<int?>("BagId")
                         .HasColumnType("int");
 
                     b.Property<string>("CreatedBy")
@@ -598,7 +598,7 @@ namespace VMSService.Data.Migrations
                     b.Property<int>("NewVaultSectionId")
                         .HasColumnType("int");
 
-                    b.Property<int>("OldVaultSectionId")
+                    b.Property<int?>("OldVaultSectionId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
@@ -610,6 +610,51 @@ namespace VMSService.Data.Migrations
                     b.HasIndex("OldVaultSectionId");
 
                     b.ToTable("BagMovements");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.BagMovementBag", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BagId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BagMovementId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("OldVaultSectionId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BagId");
+
+                    b.HasIndex("BagMovementId");
+
+                    b.HasIndex("OldVaultSectionId");
+
+                    b.ToTable("BagMovementBags");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.BagMovementStatusHistory", b =>
@@ -5123,13 +5168,36 @@ namespace VMSService.Data.Migrations
                 {
                     b.HasOne("VMSService.Data.Entities.Bag", "Bag")
                         .WithMany()
-                        .HasForeignKey("BagId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .HasForeignKey("BagId");
 
                     b.HasOne("VMSService.Data.Entities.VaultSection", "NewVaultSection")
                         .WithMany()
                         .HasForeignKey("NewVaultSectionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("VMSService.Data.Entities.VaultSection", "OldVaultSection")
+                        .WithMany()
+                        .HasForeignKey("OldVaultSectionId");
+
+                    b.Navigation("Bag");
+
+                    b.Navigation("NewVaultSection");
+
+                    b.Navigation("OldVaultSection");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.BagMovementBag", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.Bag", "Bag")
+                        .WithMany()
+                        .HasForeignKey("BagId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("VMSService.Data.Entities.BagMovement", "BagMovement")
+                        .WithMany("BagMovementBags")
+                        .HasForeignKey("BagMovementId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -5141,7 +5209,7 @@ namespace VMSService.Data.Migrations
 
                     b.Navigation("Bag");
 
-                    b.Navigation("NewVaultSection");
+                    b.Navigation("BagMovement");
 
                     b.Navigation("OldVaultSection");
                 });
@@ -5970,6 +6038,11 @@ namespace VMSService.Data.Migrations
             modelBuilder.Entity("VMSService.Data.Entities.Bag", b =>
                 {
                     b.Navigation("BagDenominations");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.BagMovement", b =>
+                {
+                    b.Navigation("BagMovementBags");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.BankingShortage", b =>

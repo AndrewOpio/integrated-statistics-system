@@ -18,7 +18,14 @@ namespace VMSService.Core.Repositories.BagMovements
                 .Where(x => !x.IsDeleted)
                 .Include(x => x.Bag)
                 .Include(x => x.OldVaultSection)
+                    .ThenInclude(vs => vs!.Vault)
                 .Include(x => x.NewVaultSection)
+                    .ThenInclude(vs => vs.Vault)
+                .Include(x => x.BagMovementBags.Where(mb => !mb.IsDeleted))
+                    .ThenInclude(mb => mb.Bag)
+                .Include(x => x.BagMovementBags.Where(mb => !mb.IsDeleted))
+                    .ThenInclude(mb => mb.OldVaultSection)
+                        .ThenInclude(vs => vs!.Vault)
                 .OrderByDescending(x => x.CreatedDate)
                 .ToListAsync();
         }
@@ -28,7 +35,14 @@ namespace VMSService.Core.Repositories.BagMovements
             return await _db.BagMovements
                 .Include(x => x.Bag)
                 .Include(x => x.OldVaultSection)
+                    .ThenInclude(vs => vs!.Vault)
                 .Include(x => x.NewVaultSection)
+                    .ThenInclude(vs => vs.Vault)
+                .Include(x => x.BagMovementBags.Where(mb => !mb.IsDeleted))
+                    .ThenInclude(mb => mb.Bag)
+                .Include(x => x.BagMovementBags.Where(mb => !mb.IsDeleted))
+                    .ThenInclude(mb => mb.OldVaultSection)
+                        .ThenInclude(vs => vs!.Vault)
                 .FirstOrDefaultAsync(x => x.Id == id);
         }
 
@@ -46,6 +60,32 @@ namespace VMSService.Core.Repositories.BagMovements
         {
             return await _db.BagMovements
                 .AnyAsync(x => x.Id == id);
+        }
+
+        public async Task<bool> HasPendingForBag(int bagId, int pendingStatusId)
+        {
+            return await _db.BagMovements
+                .AnyAsync(x => !x.IsDeleted && x.CurrentStatusId == pendingStatusId
+                    && (x.BagId == bagId || x.BagMovementBags.Any(mb => mb.BagId == bagId && !mb.IsDeleted)));
+        }
+
+        public async Task<List<int>> GetBagIdsWithPendingMovement(int pendingStatusId)
+        {
+            var pendingMovements = _db.BagMovements
+                .Where(x => !x.IsDeleted && x.CurrentStatusId == pendingStatusId);
+
+            var legacyBagIds = pendingMovements
+                .Where(x => x.BagId != null)
+                .Select(x => x.BagId!.Value);
+
+            var childBagIds = pendingMovements
+                .SelectMany(x => x.BagMovementBags)
+                .Where(mb => !mb.IsDeleted)
+                .Select(mb => mb.BagId);
+
+            return await legacyBagIds
+                .Union(childBagIds)
+                .ToListAsync();
         }
 
         public async Task<bool> Save()

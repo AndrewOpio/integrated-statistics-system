@@ -87,9 +87,9 @@ namespace VMSService.Controllers
             try
             {
                 var section = await _vaultSectionRepository.FindById(model.VaultSectionId);
-                if (section != null && string.Equals(section.Name?.Trim(), VaultConstants.BagsWithBoardsSectionName, StringComparison.OrdinalIgnoreCase))
+                if (section != null && VaultConstants.IsSystemManagedSectionName(section.Name))
                 {
-                    TempData["Error"] = $"Bags cannot be manually attached to the '{VaultConstants.BagsWithBoardsSectionName}' section.";
+                    TempData["Error"] = $"Bags cannot be manually attached to the '{section.Name}' section.";
                     return RedirectToAction(nameof(Section), new { id = model.VaultSectionId });
                 }
 

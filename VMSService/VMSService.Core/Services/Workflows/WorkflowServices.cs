@@ -39,6 +39,9 @@ using VMSService.Core.Repositories.CfbTopupRequests;
 using VMSService.Core.Repositories.CfbTopupStatusHistories;
 using VMSService.Core.Repositories.BoardSessionSurplusShortages;
 using VMSService.Core.Repositories.BoardSessionSurplusShortageStatusHistories;
+using VMSService.Core.Repositories.BagMovements;
+using VMSService.Core.Repositories.BagMovementStatusHistories;
+using VMSService.Core.Repositories.Bags;
 using VMSService.Core.Services.Identity;
 using VMSService.Core.Services.Submissions;
 using VMSService.Core.Static;
@@ -91,7 +94,10 @@ namespace VMSService.Core.Services.Workflows
         IBankingShortageRepository _bankingShortageRepository,
         IBankingShortageStatusHistoryRepository _bankingShortageStatusHistoryRepository,
         IBoardSessionSurplusShortageRepository _boardSessionSurplusShortageRepository,
-        IBoardSessionSurplusShortageStatusHistoryRepository _boardSessionSurplusShortageStatusHistoryRepository) : IWorkflowService
+        IBoardSessionSurplusShortageStatusHistoryRepository _boardSessionSurplusShortageStatusHistoryRepository,
+        IBagMovementRepository _bagMovementRepository,
+        IBagMovementStatusHistoryRepository _bagMovementStatusHistoryRepository,
+        IBagRepository _bagRepository) : IWorkflowService
     {
 
 
@@ -178,6 +184,9 @@ namespace VMSService.Core.Services.Workflows
 
                     case StatusConstants.Entity.BoardSessionSurplusShortage:
                         return await HandleBoardSessionSurplusShortageTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
+
+                    case StatusConstants.Entity.BagMovement:
+                        return await HandleBagMovementTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
 
                     default:
                         _logger.LogWarning("Unknown entity type: {EntityType}", entityType);
@@ -1320,6 +1329,101 @@ namespace VMSService.Core.Services.Workflows
             }
 
             _logger.LogInformation("BoardSessionSurplusShortage {Id} transitioned from status {From} to {To} by user {Username} with action {Action}. Attachments: {AttachmentCount}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName, attachmentIds?.Count ?? 0);
+
+            return true;
+        }
+
+        private async Task<bool> HandleBagMovementTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
+        {
+            var movement = await _bagMovementRepository.FindById(entityId);
+            if (movement == null)
+            {
+                _logger.LogWarning("BagMovement {Id} not found", entityId);
+                return false;
+            }
+
+            if (movement.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("BagMovement {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, movement.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            if (transition.ToStatus.Name == StatusConstants.BagMovement.Verified)
+            {
+                // Bags to move: child rows, falling back to the legacy single-bag pair.
+                var bagPairs = movement.BagMovementBags
+                    .Where(mb => !mb.IsDeleted)
+                    .Select(mb => (mb.BagId, mb.OldVaultSectionId))
+                    .ToList();
+
+                if (bagPairs.Count == 0 && movement.BagId.HasValue && movement.OldVaultSectionId.HasValue)
+                    bagPairs.Add((movement.BagId.Value, movement.OldVaultSectionId.Value));
+
+                if (bagPairs.Count == 0)
+                {
+                    _logger.LogWarning("BagMovement {Id} cannot be verified: it has no bags", entityId);
+                    return false;
+                }
+
+                var bags = new List<Bag>();
+                var failedBagRefs = new List<string>();
+                foreach (var (bagId, oldVaultSectionId) in bagPairs)
+                {
+                    var bag = await _bagRepository.FindById(bagId);
+                    if (bag == null || bag.IsDeleted || bag.VaultSectionId != oldVaultSectionId)
+                    {
+                        failedBagRefs.Add(bag?.ReferenceNumber ?? $"Bag {bagId}");
+                        continue;
+                    }
+                    bags.Add(bag);
+                }
+
+                // All-or-nothing: refuse verification if any bag is missing or was moved elsewhere.
+                if (failedBagRefs.Count > 0)
+                {
+                    _logger.LogWarning("BagMovement {Id} cannot be verified: bag(s) {FailedBags} are missing or no longer in their recorded vault sections",
+                        entityId, string.Join(", ", failedBagRefs));
+                    return false;
+                }
+
+                foreach (var bag in bags)
+                    bag.VaultSectionId = movement.NewVaultSectionId;
+
+                await _bagRepository.Save();
+            }
+
+            var statusHistory = new BagMovementStatusHistory
+            {
+                BagMovementId = entityId,
+                OldStatusId = movement.CurrentStatusId ?? currentStatusId,
+                NewStatusId = transition.ToStatusId,
+                ChangedBy = username,
+                ChangedAt = DateTime.Now,
+                Remarks = remarks,
+                AttachmentIds = attachmentIds != null && attachmentIds.Any()
+                    ? string.Join(",", attachmentIds)
+                    : null,
+                IsDeleted = false
+            };
+
+            await _bagMovementStatusHistoryRepository.Create(statusHistory);
+
+            movement.CurrentStatusId = transition.ToStatusId;
+            await _bagMovementRepository.Update(movement);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"Bag Movement #{entityId}",
+                    transition,
+                    transition.ToStatus.Name,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("BagMovement {Id} transitioned from status {From} to {To} by user {Username} with action {Action}. Attachments: {AttachmentCount}",
                 entityId, currentStatusId, transition.ToStatusId, username, actionName, attachmentIds?.Count ?? 0);
 
             return true;

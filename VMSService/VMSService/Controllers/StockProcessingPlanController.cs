@@ -17,6 +17,7 @@ using VMSService.Core.Repositories.CommercialBanks;
 using VMSService.Core.Repositories.CounterPartyTypes;
 using VMSService.Core.Repositories.CountingRooms;
 using VMSService.Core.Repositories.CountingRoomSessions;
+using VMSService.Core.Repositories.DepositUnitOfWorks;
 using VMSService.Core.Repositories.ProcessingBoards;
 using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.StockProcessingPlans;
@@ -31,6 +32,7 @@ using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Configurations;
 using VMSService.Data.Entities;
+using VMSService.Web.Helpers;
 using WorkflowService.Client;
 using WorkflowService.Client.Dto;
 
@@ -61,7 +63,8 @@ namespace VMSService.Web.Controllers
         IStockLedgerRepository _stockLedgerRepository,
         ICounterPartyTypeRepository _counterPartyTypeRepository,
         IStockMovementRepository _stockMovementRepository,
-        ICategoryRepository _categoryRepository) : Controller
+        ICategoryRepository _categoryRepository,
+        IDepositTransactionRefNumberGenerator _depositTxnRefGenerator) : Controller
     {
         [Breadcrumb("Processing Plans", FromController = typeof(HomeController), FromAction = nameof(Index))]
         public async Task<IActionResult> Index(int? branchId = null)
@@ -119,6 +122,186 @@ namespace VMSService.Web.Controllers
             return Json(branches.Select(b => new { b.Id, b.Name }).OrderBy(b => b.Name));
         }
 
+        // Legacy "N/A" subcategory id — matches the convention hardcoded across the deposit controllers
+        // (DepositRequestDenomination.SubCategoryId: 1 - "FIT", 2 - "UNFIT", 3 - "N/A").
+        private const int LegacyNaSubCategoryId = 3;
+
+        [HttpPost]
+        [ValidateAntiForgeryTokenFromHeader]
+        public async Task<IActionResult> CreateBag([FromBody] CreateLegacyBagRequest request)
+        {
+            try
+            {
+                if (request == null)
+                    return BadRequest(new { error = "Invalid request." });
+
+                if (string.IsNullOrWhiteSpace(request.CommercialBankName))
+                    return BadRequest(new { error = "Commercial Bank is required." });
+
+                if (request.SourceDepositBranchId <= 0)
+                    return BadRequest(new { error = "Source Deposit Branch is required." });
+
+                if (request.Value <= 0)
+                    return BadRequest(new { error = "A valid Value is required." });
+
+                var allBanks = await _commercialBankRepository.FindAll();
+                var bank = allBanks.FirstOrDefault(b =>
+                    string.Equals(b.Name, request.CommercialBankName, StringComparison.OrdinalIgnoreCase));
+                if (bank == null)
+                    return BadRequest(new { error = "Commercial Bank not found." });
+
+                var denomination = await _stockService.GetDenominationById(request.DenominationId);
+                if (denomination == null)
+                    return BadRequest(new { error = "Denomination not found." });
+
+                if (denomination.Value <= 0)
+                    return BadRequest(new { error = "Selected denomination has an invalid value." });
+
+                if (request.Value % denomination.Value != 0)
+                    return BadRequest(new { error = $"Value must be an exact multiple of the denomination value (UGX {denomination.Value:N0})." });
+
+                var maxBagValue = denomination.Value * 1000 * 50;
+                if (request.Value > maxBagValue)
+                    return BadRequest(new { error = $"Value cannot exceed UGX {maxBagValue:N0} (a full bag of 50 bundles/boxes for this denomination)." });
+
+                var completedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+                {
+                    ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                    EntityTypeName = StatusConstants.Entity.DepositRequest,
+                    StatusName = DepositStatuses.DepositStatusNames.Completed
+                });
+
+                if (completedStatus == null)
+                    return BadRequest(new { error = "Deposit workflow is not configured. Please contact an administrator." });
+
+                var username = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? "System";
+
+                // Prefixed with "LEG" to flag this as a legacy-bag-backfilled deposit, while still going through
+                // the shared generator for its branch/CB/date sequence uniqueness.
+                var transactionRefNumber = "LEG" + await _depositTxnRefGenerator.GenerateAsync(
+                    request.SourceDepositBranchId, bank.Id, request.DepositDate);
+
+                bool isNote = denomination.DenominationType?.Name == StockConstants.DenominationTypes.Note;
+
+                // Bundles/Boxes back-calculated from the entered value: Amount = units × 1,000 × DenominationValue.
+                int units = denomination.Value > 0
+                    ? (int)Math.Ceiling(request.Value / (1000m * denomination.Value))
+                    : 0;
+
+                if (units <= 0)
+                    return BadRequest(new { error = "Unable to determine bundles/boxes for the entered value." });
+
+                Category paids = (await _categoryRepository.FindAll()).FirstOrDefault(c => c.Name == StockConstants.StoreTypes.Paids);
+
+                var depositRequest = new DepositRequest
+                {
+                    IsLegacyDeposit = true,
+                    CbId = bank.Id,
+                    CbCode = bank.CBCode,
+                    InitiatorUserId = username,
+                    BouBranchId = request.SourceDepositBranchId,
+                    DepositDate = request.DepositDate,
+                    StatusTypeId = completedStatus.Id,
+                    TransactionRefNumber = transactionRefNumber,
+                    TotalNotesAmount = isNote ? request.Value : 0,
+                    TotalCoinsAmount = isNote ? 0 : request.Value,
+                    TotalAmount = request.Value
+                };
+
+                var depositRequestDenomination = new DepositRequestDenomination
+                {
+                    DepositRequestId = depositRequest.Id,
+                    DenominationId = request.DenominationId,
+                    DenominationValue = denomination.Value,
+                    DenominationTypeId = denomination.DenominationTypeId,
+                    Bundles = isNote ? units : null,
+                    Boxes = isNote ? null : units,
+                    Amount = request.Value,
+                    Origin = DepositStatuses.DepositOrigin.Bou,
+                    SubCategoryId = LegacyNaSubCategoryId
+                };
+                depositRequest.DepositRequestDenominations.Add(depositRequestDenomination);
+
+                var denomShortForm = GetDenominationShortForm(denomination.Value);
+                // Use the CbCode-scoped overload since this bag carries a real CbCode (unlike BaggingController's
+                // manually-created empty bags, which leave CbCode null and use the 2-arg overload instead).
+                var bagSequence = await _bagRepository.BagSequence(DateTime.UtcNow, request.DenominationId, bank.Code);
+                var referenceNumber = $"LEG-{DateTime.UtcNow:ddMMyy}-{denomShortForm}-{bagSequence}";
+
+                // Newly-created legacy bags go under the "NEW LEGACY BAGS" section of the "BAGS WITH BOARDS"
+                // vault — kept separate from the BAGS WITH BOARDS section itself so these bags still show up
+                // in the Available Bags pool (that section is excluded there as already-issued-to-boards).
+                var boardsVault = await _context.Vaults
+                    .FirstOrDefaultAsync(v => v.BranchId == request.BranchId
+                        && v.Name == VaultConstants.BagsWithBoardsSectionName
+                        && !v.IsDeleted);
+
+                var legacyBagsSection = boardsVault != null
+                    ? await _context.VaultSections
+                        .FirstOrDefaultAsync(vs => vs.VaultId == boardsVault.Id
+                            && vs.Name == VaultConstants.NewLegacyBagsSectionName
+                            && !vs.IsDeleted)
+                    : null;
+
+                if (legacyBagsSection == null)
+                {
+                    _logger.LogWarning(
+                        "NEW LEGACY BAGS vault section not found for branch {BranchId}; new legacy bag will be created without a vault section.",
+                        request.BranchId);
+                }
+
+                var bag = new Bag
+                {
+                    ReferenceNumber = referenceNumber,
+                    DenominationId = request.DenominationId,
+                    BranchId = request.BranchId,
+                    CbCode = bank.CBCode,
+                    IsLegacyBag = true,
+                    CategoryId = paids?.Id,
+                    SubCategoryId = LegacyNaSubCategoryId,
+                    VaultSectionId = legacyBagsSection?.Id,
+                    IsDeleted = false,
+                    IsProcessed = false
+                };
+
+                var bagDenomination = new BagDenomination
+                {
+                    Bag = bag,
+                    DepositRequestDenominationId = depositRequestDenomination.Id,
+                    NumberOfBundlesOrBoxes = units,
+                    IsDeleted = false
+                };
+                bag.BagDenominations.Add(bagDenomination);
+
+                _context.DepositRequests.Add(depositRequest);
+                _context.Bags.Add(bag);
+
+                await _context.SaveChangesAsync();
+
+                return Json(new { id = bag.Id, referenceNumber = bag.ReferenceNumber });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating legacy bag");
+                return BadRequest(new { error = "Failed to save the bag. Please try again." });
+            }
+        }
+
+        /// <summary>
+        /// Converts denomination value to short form for bag reference numbers.
+        /// Examples: 1000 -> 1K, 2000 -> 2K, 50000 -> 50K, 500 -> 500, 100 -> 100
+        /// </summary>
+        private string GetDenominationShortForm(decimal denominationValue)
+        {
+            if (denominationValue >= 1000)
+            {
+                int thousands = (int)(denominationValue / 1000);
+                return $"{thousands}K";
+            }
+
+            return denominationValue.ToString("0");
+        }
+
         [HttpGet]
         [Breadcrumb("Create Plan", FromController = typeof(StockProcessingPlanController), FromAction = nameof(Index))]
         public async Task<IActionResult> Create(DateTime processingDate, int branchId)
@@ -169,8 +352,10 @@ namespace VMSService.Web.Controllers
                         bag.SubCategoryName = subCategoryDict.GetValueOrDefault(bag.SubCategoryId.Value);
                 }
 
+                // Exclude only bags actually issued to boards (BAGS WITH BOARDS section) — checked by section,
+                // not vault, so bags in the NEW LEGACY BAGS section (same vault) still show up here.
                 var bags = allBags.Where(b => b.VaultSectionId.HasValue
-                    && !string.Equals(b.VaultName, "BAGS WITH BOARDS", StringComparison.OrdinalIgnoreCase)).ToList();
+                    && !string.Equals(b.VaultSectionName, VaultConstants.BagsWithBoardsSectionName, StringComparison.OrdinalIgnoreCase)).ToList();
 
                 var boardSupervisors = await _identityService.GetUsersByRoleName(SystemPolicy.Roles.BoardSupervisor);
 
@@ -1459,14 +1644,14 @@ namespace VMSService.Web.Controllers
 
                         var targetVault = await _context.Vaults
                             .FirstOrDefaultAsync(v => v.BranchId == plan.BranchId
-                                && v.Name == "BAGS WITH BOARDS"
+                                && v.Name == VaultConstants.BagsWithBoardsVaultName
                                 && !v.IsDeleted);
 
                         if (targetVault != null)
                         {
                             var targetSection = await _context.VaultSections
                                 .FirstOrDefaultAsync(vs => vs.VaultId == targetVault.Id
-                                    && vs.Name == "BAGS WITH BOARDS"
+                                    && vs.Name == VaultConstants.BagsWithBoardsSectionName
                                     && !vs.IsDeleted);
 
                             if (targetSection != null)
