@@ -227,23 +227,7 @@ namespace VMSService.Web.Controllers
                     });
 
                 // SubCategory per bag (own, or fall back to parent bag)
-                var bagSubCatById = await _context.Bags
-                    .Where(b => bagIds.Contains(b.Id) && !b.IsDeleted)
-                    .Select(b => new { b.Id, b.SubCategoryId })
-                    .ToDictionaryAsync(b => b.Id, b => b.SubCategoryId);
-
-                var bagsWithNoSubCat = bagSubCatById
-                    .Where(kvp => !kvp.Value.HasValue).Select(kvp => kvp.Key).ToList();
-                if (bagsWithNoSubCat.Count > 0)
-                {
-                    var parentSubCats = await _context.BaggedBags
-                        .Where(bb => bagsWithNoSubCat.Contains(bb.ChildBagId) && !bb.IsDeleted)
-                        .Join(_context.Bags, bb => bb.ParentBagId, b => b.Id,
-                              (bb, b) => new { bb.ChildBagId, b.SubCategoryId })
-                        .ToListAsync();
-                    foreach (var item in parentSubCats.Where(x => x.SubCategoryId.HasValue))
-                        bagSubCatById[item.ChildBagId] = item.SubCategoryId;
-                }
+                var bagSubCatById = await ResolveBagSubCategoryIdsAsync(bagIds);
 
                 var bags = session.ProcessingSessionBags
                     .Where(psb => !psb.IsDeleted)
@@ -515,6 +499,7 @@ namespace VMSService.Web.Controllers
                         PenaltyMultiplier = p.PenaltyMultiplier,
                         IsChecked = appliedPenaltyIds.Contains(p.Id),
                         Quantity = appliedPenaltyEntities.FirstOrDefault(a => a.PenaltyId == p.Id)?.Quantity,
+                        IsAutomatic = AutomaticPenaltyNames.Contains(p.Name),
                     }).ToList();
                 }
 
@@ -592,16 +577,17 @@ namespace VMSService.Web.Controllers
                         return RedirectToAction(nameof(Details), new { id });
                     }
 
+                    
+                    var hasNoteExaminers = await _context.StockProcessingSessionNoteExaminers
+                        .AnyAsync(ne => ne.StockProcessingSessionId == id && !ne.IsDeleted);
+                    if (!hasNoteExaminers)
+                    {
+                        TempData["Error"] = "Please capture the Note Examiners who worked this board, and the bundles each processed, before submitting results.";
+                        return RedirectToAction(nameof(Details), new { id });
+                    }
+
                     if (session.IsManual)
                     {
-                        var hasNoteExaminers = await _context.StockProcessingSessionNoteExaminers
-                            .AnyAsync(ne => ne.StockProcessingSessionId == id && !ne.IsDeleted);
-                        if (!hasNoteExaminers)
-                        {
-                            TempData["Error"] = "Please capture the Note Examiners who worked this board, and the bundles each processed, before submitting results.";
-                            return RedirectToAction(nameof(Details), new { id });
-                        }
-
                         var bagIds = session.ProcessingSessionBags
                             .Where(psb => !psb.IsDeleted)
                             .Select(psb => psb.BagId)
@@ -782,7 +768,7 @@ namespace VMSService.Web.Controllers
 
                 var fitShredValue = session.IsManual ? 0m : model.FitShredValue;
                 var surplusShortageAdjustment = await GetSurplusShortageAdjustmentAsync(session.Id);
-                decimal processedTotal = model.CanceledValue + model.ReissueValue + fitShredValue + surplusShortageAdjustment;
+                decimal processedTotal = model.CanceledValue + model.ReissueValue + fitShredValue;
                 decimal unProcessedValue = session.TotalIssuedValue - processedTotal;
                 decimal countTotal = model.CanceledValue + model.ReissueValue + fitShredValue - surplusShortageAdjustment;
 
@@ -791,7 +777,7 @@ namespace VMSService.Web.Controllers
                     TempData["ResultErrors"] = System.Text.Json.JsonSerializer.Serialize(new List<string>
                     {
                         "Reissue, Canceled" + (session.IsManual ? "" : " and Fit/Shred") +
-                        " values (adjusted for recorded surpluses/shortages) cannot exceed the Total Issued Value — Unprocessed Value cannot be less than 0."
+                        " values cannot exceed the Total Issued Value — Unprocessed Value cannot be less than 0."
                     });
                     return RedirectToAction(nameof(Details), new { id = model.SessionId });
                 }
@@ -830,28 +816,29 @@ namespace VMSService.Web.Controllers
                     await _context.SaveChangesAsync();
                 }
 
-                // Stage note examiner entries (manual boards only)
-                if (session.IsManual)
+                await SyncDenominationMixUpPenaltyAsync(model.SessionId);
+                await SyncFitUnfitPenaltyAsync(session, model.ReissueValue, model.CanceledValue);
+
+                // Stage note examiner entries
+                
+                var validNoteExaminerEntries = model.NoteExaminerEntries
+                    .Where(e => e.NoteExaminerId > 0 && e.NumberOfBundles > 0)
+                    .ToList();
+
+                if (validNoteExaminerEntries.Count > 0)
                 {
-                    var validNoteExaminerEntries = model.NoteExaminerEntries
-                        .Where(e => e.NoteExaminerId > 0 && e.NumberOfBundles > 0)
-                        .ToList();
-
-                    if (validNoteExaminerEntries.Count > 0)
+                    foreach (var entry in validNoteExaminerEntries)
                     {
-                        foreach (var entry in validNoteExaminerEntries)
+                        _context.StockProcessingSessionNoteExaminers.Add(new StockProcessingSessionNoteExaminer
                         {
-                            _context.StockProcessingSessionNoteExaminers.Add(new StockProcessingSessionNoteExaminer
-                            {
-                                StockProcessingSessionId = model.SessionId,
-                                NoteExaminerId = entry.NoteExaminerId,
-                                NumberOfBundles = entry.NumberOfBundles,
-                                IsDeleted = false
-                            });
-                        }
-
-                        await _context.SaveChangesAsync();
+                            StockProcessingSessionId = model.SessionId,
+                            NoteExaminerId = entry.NoteExaminerId,
+                            NumberOfBundles = entry.NumberOfBundles,
+                            IsDeleted = false
+                        });
                     }
+
+                    await _context.SaveChangesAsync();
                 }
 
                 TempData["ResultSuccess"] = "Processing result saved successfully.";
@@ -907,8 +894,7 @@ namespace VMSService.Web.Controllers
                 var denominationValue = denomDictForEdit.GetValueOrDefault(session.DenominationId)?.Value ?? 0m;
 
                 var fitShredValue = session.IsManual ? 0m : model.FitShredValue;
-                var surplusShortageAdjustment = await GetSurplusShortageAdjustmentAsync(session.Id);
-                decimal processedTotal = model.CanceledValue + model.ReissueValue + fitShredValue + surplusShortageAdjustment;
+                decimal processedTotal = model.CanceledValue + model.ReissueValue + fitShredValue;
                 decimal unProcessedValue = session.TotalIssuedValue - processedTotal;
 
                 if (unProcessedValue < 0)
@@ -916,7 +902,7 @@ namespace VMSService.Web.Controllers
                     TempData["ResultErrors"] = System.Text.Json.JsonSerializer.Serialize(new List<string>
                     {
                         "Reissue, Canceled" + (session.IsManual ? "" : " and Fit/Shred") +
-                        " values (adjusted for recorded surpluses/shortages) cannot exceed the Total Issued Value — Unprocessed Value cannot be less than 0."
+                        " values cannot exceed the Total Issued Value — Unprocessed Value cannot be less than 0."
                     });
                     return RedirectToAction(nameof(Details), new { id = model.SessionId });
                 }
@@ -954,31 +940,33 @@ namespace VMSService.Web.Controllers
                     }
                 }
 
-                // Replace note examiner entries (manual boards only)
-                if (session.IsManual)
+                // Replace note examiner entries
+               
+                var existingNoteExaminers = await _context.StockProcessingSessionNoteExaminers
+                    .Where(ne => ne.StockProcessingSessionId == model.SessionId && !ne.IsDeleted)
+                    .ToListAsync();
+                _context.StockProcessingSessionNoteExaminers.RemoveRange(existingNoteExaminers);
+
+                var validNoteExaminerEntries = model.NoteExaminerEntries
+                    .Where(e => e.NoteExaminerId > 0 && e.NumberOfBundles > 0)
+                    .ToList();
+
+                foreach (var entry in validNoteExaminerEntries)
                 {
-                    var existingNoteExaminers = await _context.StockProcessingSessionNoteExaminers
-                        .Where(ne => ne.StockProcessingSessionId == model.SessionId && !ne.IsDeleted)
-                        .ToListAsync();
-                    _context.StockProcessingSessionNoteExaminers.RemoveRange(existingNoteExaminers);
-
-                    var validNoteExaminerEntries = model.NoteExaminerEntries
-                        .Where(e => e.NoteExaminerId > 0 && e.NumberOfBundles > 0)
-                        .ToList();
-
-                    foreach (var entry in validNoteExaminerEntries)
+                    _context.StockProcessingSessionNoteExaminers.Add(new StockProcessingSessionNoteExaminer
                     {
-                        _context.StockProcessingSessionNoteExaminers.Add(new StockProcessingSessionNoteExaminer
-                        {
-                            StockProcessingSessionId = model.SessionId,
-                            NoteExaminerId = entry.NoteExaminerId,
-                            NumberOfBundles = entry.NumberOfBundles,
-                            IsDeleted = false
-                        });
-                    }
+                        StockProcessingSessionId = model.SessionId,
+                        NoteExaminerId = entry.NoteExaminerId,
+                        NumberOfBundles = entry.NumberOfBundles,
+                        IsDeleted = false
+                    });
                 }
 
                 await _context.SaveChangesAsync();
+
+                await SyncDenominationMixUpPenaltyAsync(model.SessionId);
+                await SyncFitUnfitPenaltyAsync(session, model.ReissueValue, model.CanceledValue);
+
                 TempData["ResultSuccess"] = "Processing result updated successfully.";
             }
             catch (Exception ex)
@@ -1131,6 +1119,9 @@ namespace VMSService.Web.Controllers
                 _context.BoardSessionSurplusShortages.Add(entity);
                 await _context.SaveChangesAsync();
 
+                if (!entity.IsSurplus)
+                    await ApplyMissingPiecesPenaltyAsync(session, entity);
+
                 TempData["Success"] = "CFB request sent successfully.";
                 return RedirectToAction(nameof(Details), new { id = session.Id });
             }
@@ -1194,6 +1185,14 @@ namespace VMSService.Web.Controllers
                 var processingPenalties = await _penaltyRepository.FindApplicableFor(PenaltyConstants.AppliesTo.Processing);
                 var processingPenaltiesById = processingPenalties.ToDictionary(p => p.Id);
 
+                // The 3 automatic penalties are managed by the system (SaveResult/EditResult/SendCfbRequest) —
+                // this manual form can never apply or remove them, even via a hand-crafted POST.
+                var automaticPenaltyIds = processingPenalties
+                    .Where(p => AutomaticPenaltyNames.Contains(p.Name))
+                    .Select(p => p.Id)
+                    .ToHashSet();
+                checkedPenaltyIds.ExceptWith(automaticPenaltyIds);
+
                 var currentlyApplied = await _appliedPenaltyRepository.FindBySourceId(session.ReferenceNumber);
                 var denomination = await _stockService.GetDenominationById(session.DenominationId);
 
@@ -1223,7 +1222,7 @@ namespace VMSService.Web.Controllers
                         correctlyClassifiedValue: 0);
                 }
 
-                foreach (var applied in currentlyApplied.Where(a => !checkedPenaltyIds.Contains(a.PenaltyId)))
+                foreach (var applied in currentlyApplied.Where(a => !checkedPenaltyIds.Contains(a.PenaltyId) && !automaticPenaltyIds.Contains(a.PenaltyId)))
                 {
                     await _appliedPenaltyRepository.Remove(applied.Id);
                 }
@@ -1301,6 +1300,9 @@ namespace VMSService.Web.Controllers
                 }
 
                 await _context.SaveChangesAsync();
+
+                await SyncDenominationMixUpPenaltyAsync(model.SessionId);
+
                 TempData["DifferentDenomSuccess"] = $"{validEntries.Count} different denomination entr{(validEntries.Count == 1 ? "y" : "ies")} saved successfully.";
             }
             catch (Exception ex)
@@ -1337,6 +1339,191 @@ namespace VMSService.Web.Controllers
             var totalShortage = surplusShortages.Where(s => !s.IsSurplus).Sum(s => s.Amount);
 
             return totalShortage - totalSurplus;
+        }
+
+        // Exact Penalty.Name values that are applied automatically rather than manually checked in
+        // the Manage Penalties modal — see ApplyMissingPiecesPenaltyAsync / SyncDenominationMixUpPenaltyAsync
+        // / SyncFitUnfitPenaltyAsync below.
+        private static readonly HashSet<string> AutomaticPenaltyNames = new()
+        {
+            PenaltyConstants.AutomaticPenalties.MissingPieces,
+            PenaltyConstants.AutomaticPenalties.DenominationMixUp,
+            PenaltyConstants.AutomaticPenalties.FitUnfitMixUp,
+        };
+
+        // SubCategoryId per bag: own SubCategoryId, falling back to the parent bag's when a (child) bag
+        // has none of its own.
+        private async Task<Dictionary<int, int?>> ResolveBagSubCategoryIdsAsync(List<int> bagIds)
+        {
+            var bagSubCatById = await _context.Bags
+                .Where(b => bagIds.Contains(b.Id) && !b.IsDeleted)
+                .Select(b => new { b.Id, b.SubCategoryId })
+                .ToDictionaryAsync(b => b.Id, b => b.SubCategoryId);
+
+            var bagsWithNoSubCat = bagSubCatById
+                .Where(kvp => !kvp.Value.HasValue).Select(kvp => kvp.Key).ToList();
+            if (bagsWithNoSubCat.Count > 0)
+            {
+                var parentSubCats = await _context.BaggedBags
+                    .Where(bb => bagsWithNoSubCat.Contains(bb.ChildBagId) && !bb.IsDeleted)
+                    .Join(_context.Bags, bb => bb.ParentBagId, b => b.Id,
+                          (bb, b) => new { bb.ChildBagId, b.SubCategoryId })
+                    .ToListAsync();
+                foreach (var item in parentSubCats.Where(x => x.SubCategoryId.HasValue))
+                    bagSubCatById[item.ChildBagId] = item.SubCategoryId;
+            }
+
+            return bagSubCatById;
+        }
+
+        // Trigger 1: a Shortage recorded via a CFB request automatically charges the
+        // "Discrepancies in deposits — missing pieces" penalty for the missing piece count.
+        private async Task ApplyMissingPiecesPenaltyAsync(StockProcessingSession session, BoardSessionSurplusShortage shortage)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(session.ReferenceNumber)) return;
+
+                var penalty = await _penaltyRepository.FindByName(PenaltyConstants.AutomaticPenalties.MissingPieces);
+                if (penalty == null) return;
+
+                var denomination = await _stockService.GetDenominationById(shortage.DenominationId);
+                var denomValue = denomination?.Value ?? 0m;
+                if (denomValue <= 0) return;
+
+                var piecesShort = (int)Math.Ceiling(shortage.Amount / denomValue);
+
+                await _appliedPenaltyRepository.Apply(
+                    PenaltyConstants.Source.Processing,
+                    session.ReferenceNumber,
+                    penalty.Id,
+                    quantity: piecesShort,
+                    denomValue: denomValue,
+                    baseValue: shortage.Amount,
+                    correctlyClassifiedValue: 0);
+
+                await _appliedPenaltyRepository.Save();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error applying automatic missing-pieces penalty for session {Id}", session.Id);
+            }
+        }
+
+        // Trigger 2: recomputes the "Mix-up of denominations within bundles" penalty from every
+        // BoardSessionDifferentDenom currently recorded for the session (not just the latest batch),
+        // so edits/removals of different-denom entries keep the AppliedPenalty row in sync.
+        private async Task SyncDenominationMixUpPenaltyAsync(int stockProcessingSessionId)
+        {
+            try
+            {
+                var session = await _sessionRepository.FindById(stockProcessingSessionId);
+                if (session == null || string.IsNullOrEmpty(session.ReferenceNumber)) return;
+
+                var penalty = await _penaltyRepository.FindByName(PenaltyConstants.AutomaticPenalties.DenominationMixUp);
+                if (penalty == null) return;
+
+                var entries = await _context.BoardSessionDifferentDenoms
+                    .Where(d => d.StockProcessingSessionId == stockProcessingSessionId)
+                    .ToListAsync();
+
+                var totalPieces = entries.Sum(d => d.NumberOfPieces);
+                var totalAmount = entries.Sum(d => d.Amount);
+
+                var existing = (await _appliedPenaltyRepository.FindBySourceId(session.ReferenceNumber))
+                    .FirstOrDefault(a => a.PenaltyId == penalty.Id);
+
+                if (totalPieces <= 0)
+                {
+                    if (existing != null)
+                    {
+                        await _appliedPenaltyRepository.Remove(existing.Id);
+                        await _appliedPenaltyRepository.Save();
+                    }
+                    return;
+                }
+
+                var denomination = await _stockService.GetDenominationById(session.DenominationId);
+
+                await _appliedPenaltyRepository.Apply(
+                    PenaltyConstants.Source.Processing,
+                    session.ReferenceNumber,
+                    penalty.Id,
+                    quantity: totalPieces,
+                    denomValue: denomination?.Value,
+                    baseValue: totalAmount,
+                    correctlyClassifiedValue: 0);
+
+                await _appliedPenaltyRepository.Save();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error syncing automatic denomination mix-up penalty for session {Id}", stockProcessingSessionId);
+            }
+        }
+
+        // Trigger 3: when every bag in the session shares the same Fit/Unfit sub-category, charges the
+        // "Fit notes in unfit notes and vice versa" penalty if the correctly-classified ratio
+        // (ReissueValue/TotalIssuedValue for Fit, CanceledValue/TotalIssuedValue for Unfit) falls below
+        // the penalty's PercentCutOff. Mixed or non-Fit/Unfit sessions are never charged.
+        private async Task SyncFitUnfitPenaltyAsync(StockProcessingSession session, decimal reissueValue, decimal canceledValue)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(session.ReferenceNumber)) return;
+
+                var penalty = await _penaltyRepository.FindByName(PenaltyConstants.AutomaticPenalties.FitUnfitMixUp);
+                if (penalty == null || !penalty.PercentCutOff.HasValue) return;
+
+                var bagIds = session.ProcessingSessionBags
+                    .Where(psb => !psb.IsDeleted)
+                    .Select(psb => psb.BagId)
+                    .ToList();
+
+                var subCatIdsByBag = await ResolveBagSubCategoryIdsAsync(bagIds);
+                var distinctSubCatIds = subCatIdsByBag.Values.Distinct().ToList();
+
+                decimal? correctlyClassifiedValue = null;
+                if (bagIds.Count > 0 && distinctSubCatIds.Count == 1 && distinctSubCatIds[0].HasValue)
+                {
+                    var subCategories = await _stockService.GetAllSubCategories();
+                    var subCatName = subCategories.FirstOrDefault(sc => sc.Id == distinctSubCatIds[0]!.Value)?.Name;
+
+                    if (subCatName == StockConstants.SubCategories.Fit)
+                        correctlyClassifiedValue = reissueValue;
+                    else if (subCatName == StockConstants.SubCategories.Unfit)
+                        correctlyClassifiedValue = canceledValue;
+                }
+
+                var existing = (await _appliedPenaltyRepository.FindBySourceId(session.ReferenceNumber))
+                    .FirstOrDefault(a => a.PenaltyId == penalty.Id);
+
+                var baseValue = session.TotalIssuedValue;
+                var shouldApply = correctlyClassifiedValue.HasValue && baseValue != 0
+                    && (correctlyClassifiedValue.Value / baseValue) < penalty.PercentCutOff.Value;
+
+                if (shouldApply)
+                {
+                    await _appliedPenaltyRepository.Apply(
+                        PenaltyConstants.Source.Processing,
+                        session.ReferenceNumber,
+                        penalty.Id,
+                        quantity: null,
+                        denomValue: null,
+                        baseValue: baseValue,
+                        correctlyClassifiedValue: correctlyClassifiedValue);
+                    await _appliedPenaltyRepository.Save();
+                }
+                else if (existing != null)
+                {
+                    await _appliedPenaltyRepository.Remove(existing.Id);
+                    await _appliedPenaltyRepository.Save();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error syncing automatic fit/unfit penalty for session {Id}", session.Id);
+            }
         }
 
         private async Task<List<long>> HandleAttachmentUploads(

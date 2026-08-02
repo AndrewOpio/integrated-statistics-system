@@ -32,14 +32,22 @@
                             }
 
                             <div class="form-check border rounded-3 p-3">
-                                <input class="form-check-input penalty-checkbox" type="checkbox" name="penaltyIds"
+                                <input class="form-check-input penalty-checkbox" type="checkbox"
+                                       name="@(penalty.IsAutomatic ? null : "penaltyIds")"
                                        value="@penalty.Id" id="penalty_@penalty.Id"
                                        data-requires-quantity="@(penalty.PenaltyMultiplier.HasValue ? "true" : "false")"
-                                       checked="@penalty.IsChecked">
+                                       checked="@penalty.IsChecked"
+                                       disabled="@(penalty.IsAutomatic ? "disabled" : null)">
                                 <label class="form-check-label w-100" for="penalty_@penalty.Id">
                                     <div class="d-flex justify-content-between align-items-start">
                                         <div>
-                                            <p class="fw-semibold mb-0">@penalty.Name</p>
+                                            <p class="fw-semibold mb-0">
+                                                @penalty.Name
+                                                @if (penalty.IsAutomatic)
+                                                {
+                                                    <span class="badge bg-secondary ms-1">Set automatically</span>
+                                                }
+                                            </p>
                                             @if (!string.IsNullOrEmpty(penalty.Description))
                                             {
                                                 <p class="text-muted small mb-0">@penalty.Description</p>
@@ -56,9 +64,9 @@
                                             Quantity (@(string.IsNullOrEmpty(penalty.Unit) ? "units" : penalty.Unit))
                                         </label>
                                         <input type="number" min="1" step="1" required class="form-control form-control-sm penalty-quantity"
-                                               name="quantities[@penalty.Id]" id="quantity_@penalty.Id"
+                                               name="@(penalty.IsAutomatic ? null : $"quantities[{penalty.Id}]")" id="quantity_@penalty.Id"
                                                value="@(penalty.Quantity?.ToString() ?? "")"
-                                               disabled="@(!penalty.IsChecked ? "disabled" : null)">
+                                               disabled="@(penalty.IsAutomatic || !penalty.IsChecked ? "disabled" : null)">
                                     </div>
                                 }
                             </div>

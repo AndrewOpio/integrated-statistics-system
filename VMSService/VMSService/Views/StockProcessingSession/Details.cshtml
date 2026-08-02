@@ -226,7 +226,7 @@
                                 <td class="py-2">
                                     @if (!string.IsNullOrEmpty(bag.SubCategoryName))
                                     {
-                                        <span class="badge bg-light border text-secondary">@bag.SubCategoryName</span>
+                                        <span class="badge bg-purple border text-purple bg-opacity-10 border-purple">@bag.SubCategoryName</span>
                                     }
                                     else
                                     {
@@ -1059,7 +1059,7 @@
                 var warningEl  = scope.querySelector('[data-role="negative-warning"]');
                 var submitEl   = scope.querySelector('[data-role="submit-result"]');
 
-                var processedTotal = parseNum(reissueEl) + parseNum(canceledEl) + parseNum(fitShredEl) + SESSION_SURPLUS_SHORTAGE_ADJUSTMENT;
+                var processedTotal = parseNum(reissueEl) + parseNum(canceledEl) + parseNum(fitShredEl);
                 var countTotal = parseNum(reissueEl) + parseNum(canceledEl) + parseNum(fitShredEl) - SESSION_SURPLUS_SHORTAGE_ADJUSTMENT
                 var count = SESSION_DENOM_VALUE > 0 ? countTotal / SESSION_DENOM_VALUE : 0;
                 var unprocessed = SESSION_TOTAL_ISSUED - processedTotal;

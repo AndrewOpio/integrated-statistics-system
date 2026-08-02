@@ -14,5 +14,9 @@ namespace VMSService.Core.Models.Penalties
 
         /// <summary>Previously applied quantity, used to pre-fill the quantity input for multiplier-based penalties.</summary>
         public int? Quantity { get; set; }
+
+        /// <summary>True for the fixed set of penalties applied automatically by the system — the modal
+        /// should display these read-only rather than as a checkable option.</summary>
+        public bool IsAutomatic { get; set; }
     }
 }
