@@ -1,4 +1,5 @@
 using VMSService.Core.Models.Bags;
+using VMSService.Core.Models.MIandFits;
 using VMSService.Core.Services.Identity.IdentityEntities;
 
 namespace VMSService.Core.Models.StockProcessingPlans
@@ -13,6 +14,7 @@ namespace VMSService.Core.Models.StockProcessingPlans
         public List<CountingRoomEditViewModel> CountingRooms { get; set; } = new();
         public List<BagViewModel> AvailableBags { get; set; } = new();
         public List<UserDto> BoardSupervisors { get; set; } = new();
+        public List<MIandFitViewModel> MIandFits { get; set; } = new();
     }
 
     public class CountingRoomEditViewModel

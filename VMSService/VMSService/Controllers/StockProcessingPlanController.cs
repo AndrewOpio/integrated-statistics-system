@@ -7,6 +7,7 @@ using SmartBreadcrumbs.Attributes;
 using VMSService.Controllers;
 using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.Bags;
+using VMSService.Core.Models.MIandFits;
 using VMSService.Core.Models.StockProcessingPlans;
 using VMSService.Core.Models.StockProcessingPlanStatusHistories;
 using VMSService.Core.Repositories.Attachments;
@@ -18,6 +19,7 @@ using VMSService.Core.Repositories.CounterPartyTypes;
 using VMSService.Core.Repositories.CountingRooms;
 using VMSService.Core.Repositories.CountingRoomSessions;
 using VMSService.Core.Repositories.DepositUnitOfWorks;
+using VMSService.Core.Repositories.MIandFits;
 using VMSService.Core.Repositories.ProcessingBoards;
 using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.StockProcessingPlans;
@@ -64,7 +66,8 @@ namespace VMSService.Web.Controllers
         ICounterPartyTypeRepository _counterPartyTypeRepository,
         IStockMovementRepository _stockMovementRepository,
         ICategoryRepository _categoryRepository,
-        IDepositTransactionRefNumberGenerator _depositTxnRefGenerator) : Controller
+        IDepositTransactionRefNumberGenerator _depositTxnRefGenerator,
+        IMIandFitRepository _miAndFitRepository) : Controller
     {
         [Breadcrumb("Processing Plans", FromController = typeof(HomeController), FromAction = nameof(Index))]
         public async Task<IActionResult> Index(int? branchId = null)
@@ -379,7 +382,17 @@ namespace VMSService.Web.Controllers
                             .ToList()
                     }).ToList(),
                     AvailableBags = bags,
-                    BoardSupervisors = boardSupervisors.ToList()
+                    BoardSupervisors = boardSupervisors.ToList(),
+                    MIandFits = denominations
+                        .Where(d => !d.IsDeleted)
+                        .OrderBy(d => d.Value)
+                        .Select(d => new MIandFitViewModel
+                        {
+                            DenominationId = d.Id,
+                            DenominationName = d.Name,
+                            DenominationValue = d.Value
+                        })
+                        .ToList()
                 };
 
                 return View(model);
@@ -394,10 +407,40 @@ namespace VMSService.Web.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(DateTime processingDate, int branchId, string? assignmentsJson, string? roomSupervisorsJson)
+        public async Task<IActionResult> Create(DateTime processingDate, int branchId, string? assignmentsJson, string? roomSupervisorsJson, string? miAndFitsJson)
         {
             try
             {
+                var jsonOptions = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+                var newAssignments = string.IsNullOrEmpty(assignmentsJson) || assignmentsJson == "[]"
+                    ? []
+                    : System.Text.Json.JsonSerializer.Deserialize<List<BoardBagAssignment>>(assignmentsJson, jsonOptions) ?? [];
+
+                var newMiFits = string.IsNullOrEmpty(miAndFitsJson) || miAndFitsJson == "[]"
+                    ? []
+                    : System.Text.Json.JsonSerializer.Deserialize<List<MIandFitAssignment>>(miAndFitsJson, jsonOptions) ?? [];
+
+                // MI & Fit may only be declared for denominations actually present among the submitted
+                // bag assignments — validated up front, before the plan is created.
+                if (newMiFits.Count > 0)
+                {
+                    var assignedBagIdsForMiFit = newAssignments.SelectMany(a => a.BagIds).Distinct().ToList();
+                    var allowedDenominationIds = assignedBagIdsForMiFit.Count > 0
+                        ? (await _context.Bags
+                            .Where(b => assignedBagIdsForMiFit.Contains(b.Id))
+                            .Select(b => b.DenominationId)
+                            .Distinct()
+                            .ToListAsync()).ToHashSet()
+                        : new HashSet<int>();
+
+                    if (newMiFits.Any(mf => !allowedDenominationIds.Contains(mf.DenominationId)))
+                    {
+                        TempData["Error"] = "MI & Fit was submitted for a denomination that has no bags assigned to a processing board.";
+                        return RedirectToAction(nameof(Create), new { processingDate = processingDate.ToString("yyyy-MM-dd"), branchId });
+                    }
+                }
+
                 var draftStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
                 {
                     ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
@@ -443,13 +486,29 @@ namespace VMSService.Web.Controllers
                     }
                 }
 
-                if (!string.IsNullOrEmpty(assignmentsJson) && assignmentsJson != "[]")
+                if (newMiFits.Count > 0)
                 {
-                    var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                    var assignments = System.Text.Json.JsonSerializer.Deserialize<List<BoardBagAssignment>>(assignmentsJson, options);
-                    if (assignments != null)
+                    foreach (var mf in newMiFits)
                     {
-                        // Step 1: save all SessionBag records
+                        await _miAndFitRepository.Create(new MIandFit
+                        {
+                            StockProcessingPlanId = plan.Id,
+                            DenominationId = mf.DenominationId,
+                            IssuedReIssueValue = mf.IssuedReIssueValue,
+                            IssuedCanceledValue = mf.IssuedCanceledValue,
+                            ReturnedReIssueValue = 0,
+                            ReturnedCanceledValue = 0,
+                            BoardSupervisorUserId = mf.BoardSupervisorUserId,
+                            IsDeleted = false
+                        });
+                    }
+                }
+
+                if (newAssignments.Count > 0)
+                {
+                    var assignments = newAssignments;
+
+                    // Step 1: save all SessionBag records
                         foreach (var assignment in assignments)
                         {
                             foreach (var bagId in assignment.BagIds)
@@ -584,7 +643,6 @@ namespace VMSService.Web.Controllers
                             }
                         }
                         await _context.SaveChangesAsync();
-                    }
                 }
 
                 TempData["Success"] = "Processing plan created successfully.";
@@ -673,6 +731,31 @@ namespace VMSService.Web.Controllers
                     .Where(rs => !string.IsNullOrEmpty(rs.BoardSupervisorUserId))
                     .ToDictionary(rs => rs.CountingRoomId, rs => rs.BoardSupervisorUserId);
 
+                // MI & Fit: one row per active denomination, merged with any values already declared for this plan
+                var existingMiFits = await _miAndFitRepository.FindByPlanId(id);
+                var miFitByDenomId = existingMiFits.ToDictionary(m => m.DenominationId);
+                var miAndFitRows = denominations
+                    .Where(d => !d.IsDeleted)
+                    .OrderBy(d => d.Value)
+                    .Select(d =>
+                    {
+                        miFitByDenomId.TryGetValue(d.Id, out var existing);
+                        return new MIandFitViewModel
+                        {
+                            Id = existing?.Id ?? 0,
+                            StockProcessingPlanId = id,
+                            DenominationId = d.Id,
+                            DenominationName = d.Name,
+                            DenominationValue = d.Value,
+                            IssuedReIssueValue = existing?.IssuedReIssueValue ?? 0,
+                            IssuedCanceledValue = existing?.IssuedCanceledValue ?? 0,
+                            ReturnedReIssueValue = existing?.ReturnedReIssueValue ?? 0,
+                            ReturnedCanceledValue = existing?.ReturnedCanceledValue ?? 0,
+                            BoardSupervisorUserId = existing?.BoardSupervisorUserId
+                        };
+                    })
+                    .ToList();
+
                 var bagDict = bags.ToDictionary(b => b.Id);
 
                 // Once the plan is Pending Verification, only bags already attached to a board in
@@ -711,7 +794,8 @@ namespace VMSService.Web.Controllers
                             .ToList()
                     }).ToList(),
                     AvailableBags = availableBags,
-                    BoardSupervisors = boardSupervisors.ToList()
+                    BoardSupervisors = boardSupervisors.ToList(),
+                    MIandFits = miAndFitRows
                 };
 
                 return View(model);
@@ -726,7 +810,7 @@ namespace VMSService.Web.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, string? assignmentsJson, string? roomSupervisorsJson)
+        public async Task<IActionResult> Edit(int id, string? assignmentsJson, string? roomSupervisorsJson, string? miAndFitsJson)
         {
             try
             {
@@ -746,6 +830,30 @@ namespace VMSService.Web.Controllers
                 var newAssignments = string.IsNullOrEmpty(assignmentsJson) || assignmentsJson == "[]"
                     ? []
                     : System.Text.Json.JsonSerializer.Deserialize<List<BoardBagAssignment>>(assignmentsJson, jsonOptions) ?? [];
+
+                var newMiFits = string.IsNullOrEmpty(miAndFitsJson) || miAndFitsJson == "[]"
+                    ? []
+                    : System.Text.Json.JsonSerializer.Deserialize<List<MIandFitAssignment>>(miAndFitsJson, jsonOptions) ?? [];
+
+                // MI & Fit may only be declared for denominations actually present among the newly-submitted
+                // bag assignments — validated up front, before any writes, so a rejection leaves nothing changed.
+                if (newMiFits.Count > 0)
+                {
+                    var assignedBagIdsForMiFit = newAssignments.SelectMany(a => a.BagIds).Distinct().ToList();
+                    var allowedDenominationIds = assignedBagIdsForMiFit.Count > 0
+                        ? (await _context.Bags
+                            .Where(b => assignedBagIdsForMiFit.Contains(b.Id))
+                            .Select(b => b.DenominationId)
+                            .Distinct()
+                            .ToListAsync()).ToHashSet()
+                        : new HashSet<int>();
+
+                    if (newMiFits.Any(mf => !allowedDenominationIds.Contains(mf.DenominationId)))
+                    {
+                        TempData["Error"] = "MI & Fit was submitted for a denomination that has no bags assigned to a processing board.";
+                        return RedirectToAction(nameof(Edit), new { id });
+                    }
+                }
 
                 // Determine which boards have changed
                 var currentSessionBags = await _context.SessionBags
@@ -988,6 +1096,50 @@ namespace VMSService.Web.Controllers
                         {
                             existing.IsDeleted = true;
                             await _countingRoomSessionRepository.Update(existing);
+                        }
+                    }
+                }
+
+                // Update MI & Fit declarations
+                if (!string.IsNullOrEmpty(miAndFitsJson))
+                {
+                    var existingMiFits = await _miAndFitRepository.FindByPlanId(id);
+                    var existingByDenomId = existingMiFits.ToDictionary(m => m.DenominationId);
+                    var newByDenomId = newMiFits.ToDictionary(m => m.DenominationId);
+
+                    foreach (var (denomId, mf) in newByDenomId)
+                    {
+                        if (existingByDenomId.TryGetValue(denomId, out var existing))
+                        {
+                            // Returned* values are left untouched here — they belong to the assigned
+                            // Board Supervisor's later declaration, not the maker's Create/Edit form.
+                            existing.IssuedReIssueValue = mf.IssuedReIssueValue;
+                            existing.IssuedCanceledValue = mf.IssuedCanceledValue;
+                            existing.BoardSupervisorUserId = mf.BoardSupervisorUserId;
+                            await _miAndFitRepository.Update(existing);
+                        }
+                        else
+                        {
+                            await _miAndFitRepository.Create(new MIandFit
+                            {
+                                StockProcessingPlanId = id,
+                                DenominationId = denomId,
+                                IssuedReIssueValue = mf.IssuedReIssueValue,
+                                IssuedCanceledValue = mf.IssuedCanceledValue,
+                                ReturnedReIssueValue = 0,
+                                ReturnedCanceledValue = 0,
+                                BoardSupervisorUserId = mf.BoardSupervisorUserId,
+                                IsDeleted = false
+                            });
+                        }
+                    }
+
+                    foreach (var (denomId, existing) in existingByDenomId)
+                    {
+                        if (!newByDenomId.ContainsKey(denomId))
+                        {
+                            existing.IsDeleted = true;
+                            await _miAndFitRepository.Update(existing);
                         }
                     }
                 }
@@ -1283,6 +1435,52 @@ namespace VMSService.Web.Controllers
                     }
                 }
 
+                // MI & Fit — read-only, only denominations actually declared for this plan
+                var planMiFits = await _miAndFitRepository.FindByPlanId(id);
+                var miFitDenomDict = allDenominations.ToDictionary(d => d.Id);
+                var miFitSupervisorNames = new Dictionary<string, string?>();
+                foreach (var supervisorUserId in planMiFits
+                    .Where(m => !string.IsNullOrEmpty(m.BoardSupervisorUserId))
+                    .Select(m => m.BoardSupervisorUserId!)
+                    .Distinct())
+                {
+                    try
+                    {
+                        var user = await _identityService.GetUserByUsername(supervisorUserId);
+                        miFitSupervisorNames[supervisorUserId] = user != null
+                            ? $"{user.FirstName} {user.LastName}".Trim()
+                            : supervisorUserId;
+                    }
+                    catch
+                    {
+                        miFitSupervisorNames[supervisorUserId] = supervisorUserId;
+                    }
+                }
+
+                var miAndFitViewRows = planMiFits
+                    .Select(m =>
+                    {
+                        var denom = miFitDenomDict.GetValueOrDefault(m.DenominationId);
+                        return new MIandFitViewModel
+                        {
+                            Id = m.Id,
+                            StockProcessingPlanId = m.StockProcessingPlanId,
+                            DenominationId = m.DenominationId,
+                            DenominationName = denom?.Name,
+                            DenominationValue = denom?.Value ?? 0,
+                            IssuedReIssueValue = m.IssuedReIssueValue,
+                            IssuedCanceledValue = m.IssuedCanceledValue,
+                            ReturnedReIssueValue = m.ReturnedReIssueValue,
+                            ReturnedCanceledValue = m.ReturnedCanceledValue,
+                            BoardSupervisorUserId = m.BoardSupervisorUserId,
+                            BoardSupervisorName = !string.IsNullOrEmpty(m.BoardSupervisorUserId)
+                                ? miFitSupervisorNames.GetValueOrDefault(m.BoardSupervisorUserId)
+                                : null
+                        };
+                    })
+                    .OrderBy(m => m.DenominationValue)
+                    .ToList();
+
                 var model = new StockProcessingPlanDetailsViewModel
                 {
                     Id = plan.Id,
@@ -1358,6 +1556,7 @@ namespace VMSService.Web.Controllers
                             .ToList()
                     }).ToList(),
                     ResultSummaries = resultSummaries,
+                    MIandFits = miAndFitViewRows,
                     StatusHistory = statusHistory,
                     AvailableTransitions = availableTransitions.Distinct().ToList(),
                     AllAttachments = allAttachments

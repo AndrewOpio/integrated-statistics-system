@@ -1,5 +1,6 @@
 using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.Bags;
+using VMSService.Core.Models.MIandFits;
 using VMSService.Core.Models.Shared;
 using VMSService.Core.Models.StockProcessingPlanStatusHistories;
 using WorkflowService.Client.Dto;
@@ -18,6 +19,7 @@ namespace VMSService.Core.Models.StockProcessingPlans
         public List<CountingRoomWithBagsViewModel> CountingRooms { get; set; } = new();
         public List<ProcessingSessionViewModel> Sessions { get; set; } = new();
         public List<SessionResultSummaryViewModel> ResultSummaries { get; set; } = new();
+        public List<MIandFitViewModel> MIandFits { get; set; } = new();
         public ICollection<StockProcessingPlanStatusHistoryViewModel> StatusHistory { get; set; } = [];
         public ICollection<WorkflowTransitionDto> AvailableTransitions { get; set; } = [];
         public IEnumerable<AttachmentViewModel> AllAttachments { get; set; } = [];

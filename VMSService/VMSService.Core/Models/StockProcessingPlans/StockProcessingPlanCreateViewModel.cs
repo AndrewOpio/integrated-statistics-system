@@ -1,4 +1,5 @@
 using VMSService.Core.Models.Bags;
+using VMSService.Core.Models.MIandFits;
 using VMSService.Core.Services.Identity.IdentityEntities;
 
 namespace VMSService.Core.Models.StockProcessingPlans
@@ -11,6 +12,7 @@ namespace VMSService.Core.Models.StockProcessingPlans
         public List<CountingRoomBoardsViewModel> CountingRooms { get; set; } = new();
         public List<BagViewModel> AvailableBags { get; set; } = new();
         public List<UserDto> BoardSupervisors { get; set; } = new();
+        public List<MIandFitViewModel> MIandFits { get; set; } = new();
     }
 
     public class CountingRoomBoardsViewModel
@@ -36,6 +38,14 @@ namespace VMSService.Core.Models.StockProcessingPlans
     public class RoomSupervisorAssignment
     {
         public int CountingRoomId { get; set; }
+        public string? BoardSupervisorUserId { get; set; }
+    }
+
+    public class MIandFitAssignment
+    {
+        public int DenominationId { get; set; }
+        public decimal IssuedReIssueValue { get; set; }
+        public decimal IssuedCanceledValue { get; set; }
         public string? BoardSupervisorUserId { get; set; }
     }
 }

@@ -2802,6 +2802,59 @@ namespace VMSService.Data.Migrations
                     b.ToTable("LogisticsStatusHistory");
                 });
 
+            modelBuilder.Entity("VMSService.Data.Entities.MIandFit", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BoardSupervisorUserId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DenominationId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("IssuedCanceledValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IssuedReIssueValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("ReturnedCanceledValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("ReturnedReIssueValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("StockProcessingPlanId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StockProcessingPlanId");
+
+                    b.ToTable("MIandFits");
+                });
+
             modelBuilder.Entity("VMSService.Data.Entities.MinDepositStandard", b =>
                 {
                     b.Property<int>("Id")
@@ -5612,6 +5665,17 @@ namespace VMSService.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Logistics");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.MIandFit", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.StockProcessingPlan", "StockProcessingPlan")
+                        .WithMany()
+                        .HasForeignKey("StockProcessingPlanId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("StockProcessingPlan");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.MonthlyCommercialBankSettlementStatusHistory", b =>

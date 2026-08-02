@@ -113,6 +113,7 @@ using VMSService.Core.Repositories.BankingShortageStatusHistories;
 using VMSService.Web.Services;
 using VMSService.Core.Repositories.BagMovements;
 using VMSService.Core.Repositories.BagMovementStatusHistories;
+using VMSService.Core.Repositories.MIandFits;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -343,6 +344,7 @@ builder.Services.AddScoped<IVaultRepository, VaultRepository>();
 builder.Services.AddScoped<IVaultSectionRepository, VaultSectionRepository>();
 builder.Services.AddScoped<IBagMovementRepository, BagMovementRepository>();
 builder.Services.AddScoped<IBagMovementStatusHistoryRepository, BagMovementStatusHistoryRepository>();
+builder.Services.AddScoped<IMIandFitRepository, MIandFitRepository>();
 builder.Services.AddScoped<IStockProcessingResultRepository, StockProcessingResultRepository>();
 builder.Services.AddScoped<IMinDepositStandardRepository, MinDepositStandardRepository>();
 builder.Services.AddScoped<IDepositProcessingFeeRepository, DepositProcessingFeeRepository>();

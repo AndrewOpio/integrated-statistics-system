@@ -1,4 +1,5 @@
 @using VMSService.Core.Models.StockProcessingPlans
+@using VMSService.Core.Models.MIandFits
 @model StockProcessingPlanCreateViewModel
 
 @{
@@ -84,7 +85,10 @@
     <input type="hidden" name="branchId" value="@Model.BranchId" />
     <input type="hidden" id="assignmentsJson" name="assignmentsJson" value="[]" />
     <input type="hidden" id="roomSupervisorsJson" name="roomSupervisorsJson" value="[]" />
+    <input type="hidden" id="miAndFitsJson" name="miAndFitsJson" value="[]" />
 </form>
+
+@await Html.PartialAsync("_MIandFitCard", new MIandFitCardViewModel { MIandFits = Model.MIandFits, BoardSupervisors = Model.BoardSupervisors })
 
 <div class="row g-4 align-items-start">
 
@@ -259,6 +263,7 @@
                                              data-bag-id="@bag.Id"
                                              data-bag-ref="@bag.ReferenceNumber"
                                              data-denomination-value="@bag.DenominationValue.ToString("F0")"
+                                             data-denomination-id="@bag.DenominationId"
                                              data-vault-id="@(bag.VaultId?.ToString() ?? "0")"
                                              data-vault-name="@(bag.VaultName ?? "")"
                                              data-vault-section-id="@(bag.VaultSectionId?.ToString() ?? "0")"
@@ -587,6 +592,7 @@
     function updateCount() {
         const visible = document.querySelectorAll('#bagPool .bag-card:not(.hidden-assigned):not(.hidden-filter)').length;
         document.getElementById('availableCount').textContent = visible;
+        if (typeof refreshMIandFitVisibility === 'function') refreshMIandFitVisibility();
     }
 
     function submitPlan() {
@@ -603,10 +609,20 @@
         });
         document.getElementById('roomSupervisorsJson').value = JSON.stringify(supervisors);
 
+        const miAndFits = collectMIandFits();
+        if (miAndFits.errors.length > 0) {
+            alert('Please assign a Board Supervisor for: ' + miAndFits.errors.join(', '));
+            return;
+        }
+        document.getElementById('miAndFitsJson').value = JSON.stringify(miAndFits.entries);
+
         document.getElementById('planForm').submit();
     }
 
-    document.addEventListener('DOMContentLoaded', populateFilters);
+    document.addEventListener('DOMContentLoaded', () => {
+        populateFilters();
+        if (typeof refreshMIandFitVisibility === 'function') refreshMIandFitVisibility();
+    });
 
     // ── New Bag Modal ─────────────────────────────────────────────
     @{
@@ -744,7 +760,7 @@
         })
         .then(r => r.ok ? r.json() : Promise.reject())
         .then(data => {
-            _addNewBagToPool(data.id, data.referenceNumber, bankVal, denomName, denomVal, boardId);
+            _addNewBagToPool(data.id, data.referenceNumber, bankVal, denomName, denomVal, boardId, +denomId);
             bootstrap.Modal.getInstance(document.getElementById('newBagModal'))?.hide();
         })
         .catch(() => {
@@ -757,7 +773,7 @@
         });
     }
 
-    function _addNewBagToPool(bagId, refNum, bankName, denomName, denomValue, boardId) {
+    function _addNewBagToPool(bagId, refNum, bankName, denomName, denomValue, boardId, denomId) {
         const col  = document.createElement('div');
         col.className = 'col-md-6 p-1';
 
@@ -766,6 +782,7 @@
         card.dataset.bagId            = bagId;
         card.dataset.bagRef           = refNum;
         card.dataset.denominationValue = denomValue;
+        card.dataset.denominationId   = denomId;
         card.dataset.vaultId          = '0';
         card.dataset.vaultName        = '';
         card.dataset.vaultSectionId   = '0';

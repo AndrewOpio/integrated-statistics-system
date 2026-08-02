@@ -85,6 +85,7 @@ namespace VMSService.Data.Configurations
         public DbSet<BoardSessionSurplusShortageStatusHistory> BoardSessionSurplusShortageStatusHistory { get; set; }
         public DbSet<NoteExaminer> NoteExaminers { get; set; }
         public DbSet<StockProcessingSessionNoteExaminer> StockProcessingSessionNoteExaminers { get; set; }
+        public DbSet<MIandFit> MIandFits { get; set; }
 
         // End of Day Discrepancies
         public DbSet<EodDiscrepancyReport> EodDiscrepancyReports { get; set; }
