@@ -31,6 +31,7 @@ using VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 using VMSService.Core.Repositories.CfbTopupRequests;
 using VMSService.Core.Repositories.CfbTopupStatusHistories;
+using VMSService.Core.Repositories.PublicHolidays;
 using VMSService.Core.Services.Identity;
 using VMSService.Core.Services.Submissions;
 using VMSService.Core.Static;
@@ -75,7 +76,8 @@ namespace VMSService.Core.Services.Workflows
         IMonthlyCommercialBankSettlementRepository _cbSettlementRepository,
         IMonthlyCommercialBankSettlementStatusHistoryRepository _cbSettlementStatusHistoryRepository,
         ITopupRequestRepository _topupRequestRepository,
-        ITopupRequestStatusHistoryRepository _topupHistoryRepository) : IWorkflowService
+        ITopupRequestStatusHistoryRepository _topupHistoryRepository,
+        IPublicHolidayRepository _publicHolidayRepository) : IWorkflowService
     {
 
 
@@ -618,10 +620,9 @@ namespace VMSService.Core.Services.Workflows
             // CB approval is the submission event — classify same-day submissions here
             if (transition.ToStatus.Name == WithdrawalStatusNames.PendingRTGSVerification)
             {
-                // TODO: isDayBeforeHoliday is simplified (always false). See SubmissionClassifier
-                // for the full TODO — a future implementation will look up the holiday calendar.
+                var dayBeforeHoliday = await _publicHolidayRepository.FindByDateAsync(request.CollectionDate.AddDays(-1));
                 var classification = SubmissionClassifier.Classify(
-                    statusHistory.ChangedAt, request.CollectionDate, isDayBeforeHoliday: false);
+                    statusHistory.ChangedAt, request.CollectionDate, isDayBeforeHoliday: dayBeforeHoliday is not null);
 
                 if (classification == SubmissionClassification.LateInvalid)
                 {

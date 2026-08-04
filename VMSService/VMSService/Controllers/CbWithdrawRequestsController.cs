@@ -236,6 +236,9 @@ namespace VMSService.Web.Controllers
             if (requiresSpecialApproval && string.IsNullOrWhiteSpace(vm.SpecialApprovalReason))
                 return BadRequest(new { errors = new[] { "An exceptional approval reason is required for same-day collection requests outside the grace period." } });
 
+            if (requiresSpecialApproval && vm.SpecialApprovalReason!.Trim().Length < ReasonRules.MinLength)
+                return BadRequest(new { errors = new[] { $"The exceptional approval reason must be at least {ReasonRules.MinLength} characters." } });
+
             if (requiresSpecialApproval && string.IsNullOrWhiteSpace(vm.RtgsCode))
                 return BadRequest(new { errors = new[] { "RTGS code is required when a request requires exceptional approval." } });
 

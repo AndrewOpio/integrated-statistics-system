@@ -187,8 +187,9 @@
                           rows="3"
                           maxlength="500"
                           placeholder="e.g. Urgent liquidity requirement due to..."></textarea>
+                <small class="text-muted d-block mt-1">Minimum @WithdrawConstants.ReasonRules.MinLength characters.</small>
                 <div id="sameDayReasonError" class="text-danger small mt-1" style="display:none;">
-                    <i class="ti ti-alert-circle me-1"></i>Please enter a reason before continuing.
+                    <i class="ti ti-alert-circle me-1"></i><span id="sameDayReasonErrorText">Please enter a reason before continuing.</span>
                 </div>
                 <div class="text-muted small text-end mt-1">
                     <span id="sameDayReasonCount">0</span> / 500

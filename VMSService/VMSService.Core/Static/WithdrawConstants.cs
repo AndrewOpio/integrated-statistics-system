@@ -46,6 +46,11 @@ namespace VMSService.Core.Static
             public const decimal BundleMultiple = 1000m;
         }
 
+        public static class ReasonRules
+        {
+            public const int MinLength = 15;
+        }
+
         public static class RtgsVerification
         {
             public const string Pending = "Pending";

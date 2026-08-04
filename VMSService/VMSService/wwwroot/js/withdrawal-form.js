@@ -159,10 +159,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!modalEl) return;
 
+    const errorTextEl = document.getElementById('sameDayReasonErrorText');
+    function showSameDayReasonError(message) {
+        if (errorTextEl) errorTextEl.textContent = message;
+        if (errorEl) errorEl.style.display = 'block';
+    }
+
     if (textarea && countEl) {
         textarea.addEventListener('input', () => {
             countEl.textContent = textarea.value.length;
-            if (textarea.value.trim()) errorEl.style.display = 'none';
+            if (textarea.value.trim().length >= window.minReasonLength) errorEl.style.display = 'none';
         });
     }
 
@@ -170,7 +176,11 @@ document.addEventListener('DOMContentLoaded', () => {
         confirmBtn.addEventListener('click', () => {
             const reason = textarea ? textarea.value.trim() : '';
             if (!reason) {
-                if (errorEl) errorEl.style.display = 'block';
+                showSameDayReasonError('Please enter a reason before continuing.');
+                return;
+            }
+            if (reason.length < window.minReasonLength) {
+                showSameDayReasonError(`Reason must be at least ${window.minReasonLength} characters.`);
                 return;
             }
             formState.requiresSpecialApproval = true;
