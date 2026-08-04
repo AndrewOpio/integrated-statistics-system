@@ -17,6 +17,7 @@ namespace VMSService.Core.Models.CbDepositRequests
         public bool RequiresSpecialApproval { get; set; }
         public string? SpecialApprovalReason { get; set; }
         public string TransactionRefNumber { get; set; } = string.Empty;
+        public List<PublicHolidayDateViewModel> PublicHolidayDates { get; set; } = new();
     }
 
     public class ExistingDenominationViewModel

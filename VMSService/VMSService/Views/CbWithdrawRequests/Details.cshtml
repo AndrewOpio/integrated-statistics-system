@@ -106,6 +106,20 @@
             </div>
         }
 
+        @* Grace period active — same-day collection, but no exceptional approval needed *@
+        @if (!string.IsNullOrEmpty(Model.GracePeriodReason))
+        {
+            <div class="alert alert-info d-flex align-items-start gap-2 py-2 mb-3">
+                <i class="ti ti-info-circle text-info fs-5 flex-shrink-0 mt-1"></i>
+                <div>
+                    <p class="fw-bold mb-1">Grace Period Active</p>
+                    <p class="mb-0 small">
+                        Same-day collection does not require exceptional approval today — @Model.GracePeriodReason.
+                    </p>
+                </div>
+            </div>
+        }
+
         @* ── Sender & Receiver ── *@
 
         <div class="card mb-3 border-top-0 border-end-0 border-bottom-0 border-4 border-warning shadow-sm">

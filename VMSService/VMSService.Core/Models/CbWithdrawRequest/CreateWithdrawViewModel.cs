@@ -19,5 +19,6 @@ namespace VMSService.Core.Models.CbWithdrawRequest
         public DateOnly CollectionDate { get; set; }
         public DateOnly? RtgsDate { get; set; }
         public string? RtgsCode { get; set; }
+        public List<PublicHolidayDateViewModel> PublicHolidayDates { get; set; } = new();
     }
 }

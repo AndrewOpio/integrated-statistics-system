@@ -40,6 +40,12 @@ namespace VMSService.Core.Static
             public const string Submit_Verification = "Submit_Verification";
         }
 
+        public static class AmountRules
+        {
+            public const decimal MinimumWithdrawalAmount = 10_000_000m;
+            public const decimal BundleMultiple = 1000m;
+        }
+
         public static class RtgsVerification
         {
             public const string Pending = "Pending";

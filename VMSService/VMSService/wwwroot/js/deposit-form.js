@@ -177,13 +177,9 @@ function setDepositButtonsDisabled(disabled) {
 // Special Approval
 
 function isSameDayApprovalRequired() {
-    // Always use Uganda time (EAT = UTC+3) regardless of browser locale
-    const nowUganda = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Kampala' }));
-    const isMonday = nowUganda.getDay() === 1;
-    const before11 = nowUganda.getHours() < 11;
-
-    // Monday before 11am EAT � grace period, no special approval
-    if (isMonday && before11) return false;
+    // Day before a non-working day (weekend or public holiday), before 11am EAT — grace
+    // period, no special approval. See collection-date-rules.js.
+    if (isGracePeriodActive(window.publicHolidayDates)) return false;
 
     let today = new Date();
     const formatter = new Intl.DateTimeFormat('en-CA', {
@@ -203,6 +199,20 @@ function isSameDayApprovalRequired() {
 function checkSpecialApproval() {
     const warning = document.getElementById('specialApprovalWarning');
     console.log("Checking Exceptional Approval");
+
+    // Grace-period indicator — only relevant when today is the selected deposit date.
+    const eatToday = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Etc/GMT-3', year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date());
+    const graceReason = depositFormState.depositDate === eatToday
+        ? getGracePeriodReason(window.publicHolidayDates)
+        : null;
+
+    const graceIndicator = document.getElementById('gracePeriodIndicator');
+    const graceReasonText = document.getElementById('gracePeriodReasonText');
+    if (graceIndicator) graceIndicator.style.setProperty('display', graceReason ? 'flex' : 'none', 'important');
+    if (graceReasonText) graceReasonText.textContent = graceReason || '';
+
     if (isSameDayApprovalRequired()) {
         depositFormState.specialApprovalReason = null;
         new bootstrap.Modal(document.getElementById('specialApprovalModal')).show();

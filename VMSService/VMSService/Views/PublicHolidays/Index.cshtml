@@ -1,0 +1,106 @@
+@model List<VMSService.Core.Models.PublicHolidays.PublicHolidayViewModel>
+
+@{
+    ViewData["Title"] = "Public Holidays";
+    bool? activeFilter = ViewBag.ActiveFilter as bool?;
+}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h2 class="fs-5 fw-bold mb-0">Public Holidays</h2>
+                    </div>
+                    <div class="col text-end">
+                        <div class="btn-group me-2" role="group">
+                            <a asp-action="Index" class="btn btn-sm @(activeFilter == null ? "btn-primary" : "btn-outline-primary")">All</a>
+                            <a asp-action="Index" asp-route-active="true" class="btn btn-sm @(activeFilter == true ? "btn-primary" : "btn-outline-primary")">Active</a>
+                            <a asp-action="Index" asp-route-active="false" class="btn btn-sm @(activeFilter == false ? "btn-primary" : "btn-outline-primary")">Inactive</a>
+                        </div>
+                        <a asp-action="Create" class="btn btn-sm btn-primary">
+                            <i class="ti ti-plus me-1"></i>Add Holiday
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-centered table-nowrap mb-0 rounded" id="publicHolidaysTable">
+                        <thead class="thead-light">
+                            <tr>
+                                <th class="border-0 rounded-start">#</th>
+                                <th class="border-0">Date</th>
+                                <th class="border-0">Name</th>
+                                <th class="border-0">Status</th>
+                                <th class="border-0 rounded-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                int rowNumber = 1;
+                            }
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td><span class="text-primary fw-bold">@rowNumber</span></td>
+                                    <td>@item.Date.ToString("dd MMM yyyy")</td>
+                                    <td class="fw-bold">@item.Name</td>
+                                    <td>
+                                        @if (item.Active)
+                                        {
+                                            <span class="badge bg-success">Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">Inactive</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary" title="Details">
+                                                <i class="ti ti-eye"></i>
+                                            </a>
+                                            @if (!item.IsPast)
+                                            {
+                                                <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
+                                                    <i class="ti ti-edit"></i>
+                                                </a>
+                                            }
+                                            @if (item.Active)
+                                            {
+                                                <form asp-action="Deactivate" asp-route-id="@item.Id" method="post" class="d-inline">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Deactivate">
+                                                        <i class="ti ti-toggle-left"></i>
+                                                    </button>
+                                                </form>
+                                            }
+                                            else
+                                            {
+                                                <form asp-action="Activate" asp-route-id="@item.Id" method="post" class="d-inline">
+                                                    <button type="submit" class="btn btn-sm btn-outline-success" title="Activate">
+                                                        <i class="ti ti-toggle-right"></i>
+                                                    </button>
+                                                </form>
+                                            }
+                                        </div>
+                                    </td>
+                                    @{ rowNumber++; }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            $('#publicHolidaysTable').DataTable({ order: [[1, 'asc']] });
+        });
+    </script>
+}

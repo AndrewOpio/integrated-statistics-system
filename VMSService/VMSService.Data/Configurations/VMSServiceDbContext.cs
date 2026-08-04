@@ -122,6 +122,7 @@ namespace VMSService.Data.Configurations
 
         public DbSet<Penalty> Penalties => Set<Penalty>();
         public DbSet<AppliedPenalty> AppliedPenalties => Set<AppliedPenalty>();
+        public DbSet<PublicHoliday> PublicHolidays => Set<PublicHoliday>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -269,6 +270,11 @@ namespace VMSService.Data.Configurations
                 .Property(x => x.PenaltyPercent).HasPrecision(18, 4);
             modelBuilder.Entity<Penalty>()
                 .Property(x => x.PercentCutOff).HasPrecision(18, 4);
+
+            // ── PublicHoliday ─────────────────────
+            modelBuilder.Entity<PublicHoliday>()
+                .HasIndex(x => x.Date)
+                .IsUnique();
 
             // ── AppliedPenalty ─────────────────────
             modelBuilder.Entity<AppliedPenalty>()

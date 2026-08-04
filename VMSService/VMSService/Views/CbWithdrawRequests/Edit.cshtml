@@ -117,6 +117,7 @@
 
 @section Scripts {
 
+    <script src="~/js/collection-date-rules.js"></script>
     <script src="~/js/withdrawal-form.js"></script>
     <script src="~/js/branch-selection.js"></script>
     <script src="~/js/agent-selection.js"></script>
@@ -146,6 +147,11 @@
                 typeId = d.DenominationTypeId
             })))
         };
+
+        window.publicHolidayDates = @Html.Raw(Json.Serialize(Model.PublicHolidayDates.Select(h => new { date = h.Date, name = h.Name })));
+
+        window.minWithdrawalAmount = @WithdrawConstants.AmountRules.MinimumWithdrawalAmount;
+        window.withdrawalBundleMultiple = @WithdrawConstants.AmountRules.BundleMultiple;
 
         // ── formState — safe to set now that withdrawal-form.js has run ──────
         formState.id          = '@Model.Request.Id';

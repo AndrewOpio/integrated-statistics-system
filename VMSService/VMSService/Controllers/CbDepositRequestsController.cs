@@ -17,6 +17,7 @@ using VMSService.Core.Repositories.DepositProcessingFees;
 using VMSService.Core.Repositories.DepositUnitOfWorks;
 using VMSService.Core.Repositories.FeeTypes;
 using VMSService.Core.Repositories.MinDepositStandards;
+using VMSService.Core.Repositories.PublicHolidays;
 using VMSService.Core.Repositories.SubCategories;
 using VMSService.Core.Services.Identity;
 using VMSService.Core.Services.Stocks.StockEntities;
@@ -48,6 +49,7 @@ namespace VMSService.Web.Controllers
         ISubCategoryRepository _subCategoryRepo,
         IIdentityService _identityService,
         IAttachmentRepository _attachmentRepository,
+        IPublicHolidayRepository _publicHolidayRepository,
         IWebHostEnvironment _environment) : BaseWithdrawController(authorizationService)
     {
         public async Task<IActionResult> Index(CancellationToken ct)
@@ -91,7 +93,7 @@ namespace VMSService.Web.Controllers
                     TransactionRefNumber = r.TransactionRefNumber ?? "Not Generated",
                     CreationDate = r.CreatedDate,
                     RequiresSpecialApproval = r.RequiresSpecialApproval,
-                    RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "—" : r.RtgsCode,
+                    RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "ï¿½" : r.RtgsCode,
                 }));
 
                 var vm = new DepositRequestIndexViewModel
@@ -149,9 +151,21 @@ namespace VMSService.Web.Controllers
                     SubCategories = (await _subCategoryRepo.FindAll())
                         .Where(s => !s.IsDeleted && (s.Category?.Name == StockConstants.StoreTypes.Paids))
                 },
+                PublicHolidayDates = await GetPublicHolidayDatesAsync(),
             };
 
             return View(vm);
+        }
+
+        // Feeds the client-side same-day/exceptional grace-window check (collection-date-rules.js).
+        private async Task<List<PublicHolidayDateViewModel>> GetPublicHolidayDatesAsync()
+        {
+            var holidays = await _publicHolidayRepository.FindByActive(true);
+            return holidays.Select(h => new PublicHolidayDateViewModel
+            {
+                Date = h.Date.ToString("yyyy-MM-dd"),
+                Name = h.Name,
+            }).ToList();
         }
 
         // Branch details endpoint (AJAX)
@@ -789,7 +803,8 @@ namespace VMSService.Web.Controllers
                     RtgsCode = request.RtgsCode,
                     RequiresSpecialApproval = request.RequiresSpecialApproval,
                     SpecialApprovalReason = request.SpecialApprovalReason,
-                    TransactionRefNumber = request.TransactionRefNumber
+                    TransactionRefNumber = request.TransactionRefNumber,
+                    PublicHolidayDates = await GetPublicHolidayDatesAsync(),
                 };
 
                 return View(vm);

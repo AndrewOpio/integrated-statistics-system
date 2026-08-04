@@ -65,6 +65,11 @@ namespace VMSService.Core.Models.CbWithdrawRequest
         public bool ShowSameDayMakerWarning { get; set; }
         public bool ShowSameDayReasonCapture { get; set; }
         public bool CanEditSameDayReason { get; set; }
+
+        /// <summary>Non-null when a same-day grace period is currently active for this request
+        /// (weekend or public holiday, before 11am EAT) — the reason to display, e.g. the
+        /// holiday's name or "the previous day was a weekend".</summary>
+        public string? GracePeriodReason { get; set; }
         public IEnumerable<WithdrawalRequestStatusHistoryViewModel> StatusHistory { get; set; } = [];
         public IEnumerable<AttachmentViewModel> AllAttachments { get; set; } = [];
     }

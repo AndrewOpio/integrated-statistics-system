@@ -85,11 +85,11 @@
                        step="1"
                        oninput="onLumpSumInput(this.value)" />
                 <small id="lumpSumHint" class="text-muted mt-1 d-block">
-                    Amount must be an exact multiple of 1,000 (one bundle).
+                    Amount must be an exact multiple of @WithdrawConstants.AmountRules.BundleMultiple.ToString("N0") (one bundle), with a minimum of UGX @WithdrawConstants.AmountRules.MinimumWithdrawalAmount.ToString("N0").
                 </small>
                 <small id="lumpSumError" class="text-danger mt-1 d-block" style="display:none !important">
                     <i class="ti ti-alert-circle me-1"></i>
-                    Amount must be a whole bundle — no partial amounts allowed.
+                    <span id="lumpSumErrorText">Amount must be a whole bundle — no partial amounts allowed.</span>
                 </small>
             </div>
         </div>
@@ -192,6 +192,10 @@
                 <span id="denom-g-words">Zero shillings only</span>
             </div>
         </div>
+        <small id="denomGrandTotalError" class="text-danger mt-1 d-block d-none">
+            <i class="ti ti-alert-circle me-1"></i>
+            <span id="denomGrandTotalErrorText"></span>
+        </small>
 
     </div>
 </div>
