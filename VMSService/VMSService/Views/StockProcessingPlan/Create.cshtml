@@ -88,9 +88,7 @@
     <input type="hidden" id="miAndFitsJson" name="miAndFitsJson" value="[]" />
 </form>
 
-@await Html.PartialAsync("_MIandFitCard", new MIandFitCardViewModel { MIandFits = Model.MIandFits, BoardSupervisors = Model.BoardSupervisors })
-
-<div class="row g-4 align-items-start">
+<div class="row g-4 align-items-start mb-4">
 
     @* ── Left column: Counting Rooms ─────────────────────────── *@
     <div class="col-12 col-xl-8">
@@ -314,6 +312,8 @@
     </div>
 
 </div>
+
+@await Html.PartialAsync("_MIandFitCard", new MIandFitCardViewModel { MIandFits = Model.MIandFits, BoardSupervisors = Model.BoardSupervisors })
 
 @* ── Add New Bag Modal ──────────────────────────────────────────── *@
 <div class="modal fade" id="newBagModal" tabindex="-1" aria-hidden="true">

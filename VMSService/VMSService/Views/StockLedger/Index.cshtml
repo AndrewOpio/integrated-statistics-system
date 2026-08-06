@@ -1,0 +1,378 @@
+@using ConfigurationsService.Client
+@using VMSService.Core.Services.Stocks.StockEntities
+@model List<StockLedgerDetailReportItem>
+
+@{
+    ViewData["Title"] = "Stock Ledger";
+    var branches = ViewBag.Branches as ICollection<BranchDto> ?? new List<BranchDto>();
+    int? selectedBranchId = ViewBag.SelectedBranchId as int?;
+    bool allBranches = ViewBag.AllBranches as bool? ?? false;
+    var branchNames = ViewBag.BranchNames as Dictionary<int, string> ?? new Dictionary<int, string>();
+    var selectedBranch = branches.FirstOrDefault(b => b.Id == selectedBranchId);
+
+    var totalIn = Model.Where(e => e.IsIn).Sum(e => e.Value);
+    var totalOut = Model.Where(e => !e.IsIn).Sum(e => e.Value);
+
+    var denomOptions = Model.Where(e => !string.IsNullOrEmpty(e.Denomination))
+        .Select(e => e.Denomination!)
+        .Distinct().OrderBy(d => d).ToList();
+
+    var categoryOptions = Model.Where(e => !string.IsNullOrEmpty(e.Category))
+        .Select(e => e.Category!)
+        .Distinct().OrderBy(c => c).ToList();
+
+    var subCategoryOptions = Model.Where(e => !string.IsNullOrEmpty(e.SubCategory))
+        .Select(e => e.SubCategory!)
+        .Distinct().OrderBy(sc => sc).ToList();
+}
+
+<style>
+    .branch-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: .25rem .75rem;
+        border-radius: 999px;
+        font-size: .75rem;
+        font-weight: 600;
+        letter-spacing: .04em;
+        text-decoration: none;
+        border: 1.5px solid #dee2e6;
+        background: #fff;
+        color: #495057;
+        transition: background .15s, color .15s, border-color .15s;
+    }
+    .branch-pill:hover {
+        background: #f0f4ff;
+        border-color: #31316A;
+        color: #31316A;
+    }
+    .branch-pill.active {
+        background: #31316A;
+        border-color: #31316A;
+        color: #fff;
+    }
+
+    .card .table td, .card .table th {
+        padding-left: .5rem;
+        padding-right: 0;
+    }
+</style>
+
+@* Branch Filter Pills *@
+<div class="d-flex align-items-center gap-2 flex-wrap mb-3">
+    <span class="small text-muted fw-semibold me-1">
+        <i class="ti ti-filter me-1"></i>Branch:
+    </span>
+
+    <a asp-action="Index" asp-route-allBranches="true"
+       class="branch-pill @(allBranches ? "active" : "")"
+       title="All branches">
+        ALL
+    </a>
+
+    @foreach (var branch in branches.OrderBy(b => b.Name))
+    {
+        <a asp-action="Index" asp-route-branchId="@branch.Id"
+           class="branch-pill @(selectedBranchId == branch.Id ? "active" : "")"
+           title="@branch.Name">
+            @(string.IsNullOrWhiteSpace(branch.BranchCode) ? branch.Name : branch.BranchCode)
+        </a>
+    }
+</div>
+
+@* Summary *@
+<div class="row mb-3">
+    <div class="col-md-4 col-sm-6 mb-3 mb-md-0">
+        <div class="card border-0 shadow h-100">
+            <div class="card-body py-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <small class="text-muted text-uppercase fw-semibold">Total In (UGX)</small>
+                        <h5 class="mb-0 fw-bold mt-2 text-success">@totalIn.ToString("N0")</h5>
+                    </div>
+                    <div class="fs-2 text-success">
+                        <i class="ti ti-arrow-down-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 col-sm-6 mb-3 mb-md-0">
+        <div class="card border-0 shadow h-100">
+            <div class="card-body py-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <small class="text-muted text-uppercase fw-semibold">Total Out (UGX)</small>
+                        <h5 class="mb-0 fw-bold mt-2 text-danger">@totalOut.ToString("N0")</h5>
+                    </div>
+                    <div class="fs-2 text-danger">
+                        <i class="ti ti-arrow-up-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 col-sm-12">
+        <div class="card border-0 shadow h-100">
+            <div class="card-body py-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <small class="text-muted text-uppercase fw-semibold">Net Position (UGX)</small>
+                        <h5 class="mb-0 fw-bold mt-2 text-primary">@((totalIn - totalOut).ToString("N0"))</h5>
+                    </div>
+                    <div class="fs-2 text-primary">
+                        <i class="ti ti-scale"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* Table Filters *@
+<div class="card border-0 shadow mb-3">
+    <div class="card-body py-3">
+        <div class="row g-2 align-items-end">
+            <div class="col-sm-6 col-md-2">
+                <label class="form-label small fw-semibold mb-1">Direction</label>
+                <select id="filterDirection" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    <option value="in">In</option>
+                    <option value="out">Out</option>
+                </select>
+            </div>
+            <div class="col-sm-6 col-md-2">
+                <label class="form-label small fw-semibold mb-1">Denomination</label>
+                <select id="filterDenomination" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    @foreach (var d in denomOptions)
+                    {
+                        <option value="@d">@d</option>
+                    }
+                </select>
+            </div>
+            <div class="col-sm-6 col-md-2">
+                <label class="form-label small fw-semibold mb-1">Category</label>
+                <select id="filterCategory" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    @foreach (var c in categoryOptions)
+                    {
+                        <option value="@c">@c</option>
+                    }
+                </select>
+            </div>
+            <div class="col-sm-6 col-md-2">
+                <label class="form-label small fw-semibold mb-1">Sub-Category</label>
+                <select id="filterSubCategory" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    @foreach (var sc in subCategoryOptions)
+                    {
+                        <option value="@sc">@sc</option>
+                    }
+                </select>
+            </div>
+            <div class="col-sm-6 col-md-2">
+                <label class="form-label small fw-semibold mb-1">Start Date</label>
+                <input type="date" id="filterStartDate" class="form-control form-control-sm" />
+            </div>
+            <div class="col-sm-6 col-md-2">
+                <label class="form-label small fw-semibold mb-1">End Date</label>
+                <input type="date" id="filterEndDate" class="form-control form-control-sm" />
+            </div>
+            <div class="col-sm-12 col-md-auto d-flex gap-2">
+                <button id="btnFilter" class="btn btn-sm btn-tertiary">
+                    <i class="ti ti-filter me-1"></i>Filter
+                </button>
+                <button id="btnClearFilter" class="btn btn-sm btn-outline-secondary">
+                    <i class="ti ti-x me-1"></i>Clear
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow mb-4">
+    <div class="card-header">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center">
+            <div class="d-block mb-4 mb-md-0">
+                <h2 class="h4 text-tertiary">Stock Ledger</h2>
+                <p class="mb-0 d-flex align-items-center gap-2">
+                    Stock ledger movements
+                    @if (selectedBranch != null)
+                    {
+                        <span class="badge bg-tertiary bg-opacity-10 text-tertiary border border-tertiary border-opacity-25">
+                            <i class="ti ti-map-pin me-1"></i>@selectedBranch.Name
+                        </span>
+                    }
+                    else if (allBranches)
+                    {
+                        <span class="badge bg-tertiary bg-opacity-10 text-tertiary border border-tertiary border-opacity-25">
+                            <i class="ti ti-map-pin me-1"></i>All Branches
+                        </span>
+                    }
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        @if (Model.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-centered table-nowrap mb-0 rounded" id="ledgerTable">
+                    <thead class="thead-light">
+                        <tr>
+                            <th class="border-0 rounded-start p-1 pe-4">Date</th>
+                            <th class="border-0 p-1 pe-4">Reference</th>
+                            @if (allBranches)
+                            {
+                                <th class="border-0 p-1 pe-4">Branch</th>
+                            }
+                            <th class="border-0 p-1 pe-4">Direction</th>
+                            <th class="border-0 p-1 pe-4">Denomination</th>
+                            <th class="border-0 p-1 pe-4">Category</th>
+                            <th class="border-0 p-1 pe-4">Sub-Category</th>
+                            <th class="border-0 p-1 pe-4">Pieces</th>
+                            <th class="border-0 p-1 pe-4">Bundles</th>
+                            <th class="border-0 p-1 pe-4">Boxes</th>
+                            <th class="border-0 p-1 pe-4">Value (UGX)</th>
+                            <th class="border-0 rounded-end p-1 pe-4">Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var entry in Model)
+                        {
+                            <tr data-direction="@(entry.IsIn ? "in" : "out")"
+                                data-denomination="@entry.Denomination"
+                                data-category-name="@entry.Category"
+                                data-subcategory-name="@entry.SubCategory"
+                                data-created-date="@entry.StockLedgerCreatedDate.ToString("yyyy-MM-dd")">
+                                <td>@entry.StockLedgerCreatedDate.ToString("dd MMM yyyy HH:mm")</td>
+                                <td class="fw-bold">@entry.ReferenceCode</td>
+                                @if (allBranches)
+                                {
+                                    <td>
+                                        <span class="badge bg-primary">
+                                            <i class="ti ti-building-bank me-1"></i>@branchNames.GetValueOrDefault(entry.BranchId, $"Branch {entry.BranchId}")
+                                        </span>
+                                    </td>
+                                }
+                                <td>
+                                    @if (entry.IsIn)
+                                    {
+                                        <span class="badge bg-success">
+                                            <i class="ti ti-arrow-down me-1"></i>In
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger">
+                                            <i class="ti ti-arrow-up me-1"></i>Out
+                                        </span>
+                                    }
+                                </td>
+                                <td>
+                                    <span class="badge" style="background-color:#e7f5ff;color:#0b5394;font-size:0.9em;">
+                                        <i class="ti ti-coins me-1"></i>@entry.Denomination
+                                    </span>
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(entry.Category))
+                                    {
+                                        <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">@entry.Category</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(entry.SubCategory))
+                                    {
+                                        <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">@entry.SubCategory</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td>@entry.NumberOfPieces.ToString("N0")</td>
+                                <td>@((entry.NumberOfBundles ?? 0).ToString("N0"))</td>
+                                <td>@entry.NumberOfBoxes.ToString("N0")</td>
+                                <td class="fw-bold @(entry.IsIn ? "text-success" : "text-danger")">
+                                    @(entry.IsIn ? "" : "-")@entry.Value.ToString("N0")
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(entry.Notes))
+                                    {
+                                        <span class="text-muted">@entry.Notes</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="ti ti-database-off fs-1 text-muted mb-3 d-block"></i>
+                <p class="text-muted fw-bold">No Stock Ledger Entries</p>
+                <small class="text-muted">Ledger entries appear here once stock is dispatched or received.</small>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+
+            // Custom row-level filter registered with DataTables
+            $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+                if (settings.nTable.id !== 'ledgerTable') return true;
+
+                var api = new $.fn.dataTable.Api(settings);
+                var $row = $(api.row(dataIndex).node());
+
+                var direction = $('#filterDirection').val();
+                var denom = $('#filterDenomination').val();
+                var category = $('#filterCategory').val();
+                var subCategory = $('#filterSubCategory').val();
+                var startDate = $('#filterStartDate').val();
+                var endDate = $('#filterEndDate').val();
+
+                if (direction && $row.data('direction') !== direction) return false;
+                if (denom && $row.data('denomination') !== denom) return false;
+                if (category && $row.data('category-name') !== category) return false;
+                if (subCategory && $row.data('subcategory-name') !== subCategory) return false;
+
+                if (startDate || endDate) {
+                    var rowDate = String($row.data('created-date') || '');
+                    if (startDate && rowDate < startDate) return false;
+                    if (endDate && rowDate > endDate) return false;
+                }
+
+                return true;
+            });
+
+            var table = $('#ledgerTable').DataTable({
+                order: [[0, 'desc']]
+            });
+
+            $('#btnFilter').on('click', function () {
+                table.draw();
+            });
+
+            $('#btnClearFilter').on('click', function () {
+                $('#filterDirection, #filterDenomination, #filterCategory, #filterSubCategory').val('');
+                $('#filterStartDate, #filterEndDate').val('');
+                table.draw();
+            });
+        });
+    </script>
+}

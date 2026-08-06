@@ -73,6 +73,21 @@ namespace VMSService.Controllers
             }
             if (isCommercialBank) return RedirectToAction("Index", "CbRequests");
 
+            if (roles.Contains(SystemPolicy.Roles.BoardSupervisor))
+            {
+                return RedirectToAction("Index", "StockProcessingSession", new { showClosed = false });
+            }
+
+            if (roles.Contains(SystemPolicy.Roles.VerificationOfficer))
+            {
+                return RedirectToAction("Index", "StockProcessingPlan");
+            }
+
+            if (roles.Contains(SystemPolicy.Roles.CfbSupervisor))
+            {
+                return RedirectToAction("Index", "BoardSessionSurplusShortages");
+            }
+
             try
             {
                 // Get pending deliveries

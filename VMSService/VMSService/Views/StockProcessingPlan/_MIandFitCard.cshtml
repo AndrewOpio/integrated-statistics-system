@@ -1,8 +1,11 @@
 @using VMSService.Core.Models.MIandFits
 @model MIandFitCardViewModel
 
-@* MI & Fit — declared by the maker alongside the plan; ReturnedReIssueValue/ReturnedCanceledValue
-   are filled in later by the assigned Board Supervisor via the separate "MI & Fit" area. *@
+@* MI & Fit — declared by the maker alongside the plan; ReturnedFitValue/ReturnedUnFitValue
+   are filled in later by the assigned Board Supervisor via the separate "MI & Fit" area.
+
+   Issued Fit / Issued Un-Fit are read-only: they are the branch's current "Fit" and "MI" stock
+   positions for the denomination, resolved server-side and re-derived again on save. *@
 <div class="row mb-4">
     <div class="col-12">
         <div class="card border-0 shadow">
@@ -32,27 +35,29 @@
                         <thead>
                             <tr>
                                 <th style="min-width:160px;">Denomination</th>
-                                <th style="min-width:160px;">Issued Re-Issue Value</th>
-                                <th style="min-width:160px;">Issued Canceled Value</th>
+                                <th style="min-width:160px;">Issued Fit Value</th>
+                                <th style="min-width:160px;">Issued Un-Fit Value</th>
                                 <th style="min-width:220px;">Board Supervisor</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var mf in Model.MIandFits)
                             {
-                                <tr data-denom-id="@mf.DenominationId">
+                                <tr data-denom-id="@mf.DenominationId"
+                                    data-issued-fit="@mf.IssuedFitValue.ToString("0")"
+                                    data-issued-unfit="@mf.IssuedUnFitValue.ToString("0")">
                                     <td class="fw-semibold">
                                         @mf.DenominationName <span class="text-muted small">(UGX @mf.DenominationValue.ToString("N0"))</span>
                                     </td>
                                     <td>
-                                        <input type="text" class="form-control form-control-sm mifit-issued-reissue"
-                                               value="@mf.IssuedReIssueValue.ToString("0")" inputmode="decimal"
-                                               oninput="newBagFormatValue(this)" />
+                                        <input type="text" class="form-control form-control-sm bg-light mifit-issued-fit"
+                                               value="@mf.IssuedFitValue.ToString("N0")" readonly tabindex="-1"
+                                               title="Current 'Fit' stock position for this denomination" />
                                     </td>
                                     <td>
-                                        <input type="text" class="form-control form-control-sm mifit-issued-canceled"
-                                               value="@mf.IssuedCanceledValue.ToString("0")" inputmode="decimal"
-                                               oninput="newBagFormatValue(this)" />
+                                        <input type="text" class="form-control form-control-sm bg-light mifit-issued-unfit"
+                                               value="@mf.IssuedUnFitValue.ToString("N0")" readonly tabindex="-1"
+                                               title="Current 'MI' stock position for this denomination" />
                                     </td>
                                     <td>
                                         <select class="form-select form-select-sm mifit-supervisor">
@@ -125,27 +130,27 @@
 
     // Collects the MI & Fit table into the JSON shape MIandFitAssignment expects, and returns any
     // validation errors (a row with an issued value > 0 must have a Board Supervisor assigned).
+    // The issued values themselves are NOT posted — the server re-derives them from the branch's
+    // current Fit/MI stock positions — so they're only read here to drive that validation.
     function collectMIandFits() {
         var entries = [];
         var errors = [];
         document.querySelectorAll('#miFitTable tbody tr').forEach(function (row) {
             if (row.style.display === 'none') return;
             var denomId = +row.dataset.denomId;
-            var issuedReIssue = parseFloat(row.querySelector('.mifit-issued-reissue').value.replace(/,/g, '')) || 0;
-            var issuedCanceled = parseFloat(row.querySelector('.mifit-issued-canceled').value.replace(/,/g, '')) || 0;
+            var issuedFit = parseFloat(row.dataset.issuedFit) || 0;
+            var issuedUnFit = parseFloat(row.dataset.issuedUnfit) || 0;
             var supervisorId = row.querySelector('.mifit-supervisor').value;
 
-            if (issuedReIssue === 0 && issuedCanceled === 0 && !supervisorId) return;
+            if (issuedFit === 0 && issuedUnFit === 0 && !supervisorId) return;
 
-            if ((issuedReIssue > 0 || issuedCanceled > 0) && !supervisorId) {
+            if ((issuedFit > 0 || issuedUnFit > 0) && !supervisorId) {
                 errors.push(row.querySelector('td').textContent.trim());
                 return;
             }
 
             entries.push({
                 denominationId: denomId,
-                issuedReIssueValue: issuedReIssue,
-                issuedCanceledValue: issuedCanceled,
                 boardSupervisorUserId: supervisorId || null
             });
         });

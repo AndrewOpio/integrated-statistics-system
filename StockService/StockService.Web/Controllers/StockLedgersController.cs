@@ -134,6 +134,14 @@ namespace StockService.Web.Controllers
             return Ok(result);
         }
 
+        [HttpGet]
+        [Route("details-by-branch/{branchId?}")]
+        public async Task<IActionResult> GetStockLedgerDetailsByBranch(int? branchId)
+        {
+            var result = await _stockLedgerRepository.GetStockLedgerDetailsByBranchAsync(branchId);
+            return Ok(result);
+        }
+
         [HttpPost]
         [Route("create")]
         public async Task<IActionResult> CreateStockLedger([FromBody] CreateStockLedgerDto itemDto)

@@ -11,7 +11,7 @@ namespace VMSService.Core.Models.MIandFits
     public class MIandFitReturnEntry
     {
         public int Id { get; set; }
-        public decimal ReturnedReIssueValue { get; set; }
-        public decimal ReturnedCanceledValue { get; set; }
+        public decimal ReturnedFitValue { get; set; }
+        public decimal ReturnedUnFitValue { get; set; }
     }
 }

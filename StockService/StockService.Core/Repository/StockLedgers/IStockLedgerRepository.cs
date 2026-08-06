@@ -5,5 +5,6 @@ namespace StockService.Core.Repository.StockLedgers
 {
     public interface IStockLedgerRepository : IRepositoryBase<StockLedger, int>
     {
+        Task<ICollection<StockLedgerDetailReportItem>> GetStockLedgerDetailsByBranchAsync(int? branchId);
     }
 }

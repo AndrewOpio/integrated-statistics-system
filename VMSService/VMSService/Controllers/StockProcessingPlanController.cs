@@ -28,6 +28,7 @@ using VMSService.Core.Repositories.StockProcessingResults;
 using VMSService.Core.Repositories.StockProcessingSessions;
 using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Services.Identity;
+using VMSService.Core.Services.StockPositions;
 using VMSService.Core.Services.Stocks;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Workflows;
@@ -67,8 +68,60 @@ namespace VMSService.Web.Controllers
         IStockMovementRepository _stockMovementRepository,
         ICategoryRepository _categoryRepository,
         IDepositTransactionRefNumberGenerator _depositTxnRefGenerator,
-        IMIandFitRepository _miAndFitRepository) : Controller
+        IMIandFitRepository _miAndFitRepository,
+        IStockPositionService _stockPositionService) : Controller
     {
+        // Category names whose current stock position seeds the MI & Fit issued values.
+        private const string FitCategoryName = "Fit";
+        private const string MiCategoryName = "MI";
+
+        /// <summary>
+        /// Current "Fit" and "MI" stock positions for a branch, keyed by denomination id.
+        /// These are the values issued to the boards for MI &amp; Fit — the maker never types them in.
+        /// </summary>
+        private async Task<Dictionary<int, (decimal Fit, decimal Mi)>> GetIssuedMIandFitPositionsAsync(
+            int branchId, List<int> denominationIds)
+        {
+            var positions = denominationIds.ToDictionary(id => id, _ => (Fit: 0m, Mi: 0m));
+
+            try
+            {
+                if (denominationIds.Count == 0) return positions;
+
+                var allCategories = await _categoryRepository.FindAll();
+                var fitCategory = allCategories.FirstOrDefault(c =>
+                    c.Name.Trim().Equals(FitCategoryName, StringComparison.OrdinalIgnoreCase));
+                var miCategory = allCategories.FirstOrDefault(c =>
+                    c.Name.Trim().Equals(MiCategoryName, StringComparison.OrdinalIgnoreCase));
+
+                if (fitCategory == null || miCategory == null)
+                {
+                    _logger.LogWarning(
+                        "MI & Fit issued values default to 0 — category '{Fit}' or '{Mi}' is not configured.",
+                        FitCategoryName, MiCategoryName);
+                    return positions;
+                }
+
+                var matrix = await _stockPositionService.GetStockMatrixAsync(
+                    branchId, [fitCategory.Id, miCategory.Id], denominationIds);
+
+                foreach (var denominationId in denominationIds)
+                {
+                    if (!matrix.TryGetValue(denominationId, out var byCategory)) continue;
+
+                    positions[denominationId] = (
+                        Fit: byCategory.GetValueOrDefault(fitCategory.Id),
+                        Mi: byCategory.GetValueOrDefault(miCategory.Id));
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resolving MI & Fit stock positions for branch {BranchId}", branchId);
+            }
+
+            return positions;
+        }
+
         [Breadcrumb("Processing Plans", FromController = typeof(HomeController), FromAction = nameof(Index))]
         public async Task<IActionResult> Index(int? branchId = null)
         {
@@ -362,6 +415,10 @@ namespace VMSService.Web.Controllers
 
                 var boardSupervisors = await _identityService.GetUsersByRoleName(SystemPolicy.Roles.BoardSupervisor);
 
+                var activeDenominations = denominations.Where(d => !d.IsDeleted).OrderBy(d => d.Value).ToList();
+                var issuedPositions = await GetIssuedMIandFitPositionsAsync(
+                    branchId, activeDenominations.Select(d => d.Id).ToList());
+
                 var model = new StockProcessingPlanCreateViewModel
                 {
                     ProcessingDate = processingDate,
@@ -383,14 +440,18 @@ namespace VMSService.Web.Controllers
                     }).ToList(),
                     AvailableBags = bags,
                     BoardSupervisors = boardSupervisors.ToList(),
-                    MIandFits = denominations
-                        .Where(d => !d.IsDeleted)
-                        .OrderBy(d => d.Value)
-                        .Select(d => new MIandFitViewModel
+                    MIandFits = activeDenominations
+                        .Select(d =>
                         {
-                            DenominationId = d.Id,
-                            DenominationName = d.Name,
-                            DenominationValue = d.Value
+                            var position = issuedPositions.GetValueOrDefault(d.Id);
+                            return new MIandFitViewModel
+                            {
+                                DenominationId = d.Id,
+                                DenominationName = d.Name,
+                                DenominationValue = d.Value,
+                                IssuedFitValue = position.Fit,
+                                IssuedUnFitValue = position.Mi
+                            };
                         })
                         .ToList()
                 };
@@ -488,16 +549,22 @@ namespace VMSService.Web.Controllers
 
                 if (newMiFits.Count > 0)
                 {
+                    // Issued values are the branch's current Fit/MI stock positions — re-derived here so
+                    // they reflect the position at save time and can't be set from the browser.
+                    var issuedPositions = await GetIssuedMIandFitPositionsAsync(
+                        branchId, newMiFits.Select(mf => mf.DenominationId).Distinct().ToList());
+
                     foreach (var mf in newMiFits)
                     {
+                        var position = issuedPositions.GetValueOrDefault(mf.DenominationId);
                         await _miAndFitRepository.Create(new MIandFit
                         {
                             StockProcessingPlanId = plan.Id,
                             DenominationId = mf.DenominationId,
-                            IssuedReIssueValue = mf.IssuedReIssueValue,
-                            IssuedCanceledValue = mf.IssuedCanceledValue,
-                            ReturnedReIssueValue = 0,
-                            ReturnedCanceledValue = 0,
+                            IssuedFitValue = position.Fit,
+                            IssuedUnFitValue = position.Mi,
+                            ReturnedFitValue = 0,
+                            ReturnedUnFitValue = 0,
                             BoardSupervisorUserId = mf.BoardSupervisorUserId,
                             IsDeleted = false
                         });
@@ -731,15 +798,20 @@ namespace VMSService.Web.Controllers
                     .Where(rs => !string.IsNullOrEmpty(rs.BoardSupervisorUserId))
                     .ToDictionary(rs => rs.CountingRoomId, rs => rs.BoardSupervisorUserId);
 
-                // MI & Fit: one row per active denomination, merged with any values already declared for this plan
+                // MI & Fit: one row per active denomination, merged with any values already declared for this plan.
+                // Issued values always show the branch's live Fit/MI stock position rather than what was
+                // stored earlier, so the maker sees what will actually be saved.
                 var existingMiFits = await _miAndFitRepository.FindByPlanId(id);
                 var miFitByDenomId = existingMiFits.ToDictionary(m => m.DenominationId);
-                var miAndFitRows = denominations
-                    .Where(d => !d.IsDeleted)
-                    .OrderBy(d => d.Value)
+                var activeDenominations = denominations.Where(d => !d.IsDeleted).OrderBy(d => d.Value).ToList();
+                var issuedPositions = await GetIssuedMIandFitPositionsAsync(
+                    plan.BranchId, activeDenominations.Select(d => d.Id).ToList());
+
+                var miAndFitRows = activeDenominations
                     .Select(d =>
                     {
                         miFitByDenomId.TryGetValue(d.Id, out var existing);
+                        var position = issuedPositions.GetValueOrDefault(d.Id);
                         return new MIandFitViewModel
                         {
                             Id = existing?.Id ?? 0,
@@ -747,10 +819,10 @@ namespace VMSService.Web.Controllers
                             DenominationId = d.Id,
                             DenominationName = d.Name,
                             DenominationValue = d.Value,
-                            IssuedReIssueValue = existing?.IssuedReIssueValue ?? 0,
-                            IssuedCanceledValue = existing?.IssuedCanceledValue ?? 0,
-                            ReturnedReIssueValue = existing?.ReturnedReIssueValue ?? 0,
-                            ReturnedCanceledValue = existing?.ReturnedCanceledValue ?? 0,
+                            IssuedFitValue = position.Fit,
+                            IssuedUnFitValue = position.Mi,
+                            ReturnedFitValue = existing?.ReturnedFitValue ?? 0,
+                            ReturnedUnFitValue = existing?.ReturnedUnFitValue ?? 0,
                             BoardSupervisorUserId = existing?.BoardSupervisorUserId
                         };
                     })
@@ -1107,14 +1179,21 @@ namespace VMSService.Web.Controllers
                     var existingByDenomId = existingMiFits.ToDictionary(m => m.DenominationId);
                     var newByDenomId = newMiFits.ToDictionary(m => m.DenominationId);
 
+                    // Issued values are the branch's current Fit/MI stock positions — re-derived here so
+                    // they reflect the position at save time and can't be set from the browser.
+                    var issuedPositions = await GetIssuedMIandFitPositionsAsync(
+                        plan.BranchId, newByDenomId.Keys.ToList());
+
                     foreach (var (denomId, mf) in newByDenomId)
                     {
+                        var position = issuedPositions.GetValueOrDefault(denomId);
+
                         if (existingByDenomId.TryGetValue(denomId, out var existing))
                         {
                             // Returned* values are left untouched here — they belong to the assigned
                             // Board Supervisor's later declaration, not the maker's Create/Edit form.
-                            existing.IssuedReIssueValue = mf.IssuedReIssueValue;
-                            existing.IssuedCanceledValue = mf.IssuedCanceledValue;
+                            existing.IssuedFitValue = position.Fit;
+                            existing.IssuedUnFitValue = position.Mi;
                             existing.BoardSupervisorUserId = mf.BoardSupervisorUserId;
                             await _miAndFitRepository.Update(existing);
                         }
@@ -1124,10 +1203,10 @@ namespace VMSService.Web.Controllers
                             {
                                 StockProcessingPlanId = id,
                                 DenominationId = denomId,
-                                IssuedReIssueValue = mf.IssuedReIssueValue,
-                                IssuedCanceledValue = mf.IssuedCanceledValue,
-                                ReturnedReIssueValue = 0,
-                                ReturnedCanceledValue = 0,
+                                IssuedFitValue = position.Fit,
+                                IssuedUnFitValue = position.Mi,
+                                ReturnedFitValue = 0,
+                                ReturnedUnFitValue = 0,
                                 BoardSupervisorUserId = mf.BoardSupervisorUserId,
                                 IsDeleted = false
                             });
@@ -1468,10 +1547,10 @@ namespace VMSService.Web.Controllers
                             DenominationId = m.DenominationId,
                             DenominationName = denom?.Name,
                             DenominationValue = denom?.Value ?? 0,
-                            IssuedReIssueValue = m.IssuedReIssueValue,
-                            IssuedCanceledValue = m.IssuedCanceledValue,
-                            ReturnedReIssueValue = m.ReturnedReIssueValue,
-                            ReturnedCanceledValue = m.ReturnedCanceledValue,
+                            IssuedFitValue = m.IssuedFitValue,
+                            IssuedUnFitValue = m.IssuedUnFitValue,
+                            ReturnedFitValue = m.ReturnedFitValue,
+                            ReturnedUnFitValue = m.ReturnedUnFitValue,
                             BoardSupervisorUserId = m.BoardSupervisorUserId,
                             BoardSupervisorName = !string.IsNullOrEmpty(m.BoardSupervisorUserId)
                                 ? miFitSupervisorNames.GetValueOrDefault(m.BoardSupervisorUserId)
@@ -1988,7 +2067,7 @@ namespace VMSService.Web.Controllers
                             denom.CategoryId = moneyWithBoards.Id;
                         }
 
-                        StockLedger moneyWuthBoardsEntry = new()
+                        StockLedger moneyWithBoardsEntry = new()
                         {
                             ReferenceCode = plan.ReferenceNumber,
                             StoreId = plan.BranchId, //Branch
@@ -2004,7 +2083,7 @@ namespace VMSService.Web.Controllers
                             StockMovementId = newStockMovement.Id
                         };
 
-                        bool createdLedgerRecordMWB = await _stockLedgerRepository.Create(moneyWuthBoardsEntry);
+                        bool createdLedgerRecordMWB = await _stockLedgerRepository.Create(moneyWithBoardsEntry);
                         if (!createdLedgerRecordMWB)
                         {
                             TempData["Error"] = "Error Updating Stock Position";

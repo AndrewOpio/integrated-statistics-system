@@ -271,10 +271,10 @@
                     <thead style="background:#f8fafc;">
                         <tr>
                             <th class="ps-3 py-2" style="font-size:.8rem;">Denomination</th>
-                            <th class="py-2 text-end" style="font-size:.8rem;">Issued Re-Issue</th>
-                            <th class="py-2 text-end" style="font-size:.8rem;">Issued Canceled</th>
-                            <th class="py-2 text-end" style="font-size:.8rem;">Returned Re-Issue</th>
-                            <th class="py-2 text-end" style="font-size:.8rem;">Returned Canceled</th>
+                            <th class="py-2 text-end" style="font-size:.8rem;">Issued Fit</th>
+                            <th class="py-2 text-end" style="font-size:.8rem;">Issued Un-Fit</th>
+                            <th class="py-2 text-end" style="font-size:.8rem;">Returned Fit</th>
+                            <th class="py-2 text-end" style="font-size:.8rem;">Returned Un-Fit</th>
                             <th class="py-2" style="font-size:.8rem;">Board Supervisor</th>
                         </tr>
                     </thead>
@@ -283,10 +283,10 @@
                         {
                             <tr>
                                 <td class="ps-3 fw-semibold">@mf.DenominationName</td>
-                                <td class="text-end">UGX @mf.IssuedReIssueValue.ToString("N0")</td>
-                                <td class="text-end">UGX @mf.IssuedCanceledValue.ToString("N0")</td>
-                                <td class="text-end">UGX @mf.ReturnedReIssueValue.ToString("N0")</td>
-                                <td class="text-end">UGX @mf.ReturnedCanceledValue.ToString("N0")</td>
+                                <td class="text-end">UGX @mf.IssuedFitValue.ToString("N0")</td>
+                                <td class="text-end">UGX @mf.IssuedUnFitValue.ToString("N0")</td>
+                                <td class="text-end">UGX @mf.ReturnedFitValue.ToString("N0")</td>
+                                <td class="text-end">UGX @mf.ReturnedUnFitValue.ToString("N0")</td>
                                 <td>@(mf.BoardSupervisorName ?? "—")</td>
                             </tr>
                         }
@@ -436,7 +436,7 @@
         IsValid = true
     };
 }
-@await Html.PartialAsync("_WorkflowActions", workflowActionsViewModel)
+@await Html.PartialAsync("_WorkflowActionsWithDisclaimer", workflowActionsViewModel)
 
 @section Scripts {
     @await Html.PartialAsync("_WorkflowActionsScript")

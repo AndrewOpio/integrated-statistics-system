@@ -201,6 +201,9 @@ namespace VMSService.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<bool>("toBeWaived")
+                        .HasColumnType("bit");
+
                     b.HasKey("Id");
 
                     b.HasIndex("PenaltyId");
@@ -2826,10 +2829,10 @@ namespace VMSService.Data.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<decimal>("IssuedCanceledValue")
+                    b.Property<decimal>("IssuedFitValue")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<decimal>("IssuedReIssueValue")
+                    b.Property<decimal>("IssuedUnFitValue")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("ModifiedBy")
@@ -2839,10 +2842,10 @@ namespace VMSService.Data.Migrations
                     b.Property<DateTime>("ModifiedDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<decimal>("ReturnedCanceledValue")
+                    b.Property<decimal>("ReturnedFitValue")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<decimal>("ReturnedReIssueValue")
+                    b.Property<decimal>("ReturnedUnFitValue")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("StockProcessingPlanId")

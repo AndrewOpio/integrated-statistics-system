@@ -41,11 +41,11 @@ namespace VMSService.Core.Models.StockProcessingPlans
         public string? BoardSupervisorUserId { get; set; }
     }
 
+    // IssuedFitValue/IssuedUnFitValue are deliberately absent — they are derived server-side from the
+    // branch's current "Fit"/"MI" stock positions, never accepted from the browser.
     public class MIandFitAssignment
     {
         public int DenominationId { get; set; }
-        public decimal IssuedReIssueValue { get; set; }
-        public decimal IssuedCanceledValue { get; set; }
         public string? BoardSupervisorUserId { get; set; }
     }
 }

@@ -601,9 +601,20 @@ namespace VMSService.Web.Controllers
                             .Where(ne => ne.StockProcessingSessionId == id && !ne.IsDeleted)
                             .SumAsync(ne => ne.NumberOfBundles);
 
-                        if (totalExaminerBundles != totalBagBundles)
+                        // Unprocessed Value (Money With Boards) hasn't been examined yet, so it's converted to
+                        // bundle-equivalent units (1 bundle = DenominationValue * 1000, same factor used for
+                        // BagDenomination amounts above) and subtracted from the bag total before comparing.
+                        var unverifiedResult = existingResults.First(r => !r.IsVerified);
+                        var denomination = await _stockService.GetDenominationById(session.DenominationId);
+                        var denominationValue = denomination?.Value ?? 0m;
+                        var unprocessedBundles = denominationValue > 0
+                            ? (int)Math.Round(unverifiedResult.UnProcessedValue / (denominationValue * 1000))
+                            : 0;
+                        var expectedExaminerBundles = totalBagBundles - unprocessedBundles;
+
+                        if (totalExaminerBundles != expectedExaminerBundles)
                         {
-                            TempData["Error"] = $"The total bundles captured for Note Examiners ({totalExaminerBundles}) does not match the total bundles in the bags assigned to this session ({totalBagBundles}). Please correct the Note Examiner entries before submitting results.";
+                            TempData["Error"] = $"The total bundles captured for Note Examiners ({totalExaminerBundles}) does not match the expected total ({totalBagBundles} bag bundles − {unprocessedBundles} unprocessed bundles = {expectedExaminerBundles}). Please correct the Note Examiner entries before submitting results.";
                             return RedirectToAction(nameof(Details), new { id });
                         }
                     }
@@ -723,6 +734,45 @@ namespace VMSService.Web.Controllers
                             _logger.LogError(ex, "Error advancing plan status after SubmitResults for session {Id}", id);
                         }
                     }
+                    else if (actionName == "Return To Board")
+                    {
+                        var sessionResults = await _resultRepository.FindBySessionIdAsync(id);
+                        var latestResult = sessionResults.OrderByDescending(r => r.CreatedDate).FirstOrDefault();
+                        if (latestResult != null)
+                        {
+                            latestResult.IsVerified = false;
+                            await _resultRepository.Update(latestResult);
+                        }
+
+                        try
+                        {
+                            var issuedToBoardsStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+                            {
+                                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                                EntityTypeName = StatusConstants.Entity.StockProcessingPlan,
+                                StatusName = StatusConstants.StockProcessingPlan.IssuedToBoards
+                            });
+
+                            if (issuedToBoardsStatus != null)
+                            {
+                                var plan = await _context.StockProcessingPlans
+                                    .FirstOrDefaultAsync(p => p.Id == session.StockProcessingPlanId && !p.IsDeleted);
+
+                                if (plan != null)
+                                {
+                                    plan.CurrentStatusId = issuedToBoardsStatus.Id;
+                                    await _context.SaveChangesAsync();
+                                    _logger.LogInformation(
+                                        "Stock Processing Plan {PlanId} reverted to '{Status}' — session {SessionId} returned to board.",
+                                        plan.Id, StatusConstants.StockProcessingPlan.IssuedToBoards, id);
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error reverting plan status after Return To Board for session {Id}", id);
+                        }
+                    }
                 }
                 else
                 {
@@ -820,9 +870,9 @@ namespace VMSService.Web.Controllers
                 await SyncFitUnfitPenaltyAsync(session, model.ReissueValue, model.CanceledValue);
 
                 // Stage note examiner entries
-                
+                // Machine sessions only capture the examiner's name — bundles are always 0 there.
                 var validNoteExaminerEntries = model.NoteExaminerEntries
-                    .Where(e => e.NoteExaminerId > 0 && e.NumberOfBundles > 0)
+                    .Where(e => e.NoteExaminerId > 0 && (!session.IsManual || e.NumberOfBundles > 0))
                     .ToList();
 
                 if (validNoteExaminerEntries.Count > 0)
@@ -941,14 +991,14 @@ namespace VMSService.Web.Controllers
                 }
 
                 // Replace note examiner entries
-               
+                // Machine sessions only capture the examiner's name — bundles are always 0 there.
                 var existingNoteExaminers = await _context.StockProcessingSessionNoteExaminers
                     .Where(ne => ne.StockProcessingSessionId == model.SessionId && !ne.IsDeleted)
                     .ToListAsync();
                 _context.StockProcessingSessionNoteExaminers.RemoveRange(existingNoteExaminers);
 
                 var validNoteExaminerEntries = model.NoteExaminerEntries
-                    .Where(e => e.NoteExaminerId > 0 && e.NumberOfBundles > 0)
+                    .Where(e => e.NoteExaminerId > 0 && (!session.IsManual || e.NumberOfBundles > 0))
                     .ToList();
 
                 foreach (var entry in validNoteExaminerEntries)

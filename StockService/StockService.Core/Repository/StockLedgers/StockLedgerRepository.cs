@@ -103,5 +103,23 @@ namespace StockService.Core.Repository.StockLedgers
         {
             return await _db.SaveChangesAsync() > 0;
         }
+
+        public async Task<ICollection<StockLedgerDetailReportItem>> GetStockLedgerDetailsByBranchAsync(int? branchId)
+        {
+            var items = await _db.StockLedgerDetailReportItems
+                .FromSqlInterpolated($"SELECT * FROM dbo.fn_GetStockLedgerDetails({branchId})")
+                .AsNoTracking()
+                .ToListAsync();
+
+            foreach (var item in items)
+            {
+                if (!string.IsNullOrEmpty(item.EncryptedValue))
+                {
+                    item.EncryptedValue = _encryptionService.Decrypt(item.EncryptedValue).ToString();
+                }
+            }
+
+            return items;
+        }
     }
 }

@@ -60,7 +60,7 @@ namespace VMSService.Web.Controllers
                         ProcessingDate = plan.ProcessingDate,
                         StatusName = statusType.Name,
                         DenominationCount = group.Count(),
-                        PendingCount = group.Count(m => m.ReturnedReIssueValue == 0 && m.ReturnedCanceledValue == 0)
+                        PendingCount = group.Count(m => m.ReturnedFitValue == 0 && m.ReturnedUnFitValue == 0)
                     });
                 }
 
@@ -125,10 +125,10 @@ namespace VMSService.Web.Controllers
                                 DenominationId = m.DenominationId,
                                 DenominationName = denom?.Name,
                                 DenominationValue = denom?.Value ?? 0,
-                                IssuedReIssueValue = m.IssuedReIssueValue,
-                                IssuedCanceledValue = m.IssuedCanceledValue,
-                                ReturnedReIssueValue = m.ReturnedReIssueValue,
-                                ReturnedCanceledValue = m.ReturnedCanceledValue,
+                                IssuedFitValue = m.IssuedFitValue,
+                                IssuedUnFitValue = m.IssuedUnFitValue,
+                                ReturnedFitValue = m.ReturnedFitValue,
+                                ReturnedUnFitValue = m.ReturnedUnFitValue,
                                 BoardSupervisorUserId = m.BoardSupervisorUserId
                             };
                         })
@@ -187,8 +187,8 @@ namespace VMSService.Web.Controllers
                     if (!myRows.TryGetValue(entry.Id, out var row) || row.StockProcessingPlanId != id)
                         return Forbid();
 
-                    row.ReturnedReIssueValue = entry.ReturnedReIssueValue;
-                    row.ReturnedCanceledValue = entry.ReturnedCanceledValue;
+                    row.ReturnedFitValue = entry.ReturnedFitValue;
+                    row.ReturnedUnFitValue = entry.ReturnedUnFitValue;
                 }
 
                 await _miAndFitRepository.SaveAll();

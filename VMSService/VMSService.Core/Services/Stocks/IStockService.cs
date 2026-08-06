@@ -49,6 +49,7 @@ namespace VMSService.Core.Services.Stocks
         // StockLedger methods
         Task<ICollection<StockLedger>> GetAllStockLedgers();
         Task<StockLedger> GetStockLedgerById(int id);
+        Task<ICollection<StockLedgerDetailReportItem>> GetStockLedgerDetailsByBranch(int? branchId = null);
         Task<bool> CreateStockLedger(StockLedger stockLedger);
 
         // StockLedgerDetail methods

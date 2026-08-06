@@ -511,29 +511,28 @@
                             <div id="saveDenomRows"></div>
                         </div>
 
-                        @if (Model.IsManual)
-                        {
-                            <div class="col-12">
-                                <hr class="my-2" />
-                                <div class="d-flex align-items-center justify-content-between mb-2">
-                                    <p class="small fw-semibold mb-0" style="color:#31316A;">
-                                        <i class="ti ti-users me-1"></i>Note Examiners
-                                        <span class="text-danger">*</span>
-                                        <span class="text-muted fw-normal small ms-1">who worked this board, and bundles each processed — required</span>
-                                    </p>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="addSaveNoteExaminerRowBtn">
-                                        <i class="ti ti-plus me-1"></i>Add Examiner
-                                    </button>
-                                </div>
-                                @if (!Model.AvailableNoteExaminers.Any())
-                                {
-                                    <div class="alert alert-warning py-2 px-3 small mb-0">
-                                        <i class="ti ti-alert-triangle me-1"></i>No Note Examiners are configured for this branch. Contact an administrator.
-                                    </div>
-                                }
-                                <div id="saveNoteExaminerRows"></div>
+                        <div class="col-12">
+                            <hr class="my-2" />
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <p class="small fw-semibold mb-0" style="color:#31316A;">
+                                    <i class="ti ti-users me-1"></i>Note Examiners
+                                    <span class="text-danger">*</span>
+                                    <span class="text-muted fw-normal small ms-1">
+                                        @(Model.IsManual ? "who worked this board, and bundles each processed — required" : "who worked this board — required")
+                                    </span>
+                                </p>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="addSaveNoteExaminerRowBtn">
+                                    <i class="ti ti-plus me-1"></i>Add Examiner
+                                </button>
                             </div>
-                        }
+                            @if (!Model.AvailableNoteExaminers.Any())
+                            {
+                                <div class="alert alert-warning py-2 px-3 small mb-0">
+                                    <i class="ti ti-alert-triangle me-1"></i>No Note Examiners are configured for this branch. Contact an administrator.
+                                </div>
+                            }
+                            <div id="saveNoteExaminerRows"></div>
+                        </div>
 
                         <div class="col-12 d-flex justify-content-end gap-2 pt-1">
                             <button type="button" class="btn btn-sm btn-outline-secondary" id="resultResetBtn">
@@ -649,29 +648,28 @@
                             <div id="editDenomRows"></div>
                         </div>
 
-                        @if (Model.IsManual)
-                        {
-                            <div class="col-12">
-                                <hr class="my-2" />
-                                <div class="d-flex align-items-center justify-content-between mb-2">
-                                    <p class="small fw-semibold mb-0" style="color:#31316A;">
-                                        <i class="ti ti-users me-1"></i>Note Examiners
-                                        <span class="text-danger">*</span>
-                                        <span class="text-muted fw-normal small ms-1">who worked this board, and bundles each processed — required</span>
-                                    </p>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="addEditNoteExaminerRowBtn">
-                                        <i class="ti ti-plus me-1"></i>Add Examiner
-                                    </button>
-                                </div>
-                                @if (!Model.AvailableNoteExaminers.Any())
-                                {
-                                    <div class="alert alert-warning py-2 px-3 small mb-0">
-                                        <i class="ti ti-alert-triangle me-1"></i>No Note Examiners are configured for this branch. Contact an administrator.
-                                    </div>
-                                }
-                                <div id="editNoteExaminerRows"></div>
+                        <div class="col-12">
+                            <hr class="my-2" />
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <p class="small fw-semibold mb-0" style="color:#31316A;">
+                                    <i class="ti ti-users me-1"></i>Note Examiners
+                                    <span class="text-danger">*</span>
+                                    <span class="text-muted fw-normal small ms-1">
+                                        @(Model.IsManual ? "who worked this board, and bundles each processed — required" : "who worked this board — required")
+                                    </span>
+                                </p>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="addEditNoteExaminerRowBtn">
+                                    <i class="ti ti-plus me-1"></i>Add Examiner
+                                </button>
                             </div>
-                        }
+                            @if (!Model.AvailableNoteExaminers.Any())
+                            {
+                                <div class="alert alert-warning py-2 px-3 small mb-0">
+                                    <i class="ti ti-alert-triangle me-1"></i>No Note Examiners are configured for this branch. Contact an administrator.
+                                </div>
+                            }
+                            <div id="editNoteExaminerRows"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -775,7 +773,7 @@
 }
 
 @* ── Note Examiners ────────────────────────────────────────────── *@
-@if (Model.IsManual && Model.NoteExaminers.Any())
+@if (Model.NoteExaminers.Any())
 {
     <div class="card section-card mb-4">
         <div class="p-4 d-flex align-items-center gap-2 py-2">
@@ -983,9 +981,9 @@
         IsValid = true
     };
 }
-@if (Model.BoardSupervisorUserId == userId)
+@if (Model.BoardSupervisorUserId == userId || userRoles.Contains(SystemPolicy.Roles.VerificationOfficer))
 {
-    @await Html.PartialAsync("_WorkflowActions", workflowActionsViewModel)
+    @await Html.PartialAsync("_WorkflowActionsWithDisclaimer", workflowActionsViewModel)
 }
 
 @if (Model.ApplicablePenalties.Any())
@@ -1199,52 +1197,71 @@
                 div.className = 'row g-2 align-items-center mb-2';
                 var selectedId = preData ? preData.NoteExaminerId : null;
                 var excludeIds = getSelectedNoteExaminerIds(container, null);
-                div.innerHTML =
-                    '<div class="col-12 col-md-7">' +
-                        '<label class="form-label fw-semibold small mb-1" style="color:#31316A;">Note Examiner</label>' +
-                        '<select name="' + namePrefix + '[' + rowIdx + '].NoteExaminerId" class="form-select form-select-sm ne-examiner-select" required>' +
-                            '<option value="">— select examiner —</option>' +
-                            buildNoteExaminerOptions(selectedId, excludeIds) +
-                        '</select>' +
-                    '</div>' +
-                    '<div class="col-8 col-md-3">' +
-                        '<label class="form-label fw-semibold small mb-1" style="color:#31316A;">Bundles</label>' +
-                        '<input type="text" inputmode="numeric" name="' + namePrefix + '[' + rowIdx + '].NumberOfBundles" ' +
-                               'class="form-control form-control-sm ne-bundles-input" placeholder="0" required autocomplete="off" />' +
-                    '</div>' +
-                    '<div class="col-4 col-md-2 d-flex align-items-end pb-1">' +
-                        '<button type="button" class="btn btn-sm btn-outline-danger remove-row-btn" title="Remove row">' +
-                            '<i class="ti ti-trash"></i>' +
-                        '</button>' +
-                    '</div>';
+
+                if (SESSION_IS_MANUAL) {
+                    div.innerHTML =
+                        '<div class="col-12 col-md-7">' +
+                            '<label class="form-label fw-semibold small mb-1" style="color:#31316A;">Note Examiner</label>' +
+                            '<select name="' + namePrefix + '[' + rowIdx + '].NoteExaminerId" class="form-select form-select-sm ne-examiner-select" required>' +
+                                '<option value="">— select examiner —</option>' +
+                                buildNoteExaminerOptions(selectedId, excludeIds) +
+                            '</select>' +
+                        '</div>' +
+                        '<div class="col-8 col-md-3">' +
+                            '<label class="form-label fw-semibold small mb-1" style="color:#31316A;">Bundles</label>' +
+                            '<input type="text" inputmode="numeric" name="' + namePrefix + '[' + rowIdx + '].NumberOfBundles" ' +
+                                   'class="form-control form-control-sm ne-bundles-input" placeholder="0" required autocomplete="off" />' +
+                        '</div>' +
+                        '<div class="col-4 col-md-2 d-flex align-items-end pb-1">' +
+                            '<button type="button" class="btn btn-sm btn-outline-danger remove-row-btn" title="Remove row">' +
+                                '<i class="ti ti-trash"></i>' +
+                            '</button>' +
+                        '</div>';
+                } else {
+                    div.innerHTML =
+                        '<div class="col-10 col-md-10">' +
+                            '<label class="form-label fw-semibold small mb-1" style="color:#31316A;">Note Examiner</label>' +
+                            '<select name="' + namePrefix + '[' + rowIdx + '].NoteExaminerId" class="form-select form-select-sm ne-examiner-select" required>' +
+                                '<option value="">— select examiner —</option>' +
+                                buildNoteExaminerOptions(selectedId, excludeIds) +
+                            '</select>' +
+                        '</div>' +
+                        '<input type="hidden" name="' + namePrefix + '[' + rowIdx + '].NumberOfBundles" value="0" />' +
+                        '<div class="col-2 col-md-2 d-flex align-items-end pb-1">' +
+                            '<button type="button" class="btn btn-sm btn-outline-danger remove-row-btn" title="Remove row">' +
+                                '<i class="ti ti-trash"></i>' +
+                            '</button>' +
+                        '</div>';
+                }
 
                 container.appendChild(div);
 
-                if (preData && preData.NumberOfBundles) {
-                    div.querySelector('.ne-bundles-input').value =
-                        parseInt(preData.NumberOfBundles, 10).toLocaleString('en-US');
-                }
-
                 var bundlesInput = div.querySelector('.ne-bundles-input');
 
-                bundlesInput.addEventListener('input', function () {
-                    var raw = this.value.replace(/[^0-9]/g, '');
-                    var pos = this.selectionStart;
-                    var digBefore = this.value.substring(0, pos).replace(/,/g, '').length;
-                    this.value = raw ? parseInt(raw, 10).toLocaleString('en-US') : '';
-                    var digits = 0, newPos = 0;
-                    for (var i = 0; i < this.value.length; i++) {
-                        if (this.value[i] !== ',') digits++;
-                        if (digits === digBefore) { newPos = i + 1; break; }
+                if (bundlesInput) {
+                    if (preData && preData.NumberOfBundles) {
+                        bundlesInput.value = parseInt(preData.NumberOfBundles, 10).toLocaleString('en-US');
                     }
-                    this.setSelectionRange(newPos, newPos);
-                });
 
-                bundlesInput.addEventListener('keydown', function (e) {
-                    var nav = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Tab'];
-                    if (nav.includes(e.key) || e.ctrlKey || e.metaKey) return;
-                    if (!/^[0-9]$/.test(e.key)) e.preventDefault();
-                });
+                    bundlesInput.addEventListener('input', function () {
+                        var raw = this.value.replace(/[^0-9]/g, '');
+                        var pos = this.selectionStart;
+                        var digBefore = this.value.substring(0, pos).replace(/,/g, '').length;
+                        this.value = raw ? parseInt(raw, 10).toLocaleString('en-US') : '';
+                        var digits = 0, newPos = 0;
+                        for (var i = 0; i < this.value.length; i++) {
+                            if (this.value[i] !== ',') digits++;
+                            if (digits === digBefore) { newPos = i + 1; break; }
+                        }
+                        this.setSelectionRange(newPos, newPos);
+                    });
+
+                    bundlesInput.addEventListener('keydown', function (e) {
+                        var nav = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Tab'];
+                        if (nav.includes(e.key) || e.ctrlKey || e.metaKey) return;
+                        if (!/^[0-9]$/.test(e.key)) e.preventDefault();
+                    });
+                }
 
                 var examinerSelect = div.querySelector('.ne-examiner-select');
                 examinerSelect.addEventListener('change', function () {
@@ -1285,7 +1302,7 @@
                 }
 
                 resultForm.addEventListener('submit', function (e) {
-                    if (SESSION_IS_MANUAL && saveNoteExaminerContainer && saveNoteExaminerContainer.children.length === 0) {
+                    if (saveNoteExaminerContainer && saveNoteExaminerContainer.children.length === 0) {
                         e.preventDefault();
                         alert('Please capture at least one Note Examiner and the bundles they processed before saving.');
                         return;
@@ -1381,7 +1398,7 @@
                 });
 
                 editForm.addEventListener('submit', function (e) {
-                    if (SESSION_IS_MANUAL && editNoteExaminerContainer && editNoteExaminerContainer.children.length === 0) {
+                    if (editNoteExaminerContainer && editNoteExaminerContainer.children.length === 0) {
                         e.preventDefault();
                         alert('Please capture at least one Note Examiner and the bundles they processed before saving.');
                         return;

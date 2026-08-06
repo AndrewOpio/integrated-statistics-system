@@ -42,10 +42,10 @@
                 <thead>
                     <tr>
                         <th style="min-width:160px;">Denomination</th>
-                        <th style="min-width:150px;">Issued Re-Issue</th>
-                        <th style="min-width:150px;">Issued Canceled</th>
-                        <th style="min-width:160px;">Returned Re-Issue</th>
-                        <th style="min-width:160px;">Returned Canceled</th>
+                        <th style="min-width:150px;">Issued Fit</th>
+                        <th style="min-width:150px;">Issued Un-Fit</th>
+                        <th style="min-width:160px;">Returned Fit</th>
+                        <th style="min-width:160px;">Returned Un-Fit</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -55,16 +55,16 @@
                             <td class="fw-semibold">
                                 @row.DenominationName <span class="text-muted small">(UGX @row.DenominationValue.ToString("N0"))</span>
                             </td>
-                            <td class="text-muted">UGX @row.IssuedReIssueValue.ToString("N0")</td>
-                            <td class="text-muted">UGX @row.IssuedCanceledValue.ToString("N0")</td>
+                            <td class="text-muted">UGX @row.IssuedFitValue.ToString("N0")</td>
+                            <td class="text-muted">UGX @row.IssuedUnFitValue.ToString("N0")</td>
                             <td>
-                                <input type="text" class="form-control form-control-sm returned-reissue"
-                                       value="@row.ReturnedReIssueValue.ToString("0")" inputmode="decimal"
+                                <input type="text" class="form-control form-control-sm returned-fit"
+                                       value="@row.ReturnedFitValue.ToString("0")" inputmode="decimal"
                                        oninput="declareFormatValue(this)" />
                             </td>
                             <td>
-                                <input type="text" class="form-control form-control-sm returned-canceled"
-                                       value="@row.ReturnedCanceledValue.ToString("0")" inputmode="decimal"
+                                <input type="text" class="form-control form-control-sm returned-unfit"
+                                       value="@row.ReturnedUnFitValue.ToString("0")" inputmode="decimal"
                                        oninput="declareFormatValue(this)" />
                             </td>
                         </tr>
@@ -92,9 +92,9 @@
             const entries = [];
             document.querySelectorAll('#declareTable tbody tr').forEach(function (row) {
                 const id = +row.dataset.id;
-                const reissue = parseFloat(row.querySelector('.returned-reissue').value.replace(/,/g, '')) || 0;
-                const canceled = parseFloat(row.querySelector('.returned-canceled').value.replace(/,/g, '')) || 0;
-                entries.push({ id: id, returnedReIssueValue: reissue, returnedCanceledValue: canceled });
+                const fit = parseFloat(row.querySelector('.returned-fit').value.replace(/,/g, '')) || 0;
+                const unfit = parseFloat(row.querySelector('.returned-unfit').value.replace(/,/g, '')) || 0;
+                entries.push({ id: id, returnedFitValue: fit, returnedUnFitValue: unfit });
             });
             document.getElementById('returnsJson').value = JSON.stringify(entries);
             document.getElementById('declareForm').submit();
