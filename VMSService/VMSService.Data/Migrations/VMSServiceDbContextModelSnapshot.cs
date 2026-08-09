@@ -169,6 +169,13 @@ namespace VMSService.Data.Migrations
                     b.Property<decimal?>("DenomValue")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsSettledOnRtgs")
                         .HasColumnType("bit");
 

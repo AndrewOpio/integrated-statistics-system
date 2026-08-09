@@ -601,6 +601,9 @@
             </div>
         </div>
 
+        @*Penalties*@
+        @await Html.PartialAsync("_PenaltiesSection", Model)
+
         @*Status History*@
         @if (Model.StatusHistory.Any())
         {
@@ -1011,6 +1014,11 @@
         </div>
     </div>
 </div>
+
+@if (Model.ApplicablePenalties.Any())
+{
+    @await Html.PartialAsync("_PenaltiesModal", Model)
+}
 
 @section Scripts {
     <script>

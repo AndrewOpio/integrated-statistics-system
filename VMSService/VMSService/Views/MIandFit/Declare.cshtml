@@ -46,12 +46,17 @@
                         <th style="min-width:150px;">Issued Un-Fit</th>
                         <th style="min-width:160px;">Returned Fit</th>
                         <th style="min-width:160px;">Returned Un-Fit</th>
+                        <th style="min-width:190px;">Vs. 1 Bundle</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var row in Model.Rows)
                     {
-                        <tr data-id="@row.Id">
+                        // A bundle's value is the denomination value x 1,000 pieces — the same
+                        // factor used elsewhere (e.g. StockProcessingSessionController) when
+                        // converting a monetary amount to bundle-equivalent units.
+                        var bundleValue = row.DenominationValue * 1000;
+                        <tr data-id="@row.Id" data-bundle-value="@bundleValue.ToString("0.####")">
                             <td class="fw-semibold">
                                 @row.DenominationName <span class="text-muted small">(UGX @row.DenominationValue.ToString("N0"))</span>
                             </td>
@@ -60,13 +65,14 @@
                             <td>
                                 <input type="text" class="form-control form-control-sm returned-fit"
                                        value="@row.ReturnedFitValue.ToString("0")" inputmode="decimal"
-                                       oninput="declareFormatValue(this)" />
+                                       oninput="declareFormatValue(this); refreshVariance(this.closest('tr'));" />
                             </td>
                             <td>
                                 <input type="text" class="form-control form-control-sm returned-unfit"
                                        value="@row.ReturnedUnFitValue.ToString("0")" inputmode="decimal"
-                                       oninput="declareFormatValue(this)" />
+                                       oninput="declareFormatValue(this); refreshVariance(this.closest('tr'));" />
                             </td>
+                            <td class="variance-cell"></td>
                         </tr>
                     }
                 </tbody>
@@ -88,6 +94,28 @@
             input.setSelectionRange(caret + after - before, caret + after - before);
         }
 
+        // Flags whether Returned Fit + Returned Un-Fit for a row matches the value of 1 bundle of
+        // that denomination (denomination value x 1,000 pieces) — above, below, or balanced.
+        function refreshVariance(tr) {
+            const bundleValue = parseFloat(tr.dataset.bundleValue) || 0;
+            const fit = parseFloat(tr.querySelector('.returned-fit').value.replace(/,/g, '')) || 0;
+            const unfit = parseFloat(tr.querySelector('.returned-unfit').value.replace(/,/g, '')) || 0;
+            const total = fit + unfit;
+            const diff = total - bundleValue;
+            const cell = tr.querySelector('.variance-cell');
+
+            if (diff === 0) {
+                cell.innerHTML = '<span class="badge bg-success text-white border border-success">' +
+                    '<i class="ti ti-check me-1"></i>Matches bundle</span>';
+            } else if (diff > 0) {
+                cell.innerHTML = '<span class="badge bg-danger text-white border border-danger">' +
+                    '<i class="ti ti-arrow-up me-1"></i>Above by UGX ' + diff.toLocaleString('en-US') + '</span>';
+            } else {
+                cell.innerHTML = '<span class="badge bg-warning text-white border border-warning">' +
+                    '<i class="ti ti-arrow-down me-1"></i>Below by UGX ' + Math.abs(diff).toLocaleString('en-US') + '</span>';
+            }
+        }
+
         function submitDeclare() {
             const entries = [];
             document.querySelectorAll('#declareTable tbody tr').forEach(function (row) {
@@ -99,5 +127,9 @@
             document.getElementById('returnsJson').value = JSON.stringify(entries);
             document.getElementById('declareForm').submit();
         }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('#declareTable tbody tr').forEach(refreshVariance);
+        });
     </script>
 }

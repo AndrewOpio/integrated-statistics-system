@@ -23,6 +23,6 @@ namespace VMSService.Data.Entities
         public int CfbBoxId { get; set; }
         public virtual CfbBox? CfbBox { get; set; }
         public bool IsDeleted { get; set; } = false;
-        public int CurrentStatusId { get; set; }
+        public int CurrentStatusId { get; set; } // When CurrentStatus is "Balanced By CFB"
     }
 }
