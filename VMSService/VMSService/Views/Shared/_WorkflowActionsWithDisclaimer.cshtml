@@ -81,7 +81,8 @@
 						</div>
 
 						<button type="submit" id="submitBtn" class="text-white btn btn-primary" disabled>
-							<i class="ti ti-check me-1"></i><span id="submitBtnLabel">Submit</span>
+							<span id="submitBtnSpinner" class="spinner-border spinner-border-sm me-1 d-none" role="status" aria-hidden="true"></span>
+							<i id="submitBtnIcon" class="ti ti-check me-1"></i><span id="submitBtnLabel">Submit</span>
 						</button>
 					</form>
 				</div>
@@ -94,16 +95,21 @@
 	document.addEventListener('DOMContentLoaded', function () {
 		const workflowForm = document.getElementById('workflowForm');
 		const submitBtn = document.getElementById('submitBtn');
+		const submitBtnSpinner = document.getElementById('submitBtnSpinner');
+		const submitBtnIcon = document.getElementById('submitBtnIcon');
 		if (!workflowForm || !submitBtn) return;
 
-		// Disable the button once the form actually submits, so a second click can't fire a
-		// duplicate request. Deferred via setTimeout so it runs after any validation listeners
-		// (e.g. _WorkflowActionsScript) have had a chance to call preventDefault() — if they did,
-		// the button is left enabled so the user can fix the issue and resubmit.
+		// Disable the button and show a spinner once the form actually submits, so a second
+		// click can't fire a duplicate request. Deferred via setTimeout so it runs after any
+		// validation listeners (e.g. _WorkflowActionsScript) have had a chance to call
+		// preventDefault() — if they did, the button is left enabled so the user can fix the
+		// issue and resubmit.
 		workflowForm.addEventListener('submit', function (e) {
 			setTimeout(function () {
 				if (!e.defaultPrevented) {
 					submitBtn.disabled = true;
+					if (submitBtnSpinner) submitBtnSpinner.classList.remove('d-none');
+					if (submitBtnIcon) submitBtnIcon.classList.add('d-none');
 				}
 			}, 0);
 		});
