@@ -196,6 +196,14 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a asp-controller="StockTakes" asp-action="Index" class="nav-link d-flex align-items-center">
+                            <span class="sidebar-icon fs-5 me-4">
+                                <i class="ti ti-clipboard-list"></i>
+                            </span>
+                            <span class="sidebar-text">Stock Take</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a asp-controller="Logistics" asp-action="Index" class="nav-link d-flex align-items-center">
                             <span class="sidebar-icon fs-5 me-4">
                                 <i class="ti ti-truck-delivery"></i>
@@ -489,6 +497,13 @@
                                         </a>
                                     </permission>
                                 </li>
+                                <permission name="@SystemPermissions.MonthlyShortageReimbursements.View">
+                                    <li class="nav-item">
+                                        <a asp-controller="MonthlyShortageReimbursements" asp-action="Index" class="nav-link">
+                                            <span class="sidebar-text">Reimbursements</span>
+                                        </a>
+                                    </li>
+                                </permission>
                                 <permission name="@SystemPermissions.BankingSurpluses.View">
                                     <li class="nav-item">
                                         <a asp-controller="BankingSurpluses" asp-action="Index" class="nav-link">
@@ -749,6 +764,17 @@
                                             <td>Roles:</td>
                                             <td>@string.Join(", ", User.FindAll("appRole").Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:")).Select(c => c.Value.Split(":")[1]).ToList())</td>
                                         </tr>
+                                        @{
+                                            var assignedBranches = User.FindAll("branchName").Select(c => c.Value).ToList();
+                                        }
+                                        @if (assignedBranches.Any())
+                                        {
+                                            <tr>
+                                                <td><i class="ti ti-building-bank fs-6"></i></td>
+                                                <td>Branches:</td>
+                                                <td>@string.Join(", ", assignedBranches)</td>
+                                            </tr>
+                                        }
                                     </tbody>
                                 </table>
                                 <a asp-controller="Home" asp-action="Logout" class="btn btn-outline-danger btn-sm mt-2 w-100">Logout</a>

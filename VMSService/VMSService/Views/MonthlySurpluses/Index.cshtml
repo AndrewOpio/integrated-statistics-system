@@ -4,7 +4,6 @@
 
 @{
     ViewData["Title"] = "Monthly Surpluses";
-    var bankNames = ViewBag.BankNames as Dictionary<int, string> ?? new();
 }
 
 <div class="row">
@@ -31,8 +30,7 @@
                                 <th class="border-0">Reference Number</th>
                                 <th class="border-0">Month</th>
                                 <th class="border-0 text-end">Amount</th>
-                                <th class="border-0">Date of Deposit</th>
-                                <th class="border-0">Bank</th>
+                                <th class="border-0">EFT Date</th>
                                 <th class="border-0">Status</th>
                                 <th class="border-0 rounded-end">Actions</th>
                             </tr>
@@ -49,11 +47,8 @@
                                     "Confirmed"            => "bg-success",
                                     _                      => "bg-secondary"
                                 };
-                                string depositStr = item.DepositDate.HasValue
-                                    ? item.DepositDate.Value.ToString("dd/MMM/yyyy")
-                                    : "-";
-                                string bankStr = item.CommercialBankId.HasValue && bankNames.TryGetValue(item.CommercialBankId.Value, out var bn)
-                                    ? bn
+                                string depositStr = item.EftDate.HasValue
+                                    ? item.EftDate.Value.ToString("dd/MMM/yyyy")
                                     : "-";
                                 <tr>
                                     <td><span class="text-primary fw-bold">@rowNumber</span></td>
@@ -61,7 +56,6 @@
                                     <td>@item.Period.ToString("MMM yyyy")</td>
                                     <td class="text-end">@item.Amount.ToString("N0")</td>
                                     <td>@depositStr</td>
-                                    <td>@bankStr</td>
                                     <td><span class="badge @badgeClass">@item.CurrentStatusName</span></td>
                                     <td>
                                         <div class="btn-group" role="group">

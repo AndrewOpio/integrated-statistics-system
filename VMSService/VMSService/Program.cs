@@ -66,6 +66,9 @@ using VMSService.Core.Repositories.Penalties;
 using VMSService.Core.Repositories.PenaltyWaivers;
 using VMSService.Core.Repositories.PublicHolidays;
 using VMSService.Core.Repositories.ReceivedStocks;
+using VMSService.Core.Repositories.StockTakes;
+using VMSService.Core.Repositories.StockTakeStatusHistories;
+using VMSService.Core.Repositories.StockTakeSystemPositions;
 using VMSService.Core.Repositories.ReceivedStocksDetails;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
 using VMSService.Core.Repositories.StockMovementDiscrepancies;
@@ -103,6 +106,7 @@ using VMSService.Core.Repositories.MonthlySurpluses;
 using VMSService.Core.Repositories.MonthlySurplusStatusHistories;
 using VMSService.Core.Repositories.MonthlyShortages;
 using VMSService.Core.Repositories.MonthlyShortageStatusHistories;
+using VMSService.Core.Repositories.MonthlyShortageReimbursements;
 using VMSService.Core.Repositories.MonthlyCommercialBankSettlements;
 using VMSService.Core.Repositories.MonthlyCommercialBankSettlementStatusHistories;
 using VMSService.Core.Repositories.BankingSurpluses;
@@ -284,6 +288,7 @@ builder.Services.AddScoped<IPackingListDetailsRepository, PackingListDetailsRepo
 builder.Services.AddScoped<IStockLedgerDetailRepository, StockLedgerDetailRepository>();
 builder.Services.AddScoped<ICommercialBankRepository, CommercialBankRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<ISubCategoryRepository, SubCategoryRepository>();
 builder.Services.AddScoped<IBranchCategoryRepository, BranchCategoryRepository>();
 builder.Services.AddScoped<IBranchRepository, BranchRepository>();
 builder.Services.AddScoped<ICommercialBankBranchRepository, CommercialBankBranchRepository>();
@@ -316,6 +321,8 @@ builder.Services.AddScoped<IMonthlySurplusStatusHistoryRepository, MonthlySurplu
 builder.Services.AddScoped<IMonthlyShortageRepository, MonthlyShortageRepository>();
 builder.Services.AddScoped<IMonthlyShortageDetailRepository, MonthlyShortageDetailRepository>();
 builder.Services.AddScoped<IMonthlyShortageStatusHistoryRepository, MonthlyShortageStatusHistoryRepository>();
+builder.Services.AddScoped<IMonthlyShortageReimbursementRepository, MonthlyShortageReimbursementRepository>();
+builder.Services.AddScoped<IMonthlyShortageReimbursementStatusHistoryRepository, MonthlyShortageReimbursementStatusHistoryRepository>();
 builder.Services.AddScoped<IMonthlyCommercialBankSettlementRepository, MonthlyCommercialBankSettlementRepository>();
 builder.Services.AddScoped<IMonthlyCommercialBankSettlementStatusHistoryRepository, MonthlyCommercialBankSettlementStatusHistoryRepository>();
 builder.Services.AddScoped<IBankingSurplusRepository, BankingSurplusRepository>();
@@ -336,6 +343,9 @@ builder.Services.AddScoped<IPenaltyRepository, PenaltyRepository>();
 builder.Services.AddScoped<IAppliedPenaltyRepository, AppliedPenaltyRepository>();
 builder.Services.AddScoped<IPenaltyWaiverRepository, PenaltyWaiverRepository>();
 builder.Services.AddScoped<IPublicHolidayRepository, PublicHolidayRepository>();
+builder.Services.AddScoped<IStockTakeRepository, StockTakeRepository>();
+builder.Services.AddScoped<IStockTakeStatusHistoryRepository, StockTakeStatusHistoryRepository>();
+builder.Services.AddScoped<IStockTakeSystemPositionRepository, StockTakeSystemPositionRepository>();
 
 // ── Resource-based ownership check ────────────────────────────
 builder.Services.AddSingleton<IAuthorizationHandler, CbOwnershipAuthorizationHandler>();

@@ -11,7 +11,11 @@
       "Bash(sqlcmd -S \"\\(localdb\\)\\\\mssqllocaldb\" -d Aswam_WorkflowDB -Q \"SELECT Id, Name FROM StatusTypes WHERE EntityTypeId = 4002\")",
       "Bash(sqlcmd -S \"\\(localdb\\)\\\\mssqllocaldb\" -d Aswam_WorkflowDB -Q \"SELECT ApplicationId FROM EntityTypes WHERE Id = 4002\")",
       "Bash(sqlcmd -S \"\\(localdb\\)\\\\mssqllocaldb\" -d IdentityDB -Q \"SELECT TOP 10 Id, Name FROM AspNetRoles ORDER BY Id\")",
-      "PowerShell(sqlcmd -S \"\\(localdb\\)\\\\mssqllocaldb\" -d IdentityDB -Q \"SELECT Id, Name, Acronym FROM Applications\" -W)"
+      "PowerShell(sqlcmd -S \"\\(localdb\\)\\\\mssqllocaldb\" -d IdentityDB -Q \"SELECT Id, Name, Acronym FROM Applications\" -W)",
+      "Bash(sqlcmd -S '\\(localdb\\)\\\\mssqllocaldb' -E -d VMSCoreDB -Q ' *)",
+      "Bash(sqlcmd -S \"\\(localdb\\)\\\\MSSQLLocalDB\" -d VMSTestDb -Q \"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES ORDER BY TABLE_NAME\")",
+      "Bash(sqlcmd -S \"\\(localdb\\)\\\\MSSQLLocalDB\" -d VMSCoreDB -Q \"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES ORDER BY TABLE_NAME\")",
+      "Bash(sqlcmd -S \"\\(localdb\\)\\\\MSSQLLocalDB\" -d VMSCoreDB -Q \"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'Bags'\")"
     ]
   }
 }

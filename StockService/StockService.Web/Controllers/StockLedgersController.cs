@@ -22,57 +22,69 @@ namespace StockService.Web.Controllers
         public async Task<IActionResult> GetStockLedgers()
         {
             var items = await _stockLedgerRepository.FindAllAsync();
-            var result = items.Select(sl => new StockLedgerDto
-            {
-                Id = sl.Id,
-                ReferenceCode = sl.ReferenceCode,
-                IsIn = sl.IsIn,
-                CounterPartyTypeId = sl.CounterPartyTypeId,
-                CounterPartyType = sl.CounterPartyType == null ? null : new CounterPartyTypeDto
-                {
-                    Id = sl.CounterPartyType.Id,
-                    Name = sl.CounterPartyType.Name
-                },
-                CounterPartyId = sl.CounterPartyId,
-                StoreId  = sl.StoreId,
-                Notes = sl.Notes,
-                StockLedgerDetails = sl.StockLedgerDetails?.Select(d => new StockLedgerDetailDto
-                {
-                    Id = d.Id,
-                    DenominationId = d.DenominationId,
-                    Denomination = d.Denomination == null ? null : new DenominationDto
-                    {
-                        Id = d.Denomination.Id,
-                        Name = d.Denomination.Name,
-                        Value = d.Denomination.Value,
-                        NumberOfPiecesInABox = d.Denomination.NumberOfPiecesInABox,
-                        DenominationTypeId = d.Denomination.DenominationTypeId,
-                        DenominationType = d.Denomination.DenominationType == null ? null : new DenominationTypeDto
-                        {
-                            Id = d.Denomination.DenominationType.Id,
-                            Name = d.Denomination.DenominationType.Name
-                        }
-                    },
-                    CategoryId = d.CategoryId,
-                    Category = d.Category == null ? null : new CategoryDto
-                    {
-                        Id = d.Category.Id,
-                        Name = d.Category.Name
-                    },
-                    NumberOfPieces = d.NumberOfPieces,
-                    NumberOfBoxes = d.NumberOfBoxes,
-                    NumberOfBundles = d.NumberOfBundles,
-                    Value = decimal.TryParse(d.Value, out decimal val) ? val : 0,
-                    SubCategoryId = d.SubCategoryId ?? 0,
-                    SubCategory = d.SubCategory == null ? null : new SubCategoryDto
-                    {
-                        Id = d.SubCategory.Id,
-                        Name = d.SubCategory.Name
-                    }
-                }).ToList() ?? new List<StockLedgerDetailDto>()
-            });
-            return Ok(result);
+            return Ok(items.Select(MapToDto));
         }
+
+        // Branch-scoped lookup — filters at the SQL level so callers that only need one
+        // branch's position (e.g. the stock position matrix) don't pay to fetch and decrypt
+        // every ledger in the system.
+        [HttpGet]
+        [Route("get-by-store/{storeId}")]
+        public async Task<IActionResult> GetStockLedgersByStore(int storeId)
+        {
+            var items = await _stockLedgerRepository.FindByStoreIdAsync(storeId);
+            return Ok(items.Select(MapToDto));
+        }
+
+        private static StockLedgerDto MapToDto(StockLedger sl) => new StockLedgerDto
+        {
+            Id = sl.Id,
+            ReferenceCode = sl.ReferenceCode,
+            IsIn = sl.IsIn,
+            CounterPartyTypeId = sl.CounterPartyTypeId,
+            CounterPartyType = sl.CounterPartyType == null ? null : new CounterPartyTypeDto
+            {
+                Id = sl.CounterPartyType.Id,
+                Name = sl.CounterPartyType.Name
+            },
+            CounterPartyId = sl.CounterPartyId,
+            StoreId = sl.StoreId,
+            Notes = sl.Notes,
+            StockLedgerDetails = sl.StockLedgerDetails?.Select(d => new StockLedgerDetailDto
+            {
+                Id = d.Id,
+                DenominationId = d.DenominationId,
+                Denomination = d.Denomination == null ? null : new DenominationDto
+                {
+                    Id = d.Denomination.Id,
+                    Name = d.Denomination.Name,
+                    Value = d.Denomination.Value,
+                    NumberOfPiecesInABox = d.Denomination.NumberOfPiecesInABox,
+                    DenominationTypeId = d.Denomination.DenominationTypeId,
+                    DenominationType = d.Denomination.DenominationType == null ? null : new DenominationTypeDto
+                    {
+                        Id = d.Denomination.DenominationType.Id,
+                        Name = d.Denomination.DenominationType.Name
+                    }
+                },
+                CategoryId = d.CategoryId,
+                Category = d.Category == null ? null : new CategoryDto
+                {
+                    Id = d.Category.Id,
+                    Name = d.Category.Name
+                },
+                NumberOfPieces = d.NumberOfPieces,
+                NumberOfBoxes = d.NumberOfBoxes,
+                NumberOfBundles = d.NumberOfBundles,
+                Value = decimal.TryParse(d.Value, out decimal val) ? val : 0,
+                SubCategoryId = d.SubCategoryId ?? 0,
+                SubCategory = d.SubCategory == null ? null : new SubCategoryDto
+                {
+                    Id = d.SubCategory.Id,
+                    Name = d.SubCategory.Name
+                }
+            }).ToList() ?? new List<StockLedgerDetailDto>()
+        };
 
         [HttpGet]
         [Route("get/{id}")]
@@ -82,56 +94,7 @@ namespace StockService.Web.Controllers
             if (item == null)
                 return NotFound();
 
-            var result = new StockLedgerDto
-            {
-                Id = item.Id,
-                ReferenceCode = item.ReferenceCode,
-                IsIn = item.IsIn,
-                CounterPartyTypeId = item.CounterPartyTypeId,
-                CounterPartyType = item.CounterPartyType == null ? null : new CounterPartyTypeDto
-                {
-                    Id = item.CounterPartyType.Id,
-                    Name = item.CounterPartyType.Name
-                },
-                CounterPartyId = item.CounterPartyId,
-                StoreId = item.StoreId,
-                Notes = item.Notes,
-                StockLedgerDetails = item.StockLedgerDetails?.Select(d => new StockLedgerDetailDto
-                {
-                    Id = d.Id,
-                    DenominationId = d.DenominationId,
-                    Denomination = d.Denomination == null ? null : new DenominationDto
-                    {
-                        Id = d.Denomination.Id,
-                        Name = d.Denomination.Name,
-                        Value = d.Denomination.Value,
-                        NumberOfPiecesInABox = d.Denomination.NumberOfPiecesInABox,
-                        DenominationTypeId = d.Denomination.DenominationTypeId,
-                        DenominationType = d.Denomination.DenominationType == null ? null : new DenominationTypeDto
-                        {
-                            Id = d.Denomination.DenominationType.Id,
-                            Name = d.Denomination.DenominationType.Name
-                        }
-                    },
-                    CategoryId = d.CategoryId,
-                    Category = d.Category == null ? null : new CategoryDto
-                    {
-                        Id = d.Category.Id,
-                        Name = d.Category.Name
-                    },
-                    NumberOfPieces = d.NumberOfPieces,
-                    NumberOfBoxes = d.NumberOfBoxes,
-                    NumberOfBundles = d.NumberOfBundles,
-                    Value = decimal.TryParse(d.Value, out decimal val) ? val : 0,
-                    SubCategoryId = d.SubCategoryId ?? 0,
-                    SubCategory = d.SubCategory == null ? null : new SubCategoryDto
-                    {
-                        Id = d.SubCategory.Id,
-                        Name = d.SubCategory.Name
-                    }
-                }).ToList() ?? new List<StockLedgerDetailDto>()
-            };
-            return Ok(result);
+            return Ok(MapToDto(item));
         }
 
         [HttpGet]
@@ -174,56 +137,7 @@ namespace StockService.Web.Controllers
                 };
 
                 var created = await _stockLedgerRepository.CreateAsync(item);
-                var result = new StockLedgerDto
-                {
-                    Id = created.Id,
-                    ReferenceCode = created.ReferenceCode,
-                    IsIn = created.IsIn,
-                    CounterPartyTypeId = created.CounterPartyTypeId,
-                    CounterPartyType = created.CounterPartyType == null ? null : new CounterPartyTypeDto
-                    {
-                        Id = created.CounterPartyType.Id,
-                        Name = created.CounterPartyType.Name
-                    },
-                    CounterPartyId = created.CounterPartyId,
-                    StoreId = created.StoreId,
-                    Notes = created.Notes,
-                    StockLedgerDetails = created.StockLedgerDetails?.Select(d => new StockLedgerDetailDto
-                    {
-                        Id = d.Id,
-                        DenominationId = d.DenominationId,
-                        Denomination = d.Denomination == null ? null : new DenominationDto
-                        {
-                            Id = d.Denomination.Id,
-                            Name = d.Denomination.Name,
-                            Value = d.Denomination.Value,
-                            NumberOfPiecesInABox = d.Denomination.NumberOfPiecesInABox,
-                            DenominationTypeId = d.Denomination.DenominationTypeId,
-                            DenominationType = d.Denomination.DenominationType == null ? null : new DenominationTypeDto
-                            {
-                                Id = d.Denomination.DenominationType.Id,
-                                Name = d.Denomination.DenominationType.Name
-                            }
-                        },
-                        CategoryId = d.CategoryId,
-                        Category = d.Category == null ? null : new CategoryDto
-                        {
-                            Id = d.Category.Id,
-                            Name = d.Category.Name
-                        },
-                        NumberOfPieces = d.NumberOfPieces,
-                        NumberOfBoxes = d.NumberOfBoxes,
-                        NumberOfBundles = d.NumberOfBundles,
-                        Value = decimal.TryParse(d.Value, out decimal val) ? val : 0,
-                        SubCategoryId = d.SubCategoryId ?? 0,
-                        SubCategory = d.SubCategory == null ? null : new SubCategoryDto
-                        {
-                            Id = d.SubCategory.Id,
-                            Name = d.SubCategory.Name
-                        }
-                    }).ToList() ?? new List<StockLedgerDetailDto>()
-                };
-                return CreatedAtAction(nameof(GetStockLedger), new { id = created.Id }, result);
+                return CreatedAtAction(nameof(GetStockLedger), new { id = created.Id }, MapToDto(created));
             }
             catch (InvalidOperationException ex)
             {

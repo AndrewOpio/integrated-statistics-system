@@ -19,6 +19,7 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, string>
 
     public DbSet<Application> Applications { get; set; }
     public DbSet<ApplicationRole> ApplicationRoles { get; set; }
+    public DbSet<ApplicationRoleBranch> ApplicationRoleBranches { get; set; }
     public DbSet<UserApplicationRole> UserApplicationRoles { get; set; }
     public DbSet<CommercialBankUser> CommercialBankUsers { get; set; }
 

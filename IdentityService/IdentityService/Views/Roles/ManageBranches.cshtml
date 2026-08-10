@@ -1,0 +1,107 @@
+@model IdentityService.Core.Models.ManageBranchesViewModel
+@{
+    ViewData["Title"] = "Manage Branches";
+}
+
+<div class="d-flex justify-content-end align-items-center mb-3 mt-3">
+    <a asp-action="Index" class="btn btn-outline-secondary">
+        <i class="ti ti-arrow-left me-1"></i> Back to List
+    </a>
+</div>
+
+<form asp-action="ManageBranches" method="post">
+    <input type="hidden" asp-for="ApplicationRoleId" />
+    <input type="hidden" asp-for="RoleName" />
+    <input type="hidden" asp-for="ApplicationName" />
+
+    @if (!Model.Branches.Any())
+    {
+        <div class="alert alert-warning">
+            <i class="ti ti-alert-triangle me-2"></i>
+            No branches found. Please make sure branches are configured in the Configurations Service.
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h2>Branch Access for <strong class="text-info">@Model.RoleName</strong> — @Model.ApplicationName</h2>
+                    <h6 class="card-subtitle my-1 text-body-secondary">Select which branches users with this role can access</h6>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-sm btn-dark me-2" id="selectAll">
+                        <i class="ti ti-checkbox me-1"></i>Select All
+                    </button>
+                    <button type="button" class="btn btn-sm btn-dark" id="deselectAll">
+                        <i class="ti ti-square me-1"></i>Deselect All
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    @for (int i = 0; i < Model.Branches.Count; i++)
+                    {
+                        <div class="col-md-4 mb-3">
+                            <div class="card bg-secondary-lt h-100">
+                                <div class="card-body py-2">
+                                    <input type="hidden" name="Branches[@i].BranchId" value="@Model.Branches[i].BranchId" />
+                                    <input type="hidden" name="Branches[@i].BranchName" value="@Model.Branches[i].BranchName" />
+                                    <input type="hidden" name="Branches[@i].BranchCode" value="@Model.Branches[i].BranchCode" />
+
+                                    <div class="form-check">
+                                        <input class="form-check-input branch-checkbox" type="checkbox"
+                                               name="Branches[@i].IsSelected"
+                                               value="true"
+                                               @(Model.Branches[i].IsSelected ? "checked" : "")
+                                               id="branch_@i" />
+                                        <label class="form-check-label" for="branch_@i">
+                                            <strong>@Model.Branches[i].BranchName</strong>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <div class="alert alert-info mt-3" id="selectionSummary">
+                    <i class="ti ti-info-circle me-2"></i>
+                    <strong>Selected: </strong>
+                    <span id="selectedCount">@Model.Branches.Count(b => b.IsSelected)</span> branch(es) selected
+                </div>
+
+                <button type="submit" class="btn btn-success">
+                    <i class="ti ti-folder me-1"></i> Save Branch Assignments
+                </button>
+                <a asp-action="Index" class="btn btn-outline-secondary ms-2">Cancel</a>
+            </div>
+        </div>
+    }
+</form>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const checkboxes = document.querySelectorAll('.branch-checkbox');
+            const selectedCount = document.getElementById('selectedCount');
+
+            function updateCount() {
+                const checked = document.querySelectorAll('.branch-checkbox:checked').length;
+                selectedCount.textContent = checked;
+            }
+
+            checkboxes.forEach(cb => cb.addEventListener('change', updateCount));
+
+            document.getElementById('selectAll').addEventListener('click', function () {
+                checkboxes.forEach(cb => cb.checked = true);
+                updateCount();
+            });
+
+            document.getElementById('deselectAll').addEventListener('click', function () {
+                checkboxes.forEach(cb => cb.checked = false);
+                updateCount();
+            });
+        });
+    </script>
+}

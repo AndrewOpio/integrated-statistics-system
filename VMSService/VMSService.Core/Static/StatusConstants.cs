@@ -174,6 +174,11 @@
             public const string BalancedByCFB = "Balanced By CFB";
         }
 
+        public static class CommercialBank
+        {
+            public const string Banking = "Banking";
+        }
+
         public static class Entity
         {
             public const string ApprovedCurrencyProcurement = "ApprovedCurrencyProcurement";
@@ -204,6 +209,33 @@
         public static class DenominationName { 
             public const string Note = "Note";
             public const string Coin = "Coin";
+            public const string MonthlyShortageReimbursements     = "MonthlyShortageReimbursements";
+            public const string StockTake                         = "StockTake";
+        }
+
+        public static class MonthlyShortageReimbursement
+        {
+            public const string Draft           = "Draft";
+            public const string PendingApproval = "Pending Approval";
+            public const string Approved        = "Approved";
+        }
+
+        public static class StockTake
+        {
+            public const string Draft                  = "Draft";
+            public const string PendingReview           = "Pending Review";
+            public const string PendingAcknowledgement  = "Pending Acknowledgement";
+            public const string Acknowledged            = "Acknowledged";
+            public const string Returned                = "Returned";
+            public const string RequiresAmendment       = "Requires Amendment";
+        }
+
+        public static class StockTakeActions
+        {
+            // The action name (not status name) configured in WorkflowService for the
+            // amendment-only Acknowledge transition — segregates who can acknowledge an
+            // amendment from whoever acknowledged the original.
+            public const string AcknowledgeAmendment = "Acknowledge Amendment";
         }
     }
 }

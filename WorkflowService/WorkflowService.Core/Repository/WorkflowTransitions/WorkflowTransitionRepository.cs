@@ -148,5 +148,21 @@ namespace WorkflowService.Core.Repositories.WorkflowTransitions
                 .Include(x => x.AttachmentRequirements.Where(a => !a.IsDeleted))
                 .ToListAsync();
         }
+
+        public async Task<Dictionary<string, List<int>>> FindFromStatusesByRoles(int applicationId, IEnumerable<int> roleIds)
+        {
+            var roleIdSet = roleIds.ToHashSet();
+            var pairs = await _db.WorkflowTransitions
+                .Where(t => t.EntityType.ApplicationId == applicationId
+                         && roleIdSet.Contains(t.RequiredRole)
+                         && !t.IsDeleted && t.IsActive)
+                .Include(t => t.EntityType)
+                .Select(t => new { EntityTypeName = t.EntityType.Name, t.FromStatusId })
+                .ToListAsync();
+
+            return pairs
+                .GroupBy(p => p.EntityTypeName)
+                .ToDictionary(g => g.Key, g => g.Select(p => p.FromStatusId).Distinct().ToList());
+        }
     }
 }

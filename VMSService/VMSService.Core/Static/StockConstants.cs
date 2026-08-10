@@ -49,6 +49,7 @@
             public const string MWBToCancelled = "Money With Boards To Cancelled";
             public const string MWBToShredded = "Money With Boards To Shredded";
             public const string BranchToCfb = "BranchToCfb";
+            public const string VendorToBranch = "VendorToBranch";
         }
 
         public static readonly (string Key, string Value)[] MovementTypes = new[]
@@ -70,6 +71,17 @@
             public const string Unfit = "Unfit";
             public const string NA = "N/A";
             public const string Mixed = "Mixed";
+        }
+
+        public static class StockCategories
+        {
+            public const string New     = "New";
+            public const string ReIssue = "Re-Issue";
+            public const string Paids   = "Paids";
+            public const string Cfb     = "CFB";
+            public const string Mi      = "MI";
+            public const string Fit     = "Fit";
+            public const string Mwb     = "MWB";
         }
     }
 }
