@@ -18,5 +18,9 @@ namespace VMSService.Core.Models.Penalties
         /// <summary>True for the fixed set of penalties applied automatically by the system — the modal
         /// should display these read-only rather than as a checkable option.</summary>
         public bool IsAutomatic { get; set; }
+
+        /// <summary>True if an active PenaltyWaiver covers this penalty for the request's branch and collection date.</summary>
+        public bool IsWaived { get; set; }
+        public DateOnly? WaiverEndDate { get; set; }
     }
 }

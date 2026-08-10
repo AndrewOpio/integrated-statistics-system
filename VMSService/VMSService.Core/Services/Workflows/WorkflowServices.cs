@@ -37,6 +37,7 @@ using VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 using VMSService.Core.Repositories.CfbTopupRequests;
 using VMSService.Core.Repositories.CfbTopupStatusHistories;
+using VMSService.Core.Repositories.PublicHolidays;
 using VMSService.Core.Repositories.BoardSessionSurplusShortages;
 using VMSService.Core.Repositories.BoardSessionSurplusShortageStatusHistories;
 using VMSService.Core.Repositories.BagMovements;
@@ -87,12 +88,13 @@ namespace VMSService.Core.Services.Workflows
         IMonthlyShortageStatusHistoryRepository _monthlyShortageStatusHistoryRepository,
         IMonthlyCommercialBankSettlementRepository _cbSettlementRepository,
         IMonthlyCommercialBankSettlementStatusHistoryRepository _cbSettlementStatusHistoryRepository,
-        ITopupRequestRepository _topupRequestRepository,
-        ITopupRequestStatusHistoryRepository _topupHistoryRepository,
         IBankingSurplusRepository _bankingSurplusRepository,
         IBankingSurplusStatusHistoryRepository _bankingSurplusStatusHistoryRepository,
         IBankingShortageRepository _bankingShortageRepository,
         IBankingShortageStatusHistoryRepository _bankingShortageStatusHistoryRepository,
+        ITopupRequestRepository _topupRequestRepository,
+        ITopupRequestStatusHistoryRepository _topupHistoryRepository,
+        IPublicHolidayRepository _publicHolidayRepository,
         IBoardSessionSurplusShortageRepository _boardSessionSurplusShortageRepository,
         IBoardSessionSurplusShortageStatusHistoryRepository _boardSessionSurplusShortageStatusHistoryRepository,
         IBagMovementRepository _bagMovementRepository,
@@ -659,10 +661,9 @@ namespace VMSService.Core.Services.Workflows
             // CB approval is the submission event — classify same-day submissions here
             if (transition.ToStatus.Name == WithdrawalStatusNames.PendingRTGSVerification)
             {
-                // TODO: isDayBeforeHoliday is simplified (always false). See SubmissionClassifier
-                // for the full TODO — a future implementation will look up the holiday calendar.
+                var dayBeforeHoliday = await _publicHolidayRepository.FindByDateAsync(request.CollectionDate.AddDays(-1));
                 var classification = SubmissionClassifier.Classify(
-                    statusHistory.ChangedAt, request.CollectionDate, isDayBeforeHoliday: false);
+                    statusHistory.ChangedAt, request.CollectionDate, isDayBeforeHoliday: dayBeforeHoliday is not null);
 
                 if (classification == SubmissionClassification.LateInvalid)
                 {
@@ -1334,6 +1335,57 @@ namespace VMSService.Core.Services.Workflows
             return true;
         }
 
+        private async Task<bool> HandleCfbTopupRequestTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition)
+        {
+            var topup = await _topupRequestRepository.FindById(entityId);
+            if (topup == null)
+            {
+                _logger.LogWarning("TopupRequest {Id} not found", entityId);
+                return false;
+            }
+
+            if (topup.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("TopupRequest {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, topup.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new TopupRequestStatusHistory
+            {
+                TopupRequestId = entityId,
+                OldStatusId    = topup.CurrentStatusId,
+                OldStatusName  = topup.CurrentStatusName,
+                NewStatusId    = transition.ToStatusId,
+                NewStatusName  = transition.ToStatus.Name,
+                ChangedBy      = username,
+                ChangedAt      = DateTime.Now,
+                Remarks        = remarks,
+                IsDeleted      = false
+            };
+
+            await _topupHistoryRepository.Create(statusHistory);
+
+            topup.CurrentStatusId   = transition.ToStatusId;
+            topup.CurrentStatusName = transition.ToStatus.Name;
+            await _topupRequestRepository.Update(topup);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"CFB Top-Up Request #{entityId}",
+                    transition,
+                    statusHistory.NewStatusName,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("TopupRequest {Id} transitioned from {From} to {To} by {Username} via action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
         private async Task<bool> HandleBagMovementTransitions(int entityId, int currentStatusId, string actionName,
             string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
         {
@@ -1476,57 +1528,6 @@ namespace VMSService.Core.Services.Workflows
 
             _logger.LogInformation("Stock Processing Session {Id} transitioned from status {From} to {To} by user {Username} with action {Action}. Attachments: {AttachmentCount}",
                 entityId, currentStatusId, transition.ToStatusId, username, actionName, attachmentIds?.Count ?? 0);
-
-            return true;
-        }
-
-        private async Task<bool> HandleCfbTopupRequestTransitions(int entityId, int currentStatusId, string actionName,
-            string username, string remarks, WorkflowTransitionDto transition)
-        {
-            var topup = await _topupRequestRepository.FindById(entityId);
-            if (topup == null)
-            {
-                _logger.LogWarning("TopupRequest {Id} not found", entityId);
-                return false;
-            }
-
-            if (topup.CurrentStatusId != currentStatusId)
-            {
-                _logger.LogWarning("TopupRequest {Id} status mismatch. Current: {Current}, Expected: {Expected}",
-                    entityId, topup.CurrentStatusId, currentStatusId);
-                return false;
-            }
-
-            var statusHistory = new TopupRequestStatusHistory
-            {
-                TopupRequestId = entityId,
-                OldStatusId    = topup.CurrentStatusId,
-                OldStatusName  = topup.CurrentStatusName,
-                NewStatusId    = transition.ToStatusId,
-                NewStatusName  = transition.ToStatus.Name,
-                ChangedBy      = username,
-                ChangedAt      = DateTime.Now,
-                Remarks        = remarks,
-                IsDeleted      = false
-            };
-
-            await _topupHistoryRepository.Create(statusHistory);
-
-            topup.CurrentStatusId   = transition.ToStatusId;
-            topup.CurrentStatusName = transition.ToStatus.Name;
-            await _topupRequestRepository.Update(topup);
-
-            if (transition.SendNotification)
-            {
-                await SendTransitionNotification(
-                    $"CFB Top-Up Request #{entityId}",
-                    transition,
-                    statusHistory.NewStatusName,
-                    username, remarks);
-            }
-
-            _logger.LogInformation("TopupRequest {Id} transitioned from {From} to {To} by {Username} via action {Action}",
-                entityId, currentStatusId, transition.ToStatusId, username, actionName);
 
             return true;
         }

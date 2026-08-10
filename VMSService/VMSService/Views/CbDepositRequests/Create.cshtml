@@ -173,7 +173,7 @@
                         <i class="ti ti-info-circle flex-shrink-0 mt-1"></i>
                         <small>
                             Same-day submission and deposit requests require exceptional authorization.
-                            Please provide a reason — this will be reviewed before processing.
+                            Please provide a reason ï¿½ this will be reviewed before processing.
                         </small>
                     </div>
                     <label class="form-label">
@@ -225,6 +225,7 @@
 
 @section Scripts {
 
+    <script src="~/js/collection-date-rules.js"></script>
     <script src="~/js/deposit-form.js"></script>
     <script src="~/js/deposit-branch-selection.js"></script>
     <script src="~/js/deposit-agent-selection.js"></script>
@@ -237,6 +238,8 @@
             coins: @Html.Raw(Json.Serialize(Model.Denoms.Coins.Select(d => new { id = d.Id, value = d.Value, label = $"UGX {d.Value:N0}", typeId = d.DenominationTypeId }))),
             subcategories: @Html.Raw(Json.Serialize(Model.Denoms.SubCategories.Select(s => new { id = s.Id, value = s.Id, label = s.Name, typeId = s.CategoryId }))),
         };
+
+        window.publicHolidayDates = @Html.Raw(Json.Serialize(Model.PublicHolidayDates.Select(h => new { date = h.Date, name = h.Name })));
 
         depositFormState.cbCode = document.getElementById('cbCode')?.textContent?.trim() || null;
         depositFormState.cbId = @Html.Raw(Model.Branches.Cb.Id);

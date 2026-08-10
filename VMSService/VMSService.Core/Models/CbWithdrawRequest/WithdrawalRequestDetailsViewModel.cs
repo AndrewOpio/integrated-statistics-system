@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using VMSService.Core.Models.AgentDetails;
 using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.CbRequests;
+using VMSService.Core.Models.Penalties;
 using VMSService.Core.Models.WithdrawalRequestDenominations;
 using VMSService.Data.Entities;
 using WorkflowService.Client.Dto;
@@ -65,7 +66,15 @@ namespace VMSService.Core.Models.CbWithdrawRequest
         public bool ShowSameDayMakerWarning { get; set; }
         public bool ShowSameDayReasonCapture { get; set; }
         public bool CanEditSameDayReason { get; set; }
+
+        /// <summary>Non-null when a same-day grace period is currently active for this request
+        /// (weekend or public holiday, before 11am EAT) — the reason to display, e.g. the
+        /// holiday's name or "the previous day was a weekend".</summary>
+        public string? GracePeriodReason { get; set; }
         public IEnumerable<WithdrawalRequestStatusHistoryViewModel> StatusHistory { get; set; } = [];
         public IEnumerable<AttachmentViewModel> AllAttachments { get; set; } = [];
+
+        /// <summary>Read-only — CB can see what's been charged, but never manage/apply penalties themselves.</summary>
+        public IEnumerable<AppliedPenaltyViewModel> AppliedPenalties { get; set; } = [];
     }
 }

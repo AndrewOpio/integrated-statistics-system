@@ -23,6 +23,7 @@ publish/
 .vs/
 .vscode/
 .idea/
+.claude/
 
 ############################
 # Logs
@@ -60,3 +61,4 @@ ProductService/
 OrderService/
 PublishProfiles/
 
+VMSService/.claude/settings.json

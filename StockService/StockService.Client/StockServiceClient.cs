@@ -11,4 +11,8 @@ public class StockServiceClient : IStockServiceClient
     public async Task<IEnumerable<DenominationDto>> GetAllDenominations()
             => await _http.GetFromJsonAsync<IEnumerable<DenominationDto>>("api/denominations/get-all")
             ?? Enumerable.Empty<DenominationDto>();
+
+    public async Task<IEnumerable<CounterPartyTypeDto>> GetAllCounterPartyTypes()
+            => await _http.GetFromJsonAsync<IEnumerable<CounterPartyTypeDto>>("api/counterpartytypes/get-all")
+            ?? Enumerable.Empty<CounterPartyTypeDto>();
 }

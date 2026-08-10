@@ -63,6 +63,8 @@ using VMSService.Core.Repositories.PackingListRangeDetails;
 using VMSService.Core.Repositories.PackingListRanges;
 using VMSService.Core.Repositories.AppliedPenalties;
 using VMSService.Core.Repositories.Penalties;
+using VMSService.Core.Repositories.PenaltyWaivers;
+using VMSService.Core.Repositories.PublicHolidays;
 using VMSService.Core.Repositories.ReceivedStocks;
 using VMSService.Core.Repositories.ReceivedStocksDetails;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
@@ -231,6 +233,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 context.Response.Redirect(authenticationSettings?.LoginPath ?? "/logout");
                 await context.Response.CompleteAsync();
+            },
+            OnForbidden = async context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                context.Response.Redirect("/Home/AccessDenied");
+                await context.Response.CompleteAsync();
             }
         };
     });
@@ -326,6 +334,8 @@ builder.Services.AddScoped<ITopupRequestStatusHistoryRepository, TopupRequestSta
 builder.Services.AddScoped<ICfbUnitOfWork, CfbUnitOfWork>();
 builder.Services.AddScoped<IPenaltyRepository, PenaltyRepository>();
 builder.Services.AddScoped<IAppliedPenaltyRepository, AppliedPenaltyRepository>();
+builder.Services.AddScoped<IPenaltyWaiverRepository, PenaltyWaiverRepository>();
+builder.Services.AddScoped<IPublicHolidayRepository, PublicHolidayRepository>();
 
 // ── Resource-based ownership check ────────────────────────────
 builder.Services.AddSingleton<IAuthorizationHandler, CbOwnershipAuthorizationHandler>();

@@ -32,7 +32,6 @@
 	<PackageReference Include="WorkflowService.Client" Version="1.0.4" />
   <PackageReference Include="BOU.NotificationService.Client" Version="1.0.4" />
   <PackageReference Include="BOU.ConfigurationsService.Client" Version="1.0.7" />
-  <!--<PackageReference Include="BOU.StockService.Client" Version="1.0.2" />-->
   </ItemGroup>
 
   <ItemGroup>

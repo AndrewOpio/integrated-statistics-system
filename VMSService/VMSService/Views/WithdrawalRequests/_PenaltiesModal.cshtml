@@ -14,14 +14,28 @@
                     <div class="d-flex flex-column gap-2">
                         @foreach (var penalty in Model.ApplicablePenalties)
                         {
-                            <div class="form-check border rounded-3 p-3">
+                            // A waiver only blocks *new* selections — it must never cause an already-applied
+                            // penalty to silently drop off on the next save, so an already-checked item stays
+                            // fully interactive (the checkbox `disabled` attribute would otherwise stop it from
+                            // posting at all, which ApplyPenalties would then read as "remove this charge").
+                            var blockedByWaiver = penalty.IsWaived && !penalty.IsChecked;
+                            <div class="form-check border rounded-3 p-3 @(blockedByWaiver ? "bg-light" : "")">
                                 <input class="form-check-input" type="checkbox" name="penaltyIds"
                                        value="@penalty.Id" id="penalty_@penalty.Id"
-                                       checked="@penalty.IsChecked">
+                                       checked="@penalty.IsChecked"
+                                       disabled="@blockedByWaiver">
                                 <label class="form-check-label w-100" for="penalty_@penalty.Id">
                                     <div class="d-flex justify-content-between align-items-start">
                                         <div>
-                                            <p class="fw-semibold mb-0">@penalty.Name</p>
+                                            <p class="fw-semibold mb-0">
+                                                @penalty.Name
+                                                @if (penalty.IsWaived)
+                                                {
+                                                    <span class="badge bg-secondary ms-1" title="Waived for this branch through @penalty.WaiverEndDate?.ToString("dd MMM yyyy")">
+                                                        Waived through @penalty.WaiverEndDate?.ToString("dd MMM yyyy")
+                                                    </span>
+                                                }
+                                            </p>
                                             @if (!string.IsNullOrEmpty(penalty.Description))
                                             {
                                                 <p class="text-muted small mb-0">@penalty.Description</p>

@@ -23,6 +23,7 @@ namespace VMSService.Core.Models.CbWithdrawRequest
         public Guid? EditingRequestId { get; set; }
         public DateOnly? FundSettlementValueDate { get; set; }
         public string? RtgsCode { get; set; }
+        public List<PublicHolidayDateViewModel> PublicHolidayDates { get; set; } = new();
 
     }
 }

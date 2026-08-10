@@ -10,6 +10,7 @@ using VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators;
 using VMSService.Data.Configurations;
 using VMSService.Data.Entities;
 using WorkflowService.Client;
+using static VMSService.Core.Static.WithdrawConstants;
 
 namespace VMSService.Core.Repositories.WithdrawalRequests
 {
@@ -69,10 +70,11 @@ namespace VMSService.Core.Repositories.WithdrawalRequests
             .ToListAsync(ct);
 
 
-        public async Task<IEnumerable<WithdrawalRequest>> GetPendingRtgsWithoutCodeAsync(CancellationToken ct = default)
+        public async Task<IEnumerable<WithdrawalRequest>> GetPendingRtgsWithoutCodeAsync(DateOnly asOfDate, CancellationToken ct = default)
             => await _db.WithdrawalRequests
                 .Where(r => !r.IsDeleted
-                    && r.StatusTypeName == "Pending RTGS Verification"
+                    && r.StatusTypeName == WithdrawalStatusNames.PendingRTGSVerification
+                    && r.CollectionDate <= asOfDate
                     && (r.RtgsCode == null || r.RtgsCode == string.Empty))
                 .ToListAsync(ct);
 

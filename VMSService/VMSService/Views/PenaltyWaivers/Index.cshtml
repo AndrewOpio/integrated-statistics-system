@@ -1,0 +1,97 @@
+@model List<VMSService.Core.Models.Penalties.PenaltyWaiverViewModel>
+
+@{
+    ViewData["Title"] = "Penalty Waivers";
+    int? penaltyFilter = ViewBag.PenaltyFilter as int?;
+}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h2 class="fs-5 fw-bold mb-0">Penalty Waivers</h2>
+                        @if (penaltyFilter.HasValue)
+                        {
+                            <a asp-action="Index" class="small">Clear filter</a>
+                        }
+                    </div>
+                    <div class="col text-end">
+                        <a asp-action="Create" asp-route-penaltyId="@penaltyFilter" class="btn btn-sm btn-primary">
+                            <i class="ti ti-plus me-1"></i>Add Waiver
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-centered table-nowrap mb-0 rounded" id="waiversTable">
+                        <thead class="thead-light">
+                            <tr>
+                                <th class="border-0 rounded-start">Penalty</th>
+                                <th class="border-0">BOU Branch</th>
+                                <th class="border-0">Start Date</th>
+                                <th class="border-0">End Date</th>
+                                <th class="border-0">Reason</th>
+                                <th class="border-0">Status</th>
+                                <th class="border-0 rounded-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model)
+                            {
+                                var isExpired = item.EndDate < DateOnly.FromDateTime(DateTime.Today);
+                                <tr>
+                                    <td class="fw-bold">@item.PenaltyName</td>
+                                    <td>@item.BouBranchCode</td>
+                                    <td>@item.StartDate.ToString("dd MMM yyyy")</td>
+                                    <td>@item.EndDate.ToString("dd MMM yyyy")</td>
+                                    <td class="small text-muted">@item.Reason</td>
+                                    <td>
+                                        @if (!item.Active)
+                                        {
+                                            <span class="badge bg-secondary">Revoked</span>
+                                        }
+                                        else if (isExpired)
+                                        {
+                                            <span class="badge bg-light text-dark border">Expired</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-success">Active</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
+                                                <i class="ti ti-edit"></i>
+                                            </a>
+                                            @if (item.Active)
+                                            {
+                                                <form asp-action="Revoke" asp-route-id="@item.Id" method="post" class="d-inline">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Revoke"
+                                                            onclick="return confirm('Revoke this waiver? The penalty will apply again immediately.');">
+                                                        <i class="ti ti-ban"></i>
+                                                    </button>
+                                                </form>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            $('#waiversTable').DataTable({ order: [[2, 'desc']] });
+        });
+    </script>
+}

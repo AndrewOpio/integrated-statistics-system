@@ -64,7 +64,7 @@ public class WithdrawalExpiryService : BackgroundService
         try
         {
             var expiredStatusId = await statusResolver.GetStatusIdAsync(WithdrawalStatusNames.Expired);
-            var requests        = (await uow.Requests.GetPendingRtgsWithoutCodeAsync(ct)).ToList();
+            var requests        = (await uow.Requests.GetPendingRtgsWithoutCodeAsync(DateOnly.FromDateTime(NowEat()), ct)).ToList();
 
             if (requests.Count == 0)
             {

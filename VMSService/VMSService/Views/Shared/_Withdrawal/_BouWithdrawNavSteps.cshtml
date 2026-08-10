@@ -1,69 +1,37 @@
-﻿@model VMSService.Core.Models.CbRequests.WithdrawalStepViewModel
+@model VMSService.Core.Models.WithdrawalRequests.WithdrawalHistoryTrailViewModel
 
-@{
-    var visibleSteps = Model.Steps.Where(s => s.IsVisible).ToList();
-}
+@* ── History trail — one pill per status the request actually passed through ── *@
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3" style="row-gap:8px;">
+    @for (int i = 0; i < Model.Steps.Count; i++)
+    {
+        var step = Model.Steps[i];
+        <span class="badge rounded-pill px-3 py-2 @(step.IsCurrent ? "bg-warning text-dark" : "bg-white bg-opacity-25 text-white")"
+              style="font-size:11px;" title="@(step.ChangedBy) &middot; @(step.ChangedAt.ToString("dd MMM yyyy HH:mm"))">
+            @if (!step.IsCurrent)
+            {
+                <i class="ti ti-check me-1"></i>
+            }
+            @step.StatusName
+        </span>
+        if (i < Model.Steps.Count - 1)
+        {
+            <i class="ti ti-chevron-right text-white opacity-50" style="font-size:12px;"></i>
+        }
+    }
+</div>
 
-@* ── Status banner ── *@
-@if (Model.IsInProgress)
-{
-    <div class="d-flex align-items-center gap-2 text-warning mb-3" style="font-size:13px;">
-        <i class="ti ti-clock-hour-4"></i>
-        <span>Your request has been submitted and is currently being processed by the Bank.</span>
-    </div>
-}
-@if (Model.IsApproved)
+@* ── Who owns it next ── *@
+@if (Model.IsClosed)
 {
     <div class="d-flex align-items-center gap-2 text-success mb-3" style="font-size:13px;">
         <i class="ti ti-circle-check"></i>
-        <span>Your request has been approved.</span>
+        <span>This request is closed.</span>
     </div>
 }
-
-@* ── Stepper ── *@
-<div class="bank-stepper">
-    @for (int i = 0; i < visibleSteps.Count; i++)
-    {
-        var step     = visibleSteps[i];
-        var isLast   = i == visibleSteps.Count - 1;
-        var isDone   = step.ShowCheckIcon;                      @* State == Done *@
-        var isActive = step.CssState == "active";               @* State == Active *@
-
-        var dotClass = isDone   ? "bs-dot bs-done"
-                     : isActive ? "bs-dot bs-active"
-                     :            "bs-dot bs-pending";
-
-        var lblClass = isDone   ? "bs-label bs-label-done"
-                     : isActive ? "bs-label bs-label-active"
-                     :            "bs-label bs-label-pending";
-
-        <div class="bs-step @(isLast ? "bs-step-last" : "")">
-
-            <div class="bs-track">
-                <div class="@dotClass">
-                    @if (isDone)
-                    {
-                        <i class="ti ti-check" style="font-size:12px;color:#fff;"></i>
-                    }
-                    else if (isActive)
-                    {
-                        <div class="bs-dot-inner"></div>
-                    }
-                </div>
-                @if (!isLast)
-                {
-                    <div class="bs-line @(step.IsConnectorDone ? "bs-line-done" : "bs-line-pending")"></div>
-                }
-            </div>
-
-            <div class="@lblClass">
-                <div class="bs-label-main">@step.Label</div>
-                @if (!string.IsNullOrEmpty(step.SubLabel))
-                {
-                    <div class="bs-label-sub">@step.SubLabel</div>
-                }
-            </div>
-
-        </div>
-    }
-</div>
+else if (!string.IsNullOrEmpty(Model.NextActor))
+{
+    <div class="d-flex align-items-center gap-2 text-warning mb-3" style="font-size:13px;">
+        <i class="ti ti-user-exclamation"></i>
+        <span>Awaiting action from: <strong>@Model.NextActor</strong></span>
+    </div>
+}

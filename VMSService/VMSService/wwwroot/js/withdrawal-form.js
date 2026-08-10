@@ -35,26 +35,37 @@ function onCollectionDateChanged(value) {
 
     const isSameDay = value && value === today;
 
+    // Day before a non-working day (weekend or public holiday), before 11am EAT — grace
+    // period, no same-day/exceptional reason required. See collection-date-rules.js.
+    const graceReason = isSameDay ? getGracePeriodReason(window.publicHolidayDates) : null;
+    const requiresSameDayApproval = isSameDay && !graceReason;
+
+    // RTGS proof is only required when the request requires exceptional approval — during
+    // a grace period, same-day collection needs neither a reason nor an RTGS code.
+    const rtgsCodeInput = document.getElementById('rtgsCode');
+    if (rtgsCodeInput) rtgsCodeInput.required = !!requiresSameDayApproval;
+    const rtgsCodeHint = document.getElementById('rtgsCodeHint');
+    if (rtgsCodeHint) rtgsCodeHint.classList.toggle('d-none', !requiresSameDayApproval);
+
+    const graceIndicator = document.getElementById('gracePeriodIndicator');
+    const graceReasonText = document.getElementById('gracePeriodReasonText');
+    if (graceIndicator) {
+        graceIndicator.classList.toggle('d-none', !graceReason);
+        graceIndicator.classList.toggle('d-flex', !!graceReason);
+    }
+    if (graceReasonText) graceReasonText.textContent = graceReason || '';
+
     const sameDayWarning = document.getElementById('sameDayMakerWarning');
     if (sameDayWarning) {
-        sameDayWarning.classList.toggle('d-none', !isSameDay);
-        sameDayWarning.classList.toggle('d-flex', isSameDay);
+        sameDayWarning.classList.toggle('d-none', !requiresSameDayApproval);
+        sameDayWarning.classList.toggle('d-flex', requiresSameDayApproval);
     }
 
-    if (isSameDay) {
+    if (requiresSameDayApproval) {
         openSameDayReasonModal();
-        const rtgsCodeInput = document.getElementById('rtgsCode');
-        if (rtgsCodeInput) rtgsCodeInput.required = true;
-        const rtgsCodeHint = document.getElementById('rtgsCodeHint');
-        if (rtgsCodeHint) rtgsCodeHint.classList.remove('d-none');
     } else {
         formState.requiresSpecialApproval = false;
         formState.specialApprovalReason = null;
-
-        const rtgsCodeInput = document.getElementById('rtgsCode');
-        if (rtgsCodeInput) rtgsCodeInput.required = false;
-        const rtgsCodeHint = document.getElementById('rtgsCodeHint');
-        if (rtgsCodeHint) rtgsCodeHint.classList.add('d-none');
 
         const sameDayReasonDisplay = document.getElementById('sameDayReasonDisplay');
         const sameDayReasonText    = document.getElementById('sameDayReasonText');
@@ -148,10 +159,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!modalEl) return;
 
+    const errorTextEl = document.getElementById('sameDayReasonErrorText');
+    function showSameDayReasonError(message) {
+        if (errorTextEl) errorTextEl.textContent = message;
+        if (errorEl) errorEl.style.display = 'block';
+    }
+
     if (textarea && countEl) {
         textarea.addEventListener('input', () => {
             countEl.textContent = textarea.value.length;
-            if (textarea.value.trim()) errorEl.style.display = 'none';
+            if (textarea.value.trim().length >= window.minReasonLength) errorEl.style.display = 'none';
         });
     }
 
@@ -159,7 +176,11 @@ document.addEventListener('DOMContentLoaded', () => {
         confirmBtn.addEventListener('click', () => {
             const reason = textarea ? textarea.value.trim() : '';
             if (!reason) {
-                if (errorEl) errorEl.style.display = 'block';
+                showSameDayReasonError('Please enter a reason before continuing.');
+                return;
+            }
+            if (reason.length < window.minReasonLength) {
+                showSameDayReasonError(`Reason must be at least ${window.minReasonLength} characters.`);
                 return;
             }
             formState.requiresSpecialApproval = true;
@@ -227,7 +248,7 @@ function buildDenomLines() {
             denominationValue: r.denomValue,
             bundles: r.type === 'notes' ? r.qty : null,
             boxes: r.type === 'coins' ? r.qty : null,
-            amount: r.qty * 1000 * r.denomValue,
+            amount: r.qty * window.withdrawalBundleMultiple * r.denomValue,
         }));
 }
 
@@ -246,8 +267,8 @@ function validateForm(isDraft) {
     if (formState.requiresSpecialApproval && !formState.specialApprovalReason)
         errors.push('A reason is required for same-day collection requests.');
 
-    if (formState.collectionDate === today && !formState.rtgsCode)
-        errors.push('RTGS code is required for same-day collection requests.');
+    if (formState.requiresSpecialApproval && !formState.rtgsCode)
+        errors.push('RTGS code is required when a request requires exceptional approval.');
 
     if (!isDraft) {
 
@@ -269,11 +290,15 @@ function validateForm(isDraft) {
         if (!window.dtHasValue())
             errors.push('Please add at least one denomination or enter a lump sum amount.');
 
-        if (!window.dtIsLumpSumValid())
-            errors.push('Lump sum amount must be a whole bundle — no partial amounts allowed.');
+        // Total amount (lump sum or itemized) must be a whole bundle and meet the minimum
+        // withdrawal threshold — mirrors the server-side check in SaveDraft.
+        const grandTotal = window.dtGetGrandTotal();
 
-        if (window.dtGetMode() === 'lumpsum' && window.dtGetLumpSum() % 1000 !== 0)
-            errors.push('Lump sum amount must be a whole bundle — no partial amounts allowed.');
+        if (grandTotal % window.withdrawalBundleMultiple !== 0)
+            errors.push('Withdrawal amount must be a whole bundle — no partial amounts allowed.');
+
+        if (grandTotal < window.minWithdrawalAmount)
+            errors.push(`Minimum withdrawal amount is UGX ${window.minWithdrawalAmount.toLocaleString()}.`);
     }
 
     return errors;
@@ -403,6 +428,16 @@ function setButtonsDisabled(disabled) {
 
 document.addEventListener('denomChanged', e => {
     console.debug('Denom total:', e.detail.grandTotal);
+
+    const errEl = document.getElementById('denomGrandTotalError');
+    const errText = document.getElementById('denomGrandTotalErrorText');
+    if (!errEl) return;
+
+    const belowMinimum = e.detail.grandTotal > 0 && e.detail.grandTotal < window.minWithdrawalAmount;
+    errEl.classList.toggle('d-none', !belowMinimum);
+    if (belowMinimum && errText) {
+        errText.textContent = `Minimum withdrawal amount is UGX ${window.minWithdrawalAmount.toLocaleString()}.`;
+    }
 });
 
 

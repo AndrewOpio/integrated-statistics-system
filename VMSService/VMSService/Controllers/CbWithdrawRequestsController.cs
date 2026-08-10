@@ -8,9 +8,11 @@ using VMSService.Core.Models.AgentDetails;
 using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.CbRequests;
 using VMSService.Core.Models.CbWithdrawRequest;
+using VMSService.Core.Models.Penalties;
 using VMSService.Core.Models.WithdrawalRequestDenominations;
 using VMSService.Core.Models.WithdrawalRequests;
 using VMSService.Core.Repositories.AgentDetails;
+using VMSService.Core.Repositories.AppliedPenalties;
 using VMSService.Core.Repositories.Attachments;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.WithdrawalRequestAgents;
@@ -19,11 +21,13 @@ using VMSService.Core.Repositories.WithdrawalRequests;
 using VMSService.Core.Repositories.WithdrawalRequestStatusHistories;
 using VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
+using VMSService.Core.Repositories.PublicHolidays;
 using VMSService.Core.Services.Identity;
 using VMSService.Core.Services.Submissions;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
+using VMSService.Web.Authorization;
 using VMSService.Web.Helpers;
 using WorkflowService.Client;
 using WorkflowService.Client.Dto;
@@ -31,7 +35,7 @@ using static VMSService.Core.Static.WithdrawConstants;
 
 namespace VMSService.Web.Controllers
 {
-
+    [RequirePermission(SystemPermissions.CbWithdrawRequests.Details)]
     public class CbWithdrawRequestsController(
     IAuthorizationService authorizationService,
     IAgentDetailRepository _agentRepo,
@@ -47,14 +51,11 @@ namespace VMSService.Web.Controllers
     IWithdrawalStatusResolver _statusResolver,
     IAttachmentRepository _attachmentRepository,
     IIdentityService _identityService,
+    IPublicHolidayRepository _publicHolidayRepository,
+    IAppliedPenaltyRepository _appliedPenaltyRepository,
     ILogger<CbWithdrawRequestsController> _logger,
     IMapper _mapper) : BaseWithdrawController(authorizationService)
     {
-        public IActionResult Index()
-        {
-            return View();
-        }
-
         // ── Create ───────────────────────────────
         public async Task<IActionResult> Create(CancellationToken ct)
         {
@@ -66,6 +67,7 @@ namespace VMSService.Web.Controllers
             var agents = await _agentRepo.FindAll();
             var denoms = await _denomRepo.FindAll();
             var denomList = denoms.ToList();
+            var publicHolidayDates = await GetPublicHolidayDatesAsync();
 
             return View(new CreateWithdrawViewModel
             {
@@ -87,6 +89,7 @@ namespace VMSService.Web.Controllers
                     Notes = denomList.Where(d => d.DenominationType?.Name?.Equals("Note") ?? false),
                     Coins = denomList.Where(d => d.DenominationType?.Name?.Equals("Coin") ?? false),
                 },
+                PublicHolidayDates = publicHolidayDates,
             });
         }
 
@@ -150,6 +153,7 @@ namespace VMSService.Web.Controllers
                 Branches = branchVm,
                 Agents = agentVm,
                 Denoms = denomVm,
+                PublicHolidayDates = await GetPublicHolidayDatesAsync(),
             });
         }
 
@@ -220,18 +224,37 @@ namespace VMSService.Web.Controllers
             if (vm.CollectionDate.Value < DateOnly.FromDateTime(DateTime.Now))
                 return BadRequest(new { errors = new[] { "Collection date cannot be in the past." } });
 
-            if (vm.CollectionDate.Value == DateOnly.FromDateTime(DateTime.Now) && string.IsNullOrWhiteSpace(vm.RtgsCode))
-                return BadRequest(new { errors = new[] { "RTGS code is required for same-day collection requests." } });
+            // Authoritative same-day/exceptional-approval determination — recomputed here from
+            // the actual collection date and holiday calendar rather than trusted from the
+            // client, so it can't be bypassed and never goes stale after a date change.
+            var dayBeforeHoliday = await _publicHolidayRepository.FindByDateAsync(vm.CollectionDate.Value.AddDays(-1));
+            var classification = SubmissionClassifier.Classify(
+                DateTime.UtcNow, vm.CollectionDate.Value, isDayBeforeHoliday: dayBeforeHoliday is not null);
+            var requiresSpecialApproval = classification == SubmissionClassification.SameDayExceptional;
 
-            // Guard: lump sum must be a whole bundle (multiple of 1,000)
-            if (vm.IsLumpSum)
-            {
-                if (vm.LumpSumAmount is null or <= 0)
-                    return BadRequest(new { errors = new[] { "Please enter a valid lump sum amount." } });
+            if (requiresSpecialApproval && string.IsNullOrWhiteSpace(vm.SpecialApprovalReason))
+                return BadRequest(new { errors = new[] { "An exceptional approval reason is required for same-day collection requests outside the grace period." } });
 
-                if (vm.LumpSumAmount % 1000 != 0)
-                    return BadRequest(new { errors = new[] { "Lump sum amount must be a whole bundle — no partial amounts allowed." } });
-            }
+            if (requiresSpecialApproval && vm.SpecialApprovalReason!.Trim().Length < ReasonRules.MinLength)
+                return BadRequest(new { errors = new[] { $"The exceptional approval reason must be at least {ReasonRules.MinLength} characters." } });
+
+            if (requiresSpecialApproval && string.IsNullOrWhiteSpace(vm.RtgsCode))
+                return BadRequest(new { errors = new[] { "RTGS code is required when a request requires exceptional approval." } });
+
+            var specialApprovalReasonToStore = requiresSpecialApproval ? vm.SpecialApprovalReason?.Trim() : null;
+
+            // Guard: total amount (lump sum or itemized) must be a whole bundle and meet the
+            // minimum withdrawal threshold.
+            var totalAmount = vm.IsLumpSum ? vm.LumpSumAmount ?? 0 : vm.Denominations.Sum(d => d.Amount);
+
+            if (totalAmount <= 0)
+                return BadRequest(new { errors = new[] { "Please enter a valid withdrawal amount." } });
+
+            if (totalAmount % AmountRules.BundleMultiple != 0)
+                return BadRequest(new { errors = new[] { "Withdrawal amount must be a whole bundle — no partial amounts allowed." } });
+
+            if (totalAmount < AmountRules.MinimumWithdrawalAmount)
+                return BadRequest(new { errors = new[] { $"Minimum withdrawal amount is UGX {AmountRules.MinimumWithdrawalAmount:N0}." } });
 
             if (vm.Id.HasValue)
             {
@@ -266,8 +289,8 @@ namespace VMSService.Web.Controllers
                 request.CollectionDate = vm.CollectionDate.Value;
                 request.FundSettlementValueDate = vm.RtgsDate;
                 request.RtgsCode = vm.RtgsCode;
-                request.RequiresSpecialApproval = !string.IsNullOrWhiteSpace(vm.SpecialApprovalReason);
-                request.SpecialApprovalReason = vm.SpecialApprovalReason?.Trim();
+                request.RequiresSpecialApproval = requiresSpecialApproval;
+                request.SpecialApprovalReason = specialApprovalReasonToStore;
                 request.ModifiedDate = DateTime.Now;
                 request.ModifiedBy = userId;
 
@@ -276,7 +299,7 @@ namespace VMSService.Web.Controllers
                 //request.TotalNotesAmount = vm.Denominations.Where(d => d.Bundles.HasValue).Sum(d => d.Amount);
                 //request.TotalCoinsAmount = vm.Denominations.Where(d => d.Boxes.HasValue).Sum(d => d.Amount);
                 request.IsLumpSum = vm.IsLumpSum;
-                request.TotalAmount = vm.IsLumpSum ? vm.LumpSumAmount ?? 0 : vm.Denominations.Sum(d => d.Amount);
+                request.TotalAmount = totalAmount;
                 request.TotalNotesAmount = vm.IsLumpSum ? 0 : vm.Denominations.Where(d => d.Bundles.HasValue).Sum(d => d.Amount);
                 request.TotalCoinsAmount = vm.IsLumpSum ? 0 : vm.Denominations.Where(d => d.Boxes.HasValue).Sum(d => d.Amount);
 
@@ -311,8 +334,8 @@ namespace VMSService.Web.Controllers
                     CollectionDate = vm.CollectionDate ?? default,
                     FundSettlementValueDate = vm.RtgsDate,
                     RtgsCode = vm.RtgsCode,
-                    RequiresSpecialApproval = !string.IsNullOrWhiteSpace(vm.SpecialApprovalReason),
-                    SpecialApprovalReason = vm.SpecialApprovalReason?.Trim(),
+                    RequiresSpecialApproval = requiresSpecialApproval,
+                    SpecialApprovalReason = specialApprovalReasonToStore,
                     StatusTypeId = await _statusResolver.GetStatusIdAsync(WithdrawalStatusNames.Draft),
                     StatusTypeName = WithdrawalStatusNames.Draft,
                     CreatedBy = userId,
@@ -321,7 +344,7 @@ namespace VMSService.Web.Controllers
                     //TotalNotesAmount = vm.Denominations.Where(d => d.Bundles.HasValue).Sum(d => d.Amount),
                     //TotalCoinsAmount = vm.Denominations.Where(d => d.Boxes.HasValue).Sum(d => d.Amount),
                     IsLumpSum = vm.IsLumpSum,
-                    TotalAmount = vm.IsLumpSum ? vm.LumpSumAmount ?? 0 : vm.Denominations.Sum(d => d.Amount),
+                    TotalAmount = totalAmount,
                     TotalNotesAmount = vm.IsLumpSum ? 0 : vm.Denominations.Where(d => d.Bundles.HasValue).Sum(d => d.Amount),
                     TotalCoinsAmount = vm.IsLumpSum ? 0 : vm.Denominations.Where(d => d.Boxes.HasValue).Sum(d => d.Amount),
                 };
@@ -456,6 +479,25 @@ namespace VMSService.Web.Controllers
                 })
                 .ToList();
 
+            // CB users see their own side of the workflow (up through RTGS verification)
+            // and whichever terminal outcome the request lands on. The BOU-internal
+            // verification/approval churn in between is not shown to them.
+            if (!isBouUser)
+            {
+                var cbVisibleStatuses = new HashSet<string>
+                {
+                    WithdrawalStatusNames.Draft,
+                    WithdrawalStatusNames.PendingInternalApproval,
+                    WithdrawalStatusNames.ReturnedForRevision,
+                    WithdrawalStatusNames.PendingRTGSVerification,
+                    WithdrawalStatusNames.Approved,
+                    WithdrawalStatusNames.Rejected,
+                    WithdrawalStatusNames.Cancelled,
+                    WithdrawalStatusNames.RecallApproved,
+                };
+                statusHistory = statusHistory.Where(h => cbVisibleStatuses.Contains(h.NewStatusName)).ToList();
+            }
+
             // ── Global attachments for this request ───────────────────────────────
             var allAttachmentsRaw = await _attachmentRepository.FindByEntityId(id.ToString());
             var allAttachments = allAttachmentsRaw
@@ -516,6 +558,11 @@ namespace VMSService.Web.Controllers
                 };
             }
 
+            // ── Same-day/exceptional grace-window inputs ──────────────────────────
+            var dayBeforeHoliday = await _publicHolidayRepository.FindByDateAsync(request.CollectionDate.AddDays(-1));
+            var isDayBeforeHoliday = dayBeforeHoliday is not null;
+            var gracePeriodReason = GetGracePeriodReason(request.CollectionDate, dayBeforeHoliday);
+
             // ── Build ViewModel ───────────────────────────────────────────────────
             var vm = new WithdrawalRequestDetailsViewModel
             {
@@ -557,16 +604,17 @@ namespace VMSService.Web.Controllers
                 //    SubmissionClassifier.Classify(DateTime.UtcNow, request.CollectionDate, isDayBeforeHoliday: false)
                 //        == SubmissionClassification.SameDayExceptional,
                 ShowSameDayMakerWarning = (userRoleNames.Contains(RolePolicy.CbMaker) || userRoleNames.Contains(RolePolicy.CbApprover)) &&
-                    SubmissionClassifier.Classify(DateTime.UtcNow, request.CollectionDate, isDayBeforeHoliday: false)
+                    SubmissionClassifier.Classify(DateTime.UtcNow, request.CollectionDate, isDayBeforeHoliday)
                         == SubmissionClassification.SameDayExceptional,
                 ShowSameDayReasonCapture = availableTransitions.Any() &&
                     userRoleNames.Contains(RolePolicy.CbApprover) &&
                     !request.RequiresSpecialApproval &&
-                    SubmissionClassifier.Classify(DateTime.UtcNow, request.CollectionDate, isDayBeforeHoliday: false)
+                    SubmissionClassifier.Classify(DateTime.UtcNow, request.CollectionDate, isDayBeforeHoliday)
                         == SubmissionClassification.SameDayExceptional,
                 CanEditSameDayReason = request.RequiresSpecialApproval &&
                     userRoleNames.Contains(RolePolicy.CbApprover) &&
                     request.StatusTypeName == WithdrawalStatusNames.PendingInternalApproval,
+                GracePeriodReason = gracePeriodReason,
                 SubmissionDate = statusHistory
                     .Where(h => h.NewStatusName == WithdrawalStatusNames.PendingRTGSVerification
                              || h.NewStatusName == WithdrawalStatusNames.PendingWithdrawalConfirmation)
@@ -574,6 +622,28 @@ namespace VMSService.Web.Controllers
                     .Select(h => (DateTime?)h.ChangedAt.AddHours(3))
                     .FirstOrDefault(),
             };
+
+            // ── Penalties ─────────────────────────────────────────────────────────
+            // Read-only for CB — visible whenever penalties exist, regardless of the request's
+            // current status, since the "when" is already controlled on the BOU side (penalties
+            // are only entered right before Panel B approval).
+            if (!string.IsNullOrEmpty(request.TransactionRefNumber))
+            {
+                var appliedPenalties = await _appliedPenaltyRepository.FindBySourceId(request.TransactionRefNumber);
+                vm.AppliedPenalties = appliedPenalties.Select(a => new AppliedPenaltyViewModel
+                {
+                    Id = a.Id,
+                    PenaltyId = a.PenaltyId,
+                    PenaltyName = a.Penalty?.Name ?? string.Empty,
+                    ChargeValue = a.ChargeValue,
+                    Quantity = a.Quantity,
+                    IsSettledOnRtgs = a.IsSettledOnRtgs,
+                    RtgsCode = a.RtgsCode,
+                    RtgsSettlingMessage = a.RtgsSettlingMessage,
+                    AppliedBy = a.CreatedBy,
+                    AppliedAt = a.CreatedDate,
+                }).ToList();
+            }
 
             return View(vm);
         }
@@ -692,6 +762,12 @@ namespace VMSService.Web.Controllers
                 return RedirectToAction(nameof(Details), new { id });
             }
 
+            if (reason.Trim().Length < ReasonRules.MinLength)
+            {
+                TempData["Error"] = $"The exceptional approval reason must be at least {ReasonRules.MinLength} characters.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
             var request = await _uow.Requests.FindById(id);
             if (request is null)
             {
@@ -753,6 +829,12 @@ namespace VMSService.Web.Controllers
             if (!rtgsUpdateableStatuses.Contains(request.StatusTypeName))
             {
                 TempData["Error"] = "RTGS details can no longer be updated at this stage.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (request.RequiresSpecialApproval && string.IsNullOrWhiteSpace(rtgsCode))
+            {
+                TempData["Error"] = "RTGS code is required when a request requires exceptional approval.";
                 return RedirectToAction(nameof(Details), new { id });
             }
 
@@ -1015,20 +1097,17 @@ namespace VMSService.Web.Controllers
         //    return request;
         //}
 
+        // CB-facing progress: Maker -> Approver -> RTGS Verification -> everything
+        // downstream of that (BOU's internal verification/approval workflow) is shown
+        // as a single "BOU Processing" step, since CB users don't track BOU's internal
+        // stages individually — see GetCurrentStepKeyBOU for the BOU-facing view.
         private static string GetCurrentStepKey(string statusName) => statusName switch
         {
-            WithdrawalStatusNames.Draft => "CbMaker",
+            WithdrawalStatusNames.Draft or
             WithdrawalStatusNames.ReturnedForRevision => "CbMaker",
             WithdrawalStatusNames.PendingInternalApproval => "CbApprover",
-            WithdrawalStatusNames.PendingExceptionalApproval => "BOU",
-            WithdrawalStatusNames.PendingWithdrawalConfirmation => "Remittance",
-            WithdrawalStatusNames.PendingVerification => "Remittance",
-            WithdrawalStatusNames.PendingApproval => "PanelB",
-            WithdrawalStatusNames.Approved => "PanelA",
-            WithdrawalStatusNames.RejectExceptionalApproval => "PanelB",
-            WithdrawalStatusNames.RecallRequested => "Remittance",
-            WithdrawalStatusNames.RecallApproved => "Remittance",
-            _ => "CbMaker",
+            WithdrawalStatusNames.PendingRTGSVerification => "RtgsVerification",
+            _ => "BouProcessing",
         };
 
         private static string GetCurrentStepKeyBOU(string statusName) => statusName switch
@@ -1056,6 +1135,37 @@ namespace VMSService.Web.Controllers
 
         private string GetUserId()
             => User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+
+        private static readonly TimeZoneInfo EatZone = TimeZoneInfo.FindSystemTimeZoneById("E. Africa Standard Time");
+
+        // Mirrors collection-date-rules.js's getGracePeriodReason, server-side, for display on
+        // the Details page. Null unless the grace period is active right now for this request.
+        private static string? GetGracePeriodReason(DateOnly collectionDate, PublicHoliday? dayBeforeHoliday)
+        {
+            var nowEat = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, EatZone);
+
+            if (collectionDate != DateOnly.FromDateTime(nowEat)) return null;
+            if (nowEat.TimeOfDay >= TimeSpan.FromHours(11)) return null;
+
+            if (dayBeforeHoliday is not null) return dayBeforeHoliday.Name;
+
+            var dayBefore = collectionDate.AddDays(-1);
+            if (dayBefore.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+                return "the previous day was a weekend";
+
+            return null;
+        }
+
+        // Feeds the client-side same-day/exceptional grace-window check (collection-date-rules.js).
+        private async Task<List<PublicHolidayDateViewModel>> GetPublicHolidayDatesAsync()
+        {
+            var holidays = await _publicHolidayRepository.FindByActive(true);
+            return holidays.Select(h => new PublicHolidayDateViewModel
+            {
+                Date = h.Date.ToString("yyyy-MM-dd"),
+                Name = h.Name,
+            }).ToList();
+        }
 
         private List<int> GetUserRoles()
         {

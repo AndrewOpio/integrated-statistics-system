@@ -18,6 +18,13 @@ namespace VMSService.Core.Static
             public const string Edit    = "CAS CbDepositRequestsController Edit";
         }
 
+        public static class CbWithdrawRequests
+        {
+            public const string Details = "CAS CbWithdrawRequestsController Details";
+            public const string Create  = "CAS CbWithdrawRequestsController Create";
+            public const string Edit    = "CAS CbWithdrawRequestsController Edit";
+        }
+
         public static class DepositRequests
         {
             public const string View    = "CAS DepositRequestsController Index";

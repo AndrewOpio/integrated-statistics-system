@@ -128,6 +128,7 @@
 
 @section Scripts {
 
+    <script src="~/js/collection-date-rules.js"></script>
     <script src="~/js/withdrawal-form.js"></script>
     <script src="~/js/branch-selection.js"></script>
     <script src="~/js/agent-selection.js"></script>
@@ -145,6 +146,12 @@
             notes: @Html.Raw(Json.Serialize(Model.Denoms.Notes.Select(d => new { id = d.Id, value = d.Value, label = $"UGX {d.Value:N0}", typeId = d.DenominationTypeId }))),
             coins: @Html.Raw(Json.Serialize(Model.Denoms.Coins.Select(d => new { id = d.Id, value = d.Value, label = $"UGX {d.Value:N0}", typeId = d.DenominationTypeId })))
         };
+
+        window.publicHolidayDates = @Html.Raw(Json.Serialize(Model.PublicHolidayDates.Select(h => new { date = h.Date, name = h.Name })));
+
+        window.minWithdrawalAmount = @WithdrawConstants.AmountRules.MinimumWithdrawalAmount;
+        window.withdrawalBundleMultiple = @WithdrawConstants.AmountRules.BundleMultiple;
+        window.minReasonLength = @WithdrawConstants.ReasonRules.MinLength;
 
 
     </script>

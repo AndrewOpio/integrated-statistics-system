@@ -121,7 +121,7 @@
                 </p>
                 <small class="text-muted">Date CB approval was granted</small>
             </div>
-            <div col-md-6id="sameDayMakerWarning"
+            <div id="sameDayMakerWarning"
                  class="col-md-12 alert alert-warning align-items-start gap-2 mb-0
                         @(Model.IsEdit ? (Model.RequiresSpecialApproval ? "d-flex" : "d-none") : "d-none")">
                 <i class="ti ti-alert-triangle text-warning fs-5 flex-shrink-0 mt-1"></i>
@@ -142,6 +142,16 @@
                             <i class="ti ti-edit me-1"></i> Edit Reason
                         </button>
                     </div>
+                </div>
+            </div>
+            <div id="gracePeriodIndicator"
+                 class="col-md-12 alert alert-info align-items-start gap-2 mb-0 d-none">
+                <i class="ti ti-info-circle text-info fs-5 flex-shrink-0 mt-1"></i>
+                <div class="w-100">
+                    <p class="fw-bold mb-1">Grace Period Active</p>
+                    <p class="mb-0 small">
+                        Same-day collection does not require exceptional approval today — <span id="gracePeriodReasonText"></span>.
+                    </p>
                 </div>
             </div>
         </div>
@@ -177,8 +187,9 @@
                           rows="3"
                           maxlength="500"
                           placeholder="e.g. Urgent liquidity requirement due to..."></textarea>
+                <small class="text-muted d-block mt-1">Minimum @WithdrawConstants.ReasonRules.MinLength characters.</small>
                 <div id="sameDayReasonError" class="text-danger small mt-1" style="display:none;">
-                    <i class="ti ti-alert-circle me-1"></i>Please enter a reason before continuing.
+                    <i class="ti ti-alert-circle me-1"></i><span id="sameDayReasonErrorText">Please enter a reason before continuing.</span>
                 </div>
                 <div class="text-muted small text-end mt-1">
                     <span id="sameDayReasonCount">0</span> / 500

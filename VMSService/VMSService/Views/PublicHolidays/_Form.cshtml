@@ -1,0 +1,22 @@
+@model VMSService.Core.Models.PublicHolidays.PublicHolidayViewModel
+
+<input type="hidden" asp-for="Id" />
+
+<div class="mb-3">
+    <label class="form-label" asp-for="Date">Date <span class="text-danger">*</span></label>
+    <input type="date" class="form-control" asp-for="Date" required>
+    <span asp-validation-for="Date" class="text-danger small d-block mt-1"></span>
+</div>
+
+<div class="mb-3">
+    <label class="form-label" asp-for="Name">Name <span class="text-danger">*</span></label>
+    <input type="text" class="form-control" asp-for="Name" required placeholder="e.g. Independence Day">
+    <span asp-validation-for="Name" class="text-danger small d-block mt-1"></span>
+</div>
+
+<div class="mb-3">
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" asp-for="Active" id="activeSwitch">
+        <label class="form-check-label" for="activeSwitch">Active</label>
+    </div>
+</div>

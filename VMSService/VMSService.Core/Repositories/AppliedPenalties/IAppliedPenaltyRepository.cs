@@ -7,6 +7,9 @@ namespace VMSService.Core.Repositories.AppliedPenalties
     {
         Task<ICollection<AppliedPenalty>> FindBySourceId(string sourceId);
 
+        /// <summary>All applied penalties not yet settled on RTGS, across every source (withdrawal, deposit, processing).</summary>
+        Task<ICollection<AppliedPenalty>> FindUnsettled();
+
         /// <summary>
         /// Loads the Penalty, computes the charge via IPenaltyRepository.Compute, and upserts by
         /// (sourceId, penaltyId) — updates the existing row if one exists, otherwise stages a new one.

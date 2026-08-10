@@ -57,9 +57,7 @@
                         <i class="ti ti-file-text me-1"></i> Print Slip
                     </a>
                 }
-                <button onclick="window.print()" class="btn btn-sm btn-outline-secondary">
-                    <i class="ti ti-printer me-1"></i> Print
-                </button>
+                
             </div>
         </div>
         <p class="text-muted small mb-0 ps-1">
@@ -79,28 +77,34 @@
         {
             <div class="alert alert-warning d-flex align-items-start gap-3 mb-3">
                 <i class="ti ti-alert-triangle fs-4 text-warning flex-shrink-0 mt-1"></i>
-                <div>
+                <div class="flex-grow-1">
                     <p class="fw-bold mb-1">Exceptional Approval Required</p>
                     <p class="mb-0 text-muted" style="font-size:9px;">REASON PROVIDED</p>
                     <p class="mb-0 fw-semibold">@Model.ExceptionalApprovalReason</p>
                 </div>
+                @if (Model.CanEditSameDayReason)
+                {
+                    <button type="button"
+                            class="btn btn-sm btn-outline-warning flex-shrink-0"
+                            data-bs-toggle="modal"
+                            data-bs-target="#editReasonModal">
+                        <i class="ti ti-edit me-1"></i> Edit
+                    </button>
+                }
             </div>
         }
 
-        @* CB Maker same-day notice *@
-        @if (Model.ShowSameDayMakerWarning)
+        
+
+        @* Grace period active — same-day collection, but no exceptional approval needed *@
+        @if (!string.IsNullOrEmpty(Model.GracePeriodReason))
         {
-            <div class="alert alert-warning d-flex align-items-start gap-2 py-2 mb-3">
-                <i class="ti ti-alert-triangle text-warning fs-5 flex-shrink-0 mt-1"></i>
+            <div class="alert alert-info d-flex align-items-start gap-2 py-2 mb-3">
+                <i class="ti ti-info-circle text-info fs-5 flex-shrink-0 mt-1"></i>
                 <div>
-                    <p class="fw-bold mb-1">Same-Day Collection</p>
+                    <p class="fw-bold mb-1">Grace Period Active</p>
                     <p class="mb-0 small">
-                        The collection date is today. If this request is approved today, it will be
-                        flagged as a same-day exceptional request.
-                        @if (Model.CanEdit)
-                        {
-                            <span>Consider editing the request to select a future date if possible.</span>
-                        }
+                        Same-day collection does not require exceptional approval today — @Model.GracePeriodReason.
                     </p>
                 </div>
             </div>
@@ -478,6 +482,25 @@
             </div>
         </div>
 
+        @* ── Penalties (read-only — CB can see charges but cannot manage them) ── *@
+        @if (Model.AppliedPenalties.Any())
+        {
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="d-flex align-items-center gap-2 fw-bolder">
+                            <i class="ti ti-gavel"></i>
+                            <span class="text-uppercase">Penalties</span>
+                        </div>
+                        <span class="badge bg-danger rounded-pill px-3 py-2">
+                            Total Applied: UGX @Model.AppliedPenalties.Sum(a => a.ChargeValue).ToString("N0")
+                        </span>
+                    </div>
+                    @await Html.PartialAsync("~/Views/Shared/_Withdrawal/_AppliedPenaltiesTable.cshtml", Model.AppliedPenalties)
+                </div>
+            </div>
+        }
+
         @* ── Comments / Status History ── *@
         <div class="card border-0 shadow-sm mb-3">
             <div class="card-body">
@@ -575,6 +598,43 @@
                 </div>
             </div>
         </div>
+
+        @if (Model.CanEditSameDayReason)
+        {
+            @* ── Edit Reason Modal ── *@
+            <div class="modal fade" id="editReasonModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <form method="post" asp-action="SetSameDayReason" asp-route-id="@Model.Id">
+                            @Html.AntiForgeryToken()
+                            <div class="modal-header border-bottom">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="rounded-2 bg-warning bg-opacity-10 d-flex align-items-center justify-content-center"
+                                         style="width:36px;height:36px;">
+                                        <i class="ti ti-alert-triangle text-warning fs-5"></i>
+                                    </div>
+                                    <h5 class="modal-title mb-0 fw-bold">Edit Exceptional Approval Reason</h5>
+                                </div>
+                            </div>
+                            <div class="modal-body">
+                                <label for="reason" class="form-label">Reason</label>
+                                <textarea name="reason" id="reason" class="form-control" rows="3"
+                                          maxlength="500">@Model.ExceptionalApprovalReason</textarea>
+                            </div>
+                            <div class="modal-footer border-top">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                                    <i class="ti ti-x me-1"></i> Cancel
+                                </button>
+                                <button type="submit" class="btn btn-warning">
+                                    <i class="ti ti-check me-1"></i> Save Reason
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+
         @* ── Bottom Actions ── *@
         <div class="d-flex justify-content-between mb-5">
             <a asp-action="Index" asp-controller="CbRequests" class="btn btn-outline-secondary">
@@ -609,6 +669,21 @@
                     </div>
                 </div>
                 <div class="card-body">
+
+                    @if (Model.StatusName == WithdrawalStatusNames.Expired)
+                    {
+                        var expiryEntry = Model.StatusHistory.LastOrDefault(h => h.NewStatusName == WithdrawalStatusNames.Expired);
+                        if (expiryEntry != null && !string.IsNullOrWhiteSpace(expiryEntry.Remarks))
+                        {
+                            <div class="alert alert-danger d-flex align-items-start gap-2 py-2 mb-3">
+                                <i class="ti ti-clock-x text-danger fs-5 flex-shrink-0 mt-1"></i>
+                                <div>
+                                    <p class="fw-bold mb-1">Request Expired</p>
+                                    <p class="mb-0 small">@expiryEntry.Remarks</p>
+                                </div>
+                            </div>
+                        }
+                    }
 
                     @* Summary rows *@
                     <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
@@ -700,7 +775,7 @@
                             </div>
                         </div>
                     }
-                    else if (Model.AvailableTransitions.Any() && Model.AvailableTransitions.All(t => t.ActionName == "Request Recall"))
+                    else if (Model.AvailableTransitions.Any() && Model.AvailableTransitions.All(t => t.ActionName == WithdrawalStatusActionNames.RequestRecall))
                     {
                         <div class="border-top mt-2 pt-3">
                             <div class="d-grid mb-2">
@@ -753,6 +828,24 @@
                                   asp-action="ExecuteAction"
                                   asp-route-id="@Model.Id"
                                   id="workflowForm">
+                                @* CB Maker same-day notice *@
+                                @if (Model.ShowSameDayMakerWarning)
+                                {
+                                    <div class="alert alert-warning d-flex align-items-start gap-2 py-2 mb-3">
+                                        <i class="ti ti-alert-triangle text-warning fs-5 flex-shrink-0 mt-1"></i>
+                                        <div>
+                                            <p class="fw-bold mb-1">Same-Day Collection</p>
+                                            <p class="mb-0 small">
+                                                The collection date is today. If this request is approved today, it will be
+                                                flagged as a same-day exceptional request.
+                                                @if (Model.CanEdit)
+                                                {
+                                                    <span>Consider editing the request to select a future date if possible.</span>
+                                                }
+                                            </p>
+                                        </div>
+                                    </div>
+                                }
 
                                 <div class="mb-3">
                                     <label class="form-label small text-uppercase text-muted fw-semibold">

@@ -8,6 +8,7 @@
             public const string CommercialBank = "Commercial Bank";
             public const string Branch = "Branch";
             public const string Category = "Currency Category";
+            public const string Cfb = "CFB";
         }
 
         public static class StoreTypes
@@ -47,6 +48,7 @@
             public const string MWBToReIssue = "Money With Boards To Re-Issue";
             public const string MWBToCancelled = "Money With Boards To Cancelled";
             public const string MWBToShredded = "Money With Boards To Shredded";
+            public const string BranchToCfb = "BranchToCfb";
         }
 
         public static readonly (string Key, string Value)[] MovementTypes = new[]

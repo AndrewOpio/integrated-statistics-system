@@ -1,5 +1,4 @@
 ﻿(function () {
-    const BUNDLE_SIZE = 1000;
     const fmt = n => 'UGX ' + Math.round(n).toLocaleString();
     const $ = id => document.getElementById(id);
 
@@ -45,16 +44,28 @@
     // ── Lump Sum Input ────────────────────────────────────────
     window.onLumpSumInput = function (val) {
         const n = parseInt(val) || 0;
-        const valid = n > 0 && n % BUNDLE_SIZE === 0;
-        showLumpSumError(n > 0 && !valid);
-        lumpSumValue = valid ? n : 0;
+        const bundleMultiple = window.withdrawalBundleMultiple;
+        const isBundleValid = n > 0 && n % bundleMultiple === 0;
+        const isBelowMinimum = isBundleValid && n < window.minWithdrawalAmount;
+
+        if (n > 0 && !isBundleValid) {
+            showLumpSumError(true, 'Amount must be a whole bundle — no partial amounts allowed.');
+        } else if (isBelowMinimum) {
+            showLumpSumError(true, `Minimum withdrawal amount is UGX ${window.minWithdrawalAmount.toLocaleString()}.`);
+        } else {
+            showLumpSumError(false);
+        }
+
+        lumpSumValue = isBundleValid ? n : 0;
         refreshTotals();
     };
 
-    function showLumpSumError(show) {
+    function showLumpSumError(show, message) {
         const err = $('lumpSumError');
+        const errText = $('lumpSumErrorText');
         const hint = $('lumpSumHint');
         if (!err) return;
+        if (errText && message) errText.textContent = message;
         err.style.setProperty('display', show ? 'block' : 'none', 'important');
         if (hint) hint.style.display = show ? 'none' : '';
     }
@@ -100,7 +111,7 @@
             <td class="px-4 py-2">
                 <input class="form-control form-control-sm text-end"
                        id="denom-amt-inp-${id}"
-                       type="number" min="0" placeholder="0"
+                       type="text" inputmode="numeric" pattern="[0-9]*" placeholder="0"
                        oninput="denomOnAmountInput('${id}','${type}',this)" />
                 <small id="denom-amt-err-${id}" class="text-danger mt-1 d-none">
                     <i class="ti ti-alert-circle me-1"></i>
@@ -141,6 +152,7 @@
 
     // ── On Amount Input ───────────────────────────────────────
     window.denomOnAmountInput = function (id, type, el) {
+        el.value = el.value.replace(/\D/g, '');
         const r = rows[id];
         const enteredAmt = parseInt(el.value) || 0;
         const err = $(`denom-amt-err-${id}`);
@@ -158,7 +170,7 @@
             return;
         }
 
-        const bundleValue = r.denomValue * BUNDLE_SIZE;
+        const bundleValue = r.denomValue * window.withdrawalBundleMultiple;
         const valid = enteredAmt > 0 && enteredAmt % bundleValue === 0;
 
         if (enteredAmt > 0 && !valid) {
@@ -223,7 +235,7 @@
             const sel = $(`denom-sel-${rowId}`);
             if (sel) { sel.value = denom.value; denomOnSel(rowId, type, sel); }
 
-            const bundleValue = denom.value * BUNDLE_SIZE;
+            const bundleValue = denom.value * window.withdrawalBundleMultiple;
             const amt = qty * bundleValue;
             const inp = $(`denom-amt-inp-${rowId}`);
             if (inp) { inp.value = amt; denomOnAmountInput(rowId, type, inp); }
@@ -287,6 +299,9 @@
         ? lumpSumValue > 0
         : Object.values(rows).some(r => r.amount > 0 && r.denomValue > 0);
     window.dtGetRows = () => ({ ...rows });
+    window.dtGetGrandTotal = () => currentMode === 'lumpsum'
+        ? lumpSumValue
+        : Object.values(rows).reduce((s, r) => s + (r.amount || 0), 0);
 
     // ── Init on load ──────────────────────────────────────────
     function initDenomSection() {
