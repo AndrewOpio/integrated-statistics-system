@@ -246,7 +246,11 @@
                                 data-category-name="@entry.Category"
                                 data-subcategory-name="@entry.SubCategory"
                                 data-created-date="@entry.StockLedgerCreatedDate.ToString("yyyy-MM-dd")">
-                                <td>@entry.StockLedgerCreatedDate.ToString("dd MMM yyyy HH:mm")</td>
+                                @* data-order gives DataTables a sortable value — without it the column
+                                   sorts the formatted string alphabetically rather than by date. *@
+                                <td data-order="@entry.StockLedgerCreatedDate.ToString("yyyy-MM-ddTHH:mm:ss")">
+                                    @entry.StockLedgerCreatedDate.ToString("dd MMM yyyy HH:mm")
+                                </td>
                                 <td class="fw-bold">@entry.ReferenceCode</td>
                                 @if (allBranches)
                                 {

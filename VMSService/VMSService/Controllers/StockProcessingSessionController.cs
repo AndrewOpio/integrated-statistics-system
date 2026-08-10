@@ -166,6 +166,11 @@ namespace VMSService.Web.Controllers
                         };
                     }).ToList();
 
+                // Draft sessions aren't yet issued to a board — they're not the supervisor's to act on.
+                viewModel = viewModel
+                    .Where(s => s.CurrentStatusName != StatusConstants.StockProcessingSession.Draft)
+                    .ToList();
+
                 viewModel = showClosed
                     ? viewModel.Where(s => s.CurrentStatusName == StatusConstants.StockProcessingSession.Closed).ToList()
                     : viewModel.Where(s => s.CurrentStatusName != StatusConstants.StockProcessingSession.Closed).ToList();
@@ -404,6 +409,8 @@ namespace VMSService.Web.Controllers
                     Id = r.Id,
                     StockProcessingSessionId = r.StockProcessingSessionId,
                     Count = r.Count,
+                    FitValue = r.FitValue,
+                    UnFitShredValue = r.UnFitShredValue,
                     FitShredValue = r.FitShredValue,
                     CanceledValue = r.CanceledValue,
                     ReissueValue = r.ReissueValue,
@@ -816,11 +823,14 @@ namespace VMSService.Web.Controllers
                 var denomDictForResult = allDenominationsForResult.ToDictionary(d => d.Id);
                 var denominationValue = denomDictForResult.GetValueOrDefault(session.DenominationId)?.Value ?? 0m;
 
+                // Machine-only fields — never captured for a manual board.
                 var fitShredValue = session.IsManual ? 0m : model.FitShredValue;
-                var surplusShortageAdjustment = await GetSurplusShortageAdjustmentAsync(session.Id);
+                var fitValue = session.IsManual ? 0m : model.FitValue;
+                var unFitShredValue = session.IsManual ? 0m : model.UnFitShredValue;
                 decimal processedTotal = model.CanceledValue + model.ReissueValue + fitShredValue;
                 decimal unProcessedValue = session.TotalIssuedValue - processedTotal;
-                decimal countTotal = model.CanceledValue + model.ReissueValue + fitShredValue - surplusShortageAdjustment;
+                // Count is the machine's piece count: the fit/unfit-shred/fit-shred values over face value.
+                decimal countTotal = fitValue + unFitShredValue + fitShredValue;
 
                 if (unProcessedValue < 0)
                 {
@@ -837,6 +847,8 @@ namespace VMSService.Web.Controllers
                     StockProcessingSessionId = model.SessionId,
                     Count = denominationValue > 0 ? (int)Math.Round(countTotal / denominationValue) : 0,
                     UnProcessedValue = unProcessedValue,
+                    FitValue = fitValue,
+                    UnFitShredValue = unFitShredValue,
                     FitShredValue = fitShredValue,
                     CanceledValue = model.CanceledValue,
                     ReissueValue = model.ReissueValue,
@@ -943,9 +955,14 @@ namespace VMSService.Web.Controllers
                 var denomDictForEdit = allDenominationsForEdit.ToDictionary(d => d.Id);
                 var denominationValue = denomDictForEdit.GetValueOrDefault(session.DenominationId)?.Value ?? 0m;
 
+                // Machine-only fields — never captured for a manual board.
                 var fitShredValue = session.IsManual ? 0m : model.FitShredValue;
+                var fitValue = session.IsManual ? 0m : model.FitValue;
+                var unFitShredValue = session.IsManual ? 0m : model.UnFitShredValue;
                 decimal processedTotal = model.CanceledValue + model.ReissueValue + fitShredValue;
                 decimal unProcessedValue = session.TotalIssuedValue - processedTotal;
+                // Count is the machine's piece count: the fit/unfit-shred/fit-shred values over face value.
+                decimal countTotal = fitValue + unFitShredValue + fitShredValue;
 
                 if (unProcessedValue < 0)
                 {
@@ -957,8 +974,10 @@ namespace VMSService.Web.Controllers
                     return RedirectToAction(nameof(Details), new { id = model.SessionId });
                 }
 
-                result.Count = denominationValue > 0 ? (int)Math.Round(processedTotal / denominationValue) : 0;
+                result.Count = denominationValue > 0 ? (int)Math.Round(countTotal / denominationValue) : 0;
                 result.UnProcessedValue = unProcessedValue;
+                result.FitValue = fitValue;
+                result.UnFitShredValue = unFitShredValue;
                 result.FitShredValue = fitShredValue;
                 result.CanceledValue = model.CanceledValue;
                 result.ReissueValue = model.ReissueValue;

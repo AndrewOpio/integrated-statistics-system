@@ -18,14 +18,12 @@ namespace VMSService.Core.Repositories.StockProcessingPlans
         {
             return await _db.StockProcessingPlans
                 .Where(x => !x.IsDeleted)
-                .Include(x => x.StockMovement)
                 .ToListAsync();
         }
 
         public async Task<StockProcessingPlan> FindById(int id)
         {
             return await _db.StockProcessingPlans
-                .Include(x => x.StockMovement)
                 .FirstOrDefaultAsync(x => x.Id == id);
         }
 

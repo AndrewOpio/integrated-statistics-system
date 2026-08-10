@@ -385,6 +385,8 @@
                                                 title="Edit result"
                                                 data-bs-toggle="modal" data-bs-target="#editResultModal"
                                                 data-id="@r.Id"
+                                                data-fit="@r.FitValue.ToString("F0")"
+                                                data-unfitshred="@r.UnFitShredValue.ToString("F0")"
                                                 data-fitshred="@r.FitShredValue.ToString("F0")"
                                                 data-canceled="@r.CanceledValue.ToString("F0")"
                                                 data-reissue="@r.ReissueValue.ToString("F0")">
@@ -434,7 +436,7 @@
                     <input type="hidden" name="SessionId" value="@Model.Id" />
 
                     <div class="row g-3">
-                        <div class="col-12">
+                        @* <div class="col-12">
                             <p class="small fw-semibold mb-0" style="color:#31316A;">
                                 <i class="ti ti-@(Model.IsManual ? "hand" : "cpu") me-1"></i>@(Model.IsManual ? "Manual" : "Machine") Processing Fields
                                 @if (!Model.IsManual && !string.IsNullOrEmpty(Model.MachineName))
@@ -442,7 +444,7 @@
                                     <span class="text-muted fw-normal">— @Model.MachineName</span>
                                 }
                             </p>
-                        </div>
+                        </div> *@
                         <div class="col-12 col-md-4">
                             <label class="form-label fw-semibold small" style="color:#31316A;">Reissue Value</label>
                             <div class="input-group input-group-sm">
@@ -451,38 +453,12 @@
                             </div>
                         </div>
                         <div class="col-12 col-md-4">
-                            <label class="form-label fw-semibold small" style="color:#31316A;">Canceled Value</label>
+                            <label class="form-label fw-semibold small" style="color:#31316A;">Cancelled Value</label>
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text bg-light" style="font-size:.72rem;font-weight:600;">UGX</span>
                                 <input type="text" inputmode="numeric" class="form-control num-input calc-source" data-role="canceled" name="CanceledValue" autocomplete="off" />
                             </div>
                         </div>
-                        @if (!Model.IsManual)
-                        {
-                            <div class="col-12 col-md-4">
-                                <label class="form-label fw-semibold small" style="color:#31316A;">Fit / Shred Value</label>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text" style="background:#e3f2fd;font-size:.72rem;font-weight:600;color:#1565c0;">UGX</span>
-                                    <input type="text" inputmode="numeric" class="form-control num-input calc-source" data-role="fitshred" name="FitShredValue" placeholder="0" value="0" autocomplete="off" />
-                                </div>
-                            </div>
-                        }
-
-                        <div class="col-12">
-                            <hr class="my-1" />
-                        </div>
-
-                        <div class="col-12 col-md-4">
-                            <label class="form-label fw-semibold small text-muted">
-                                Count
-                                <span class="badge bg-secondary-subtle text-secondary border ms-1" style="font-size:.6rem;">Auto-calculated</span>
-                            </label>
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text bg-light"><i class="ti ti-hash"></i></span>
-                                <input type="text" class="form-control bg-light" data-role="calc-count" readonly value="0" tabindex="-1" />
-                            </div>
-                        </div>
-
                         <div class="col-12 col-md-4">
                             <label class="form-label fw-semibold small text-muted">
                                 Unprocessed Value
@@ -496,6 +472,57 @@
                                 <i class="ti ti-alert-triangle me-1"></i>Cannot exceed Total Issued Value — Unprocessed Value cannot be less than 0.
                             </div>
                         </div>
+
+                        @if (!Model.IsManual)
+                        {
+                            <div class="col-12">
+                                <hr class="my-1" />
+                            </div>
+
+                            <p class="small fw-semibold mb-0" style="color:#31316A;">
+                                <i class="ti ti-@(Model.IsManual ? "hand" : "cpu") me-1"></i>Machine Processing Fields
+                                @if (!string.IsNullOrEmpty(Model.MachineName))
+                                {
+                                    <span class="text-muted fw-normal">— @Model.MachineName</span>
+                                }
+                            </p>
+
+                            @* Machine-only fields, four across one line *@
+                            <div class="col-12 col-md-3">
+                                <label class="form-label fw-semibold small text-muted">
+                                    Count
+                                    <span class="badge bg-secondary-subtle text-secondary border ms-1" style="font-size:.6rem;">Auto</span>
+                                </label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-light"><i class="ti ti-hash"></i></span>
+                                    <input type="text" class="form-control bg-light" data-role="calc-count" readonly value="0" tabindex="-1" />
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <label class="form-label fw-semibold small" style="color:#31316A;">Fit Value</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text" style="background:#e3f2fd;font-size:.72rem;font-weight:600;color:#1565c0;">UGX</span>
+                                    <input type="text" inputmode="numeric" class="form-control num-input calc-source" data-role="fit" name="FitValue" placeholder="0" value="0" autocomplete="off" />
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <label class="form-label fw-semibold small" style="color:#31316A;">UnFit Shred Value</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text" style="background:#e3f2fd;font-size:.72rem;font-weight:600;color:#1565c0;">UGX</span>
+                                    <input type="text" inputmode="numeric" class="form-control num-input calc-source" data-role="unfitshred" name="UnFitShredValue" placeholder="0" value="0" autocomplete="off" />
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <label class="form-label fw-semibold small" style="color:#31316A;">Fit / Shred Value</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text" style="background:#e3f2fd;font-size:.72rem;font-weight:600;color:#1565c0;">UGX</span>
+                                    <input type="text" inputmode="numeric" class="form-control num-input calc-source" data-role="fitshred" name="FitShredValue" placeholder="0" value="0" autocomplete="off" />
+                                </div>
+                            </div>
+                        }
 
                         <div class="col-12">
                             <hr class="my-2" />
@@ -596,11 +623,30 @@
                         </div>
                         @if (!Model.IsManual)
                         {
-                            <div class="col-12 col-md-4">
-                                <label class="form-label fw-semibold small" style="color:#31316A;">Fit / Shred Value</label>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text" style="background:#e3f2fd;font-size:.72rem;font-weight:600;color:#1565c0;">UGX</span>
-                                    <input type="text" inputmode="numeric" class="form-control num-input-modal calc-source" data-role="fitshred" id="editFitShred" name="FitShredValue" placeholder="0" autocomplete="off" />
+                            @* Machine-only fields, four across one line *@
+                            <div class="col-12">
+                                <div class="row g-3">
+                                    <div class="col-12 col-md-3">
+                                        <label class="form-label fw-semibold small" style="color:#31316A;">Fit Value</label>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text" style="background:#e3f2fd;font-size:.72rem;font-weight:600;color:#1565c0;">UGX</span>
+                                            <input type="text" inputmode="numeric" class="form-control num-input-modal calc-source" data-role="fit" id="editFit" name="FitValue" placeholder="0" autocomplete="off" />
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-md-3">
+                                        <label class="form-label fw-semibold small" style="color:#31316A;">UnFit Shred Value</label>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text" style="background:#e3f2fd;font-size:.72rem;font-weight:600;color:#1565c0;">UGX</span>
+                                            <input type="text" inputmode="numeric" class="form-control num-input-modal calc-source" data-role="unfitshred" id="editUnFitShred" name="UnFitShredValue" placeholder="0" autocomplete="off" />
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-md-3">
+                                        <label class="form-label fw-semibold small" style="color:#31316A;">Fit / Shred Value</label>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text" style="background:#e3f2fd;font-size:.72rem;font-weight:600;color:#1565c0;">UGX</span>
+                                            <input type="text" inputmode="numeric" class="form-control num-input-modal calc-source" data-role="fitshred" id="editFitShred" name="FitShredValue" placeholder="0" autocomplete="off" />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         }
@@ -1049,16 +1095,19 @@
             }
 
             function recalcResultFields(scope) {
-                var reissueEl  = scope.querySelector('[data-role="reissue"]');
-                var canceledEl = scope.querySelector('[data-role="canceled"]');
-                var fitShredEl = scope.querySelector('[data-role="fitshred"]');
-                var countEl    = scope.querySelector('[data-role="calc-count"]');
-                var unprocEl   = scope.querySelector('[data-role="calc-unprocessed"]');
-                var warningEl  = scope.querySelector('[data-role="negative-warning"]');
-                var submitEl   = scope.querySelector('[data-role="submit-result"]');
+                var reissueEl     = scope.querySelector('[data-role="reissue"]');
+                var canceledEl    = scope.querySelector('[data-role="canceled"]');
+                var fitEl         = scope.querySelector('[data-role="fit"]');
+                var unFitShredEl  = scope.querySelector('[data-role="unfitshred"]');
+                var fitShredEl    = scope.querySelector('[data-role="fitshred"]');
+                var countEl       = scope.querySelector('[data-role="calc-count"]');
+                var unprocEl      = scope.querySelector('[data-role="calc-unprocessed"]');
+                var warningEl     = scope.querySelector('[data-role="negative-warning"]');
+                var submitEl      = scope.querySelector('[data-role="submit-result"]');
 
                 var processedTotal = parseNum(reissueEl) + parseNum(canceledEl) + parseNum(fitShredEl);
-                var countTotal = parseNum(reissueEl) + parseNum(canceledEl) + parseNum(fitShredEl) - SESSION_SURPLUS_SHORTAGE_ADJUSTMENT
+                // Count is the machine's piece count: the fit/unfit-shred/fit-shred values over face value.
+                var countTotal = parseNum(fitEl) + parseNum(unFitShredEl) + parseNum(fitShredEl);
                 var count = SESSION_DENOM_VALUE > 0 ? countTotal / SESSION_DENOM_VALUE : 0;
                 var unprocessed = SESSION_TOTAL_ISSUED - processedTotal;
                 var isNegative = unprocessed < 0;
@@ -1376,6 +1425,8 @@
 
                     setVal('editCanceled',   btn.dataset.canceled);
                     setVal('editReissue',    btn.dataset.reissue);
+                    setVal('editFit',        btn.dataset.fit);
+                    setVal('editUnFitShred', btn.dataset.unfitshred);
                     setVal('editFitShred',   btn.dataset.fitshred);
 
                     recalcResultFields(editForm);

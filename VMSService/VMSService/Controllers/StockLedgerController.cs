@@ -65,6 +65,9 @@ namespace VMSService.Controllers
             // A null branchId makes the API return every branch
             var entries = await _stockService.GetStockLedgerDetailsByBranch(allBranches ? null : branchId);
 
+            // Newest postings first
+            entries = [.. entries.OrderByDescending(e => e.StockLedgerCreatedDate)];
+
             ViewBag.Branches = allBouBranches;
             ViewBag.SelectedBranchId = allBranches ? null : branchId;
             ViewBag.AllBranches = allBranches;

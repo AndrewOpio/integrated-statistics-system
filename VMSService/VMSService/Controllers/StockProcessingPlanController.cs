@@ -122,6 +122,30 @@ namespace VMSService.Web.Controllers
             return positions;
         }
 
+        /// <summary>
+        /// The branch's still-open plan, if any. A branch may only have one plan in flight at a time,
+        /// so this is what blocks creating another until it reaches Completed or Cancelled.
+        /// </summary>
+        private async Task<StockProcessingPlan?> FindOpenPlanForBranchAsync(int branchId)
+        {
+            if (branchId <= 0) return null;
+
+            var branchPlans = (await _planRepository.FindAll())
+                .Where(p => p.BranchId == branchId)
+                .ToList();
+
+            foreach (var plan in branchPlans)
+            {
+                var status = await _workflowServiceClient.FindStatusById(plan.CurrentStatusId);
+                if (status?.Name is null) continue;
+
+                if (!StatusConstants.StockProcessingPlan.TerminalStatuses.Contains(status.Name))
+                    return plan;
+            }
+
+            return null;
+        }
+
         [Breadcrumb("Processing Plans", FromController = typeof(HomeController), FromAction = nameof(Index))]
         public async Task<IActionResult> Index(int? branchId = null)
         {
@@ -157,6 +181,15 @@ namespace VMSService.Web.Controllers
                     var statusType = await _workflowServiceClient.FindStatusById(item.CurrentStatusId);
                     item.CurrentStatusName = statusType.Name;
                 }
+
+                // Newest processing date first
+                model = [.. model.OrderByDescending(p => p.ProcessingDate)];
+
+                // Only one plan may be in flight per branch — surface the blocking plan so the view
+                // can explain why "Create New Plan" is unavailable rather than just hiding it.
+                var openPlan = await FindOpenPlanForBranchAsync(branchId.Value);
+                ViewBag.OpenPlanReference = openPlan?.ReferenceNumber;
+                ViewBag.OpenPlanId = openPlan?.Id;
 
                 ViewBag.Branches = userBranches;
                 ViewBag.SelectedBranchId = branchId;
@@ -364,6 +397,15 @@ namespace VMSService.Web.Controllers
         {
             try
             {
+                // The Index button is hidden in this case, but the Create URL is reachable directly.
+                var blockingPlan = await FindOpenPlanForBranchAsync(branchId);
+                if (blockingPlan != null)
+                {
+                    TempData["Error"] = $"Processing plan {blockingPlan.ReferenceNumber} is still in progress for this branch. "
+                        + "Complete or cancel it before creating a new plan.";
+                    return RedirectToAction(nameof(Index), new { branchId });
+                }
+
                 var allBouBranches = await _configServiceClient.GetAllBouBranchesAsync();
                 var branch = allBouBranches.FirstOrDefault(b => b.Id == branchId);
 
@@ -472,6 +514,15 @@ namespace VMSService.Web.Controllers
         {
             try
             {
+                // Re-checked on save: a plan could have been opened for this branch while this form was filled in.
+                var blockingPlan = await FindOpenPlanForBranchAsync(branchId);
+                if (blockingPlan != null)
+                {
+                    TempData["Error"] = $"Processing plan {blockingPlan.ReferenceNumber} is still in progress for this branch. "
+                        + "Complete or cancel it before creating a new plan.";
+                    return RedirectToAction(nameof(Index), new { branchId });
+                }
+
                 var jsonOptions = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
                 var newAssignments = string.IsNullOrEmpty(assignmentsJson) || assignmentsJson == "[]"
@@ -2089,8 +2140,346 @@ namespace VMSService.Web.Controllers
                             TempData["Error"] = "Error Updating Stock Position";
                         }
 
+                        // ── MI & Fit issued to the boards ──────────────────────────────
+                        // The plan's MIandFit rows carry, per denomination, what was issued out of the
+                        // "MI" and "Fit" categories. Each moves into MWB as its own movement, mirroring
+                        // the Paids -> MWB posting above.
+                        var planMiFits = await _miAndFitRepository.FindByPlanId(id);
+
+                        if (planMiFits.Count > 0)
+                        {
+                            Category miCategory = allCategoriesIssue.FirstOrDefault(c =>
+                                c.Name.Trim().Equals(MiCategoryName, StringComparison.OrdinalIgnoreCase));
+                            Category fitCategory = allCategoriesIssue.FirstOrDefault(c =>
+                                c.Name.Trim().Equals(FitCategoryName, StringComparison.OrdinalIgnoreCase));
+
+                            if (miCategory == null || fitCategory == null)
+                            {
+                                // Deliberately not a hard failure: the Paids -> MWB legs above are already
+                                // committed, so aborting here would leave the plan half-posted.
+                                var missingMiFit = new List<string>();
+                                if (miCategory == null) missingMiFit.Add(MiCategoryName);
+                                if (fitCategory == null) missingMiFit.Add(FitCategoryName);
+
+                                _logger.LogError(
+                                    "MI & Fit stock position not updated for plan {PlanId} — missing category configuration: {Missing}.",
+                                    id, string.Join(", ", missingMiFit));
+                                TempData["Error"] = $"MI & Fit stock position was not updated — missing configuration: {string.Join(", ", missingMiFit)}.";
+                            }
+                            else
+                            {
+                                var allDenominationsIssue = await _stockService.GetAllDenominations();
+                                var denomValueByIdIssue = allDenominationsIssue.ToDictionary(d => d.Id, d => d.Value);
+
+                                // Bundle counts derived from the denomination value (value = denomValue * 1000
+                                // * bundles), the same convention used for the Paids and ConfirmResults legs.
+                                List<StockMovementDenomination> BuildMiFitDenoms(Func<MIandFit, decimal> amountSelector) =>
+                                    planMiFits
+                                        .GroupBy(mf => mf.DenominationId)
+                                        .Select(g => new
+                                        {
+                                            DenominationId = g.Key,
+                                            Amount = g.Sum(amountSelector)
+                                        })
+                                        .Where(x => x.Amount > 0)
+                                        .Select(x =>
+                                        {
+                                            var denomValue = denomValueByIdIssue.GetValueOrDefault(x.DenominationId);
+                                            return new StockMovementDenomination
+                                            {
+                                                DenominationId = x.DenominationId,
+                                                NumBundles = denomValue > 0 ? (int)Math.Round(x.Amount / (denomValue * 1000)) : 0,
+                                                SubTotalValue = x.Amount
+                                            };
+                                        })
+                                        .ToList();
+
+                                // Independent StockLedgerDetail list per ledger leg — never share/mutate a
+                                // list between two StockLedger entries.
+                                List<StockLedgerDetail> BuildMiFitLedgerDetails(List<StockMovementDenomination> denoms, int categoryId) =>
+                                    denoms.Select(denom => new StockLedgerDetail
+                                    {
+                                        CreatedDate = DateTime.Now,
+                                        ModifiedDate = DateTime.Now,
+                                        CreatedBy = username ?? "unknown",
+                                        ModifiedBy = username ?? "unknown",
+                                        DenominationId = denom.DenominationId,
+                                        NumberOfBoxes = denom.NumBagsBoxes ?? 0,
+                                        NumberOfBundles = denom.NumBundles,
+                                        NumberOfPieces = ((denom.NumBundles ?? 0) * 1000) + ((denom.NumBagsBoxes ?? 0) * 1000),
+                                        Value = denom.SubTotalValue,
+                                        CategoryId = categoryId
+                                    }).ToList();
+
+                                // Reduces sourceCategory and increases MWB by the same amount.
+                                // No-op when the plan declared nothing for this leg.
+                                async Task PostMiFitToMwbAsync(string movementType, Category sourceCategory,
+                                                               List<StockMovementDenomination> movementDenoms)
+                                {
+                                    if (movementDenoms.Count == 0) return;
+
+                                    var miFitMovement = new StockMovement
+                                    {
+                                        MovementType = movementType,
+                                        Date = DateTime.Now,
+                                        ReferenceNumber = plan.ReferenceNumber,
+                                        DispatchingBranchId = null,
+                                        ReceivingBranchId = null,
+                                        TotalBagsBoxes = null,
+                                        GrandTotalValue = movementDenoms.Sum(d => d.SubTotalValue),
+                                        CurrentStatusId = receivedStatus.Id,
+                                        CurrentStatusName = receivedStatus.Name,
+                                        Denominations = movementDenoms
+                                    };
+                                    var newMiFitMovement = await _stockMovementRepository.CreateAsync(miFitMovement);
+
+                                    // Source category decreases
+                                    var sourceDecreaseEntry = new StockLedger
+                                    {
+                                        ReferenceCode = plan.ReferenceNumber,
+                                        StoreId = plan.BranchId,
+                                        IsIn = false,
+                                        CounterPartyId = moneyWithBoards.Id,
+                                        CounterPartyTypeId = counterPartyType.Id,
+                                        Notes = remarks,
+                                        CreatedBy = username ?? "unknown",
+                                        CreatedDate = DateTime.Now,
+                                        ModifiedBy = username ?? "unknown",
+                                        ModifiedDate = DateTime.Now,
+                                        StockLedgerDetails = BuildMiFitLedgerDetails(movementDenoms, sourceCategory.Id),
+                                        StockMovementId = newMiFitMovement.Id
+                                    };
+                                    if (!await _stockLedgerRepository.Create(sourceDecreaseEntry))
+                                        TempData["Error"] = "Error Updating Stock Position";
+
+                                    // MWB increases
+                                    var mwbIncreaseEntry = new StockLedger
+                                    {
+                                        ReferenceCode = plan.ReferenceNumber,
+                                        StoreId = plan.BranchId,
+                                        IsIn = true,
+                                        CounterPartyId = sourceCategory.Id,
+                                        CounterPartyTypeId = counterPartyType.Id,
+                                        Notes = remarks,
+                                        CreatedBy = username ?? "unknown",
+                                        CreatedDate = DateTime.Now,
+                                        ModifiedBy = username ?? "unknown",
+                                        ModifiedDate = DateTime.Now,
+                                        StockLedgerDetails = BuildMiFitLedgerDetails(movementDenoms, moneyWithBoards.Id),
+                                        StockMovementId = newMiFitMovement.Id
+                                    };
+                                    if (!await _stockLedgerRepository.Create(mwbIncreaseEntry))
+                                        TempData["Error"] = "Error Updating Stock Position";
+                                }
+
+                                await PostMiFitToMwbAsync(StockConstants.StockMovementTypes.MIToMWB,
+                                    miCategory, BuildMiFitDenoms(mf => mf.IssuedUnFitValue));
+
+                                await PostMiFitToMwbAsync(StockConstants.StockMovementTypes.FitToMWB,
+                                    fitCategory, BuildMiFitDenoms(mf => mf.IssuedFitValue));
+                            }
+                        }
+
                         TempData["Success"] = "Stocks Issued Successfully. Stock position Updated";
 
+                    }
+
+                    if (actionName.Equals("CancelResults"))
+                    {
+                        // Undoes IssueToBoards: bags go back to the sections they were issued from,
+                        // and the Paids -> MWB stock position move is posted in reverse.
+
+                        // ── 1. Return the plan's bags to their original vault sections ──
+                        var planBagIds = await _context.SessionBags
+                            .Where(sb => sb.StockProcessingPlanId == id && !sb.IsDeleted)
+                            .Select(sb => sb.BagId)
+                            .Distinct()
+                            .ToListAsync();
+
+                        if (planBagIds.Count > 0)
+                        {
+                            var boardsVault = await _context.Vaults
+                                .FirstOrDefaultAsync(v => v.BranchId == plan.BranchId
+                                    && v.Name == VaultConstants.BagsWithBoardsVaultName
+                                    && !v.IsDeleted);
+
+                            var boardsSection = boardsVault == null ? null : await _context.VaultSections
+                                .FirstOrDefaultAsync(vs => vs.VaultId == boardsVault.Id
+                                    && vs.Name == VaultConstants.BagsWithBoardsSectionName
+                                    && !vs.IsDeleted);
+
+                            // Where each bag came from = the OldVaultSectionId on the most recent
+                            // movement that put it into BAGS WITH BOARDS. Grouped in memory so a
+                            // plan that was issued and cancelled more than once still resolves to
+                            // the latest issue rather than an older one.
+                            var originByBagId = new Dictionary<int, int?>();
+                            if (boardsSection != null)
+                            {
+                                var issueMovements = await _context.BagMovements
+                                    .Where(m => m.BagId.HasValue
+                                        && planBagIds.Contains(m.BagId.Value)
+                                        && m.NewVaultSectionId == boardsSection.Id
+                                        && !m.IsDeleted)
+                                    .ToListAsync();
+
+                                originByBagId = issueMovements
+                                    .GroupBy(m => m.BagId!.Value)
+                                    .ToDictionary(
+                                        g => g.Key,
+                                        g => g.OrderByDescending(m => m.Id).First().OldVaultSectionId);
+                            }
+
+                            var planBags = await _context.Bags
+                                .Where(b => planBagIds.Contains(b.Id) && !b.IsDeleted)
+                                .ToListAsync();
+
+                            var returnedCount = 0;
+                            var unknownOriginCount = 0;
+
+                            foreach (var bag in planBags)
+                            {
+                                // Null when no movement recorded the bag being issued — the bag is
+                                // left without a section rather than guessing where it belongs.
+                                var origin = originByBagId.GetValueOrDefault(bag.Id);
+
+                                if (origin.HasValue)
+                                {
+                                    // NewVaultSectionId is non-nullable, so a return to "no section"
+                                    // cannot be represented as a BagMovement — audited only when the
+                                    // bag lands somewhere real.
+                                    if (bag.VaultSectionId != origin.Value)
+                                    {
+                                        await _bagMovementRepository.Create(new Data.Entities.BagMovement
+                                        {
+                                            BagId = bag.Id,
+                                            OldVaultSectionId = bag.VaultSectionId,
+                                            NewVaultSectionId = origin.Value,
+                                            CreatedBy = username,
+                                            ModifiedBy = username
+                                        });
+                                    }
+                                    returnedCount++;
+                                }
+                                else
+                                {
+                                    unknownOriginCount++;
+                                }
+
+                                bag.VaultSectionId = origin;
+                            }
+
+                            await _context.SaveChangesAsync();
+
+                            if (unknownOriginCount > 0)
+                            {
+                                _logger.LogWarning(
+                                    "CancelResults on plan {PlanId}: {UnknownCount} of {TotalCount} bag(s) had no recorded issue movement and were left without a vault section.",
+                                    id, unknownOriginCount, planBags.Count);
+                            }
+
+                            _logger.LogInformation(
+                                "CancelResults on plan {PlanId}: returned {ReturnedCount} bag(s) to their original sections.",
+                                id, returnedCount);
+                        }
+
+                        // ── 2. Reverse the Paids -> MWB stock position update ──
+                        var cancelBagSummary = await _planRepository.GetBagSummaryAsync(id);
+
+                        var allCategoriesCancel = await _categoryRepository.FindAll();
+                        Category cancelPaids = allCategoriesCancel.FirstOrDefault(c => c.Name == StockConstants.StoreTypes.Paids);
+                        Category cancelMwb = allCategoriesCancel.FirstOrDefault(c => c.Name == StockConstants.StoreTypes.MWB);
+                        var cancelCounterPartyType = await _counterPartyTypeRepository.FindByName(StockConstants.StockCounterPartyType.Category);
+
+                        if (cancelPaids == null || cancelMwb == null || cancelCounterPartyType == null)
+                        {
+                            var missing = new List<string>();
+                            if (cancelPaids == null) missing.Add(StockConstants.StoreTypes.Paids);
+                            if (cancelMwb == null) missing.Add(StockConstants.StoreTypes.MWB);
+                            if (cancelCounterPartyType == null) missing.Add(StockConstants.StockCounterPartyType.Category);
+                            TempData["Error"] = $"Bags were returned, but the stock position could not be reversed — missing configuration: {string.Join(", ", missing)}.";
+                            return RedirectToAction(nameof(Details), new { id });
+                        }
+
+                        StatusTypeDto cancelReceivedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+                        {
+                            ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                            StatusName = StatusConstants.StockMovement.Received,
+                            EntityTypeName = StatusConstants.Entity.StockMovement,
+                        });
+
+                        var reversalMovement = new StockMovement
+                        {
+                            MovementType = StockConstants.StockMovementTypes.MWBToPaids,
+                            Date = DateTime.Now,
+                            ReferenceNumber = plan.ReferenceNumber,
+                            DispatchingBranchId = null,
+                            ReceivingBranchId = null,
+                            TotalBagsBoxes = null,
+                            GrandTotalValue = cancelBagSummary.GrandTotalValue,
+                            CurrentStatusId = cancelReceivedStatus.Id,
+                            CurrentStatusName = cancelReceivedStatus.Name,
+                            Denominations = cancelBagSummary.Denominations
+                        };
+
+                        StockMovement newReversalMovement = await _stockMovementRepository.CreateAsync(reversalMovement);
+
+                        // Independent detail list per ledger leg — never share/mutate one between two entries.
+                        List<StockLedgerDetail> BuildCancelDetails(int categoryId) =>
+                            cancelBagSummary.Denominations.Select(denom => new StockLedgerDetail
+                            {
+                                CreatedDate = DateTime.Now,
+                                ModifiedDate = DateTime.Now,
+                                CreatedBy = username ?? "unknown",
+                                ModifiedBy = username ?? "unknown",
+                                DenominationId = denom.DenominationId,
+                                NumberOfBoxes = denom.NumBagsBoxes ?? 0,
+                                NumberOfBundles = denom.NumBundles,
+                                NumberOfPieces = ((denom.NumBundles ?? 0) * 1000) + ((denom.NumBagsBoxes ?? 0) * 1000),
+                                Value = denom.SubTotalValue,
+                                CategoryId = categoryId
+                            }).ToList();
+
+                        // Money With Boards decreases (the mirror of the IsIn=true entry at IssueToBoards)
+                        StockLedger mwbReversalEntry = new()
+                        {
+                            ReferenceCode = plan.ReferenceNumber,
+                            StoreId = plan.BranchId,
+                            IsIn = false,
+                            CounterPartyId = cancelPaids.Id,
+                            CounterPartyTypeId = cancelCounterPartyType.Id,
+                            Notes = remarks,
+                            CreatedBy = username ?? "unknown",
+                            CreatedDate = DateTime.Now,
+                            ModifiedBy = username ?? "unknown",
+                            ModifiedDate = DateTime.Now,
+                            StockLedgerDetails = BuildCancelDetails(cancelMwb.Id),
+                            StockMovementId = newReversalMovement.Id
+                        };
+
+                        if (!await _stockLedgerRepository.Create(mwbReversalEntry))
+                            TempData["Error"] = "Error Reversing Stock Position";
+
+                        // Paids increases back by the same amount
+                        StockLedger paidsReversalEntry = new()
+                        {
+                            ReferenceCode = plan.ReferenceNumber,
+                            StoreId = plan.BranchId,
+                            IsIn = true,
+                            CounterPartyId = cancelMwb.Id,
+                            CounterPartyTypeId = cancelCounterPartyType.Id,
+                            Notes = remarks,
+                            CreatedBy = username ?? "unknown",
+                            CreatedDate = DateTime.Now,
+                            ModifiedBy = username ?? "unknown",
+                            ModifiedDate = DateTime.Now,
+                            StockLedgerDetails = BuildCancelDetails(cancelPaids.Id),
+                            StockMovementId = newReversalMovement.Id
+                        };
+
+                        if (!await _stockLedgerRepository.Create(paidsReversalEntry))
+                            TempData["Error"] = "Error Reversing Stock Position";
+
+                        TempData["Success"] = "Results cancelled. Bags returned and stock position reversed.";
                     }
 
                     if (actionName.Equals("VerifyResults"))
@@ -2307,8 +2696,13 @@ namespace VMSService.Web.Controllers
                             .Where(b => planBagIds.Contains(b.Id) && !b.IsDeleted)
                             .ToListAsync();
 
+                        // The bags' contents have been dispersed into Re-Issue/Cancelled/Shredded, so the
+                        // bags leave the vault system and are marked processed.
                         foreach (var bag in planBags)
+                        {
                             bag.VaultSectionId = null;
+                            bag.IsProcessed = true;
+                        }
 
                         await _context.SaveChangesAsync();
 

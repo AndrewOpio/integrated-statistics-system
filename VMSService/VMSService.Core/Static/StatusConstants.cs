@@ -148,6 +148,10 @@
             public const string ResultsPendingVerification = "Results Pending Verification";
             public const string ResultsPendingConfirmation = "Results Pending Confirmation";
             public const string Completed = "Completed";
+            public const string Cancelled = "Cancelled";
+
+            /// <summary>Statuses at which a plan is finished and no longer blocks a new plan for its branch.</summary>
+            public static readonly string[] TerminalStatuses = [Completed, Cancelled];
         }
 
         public static class StockProcessingSession

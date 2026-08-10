@@ -58,16 +58,7 @@ namespace VMSService.Core.Mappings
             CreateMap<CurrencyVendor, CurrencyVendorViewModel>().ReverseMap();
             CreateMap<BPSMachine, BPSMachineViewModel>().ReverseMap();
             CreateMap<CountingRoom, CountingRoomViewModel>().ReverseMap();
-            CreateMap<StockProcessingPlan, StockProcessingPlanViewModel>()
-                .ForMember(dest => dest.StockMovementReference, opt => opt.MapFrom(src => src.StockMovement != null ? src.StockMovement.ReferenceNumber : null))
-                .ReverseMap()
-                .ForMember(dest => dest.StockMovement, opt => opt.Ignore());
-            CreateMap<ProcessingBoard, ProcessingBoardViewModel>()
-                .ForMember(dest => dest.BPSMachineName, opt => opt.MapFrom(src => src.BPSMachine != null ? src.BPSMachine.Name : null))
-                .ForMember(dest => dest.CountingRoomName, opt => opt.MapFrom(src => src.CountingRoom != null ? src.CountingRoom.Name : null))
-                .ReverseMap()
-                .ForMember(dest => dest.BPSMachine, opt => opt.Ignore())
-                .ForMember(dest => dest.CountingRoom, opt => opt.Ignore());
+            CreateMap<StockProcessingPlan, StockProcessingPlanViewModel>().ReverseMap();
             CreateMap<DenominationType, DenominationTypeViewModel>().ReverseMap();
             CreateMap<Denomination, DenominationViewModel>().ReverseMap();
             CreateMap<ApprovedCurrencyProcurement, ApprovedCurrencyProcurementsViewModel>().ReverseMap();

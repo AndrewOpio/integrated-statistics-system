@@ -11,7 +11,13 @@ namespace VMSService.Core.Models.StockProcessingResults
         [Required]
         public int SessionId { get; set; }
 
-        // Machine-only field
+        // Machine-only fields
+        [Range(0, double.MaxValue)]
+        public decimal FitValue { get; set; } = 0;
+
+        [Range(0, double.MaxValue)]
+        public decimal UnFitShredValue { get; set; } = 0;
+
         [Range(0, double.MaxValue)]
         public decimal FitShredValue { get; set; } = 0;
 

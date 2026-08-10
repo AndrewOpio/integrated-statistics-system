@@ -7,7 +7,9 @@ namespace VMSService.Data.Entities
         public int Id { get; set; }
         public int StockProcessingSessionId { get; set; }
         public StockProcessingSession? StockProcessingSession { get; set; }
-        public int Count { get; set; }
+        public int Count { get; set; } // From Machine only
+        public decimal FitValue { get; set; } // From Machine only
+        public decimal UnFitShredValue { get; set; } // From Machine only
         public decimal FitShredValue { get; set; } // From Machine only
         public decimal CanceledValue { get; set; }
         public decimal ReissueValue { get; set; }

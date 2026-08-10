@@ -4273,12 +4273,7 @@ namespace VMSService.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("StockMovementId")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("StockMovementId");
 
                     b.ToTable("StockProcessingPlans");
                 });
@@ -4361,6 +4356,9 @@ namespace VMSService.Data.Migrations
                     b.Property<decimal>("FitShredValue")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal>("FitValue")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
@@ -4379,6 +4377,9 @@ namespace VMSService.Data.Migrations
 
                     b.Property<int>("StockProcessingSessionId")
                         .HasColumnType("int");
+
+                    b.Property<decimal>("UnFitShredValue")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("UnProcessedValue")
                         .HasColumnType("decimal(18,2)");
@@ -5950,15 +5951,6 @@ namespace VMSService.Data.Migrations
                         .HasForeignKey("StockMovementId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.Navigation("StockMovement");
-                });
-
-            modelBuilder.Entity("VMSService.Data.Entities.StockProcessingPlan", b =>
-                {
-                    b.HasOne("VMSService.Data.Entities.StockMovement", "StockMovement")
-                        .WithMany()
-                        .HasForeignKey("StockMovementId");
 
                     b.Navigation("StockMovement");
                 });
