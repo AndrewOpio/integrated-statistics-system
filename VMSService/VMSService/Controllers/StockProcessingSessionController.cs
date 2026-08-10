@@ -1264,6 +1264,7 @@ namespace VMSService.Web.Controllers
 
                 var currentlyApplied = await _appliedPenaltyRepository.FindBySourceId(session.ReferenceNumber);
                 var denomination = await _stockService.GetDenominationById(session.DenominationId);
+                var description = await BuildPenaltyDescriptionAsync(session);
 
                 foreach (var penaltyId in checkedPenaltyIds)
                 {
@@ -1288,7 +1289,8 @@ namespace VMSService.Web.Controllers
                         // TODO: correctlyClassifiedValue should come from a fit/unfit-style breakdown on
                         // StockProcessingResult once one exists again; until then this always applies the
                         // percent-cutoff penalty in full when checked (correctlyClassifiedValue / baseValue = 0).
-                        correctlyClassifiedValue: 0);
+                        correctlyClassifiedValue: 0,
+                        description: description);
                 }
 
                 foreach (var applied in currentlyApplied.Where(a => !checkedPenaltyIds.Contains(a.PenaltyId) && !automaticPenaltyIds.Contains(a.PenaltyId)))
@@ -1420,6 +1422,33 @@ namespace VMSService.Web.Controllers
             PenaltyConstants.AutomaticPenalties.FitUnfitMixUp,
         };
 
+        // Human-readable summary stored on each penalty so it reads standalone in listings and
+        // settlement reports, away from the session itself — same format as DepositRequestsController.
+        private async Task<string> BuildPenaltyDescriptionAsync(StockProcessingSession session)
+        {
+            var allBanks = await _commercialBankRepository.FindAll();
+            var bank = allBanks.FirstOrDefault(b => b.Id == session.CommercialBankId);
+
+            var branchId = session.ProcessingBoard?.BranchId ?? 0;
+            string? branchName = null;
+            try
+            {
+                var branch = await _configServiceClient.GetBouBranchByIdAsync(branchId);
+                branchName = branch?.Name;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not resolve branch name {BranchId} for penalty description", branchId);
+            }
+
+            var plan = await _context.StockProcessingPlans
+                .FirstOrDefaultAsync(p => p.Id == session.StockProcessingPlanId);
+
+            return $"Penalty for Non Compliance on Processing Session {session.ReferenceNumber} from " +
+                   $"{bank?.Name ?? "Unknown Bank"} {branchName ?? "Unknown Branch"} " +
+                   $"of UGX {session.TotalIssuedValue:N0} dated {(plan?.ProcessingDate ?? DateTime.UtcNow):dd MMM yyyy}";
+        }
+
         // SubCategoryId per bag: own SubCategoryId, falling back to the parent bag's when a (child) bag
         // has none of its own.
         private async Task<Dictionary<int, int?>> ResolveBagSubCategoryIdsAsync(List<int> bagIds)
@@ -1469,7 +1498,8 @@ namespace VMSService.Web.Controllers
                     quantity: piecesShort,
                     denomValue: denomValue,
                     baseValue: shortage.Amount,
-                    correctlyClassifiedValue: 0);
+                    correctlyClassifiedValue: 0,
+                    description: await BuildPenaltyDescriptionAsync(session));
 
                 await _appliedPenaltyRepository.Save();
             }
@@ -1521,7 +1551,8 @@ namespace VMSService.Web.Controllers
                     quantity: totalPieces,
                     denomValue: denomination?.Value,
                     baseValue: totalAmount,
-                    correctlyClassifiedValue: 0);
+                    correctlyClassifiedValue: 0,
+                    description: await BuildPenaltyDescriptionAsync(session));
 
                 await _appliedPenaltyRepository.Save();
             }
@@ -1580,7 +1611,8 @@ namespace VMSService.Web.Controllers
                         quantity: null,
                         denomValue: null,
                         baseValue: baseValue,
-                        correctlyClassifiedValue: correctlyClassifiedValue);
+                        correctlyClassifiedValue: correctlyClassifiedValue,
+                        description: await BuildPenaltyDescriptionAsync(session));
                     await _appliedPenaltyRepository.Save();
                 }
                 else if (existing != null)

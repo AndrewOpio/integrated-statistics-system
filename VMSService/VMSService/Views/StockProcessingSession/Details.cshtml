@@ -324,14 +324,10 @@
                     <thead style="background:#f8fafc;">
                         <tr>
                             <th class="ps-4 py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">#</th>
-                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">COUNT</th>
-                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">MONEY WITH BOARD</th>
-                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">CANCELED VALUE</th>
+                            @* <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">COUNT</th> *@
                             <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">REISSUE VALUE</th>
-                            @if (!Model.IsManual)
-                            {
-                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">FIT/SHRED VALUE</th>
-                            }
+                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">CANCELED VALUE</th>
+                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">MONEY WITH BOARD</th>
                             <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">VERIFIED</th>
                             <th class="py-2 pe-4 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;width:60px;"></th>
                         </tr>
@@ -342,26 +338,32 @@
                         {
                             <tr>
                                 <td class="ps-4 py-2 text-muted">@rn</td>
-                                <td class="py-2 fw-semibold">@r.Count.ToString("N0")</td>
+                                @* <td class="py-2 fw-semibold">@r.Count.ToString("N0")</td> *@
+                                <td class="py-2">
+                                    @if (r.ReissueValue > 0) { <text>UGX @r.ReissueValue.ToString("N0")</text> } else { <span class="text-muted">—</span> }
+                                </td>
+                                <td class="py-2">
+                                    @if (r.CanceledValue > 0)
+                                    {
+                                        <text>UGX @r.CanceledValue.ToString("N0")</text>
+                                    }
+                                    else
+                                    {
+
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
                                 <td class="py-2">
                                     @if (r.UnProcessedValue > 0)
                                     {
                                         <span class="fw-semibold text-warning-emphasis">UGX @r.UnProcessedValue.ToString("N0")</span>
                                     }
-                                    else { <span class="text-muted">—</span> }
+                                    else
+                                    {
+
+                                        <span class="text-muted">—</span>
+                                    }
                                 </td>
-                                <td class="py-2">
-                                    @if (r.CanceledValue > 0) { <text>UGX @r.CanceledValue.ToString("N0")</text> } else { <span class="text-muted">—</span> }
-                                </td>
-                                <td class="py-2">
-                                    @if (r.ReissueValue > 0) { <text>UGX @r.ReissueValue.ToString("N0")</text> } else { <span class="text-muted">—</span> }
-                                </td>
-                                @if (!Model.IsManual)
-                                {
-                                    <td class="py-2">
-                                        @if (r.FitShredValue > 0) { <text>UGX @r.FitShredValue.ToString("N0")</text> } else { <span class="text-muted">—</span> }
-                                    </td>
-                                }
                                 <td class="py-2">
                                     @if (r.IsVerified)
                                     {
@@ -837,7 +839,10 @@
                         <tr>
                             <th class="ps-4 py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">#</th>
                             <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">NOTE EXAMINER</th>
-                            <th class="py-2 pe-4 text-muted fw-semibold text-end" style="font-size:.7rem;letter-spacing:.05em;">BUNDLES</th>
+                            @if (Model.IsManual)
+                            {
+                                <th class="py-2 pe-4 text-muted fw-semibold text-end" style="font-size:.7rem;letter-spacing:.05em;">BUNDLES</th>
+                            }
                         </tr>
                     </thead>
                     <tbody>
@@ -849,7 +854,10 @@
                             <tr>
                                 <td class="ps-4 py-2 text-muted">@nen</td>
                                 <td class="py-2 fw-semibold">@(ne.NoteExaminerName ?? $"Examiner {ne.NoteExaminerId}")</td>
-                                <td class="py-2 pe-4 text-end fw-semibold" style="color:#31316A;">@ne.NumberOfBundles.ToString("N0")</td>
+                                @if (Model.IsManual)
+                                {
+                                    <td class="py-2 pe-4 text-end fw-semibold" style="color:#31316A;">@ne.NumberOfBundles.ToString("N0")</td>
+                                }
                             </tr>
                             nen++;
                         }
@@ -1243,7 +1251,9 @@
 
             function addNoteExaminerRow(container, namePrefix, rowIdx, preData) {
                 var div = document.createElement('div');
-                div.className = 'row g-2 align-items-center mb-2';
+                // align-items-end keeps the Remove button on the same baseline as the inputs, which
+                // sit below their labels — align-items-center would float it up the row instead.
+                div.className = 'row g-2 align-items-end mb-2';
                 var selectedId = preData ? preData.NoteExaminerId : null;
                 var excludeIds = getSelectedNoteExaminerIds(container, null);
 
@@ -1261,7 +1271,7 @@
                             '<input type="text" inputmode="numeric" name="' + namePrefix + '[' + rowIdx + '].NumberOfBundles" ' +
                                    'class="form-control form-control-sm ne-bundles-input" placeholder="0" required autocomplete="off" />' +
                         '</div>' +
-                        '<div class="col-4 col-md-2 d-flex align-items-end pb-1">' +
+                        '<div class="col-4 col-md-2 d-flex align-items-end mb-1">' +
                             '<button type="button" class="btn btn-sm btn-outline-danger remove-row-btn" title="Remove row">' +
                                 '<i class="ti ti-trash"></i>' +
                             '</button>' +
@@ -1276,7 +1286,7 @@
                             '</select>' +
                         '</div>' +
                         '<input type="hidden" name="' + namePrefix + '[' + rowIdx + '].NumberOfBundles" value="0" />' +
-                        '<div class="col-2 col-md-2 d-flex align-items-end pb-1">' +
+                        '<div class="col-2 col-md-2 d-flex align-items-end mb-1">' +
                             '<button type="button" class="btn btn-sm btn-outline-danger remove-row-btn" title="Remove row">' +
                                 '<i class="ti ti-trash"></i>' +
                             '</button>' +

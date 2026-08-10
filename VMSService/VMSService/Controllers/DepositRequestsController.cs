@@ -576,8 +576,10 @@ namespace VMSService.Web.Controllers
                 // Human-readable summary stored on each penalty so it reads standalone in listings
                 // and settlement reports, away from the deposit request itself.
                 var cb = await _configServiceClient.GetCbIdAsync(request.CbId);
+                var bouBranch = await _configServiceClient.GetBouBranchByIdAsync(request.BouBranchId);
                 var description =
-                    $"Deposit {request.TransactionRefNumber} from {cb?.Name ?? "Unknown Bank"} " +
+                    $"Penalty for Non Compliance on Deposit {request.TransactionRefNumber} from {cb?.Name ?? "Unknown Bank"} " +
+                    $"{bouBranch?.Name ?? "Unknown Branch"} " +
                     $"of UGX {request.TotalAmount:N0} dated {request.DepositDate:dd MMM yyyy}";
 
                 foreach (var penaltyId in checkedPenaltyIds)

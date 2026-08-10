@@ -89,3 +89,23 @@
 		}
 	</div>
 </div>
+
+<script>
+	document.addEventListener('DOMContentLoaded', function () {
+		const workflowForm = document.getElementById('workflowForm');
+		const submitBtn = document.getElementById('submitBtn');
+		if (!workflowForm || !submitBtn) return;
+
+		// Disable the button once the form actually submits, so a second click can't fire a
+		// duplicate request. Deferred via setTimeout so it runs after any validation listeners
+		// (e.g. _WorkflowActionsScript) have had a chance to call preventDefault() — if they did,
+		// the button is left enabled so the user can fix the issue and resubmit.
+		workflowForm.addEventListener('submit', function (e) {
+			setTimeout(function () {
+				if (!e.defaultPrevented) {
+					submitBtn.disabled = true;
+				}
+			}, 0);
+		});
+	});
+</script>
