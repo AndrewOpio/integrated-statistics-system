@@ -23,6 +23,7 @@ publish/
 .vs/
 .vscode/
 .idea/
+.claude/
 
 ############################
 # Logs

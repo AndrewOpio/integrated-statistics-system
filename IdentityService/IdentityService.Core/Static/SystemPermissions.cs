@@ -42,7 +42,13 @@
             public const string Create  = "CAS CbDepositRequestsController Create";
             public const string Edit    = "CAS CbDepositRequestsController Edit";
         }
-
+        public static class CAS_CbWithdrawRequests
+        {
+            public const string View = "CAS CbWithdrawRequestsController Index";
+            public const string Details = "CAS CbWithdrawRequestsController Details";
+            public const string Create = "CAS CbWithdrawRequestsController Create";
+            public const string Edit = "CAS CbWithdrawRequestsController Edit";
+        }
         public static class CAS_DepositRequests
         {
             public const string View    = "CAS DepositRequestsController Index";
