@@ -78,9 +78,17 @@ namespace VMSService.Web.Controllers
                     return RedirectToAction(nameof(Generate));
                 }
 
+                // Exclude "Banking" commercial bank transactions
+                var allBanks = await _configServiceClient.GetAllCommercialBankAsync();
+                var bankingIds = allBanks?
+                    .Where(b => b.Name.Equals("Banking", StringComparison.OrdinalIgnoreCase))
+                    .Select(b => b.Id)
+                    .ToHashSet() ?? new HashSet<int>();
+
                 // Aggregate per branch — include all branches regardless of net position
                 var branchTotals = eodReports
                     .SelectMany(r => r.Entries.Select(e => e.BoardSessionSurplusShortage))
+                    .Where(t => !bankingIds.Contains(t.CommercialBankId))
                     .GroupBy(t => t.BranchId)
                     .Select(g => new
                     {
@@ -324,12 +332,22 @@ namespace VMSService.Web.Controllers
                 .OrderBy(e => e.EodDiscrepancyReport.SessionDate)
                 .ToListAsync();
 
-            var transactions = entries.Select(e => new
-            {
-                sessionDate = e.EodDiscrepancyReport.SessionDate.ToString("dd MMM yyyy"),
-                isSurplus   = e.BoardSessionSurplusShortage.IsSurplus,
-                amount      = e.BoardSessionSurplusShortage.Amount,
-            });
+            var banks = await _configServiceClient.GetAllCommercialBankAsync();
+            var bankMap = banks?.ToDictionary(b => b.Id, b => b.Name) ?? new Dictionary<int, string>();
+            var bankingIds = banks?
+                .Where(b => b.Name.Equals("Banking", StringComparison.OrdinalIgnoreCase))
+                .Select(b => b.Id)
+                .ToHashSet() ?? new HashSet<int>();
+
+            var transactions = entries
+                .Where(e => !bankingIds.Contains(e.BoardSessionSurplusShortage.CommercialBankId))
+                .Select(e => new
+                {
+                    sessionDate    = e.EodDiscrepancyReport.SessionDate.ToString("dd MMM yyyy"),
+                    isSurplus      = e.BoardSessionSurplusShortage.IsSurplus,
+                    amount         = e.BoardSessionSurplusShortage.Amount,
+                    commercialBank = bankMap.TryGetValue(e.BoardSessionSurplusShortage.CommercialBankId, out var name) ? name : "—",
+                });
 
             return Ok(new { transactions });
         }

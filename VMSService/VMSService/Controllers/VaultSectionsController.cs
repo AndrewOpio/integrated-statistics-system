@@ -67,6 +67,7 @@ namespace VMSService.Web.Controllers
             try
             {
                 var section = _mapper.Map<VaultSection>(model);
+                section.Vault = null;
                 bool isCreated = await _vaultSectionRepository.Create(section);
 
                 if (isCreated)

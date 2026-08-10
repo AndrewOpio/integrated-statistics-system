@@ -28,6 +28,7 @@
             public const string HeadOfBackOffice = "Head of Back Office";
 
             public const string BoardSupervisor = "Board Supervisor";
+            public const string Treasury = "Treasury";
             public const string CfbSupervisor = "CFB Supervisor";
         }
 

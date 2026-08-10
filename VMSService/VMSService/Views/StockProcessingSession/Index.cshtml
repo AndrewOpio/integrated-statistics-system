@@ -1,0 +1,248 @@
+@using VMSService.Core.Models.StockProcessingSessions
+@model List<StockProcessingSessionIndexItemViewModel>
+
+@{
+    ViewData["Title"] = "My Processing Sessions";
+}
+
+<style>
+    .session-row-link { text-decoration: none; color: inherit; }
+    .denom-pill {
+        display: inline-block;
+        padding: .15rem .55rem;
+        border-radius: .35rem;
+        font-size: .72rem;
+        font-weight: 700;
+        background: rgba(49,49,106,.07);
+        color: #31316A;
+        border: 1px solid rgba(49,49,106,.15);
+    }
+    .machine-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: .25rem;
+        padding: .1rem .45rem;
+        border-radius: .3rem;
+        font-size: .68rem;
+        background: #f0f4ff;
+        color: #31316A;
+        border: 1px solid #c7d2fe;
+    }
+    .manual-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: .25rem;
+        padding: .1rem .45rem;
+        border-radius: .3rem;
+        font-size: .68rem;
+        background: #f8f9fa;
+        color: #6c757d;
+        border: 1px solid #dee2e6;
+    }
+    .plan-link {
+        font-size: .68rem;
+        color: #6c757d;
+        text-decoration: none;
+    }
+    .plan-link:hover { color: #31316A; text-decoration: underline; }
+    .empty-state {
+        padding: 5rem 1rem;
+        text-align: center;
+    }
+    .empty-state-icon {
+        font-size: 3.5rem;
+        opacity: .25;
+        color: #31316A;
+        margin-bottom: 1rem;
+    }
+</style>
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="ti ti-alert-circle me-2"></i>@TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="card border-0 shadow">
+    <div class="card-header bg-white py-2 px-3">
+        <div>
+            <div class="d-flex align-items-center justify-content-between mb-4">
+                <div>
+                    <p class="text-muted small mb-0">Board Supervisor</p>
+                    <h4 class="fw-bold mb-0 text-tertiary">My Processing Sessions</h4>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-light border text-secondary">
+                        <i class="ti ti-list-check me-1"></i>@Model.Count session@(Model.Count == 1 ? "" : "s")
+                    </span>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <div class="rounded d-flex align-items-center justify-content-center"
+                 style="width:32px;height:32px;background:rgba(49,49,106,.08);flex-shrink:0;">
+                <i class="ti ti-clipboard-list text-tertiary" style="font-size:.9rem;"></i>
+            </div>
+            <div>
+                <h6 class="fw-bold mb-0 text-tertiary">Assigned Sessions</h6>
+                <span class="small text-muted">Sessions assigned to your counting room(s)</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-body p-3">
+        @if (!Model.Any())
+        {
+            <div class="empty-state">
+                <div class="empty-state-icon"><i class="ti ti-clipboard-off"></i></div>
+                <p class="fw-semibold text-muted mb-1">No sessions assigned to you</p>
+                <p class="small text-muted mb-0">Sessions will appear here once a Board Supervisor is assigned to your counting room(s) within an active plan.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover small mb-0" id="sessionsTable">
+                    <thead class="thead-light">
+                        <tr>
+                            <th class="ps-4 py-2 text-muted fw-semibold rounded-start" style="font-size:.7rem;letter-spacing:.05em;">SESSION</th>
+                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">PLAN DATE</th>
+                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">BOARD / ROOM</th>
+                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">COMMERCIAL BANK</th>
+                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">DENOMINATION</th>
+                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">ISSUED VALUE</th>
+                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">STATUS</th>
+                            <th class="py-2 pe-4 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">COMPLETION</th>
+                            <th class="py-2 pe-4 rounded-end" style="width:60px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            var statusClass = item.CurrentStatusName switch
+                            {
+                                "Draft"         => "bg-info",
+                                "Issued To Board" => "bg-info",
+                                "Open"          => "bg-danger",
+                                "Closed"        => "bg-success",
+                                _               => "bg-secondary"
+                            };
+                            <tr>
+                                <td class="py-3 px-1">
+                                    <a asp-action="Details" asp-route-id="@item.Id"
+                                       class="fw-bold text-decoration-none text-nowrap" style="color:#31316A;font-size:.85rem;">
+                                        <i class="ti ti-hash text-muted me-1" style="font-size:.7rem;"></i>@item.ReferenceNumber
+                                    </a>
+                                    <div class="mt-1">
+                                        @if (item.IsManual)
+                                        {
+                                            <span class="manual-pill"><i class="ti ti-hand" style="font-size:.65rem;"></i>Manual</span>
+                                        }
+                                        else if (!string.IsNullOrEmpty(item.MachineName))
+                                        {
+                                            <span class="machine-pill"><i class="ti ti-cpu" style="font-size:.65rem;"></i>@item.MachineName</span>
+                                        }
+                                        @*@if (!string.IsNullOrEmpty(item.PlanReferenceNumber))
+                                        {
+                                            <a asp-controller="StockProcessingPlan" asp-action="Details"
+                                               asp-route-id="@item.StockProcessingPlanId" class="plan-link ms-1">
+                                                <i class="ti ti-file-description" style="font-size:.65rem;"></i> @item.PlanReferenceNumber
+                                            </a>
+                                        }*@
+                                    </div>
+                                </td>
+                                <td class="py-3 px-1">
+                                    <span class="fw-semibold">@item.ProcessingDate.ToString("dd MMM yyyy")</span>
+                                </td>
+                                <td class="py-3 px-1">
+                                    @if (!string.IsNullOrEmpty(item.ProcessingBoardName))
+                                    {
+                                        <span class="fw-semibold d-block">@item.ProcessingBoardName</span>
+                                    }
+                                    @if (!string.IsNullOrEmpty(item.CountingRoomName))
+                                    {
+                                        <span class="text-muted" style="font-size:.72rem;">
+                                            <i class="ti ti-door me-1"></i>@item.CountingRoomName
+                                        </span>
+                                    }
+                                </td>
+                                <td class="py-3 px-1">
+                                    @if (!string.IsNullOrEmpty(item.CommercialBankName))
+                                    {
+                                        <span class="fw-semibold">@item.CommercialBankName</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="py-3 px-1">
+                                    @if (item.DenominationValue > 0)
+                                    {
+                                        <span class="denom-pill">UGX @item.DenominationValue.ToString("N0")</span>
+                                        @if (!string.IsNullOrEmpty(item.DenominationName))
+                                        {
+                                            <div class="text-muted mt-1" style="font-size:.68rem;">@item.DenominationName</div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="py-3 px-1">
+                                    @if (item.TotalIssuedValue > 0)
+                                    {
+                                        <span class="fw-semibold">UGX @item.TotalIssuedValue.ToString("N0")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="py-3 px-1">
+                                    <span class="badge @statusClass px-2 py-1 rounded-pill" style="font-size:.7rem;">
+                                        <i class="ti ti-circle-filled me-1"></i>
+                                        @item.CurrentStatusName
+                                    </span>
+                                </td>
+                                <td class="py-3 px-1">
+                                    @if (item.IsCompleted)
+                                    {
+                                        <span class="badge px-2 py-1 rounded-pill" style="font-size:.7rem;background:#d1e7dd;color:#0a3622;">
+                                            <i class="ti ti-circle-check me-1"></i>Completed
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge px-2 py-1 rounded-pill" style="font-size:.7rem;background:#fff3cd;color:#664d03;">
+                                            <i class="ti ti-clock me-1"></i>Incomplete
+                                        </span>
+                                    }
+                                </td>
+                                <td class="py-3 px-1">
+                                    <a asp-action="Details" asp-route-id="@item.Id"
+                                       class="btn btn-sm btn-outline-secondary" title="View Details">
+                                        <i class="ti ti-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            $('#sessionsTable').DataTable({
+                order: [[1, 'desc']],
+                columnDefs: [{ orderable: false, targets: [8] }]
+            });
+        });
+    </script>
+}

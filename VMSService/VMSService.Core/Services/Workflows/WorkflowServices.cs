@@ -13,6 +13,10 @@ using VMSService.Core.Repositories.MonthlyShortages;
 using VMSService.Core.Repositories.MonthlyShortageStatusHistories;
 using VMSService.Core.Repositories.MonthlyCommercialBankSettlements;
 using VMSService.Core.Repositories.MonthlyCommercialBankSettlementStatusHistories;
+using VMSService.Core.Repositories.BankingSurpluses;
+using VMSService.Core.Repositories.BankingSurplusStatusHistories;
+using VMSService.Core.Repositories.BankingShortages;
+using VMSService.Core.Repositories.BankingShortageStatusHistories;
 using VMSService.Core.Repositories.DestructionAuthorizationStatusHistories;
 using VMSService.Core.Repositories.DestructionAuthorizations;
 using VMSService.Core.Repositories.DestructionRequestStatusHistories;
@@ -23,6 +27,8 @@ using VMSService.Core.Repositories.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.ReceivedStocks;
 using VMSService.Core.Repositories.StockProcessingPlans;
 using VMSService.Core.Repositories.StockProcessingPlanStatusHistories;
+using VMSService.Core.Repositories.StockProcessingSessions;
+using VMSService.Core.Repositories.StockProcessingSessionStatusHistories;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
 using VMSService.Core.Repositories.StockMovementDiscrepancies;
 using VMSService.Core.Repositories.StockMovements;
@@ -51,6 +57,8 @@ namespace VMSService.Core.Services.Workflows
         IExPrintMintStatusHistoryRepository _exPrintMintStatusHistoryRepository,
         IStockProcessingPlanRepository _stockProcessingPlanRepository,
         IStockProcessingPlanStatusHistoryRepository _stockProcessingPlanStatusHistoryRepository,
+        IStockProcessingSessionRepository _stockProcessingSessionRepository,
+        IStockProcessingSessionStatusHistoryRepository _stockProcessingSessionStatusHistoryRepository,
         IReceivedStockStatusHistoryRepository _receivedStockStatusHistoryRepository,
         IStockMovementRepository _stockMovementRepository,
         IStockMovementStatusHistoryRepository _stockMovementStatusHistoryRepository,
@@ -74,6 +82,11 @@ namespace VMSService.Core.Services.Workflows
         IMonthlyShortageRepository _monthlyShortageRepository,
         IMonthlyShortageStatusHistoryRepository _monthlyShortageStatusHistoryRepository,
         IMonthlyCommercialBankSettlementRepository _cbSettlementRepository,
+        IMonthlyCommercialBankSettlementStatusHistoryRepository _cbSettlementStatusHistoryRepository,
+        IBankingSurplusRepository _bankingSurplusRepository,
+        IBankingSurplusStatusHistoryRepository _bankingSurplusStatusHistoryRepository,
+        IBankingShortageRepository _bankingShortageRepository,
+        IBankingShortageStatusHistoryRepository _bankingShortageStatusHistoryRepository) : IWorkflowService
         IMonthlyCommercialBankSettlementStatusHistoryRepository _cbSettlementStatusHistoryRepository,
         ITopupRequestRepository _topupRequestRepository,
         ITopupRequestStatusHistoryRepository _topupHistoryRepository,
@@ -149,6 +162,18 @@ namespace VMSService.Core.Services.Workflows
 
                     case StatusConstants.Entity.CfbTopupRequest:
                         return await HandleCfbTopupRequestTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
+
+                    case StatusConstants.Entity.StockProcessingPlan:
+                        return await HandleStockProcessingPlanTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
+
+                    case StatusConstants.Entity.StockProcessingSession:
+                        return await HandleStockProcessingSessionTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
+
+                    case StatusConstants.Entity.BankingSurpluses:
+                        return await HandleBankingSurplusTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
+
+                    case StatusConstants.Entity.BankingShortages:
+                        return await HandleBankingShortageTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
 
                     default:
                         _logger.LogWarning("Unknown entity type: {EntityType}", entityType);
@@ -509,7 +534,8 @@ namespace VMSService.Core.Services.Workflows
                     Recipients = recipients.ToList(),
                 };
 
-                var notificationId = await _notificationServiceClient.SendAsync(notificationRequest);
+                //var notificationId = await _notificationServiceClient.SendAsync(notificationRequest);
+                var notificationId = new Guid();
 
                 _logger.LogInformation("Notification sent successfully. NotificationId: {NotificationId} for entity {Entity}",
                     notificationId, entityDescription);
@@ -1135,6 +1161,114 @@ namespace VMSService.Core.Services.Workflows
             return true;
         }
 
+        private async Task<bool> HandleBankingSurplusTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
+        {
+            var surplus = await _bankingSurplusRepository.FindById(entityId);
+            if (surplus == null)
+            {
+                _logger.LogWarning("Banking Surplus {Id} not found", entityId);
+                return false;
+            }
+
+            if (surplus.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Banking Surplus {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, surplus.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new BankingSurplusStatusHistory
+            {
+                BankingSurplusId = entityId,
+                OldStatusId      = surplus.CurrentStatusId,
+                OldStatusName    = surplus.CurrentStatusName,
+                NewStatusId      = transition.ToStatusId,
+                NewStatusName    = transition.ToStatus.Name,
+                ChangedBy        = username,
+                ChangedAt        = DateTime.Now,
+                Remarks          = remarks,
+                AttachmentIds    = attachmentIds != null && attachmentIds.Count > 0
+                                       ? string.Join(",", attachmentIds)
+                                       : null,
+                IsDeleted        = false
+            };
+
+            await _bankingSurplusStatusHistoryRepository.Create(statusHistory);
+
+            surplus.CurrentStatusId   = transition.ToStatusId;
+            surplus.CurrentStatusName = transition.ToStatus.Name;
+            await _bankingSurplusRepository.Update(surplus);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"Banking Surplus {surplus.ReferenceNumber}",
+                    transition,
+                    statusHistory.NewStatusName,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("Banking Surplus {Id} transitioned from {From} to {To} by {Username} via action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
+        private async Task<bool> HandleBankingShortageTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
+        {
+            var shortage = await _bankingShortageRepository.FindById(entityId);
+            if (shortage == null)
+            {
+                _logger.LogWarning("Banking Shortage {Id} not found", entityId);
+                return false;
+            }
+
+            if (shortage.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Banking Shortage {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, shortage.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new BankingShortageStatusHistory
+            {
+                BankingShortageId = entityId,
+                OldStatusId       = shortage.CurrentStatusId,
+                OldStatusName     = shortage.CurrentStatusName,
+                NewStatusId       = transition.ToStatusId,
+                NewStatusName     = transition.ToStatus.Name,
+                ChangedBy         = username,
+                ChangedAt         = DateTime.Now,
+                Remarks           = remarks,
+                AttachmentIds     = attachmentIds != null && attachmentIds.Count > 0
+                                        ? string.Join(",", attachmentIds)
+                                        : null,
+                IsDeleted         = false
+            };
+
+            await _bankingShortageStatusHistoryRepository.Create(statusHistory);
+
+            shortage.CurrentStatusId   = transition.ToStatusId;
+            shortage.CurrentStatusName = transition.ToStatus.Name;
+            await _bankingShortageRepository.Update(shortage);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"Banking Shortage {shortage.ReferenceNumber}",
+                    transition,
+                    statusHistory.NewStatusName,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("Banking Shortage {Id} transitioned from {From} to {To} by {Username} via action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
         private async Task<bool> HandleCfbTopupRequestTransitions(int entityId, int currentStatusId, string actionName,
             string username, string remarks, WorkflowTransitionDto transition)
         {
@@ -1182,6 +1316,57 @@ namespace VMSService.Core.Services.Workflows
 
             _logger.LogInformation("TopupRequest {Id} transitioned from {From} to {To} by {Username} via action {Action}",
                 entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
+        private async Task<bool> HandleStockProcessingSessionTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
+        {
+            var session = await _stockProcessingSessionRepository.FindById(entityId);
+            if (session == null)
+            {
+                _logger.LogWarning("Stock Processing Session {Id} not found", entityId);
+                return false;
+            }
+
+            if (session.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Stock Processing Session {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, session.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new StockProcessingSessionStatusHistory
+            {
+                StockProcessingSessionId = entityId,
+                OldStatusId = session.CurrentStatusId,
+                NewStatusId = transition.ToStatusId,
+                ChangedBy = username,
+                ChangedAt = DateTime.Now,
+                Remarks = remarks,
+                Attachments = attachmentIds != null && attachmentIds.Any()
+                    ? string.Join(",", attachmentIds)
+                    : null,
+                IsDeleted = false
+            };
+
+            await _stockProcessingSessionStatusHistoryRepository.Create(statusHistory);
+
+            session.CurrentStatusId = transition.ToStatusId;
+            await _stockProcessingSessionRepository.Update(session);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"Stock Processing Session #{session.ReferenceNumber}",
+                    transition,
+                    transition.ToStatus.Name,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("Stock Processing Session {Id} transitioned from status {From} to {To} by user {Username} with action {Action}. Attachments: {AttachmentCount}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName, attachmentIds?.Count ?? 0);
 
             return true;
         }

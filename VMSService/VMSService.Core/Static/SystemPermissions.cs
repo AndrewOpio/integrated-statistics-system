@@ -119,5 +119,19 @@ namespace VMSService.Core.Static
             public const string Details  = "CAS MonthlyCommercialBankSettlementsController Details";
             public const string Generate = "CAS MonthlyCommercialBankSettlementsController Generate";
         }
+
+        public static class BankingShortages
+        {
+            public const string View     = "CAS BankingShortagesController Index";
+            public const string Details  = "CAS BankingShortagesController Details";
+            public const string Generate = "CAS BankingShortagesController Generate";
+        }
+
+        public static class BankingSurpluses
+        {
+            public const string View    = "CAS BankingSurplusesController Index";
+            public const string Details = "CAS BankingSurplusesController Details";
+            public const string Create  = "CAS BankingSurplusesController Create";
+        }
     }
 }

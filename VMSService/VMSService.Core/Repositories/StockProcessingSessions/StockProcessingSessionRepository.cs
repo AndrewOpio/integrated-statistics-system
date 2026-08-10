@@ -26,6 +26,7 @@ namespace VMSService.Core.Repositories.StockProcessingSessions
         {
             return await _db.StockProcessingSessions
                 .Include(s => s.ProcessingBoard)
+                    .ThenInclude(b => b!.BPSMachine)
                 .Include(s => s.ProcessingSessionBags)
                     .ThenInclude(psb => psb.Bag)
                 .FirstOrDefaultAsync(s => s.Id == id);

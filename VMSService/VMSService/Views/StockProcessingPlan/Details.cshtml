@@ -35,6 +35,10 @@
         <div>
             <p class="text-muted small mb-0">Processing Plan Details</p>
             <h4 class="fw-bold mb-0" style="color:#31316A;">@Model.ProcessingDate.ToString("dd MMMM yyyy")</h4>
+            @if (!string.IsNullOrEmpty(Model.ReferenceNumber))
+            {
+                <span class="text-muted small"><i class="ti ti-hash me-1"></i>@Model.ReferenceNumber</span>
+            }
         </div>
         @if (!string.IsNullOrEmpty(Model.BranchName))
         {
@@ -84,7 +88,7 @@
                 }
                 else
                 {
-                    <span class="text-muted fst-italic">Not Assigned</span>
+                    <span class="text-danger fst-italic fw-bold">Not Assigned</span>
                 }
             </div>
         </div>
@@ -166,8 +170,7 @@
 @if (Model.Sessions.Any())
 {
     <div class="card border-0 shadow mb-4">
-        <div class="card-header bg-white border-bottom d-flex align-items-center py-2 px-3"
-             style="border-top:3px solid #31316A;border-radius:.5rem .5rem 0 0;">
+        <div class="card-header bg-white border-bottom d-flex align-items-center py-2 px-3">
             <div class="rounded d-flex align-items-center justify-content-center me-2"
                  style="width:32px;height:32px;background:rgba(49,49,106,.08);flex-shrink:0;">
                 <i class="ti ti-list-check" style="color:#31316A;font-size:.9rem;"></i>
@@ -182,22 +185,34 @@
                 <table class="table table-hover mb-0 small">
                     <thead style="background:#f8fafc;">
                         <tr>
-                            <th class="ps-3 py-2 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">WASTE NUMBER</th>
-                            <th class="py-2 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">PROCESSING BOARD</th>
-                            <th class="py-2 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">COMMERCIAL BANK</th>
-                            <th class="py-2 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">DENOMINATION</th>
-                            <th class="py-2 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">BAG</th>
-                            <th class="py-2 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">STATUS</th>
+                            <th class="ps-3 py-2 px-1 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">WASTE NUMBER</th>
+                            <th class="py-2 px-1 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">PROCESSING BOARD</th>
+                            <th class="py-2 px-1 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">COMMERCIAL BANK</th>
+                            <th class="py-2 px-1 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">DENOMINATION</th>
+                            <th class="py-2 px-1 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">BAG</th>
+                            <th class="py-2 px-1 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">STATUS</th>
+                            <th class="py-2 px-1 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">ACTIONS</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var session in Model.Sessions)
                         {
+                            var statusClass = session.CurrentStatusName switch
+                            {
+                                "Draft" => "bg-info",
+                                "Issued To Board" => "bg-info",
+                                "Open" => "bg-danger",
+                                "Closed" => "bg-success",
+                                _ => "bg-secondary"
+                            };
                             <tr>
-                                <td class="ps-3 py-2 fw-semibold" style="color:#31316A;font-size:.8rem;">
-                                    <i class="ti ti-hash me-1 text-muted" style="font-size:.7rem;"></i>@session.ReferenceNumber
+                                <td class="ps-3 py-2 px-1 fw-semibold" style="color:#31316A;font-size:.8rem;">
+                                    <a asp-controller="StockProcessingSession" asp-action="Details" asp-route-id="@session.Id"
+                                       class="text-decoration-none" style="color:#31316A;">
+                                        <i class="ti ti-hash me-1 text-muted" style="font-size:.7rem;"></i>@session.ReferenceNumber
+                                    </a>
                                 </td>
-                                <td class="py-2">
+                                <td class="py-2 px-1">
                                     @if (!string.IsNullOrEmpty(session.BoardName))
                                     {
                                         <span class="fw-semibold">@session.BoardName</span>
@@ -213,7 +228,7 @@
                                         <span class="text-muted">—</span>
                                     }
                                 </td>
-                                <td class="py-2">
+                                <td class="py-2 px-1">
                                     @if (!string.IsNullOrEmpty(session.CommercialBankName))
                                     {
                                         <span class="fw-semibold">@session.CommercialBankName</span>
@@ -223,7 +238,7 @@
                                         <span class="text-muted">—</span>
                                     }
                                 </td>
-                                <td class="py-2">
+                                <td class="py-2 px-1">
                                     @if (session.DenominationValue > 0)
                                     {
                                         <span class="fw-semibold">UGX @session.DenominationValue.ToString("N0")</span>
@@ -233,7 +248,7 @@
                                         <span class="text-muted">—</span>
                                     }
                                 </td>
-                                <td class="py-2">
+                                <td class="py-2 px-1">
                                     @foreach (var bagInfo in session.Bags)
                                     {
                                         <span class="board-chip-ro me-1 mb-1">
@@ -249,8 +264,14 @@
                                         </span>
                                     }
                                 </td>
-                                <td class="py-2">
-                                    <span class="badge bg-info"><i class="ti ti-badge"></i>@session.CurrentStatusName</span>
+                                <td class="py-2 px-1">
+                                    <span class="badge @statusClass"><i class="ti ti-circle-filled"></i>@session.CurrentStatusName</span>
+                                </td>
+                                <td>
+                                    <a asp-controller="StockProcessingSession" asp-action="Details" asp-route-id="@session.Id"
+                                       class="btn btn-sm btn-outline-info" title="View Details">
+                                        <i class="ti ti-eye"></i>
+                                    </a>
                                 </td>
                             </tr>
                         }

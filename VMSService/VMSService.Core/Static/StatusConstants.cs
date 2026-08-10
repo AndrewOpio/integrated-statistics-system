@@ -104,8 +104,9 @@
 
         public static class MonthlySurplus
         {
-            public const string Draft                    = "Draft";
-            public const string PendingAcknowledgement   = "Pending Acknowledgement";
+            public const string Draft                  = "Draft";
+            public const string PendingAcknowledgement = "Pending Acknowledgement";
+            public const string Acknowledged           = "Acknowledged";
         }
 
         public static class MonthlyShortage
@@ -124,6 +125,21 @@
             public const string Confirmed            = "Confirmed";
         }
 
+        public static class BankingSurplus
+        {
+            public const string Draft                  = "Draft";
+            public const string PendingAcknowledgement = "Pending Acknowledgement";
+            public const string Acknowledged           = "Acknowledged";
+        }
+
+        public static class BankingShortage
+        {
+            public const string Draft               = "Draft";
+            public const string PendingApproval     = "Pending Approval";
+            public const string PendingConfirmation = "Pending Confirmation";
+            public const string Confirmed           = "Confirmed";
+        }
+
         public static class StockProcessingPlan
         {
             public const string Draft = "Draft";
@@ -137,6 +153,7 @@
         public static class StockProcessingSession
         {
             public const string Draft = "Draft";
+            public const string IssuedToBoard = "Issued To Board";
             public const string Open = "Open";
             public const string Closed = "Closed";
         }
@@ -162,6 +179,14 @@
             public const string StockProcessingPlan = "StockProcessingPlan";
             public const string StockProcessingSession = "StockProcessingSession";
             public const string BagMovement = "BagMovement";
+            public const string DestructionRequest            = "Destruction";
+            public const string DestructionAuthorization      = "DestructionAuthorization";
+            public const string CfbReport                     = "EndOfDayDiscrepancies";
+            public const string MonthlySurpluses              = "MonthlySurpluses";
+            public const string MonthlyShortages              = "MonthlyShortages";
+            public const string MonthlyCommercialBankSettlements = "MonthlyCommercialBankSettlements";
+            public const string BankingSurpluses                  = "BankingSurpluses";
+            public const string BankingShortages                  = "BankingShortages";
             public const string DestructionRequest = "Destruction";
             public const string DestructionAuthorization = "DestructionAuthorization";
             public const string CfbReport = "EndOfDayDiscrepancies";

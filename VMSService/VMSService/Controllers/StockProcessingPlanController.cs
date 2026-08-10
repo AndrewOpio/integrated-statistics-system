@@ -10,16 +10,22 @@ using VMSService.Core.Models.Bags;
 using VMSService.Core.Models.StockProcessingPlans;
 using VMSService.Core.Models.StockProcessingPlanStatusHistories;
 using VMSService.Core.Repositories.Attachments;
+using VMSService.Core.Repositories.BagMovements;
 using VMSService.Core.Repositories.Bags;
+using VMSService.Core.Repositories.Categories;
+using VMSService.Core.Repositories.CommercialBanks;
+using VMSService.Core.Repositories.CounterPartyTypes;
 using VMSService.Core.Repositories.CountingRooms;
 using VMSService.Core.Repositories.CountingRoomSessions;
 using VMSService.Core.Repositories.ProcessingBoards;
-using VMSService.Core.Repositories.CommercialBanks;
+using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.StockProcessingPlans;
 using VMSService.Core.Repositories.StockProcessingPlanStatusHistories;
 using VMSService.Core.Repositories.StockProcessingSessions;
+using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Services.Identity;
 using VMSService.Core.Services.Stocks;
+using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Configurations;
@@ -37,6 +43,7 @@ namespace VMSService.Web.Controllers
         ICountingRoomSessionRepository _countingRoomSessionRepository,
         IProcessingBoardRepository _processingBoardRepository,
         IBagRepository _bagRepository,
+        IBagMovementRepository _bagMovementRepository,
         IStockProcessingSessionRepository _sessionRepository,
         ICommercialBankRepository _commercialBankRepository,
         IStockService _stockService,
@@ -48,7 +55,11 @@ namespace VMSService.Web.Controllers
         VMSServiceDbContext _context,
         IMapper _mapper,
         ILogger<StockProcessingPlanController> _logger,
-        IWorkflowServiceClient _workflowServiceClient) : Controller
+        IWorkflowServiceClient _workflowServiceClient,
+        IStockLedgerRepository _stockLedgerRepository,
+        ICounterPartyTypeRepository _counterPartyTypeRepository,
+        IStockMovementRepository _stockMovementRepository,
+        ICategoryRepository _categoryRepository) : Controller
     {
         [Breadcrumb("Processing Plans", FromController = typeof(HomeController), FromAction = nameof(Index))]
         public async Task<IActionResult> Index(int? branchId = null)
@@ -112,6 +123,13 @@ namespace VMSService.Web.Controllers
         }
 
         [HttpGet]
+        public async Task<IActionResult> GetBranchesJson()
+        {
+            var branches = await _configServiceClient.GetAllBouBranchesAsync();
+            return Json(branches.Select(b => new { b.Id, b.Name }).OrderBy(b => b.Name));
+        }
+
+        [HttpGet]
         [Breadcrumb("Create Plan", FromController = typeof(StockProcessingPlanController), FromAction = nameof(Index))]
         public async Task<IActionResult> Create(DateTime processingDate, int branchId)
         {
@@ -161,7 +179,8 @@ namespace VMSService.Web.Controllers
                         bag.SubCategoryName = subCategoryDict.GetValueOrDefault(bag.SubCategoryId.Value);
                 }
 
-                var bags = allBags.Where(b => b.VaultSectionId.HasValue).ToList();
+                var bags = allBags.Where(b => b.VaultSectionId.HasValue
+                    && !string.Equals(b.VaultName, "BAGS WITH BOARDS", StringComparison.OrdinalIgnoreCase)).ToList();
 
                 var boardSupervisors = await _identityService.GetUsersByRoleName(SystemPolicy.Roles.BoardSupervisor);
 
@@ -211,10 +230,14 @@ namespace VMSService.Web.Controllers
                     EntityTypeName = StatusConstants.Entity.StockProcessingPlan
                 });
 
+                var branch = await _configServiceClient.GetBouBranchByIdAsync(branchId);
+                var branchCode = branch?.BranchCode ?? branchId.ToString();
+
                 var plan = new StockProcessingPlan
                 {
                     ProcessingDate = processingDate,
                     BranchId = branchId,
+                    ReferenceNumber = $"SPP-{processingDate:ddMMyyyy}-{branchCode}",
                     CurrentStatusId = draftStatus.Id,
                     IsDeleted = false
                 };
@@ -269,6 +292,11 @@ namespace VMSService.Web.Controllers
                             StatusName = StatusConstants.StockProcessingSession.Draft,
                             EntityTypeName = StatusConstants.Entity.StockProcessingSession
                         });
+
+                        var boardBpsMachineIds = await _context.ProcessingBoards
+                            .Where(b => assignments.Select(a => a.ProcessingBoardId).Contains(b.Id))
+                            .Select(b => new { b.Id, b.BPSMachineId })
+                            .ToDictionaryAsync(b => b.Id, b => b.BPSMachineId);
 
                         int sessionCounter = 0;
                         foreach (var assignment in assignments)
@@ -334,7 +362,9 @@ namespace VMSService.Web.Controllers
                                     DenomValue     = primary?.DepositRequestDenomination?.DenominationValue ?? 0m,
                                     CbId           = primary?.DepositRequestDenomination?.DepositRequest?.CbId ?? 0,
                                     CategoryId     = meta?.CategoryId ?? 0,
-                                    DenominationId = meta?.DenominationId ?? 0
+                                    DenominationId = meta?.DenominationId ?? 0,
+                                    TotalValue     = denomsByBagId[bagId].Sum(bd =>
+                                        (bd.DepositRequestDenomination?.DenominationValue ?? 0m) * 1000 * bd.NumberOfBundlesOrBoxes)
                                 };
                             });
 
@@ -344,14 +374,15 @@ namespace VMSService.Web.Controllers
                                 sessionCounter++;
                                 var session = new StockProcessingSession
                                 {
-                                    ReferenceNumber = $"SPS-{plan.Id:D4}-{sessionCounter:D3}",
+                                    ReferenceNumber = $"SPS-{plan.ProcessingDate:ddMMyyyy}-{branchCode}-{sessionCounter:D2}",
                                     StockProcessingPlanId = plan.Id,
                                     ProcessingBoardId = assignment.ProcessingBoardId,
                                     CommercialBankId = group.Key.CbId,
                                     CategoryId = group.First().CategoryId,
                                     DenominationId = group.First().DenominationId,
                                     CurrentStatusId = sessionDraftStatus.Id,
-                                    IsManual = false,
+                                    TotalIssuedValue = group.Sum(x => x.TotalValue),
+                                    IsManual = !boardBpsMachineIds.TryGetValue(assignment.ProcessingBoardId, out var bpsMachineId) || !bpsMachineId.HasValue,
                                     IsDeleted = false
                                 };
 
@@ -592,6 +623,11 @@ namespace VMSService.Web.Controllers
                     int sessionCounter = await _context.StockProcessingSessions
                         .CountAsync(s => s.StockProcessingPlanId == id && !s.IsDeleted);
 
+                    var boardBpsMachineIds = await _context.ProcessingBoards
+                        .Where(b => newAssignments.Select(a => a.ProcessingBoardId).Contains(b.Id))
+                        .Select(b => new { b.Id, b.BPSMachineId })
+                        .ToDictionaryAsync(b => b.Id, b => b.BPSMachineId);
+
                     foreach (var assignment in newAssignments.Where(a => changedBoardIds.Contains(a.ProcessingBoardId)))
                     {
                         if (assignment.BagIds.Count == 0) continue;
@@ -649,7 +685,9 @@ namespace VMSService.Web.Controllers
                                 DenomValue     = primary?.DepositRequestDenomination?.DenominationValue ?? 0m,
                                 CbId           = primary?.DepositRequestDenomination?.DepositRequest?.CbId ?? 0,
                                 CategoryId     = meta?.CategoryId ?? 0,
-                                DenominationId = meta?.DenominationId ?? 0
+                                DenominationId = meta?.DenominationId ?? 0,
+                                TotalValue     = denomsByBagId[bagId].Sum(bd =>
+                                    (bd.DepositRequestDenomination?.DenominationValue ?? 0m) * 1000 * bd.NumberOfBundlesOrBoxes)
                             };
                         });
 
@@ -665,7 +703,8 @@ namespace VMSService.Web.Controllers
                                 CategoryId = group.First().CategoryId,
                                 DenominationId = group.First().DenominationId,
                                 CurrentStatusId = sessionDraftStatus.Id,
-                                IsManual = false,
+                                TotalIssuedValue = group.Sum(x => x.TotalValue),
+                                IsManual = !boardBpsMachineIds.TryGetValue(assignment.ProcessingBoardId, out var bpsMachineId) || !bpsMachineId.HasValue,
                                 IsDeleted = false
                             };
 
@@ -993,6 +1032,7 @@ namespace VMSService.Web.Controllers
                 var model = new StockProcessingPlanDetailsViewModel
                 {
                     Id = plan.Id,
+                    ReferenceNumber = plan.ReferenceNumber,
                     ProcessingDate = plan.ProcessingDate,
                     BranchId = plan.BranchId,
                     BranchName = branch?.Name,
@@ -1133,6 +1173,42 @@ namespace VMSService.Web.Controllers
                     }
                 }
 
+                if (actionName.Equals("IssueToBoards"))
+                {
+                    // Validate that all counting rooms involved in this plan have a board supervisor assigned
+                    var planBoardIds = await _context.SessionBags
+                        .Where(sb => sb.StockProcessingPlanId == id && !sb.IsDeleted)
+                        .Select(sb => sb.ProcessingBoardId)
+                        .Distinct()
+                        .ToListAsync();
+
+                    var involvedRoomIds = await _context.ProcessingBoards
+                        .Where(pb => planBoardIds.Contains(pb.Id) && !pb.IsDeleted)
+                        .Select(pb => pb.CountingRoomId)
+                        .Distinct()
+                        .ToListAsync();
+
+                    var assignedRoomIds = await _context.CountingRoomSessions
+                        .Where(crs => crs.StockProcessingPlanId == id
+                            && !crs.IsDeleted
+                            && !string.IsNullOrEmpty(crs.BoardSupervisorUserId))
+                        .Select(crs => crs.CountingRoomId)
+                        .Distinct()
+                        .ToListAsync();
+
+                    var unsupervised = involvedRoomIds.Except(assignedRoomIds).ToList();
+                    if (unsupervised.Count > 0)
+                    {
+                        var roomNames = await _context.CountingRooms
+                            .Where(cr => unsupervised.Contains(cr.Id))
+                            .Select(cr => cr.Name)
+                            .ToListAsync();
+
+                        TempData["Error"] = $"Cannot issue to boards — the following counting room(s) have no Board Supervisor assigned: {string.Join(", ", roomNames)}.";
+                        return RedirectToAction(nameof(Details), new { id });
+                    }
+                }
+
                 bool isExecuted = await _workflowService.ExecuteTransition(
                     StatusConstants.Entity.StockProcessingPlan,
                     id,
@@ -1145,10 +1221,447 @@ namespace VMSService.Web.Controllers
 
                 if (isExecuted)
                 {
-                    var attachmentMessage = uploadedAttachmentIds?.Any() == true
-                        ? $" {uploadedAttachmentIds.Count} attachment(s) uploaded."
-                        : "";
-                    TempData["Success"] = $"Action completed successfully.{attachmentMessage}";
+                    if (actionName.Equals("IssueToBoards"))
+                    {
+                        var issuedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+                        {
+                            ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                            EntityTypeName = StatusConstants.Entity.StockProcessingSession,
+                            StatusName = StatusConstants.StockProcessingSession.IssuedToBoard
+                        });
+
+                        if (issuedStatus != null)
+                        {
+                            var sessions = await _sessionRepository.GetByPlanIdAsync(id);
+                            foreach (var session in sessions.Where(s => !s.IsDeleted))
+                            {
+                                session.CurrentStatusId = issuedStatus.Id;
+                                await _sessionRepository.Update(session);
+                            }
+                        }
+
+                        var targetVault = await _context.Vaults
+                            .FirstOrDefaultAsync(v => v.BranchId == plan.BranchId
+                                && v.Name == "BAGS WITH BOARDS"
+                                && !v.IsDeleted);
+
+                        if (targetVault != null)
+                        {
+                            var targetSection = await _context.VaultSections
+                                .FirstOrDefaultAsync(vs => vs.VaultId == targetVault.Id
+                                    && vs.Name == "BAGS WITH BOARDS"
+                                    && !vs.IsDeleted);
+
+                            if (targetSection != null)
+                            {
+                                var planBagIds = await _context.SessionBags
+                                    .Where(sb => sb.StockProcessingPlanId == id && !sb.IsDeleted)
+                                    .Select(sb => sb.BagId)
+                                    .Distinct()
+                                    .ToListAsync();
+
+                                var planBags = await _context.Bags
+                                    .Where(b => planBagIds.Contains(b.Id) && !b.IsDeleted && b.VaultSectionId.HasValue)
+                                    .ToListAsync();
+
+                                foreach (var bag in planBags)
+                                {
+                                    await _bagMovementRepository.Create(new Data.Entities.BagMovement
+                                    {
+                                        BagId = bag.Id,
+                                        OldVaultSectionId = bag.VaultSectionId!.Value,
+                                        NewVaultSectionId = targetSection.Id,
+                                        CreatedBy = username,
+                                        ModifiedBy = username
+                                    });
+
+                                    bag.VaultSectionId = targetSection.Id;
+                                }
+
+                                await _context.SaveChangesAsync();
+                            }
+                        }
+
+
+                        // Create StockMovementRecord and Update Stock Position for Money With Boards
+                        PlanBagSummaryResult planBagSummary = await _planRepository.GetBagSummaryAsync(id);
+
+                        Category paids = (await _categoryRepository.FindAll()).FirstOrDefault(c => c.Name == StockConstants.StoreTypes.Paids);
+                        Category moneyWithBoards = (await _categoryRepository.FindAll()).FirstOrDefault(c => c.Name == StockConstants.StoreTypes.MWB);
+
+                        var counterPartyType = await _counterPartyTypeRepository.FindByName(StockConstants.StockCounterPartyType.Category);
+
+                        StatusTypeDto receivedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+                        {
+                            ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                            StatusName = StatusConstants.StockMovement.Received,
+                            EntityTypeName = StatusConstants.Entity.StockMovement,
+                        });
+
+                        var movement = new StockMovement
+                        {
+                            MovementType = StockConstants.StockMovementTypes.PaidsToMWB,
+                            Date = DateTime.Now,
+                            ReferenceNumber = plan.ReferenceNumber,
+                            DispatchingBranchId = null,
+                            ReceivingBranchId = null,
+                            TotalBagsBoxes = null,
+                            GrandTotalValue = planBagSummary.GrandTotalValue,
+                            CurrentStatusId = receivedStatus.Id,
+                            CurrentStatusName = receivedStatus.Name,
+                            Denominations = planBagSummary.Denominations
+                            //Denominations = [.. cbDenoms.Select(x => {
+                            //    return new StockMovementDenomination
+                            //    {
+                            //        DenominationId = x.DenominationId,
+                            //        NumBagsBoxes = x.Boxes,
+                            //        NumBundles = x.Bundles,
+                            //        CategoryId = paids?.Id,
+                            //        ContainerType = x.Boxes == null ? StockConstants.ContainerTypes.Bag : StockConstants.ContainerTypes.Box,
+                            //        SubTotalValue = x.Amount,
+                            //        Categorization = paids?.Name
+                            //    };
+                            //})]
+                        };
+
+                        StockMovement newStockMovement = await _stockMovementRepository.CreateAsync(movement);
+
+                        List<StockLedgerDetail> stockLedgerDetails = new();
+
+                        foreach (var denom in planBagSummary.Denominations)
+                        {
+                            StockLedgerDetail stockLedgerDetail = new()
+                            {
+                                CreatedDate = DateTime.Now,
+                                ModifiedDate = DateTime.Now,
+                                CreatedBy = username ?? "unknown",
+                                ModifiedBy = username ?? "unknown",
+                                DenominationId = denom.DenominationId,
+                                NumberOfBoxes = denom.NumBagsBoxes ?? 0,
+                                NumberOfBundles = denom.NumBundles,
+                                NumberOfPieces = ((denom.NumBundles ?? 0) * 1000) + ((denom.NumBagsBoxes ?? 0) * 1000),
+                                Value = denom.SubTotalValue,
+                                CategoryId = paids?.Id ?? 2,
+                                //SubCategoryId = denom.SubCategoryId
+                            };
+                            stockLedgerDetails.Add(stockLedgerDetail);
+                        }
+
+                        // Create StockLedger entry for Removing from Paids
+                        StockLedger paidsEntry = new()
+                        {
+                            ReferenceCode = plan.ReferenceNumber,
+                            StoreId = plan.BranchId, //Branch
+                            IsIn = false,
+                            CounterPartyId = moneyWithBoards?.Id ?? 0,
+                            CounterPartyTypeId = counterPartyType.Id, //Currency Category
+                            Notes = remarks,
+                            CreatedBy = username ?? "unknown",
+                            CreatedDate = DateTime.Now,
+                            ModifiedBy = username ?? "unknown",
+                            ModifiedDate = DateTime.Now,
+                            StockLedgerDetails = stockLedgerDetails,
+                            StockMovementId = newStockMovement.Id
+                        };
+
+                        bool createdLedgerRecord = await _stockLedgerRepository.Create(paidsEntry);
+                        if (!createdLedgerRecord)
+                        {
+                            TempData["Error"] = "Error Updating Stock Position";
+                        }
+
+                        // Create StockLedger entry for Adding to MWB
+                        foreach (var denom in stockLedgerDetails)
+                        {
+                            denom.CategoryId = moneyWithBoards?.Id ?? 0;
+                        }
+
+                        StockLedger moneyWuthBoardsEntry = new()
+                        {
+                            ReferenceCode = plan.ReferenceNumber,
+                            StoreId = plan.BranchId, //Branch
+                            IsIn = true,
+                            CounterPartyId = paids?.Id ?? 0,
+                            CounterPartyTypeId = counterPartyType.Id, //Currency Category
+                            Notes = remarks,
+                            CreatedBy = username ?? "unknown",
+                            CreatedDate = DateTime.Now,
+                            ModifiedBy = username ?? "unknown",
+                            ModifiedDate = DateTime.Now,
+                            StockLedgerDetails = stockLedgerDetails,
+                            StockMovementId = newStockMovement.Id
+                        };
+
+                        bool createdLedgerRecordMWB = await _stockLedgerRepository.Create(moneyWuthBoardsEntry);
+                        if (!createdLedgerRecordMWB)
+                        {
+                            TempData["Error"] = "Error Updating Stock Position";
+                        }
+
+                        TempData["Success"] = "Stocks Issued Successfully. Stock position Updated";
+
+                    }
+
+                    if (actionName.Equals("VerifyResults"))
+                    {
+                        var sessionIds = await _context.StockProcessingSessions
+                            .Where(s => s.StockProcessingPlanId == id && !s.IsDeleted)
+                            .Select(s => s.Id)
+                            .ToListAsync();
+
+                        var results = await _context.StockProcessingResults
+                            .Where(r => sessionIds.Contains(r.StockProcessingSessionId))
+                            .ToListAsync();
+
+                        foreach (var result in results)
+                            result.IsVerified = true;
+
+                        await _context.SaveChangesAsync();
+
+                        TempData["Success"] = "Results verified successfully.";
+                    }
+
+                    if (actionName.Equals("ConfirmResults"))
+                    {
+                        // Create StockMovementRecord and Update Stock Position for Money With Boards and ReIssue
+                        PlanBagSummaryResult planBagSummaryReIssue = await _planRepository.GetReIssueResultSummaryAsync(id);
+
+                        Category reIssue = (await _categoryRepository.FindAll()).FirstOrDefault(c => c.Name == StockConstants.StoreTypes.Reissue);
+                        Category cancelled = (await _categoryRepository.FindAll()).FirstOrDefault(c => c.Name == StockConstants.StoreTypes.Cancelled);
+                        Category moneyWithBoards = (await _categoryRepository.FindAll()).FirstOrDefault(c => c.Name == StockConstants.StoreTypes.MWB);
+
+                        var counterPartyType = await _counterPartyTypeRepository.FindByName(StockConstants.StockCounterPartyType.Category);
+
+                        StatusTypeDto receivedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+                        {
+                            ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                            StatusName = StatusConstants.StockMovement.Received,
+                            EntityTypeName = StatusConstants.Entity.StockMovement,
+                        });
+
+                        var reIssueMovement = new StockMovement
+                        {
+                            MovementType = StockConstants.StockMovementTypes.MWBToReIssue,
+                            Date = DateTime.Now,
+                            ReferenceNumber = plan.ReferenceNumber,
+                            DispatchingBranchId = null,
+                            ReceivingBranchId = null,
+                            TotalBagsBoxes = null,
+                            GrandTotalValue = planBagSummaryReIssue.GrandTotalValue,
+                            CurrentStatusId = receivedStatus.Id,
+                            CurrentStatusName = receivedStatus.Name,
+                            Denominations = planBagSummaryReIssue.Denominations
+                            //Denominations = [.. cbDenoms.Select(x => {
+                            //    return new StockMovementDenomination
+                            //    {
+                            //        DenominationId = x.DenominationId,
+                            //        NumBagsBoxes = x.Boxes,
+                            //        NumBundles = x.Bundles,
+                            //        CategoryId = paids?.Id,
+                            //        ContainerType = x.Boxes == null ? StockConstants.ContainerTypes.Bag : StockConstants.ContainerTypes.Box,
+                            //        SubTotalValue = x.Amount,
+                            //        Categorization = paids?.Name
+                            //    };
+                            //})]
+                        };
+
+                        StockMovement newStockMovementReIssue = await _stockMovementRepository.CreateAsync(reIssueMovement);
+
+                        List<StockLedgerDetail> stockLedgerDetailsReIssue = new();
+
+                        foreach (var denom in planBagSummaryReIssue.Denominations)
+                        {
+                            StockLedgerDetail stockLedgerDetail = new()
+                            {
+                                CreatedDate = DateTime.Now,
+                                ModifiedDate = DateTime.Now,
+                                CreatedBy = username ?? "unknown",
+                                ModifiedBy = username ?? "unknown",
+                                DenominationId = denom.DenominationId,
+                                NumberOfBoxes = denom.NumBagsBoxes ?? 0,
+                                NumberOfBundles = denom.NumBundles,
+                                NumberOfPieces = ((denom.NumBundles ?? 0) * 1000) + ((denom.NumBagsBoxes ?? 0) * 1000),
+                                Value = denom.SubTotalValue,
+                                CategoryId = reIssue?.Id ?? 2,
+                                //SubCategoryId = denom.SubCategoryId
+                            };
+                            stockLedgerDetailsReIssue.Add(stockLedgerDetail);
+                        }
+
+                        // Create StockLedger entry for Removing from Paids
+                        StockLedger reIssueEntry = new()
+                        {
+                            ReferenceCode = plan.ReferenceNumber,
+                            StoreId = plan.BranchId, //Branch
+                            IsIn = true,
+                            CounterPartyId = moneyWithBoards?.Id ?? 0,
+                            CounterPartyTypeId = counterPartyType.Id, //Currency Category
+                            Notes = remarks,
+                            CreatedBy = username ?? "unknown",
+                            CreatedDate = DateTime.Now,
+                            ModifiedBy = username ?? "unknown",
+                            ModifiedDate = DateTime.Now,
+                            StockLedgerDetails = stockLedgerDetailsReIssue,
+                            StockMovementId = newStockMovementReIssue.Id
+                        };
+
+                        bool createdLedgerRecordReIssue = await _stockLedgerRepository.Create(reIssueEntry);
+                        if (!createdLedgerRecordReIssue)
+                        {
+                            TempData["Error"] = "Error Updating Stock Position";
+                        }
+
+                        // Create StockLedger entry for Removing from Money With Boards
+                        foreach (var denom in stockLedgerDetailsReIssue)
+                        {
+                            denom.CategoryId = moneyWithBoards?.Id ?? 0;
+                        }
+
+                        StockLedger moneyWuthBoardsEntryReIssue = new()
+                        {
+                            ReferenceCode = plan.ReferenceNumber,
+                            StoreId = plan.BranchId, //Branch
+                            IsIn = false,
+                            CounterPartyId = reIssue?.Id ?? 0,
+                            CounterPartyTypeId = counterPartyType.Id, //Currency Category
+                            Notes = remarks,
+                            CreatedBy = username ?? "unknown",
+                            CreatedDate = DateTime.Now,
+                            ModifiedBy = username ?? "unknown",
+                            ModifiedDate = DateTime.Now,
+                            StockLedgerDetails = stockLedgerDetailsReIssue,
+                            StockMovementId = newStockMovementReIssue.Id
+                        };
+
+                        bool createdLedgerRecordMWBReIssue = await _stockLedgerRepository.Create(moneyWuthBoardsEntryReIssue);
+                        if (!createdLedgerRecordMWBReIssue)
+                        {
+                            TempData["Error"] = "Error Updating Stock Position";
+                        }
+
+
+                        // Create StockMovementRecord and Update Stock Position for Money With Boards and CANCELLED
+                        PlanBagSummaryResult planBagSummaryCancelled = await _planRepository.GetCanceledResultSummaryAsync(id);
+
+                        var cancelledMovement = new StockMovement
+                        {
+                            MovementType = StockConstants.StockMovementTypes.MWBToCancelled,
+                            Date = DateTime.Now,
+                            ReferenceNumber = plan.ReferenceNumber,
+                            DispatchingBranchId = null,
+                            ReceivingBranchId = null,
+                            TotalBagsBoxes = null,
+                            GrandTotalValue = planBagSummaryCancelled.GrandTotalValue,
+                            CurrentStatusId = receivedStatus.Id,
+                            CurrentStatusName = receivedStatus.Name,
+                            Denominations = planBagSummaryCancelled.Denominations
+                            //Denominations = [.. cbDenoms.Select(x => {
+                            //    return new StockMovementDenomination
+                            //    {
+                            //        DenominationId = x.DenominationId,
+                            //        NumBagsBoxes = x.Boxes,
+                            //        NumBundles = x.Bundles,
+                            //        CategoryId = paids?.Id,
+                            //        ContainerType = x.Boxes == null ? StockConstants.ContainerTypes.Bag : StockConstants.ContainerTypes.Box,
+                            //        SubTotalValue = x.Amount,
+                            //        Categorization = paids?.Name
+                            //    };
+                            //})]
+                        };
+
+                        StockMovement newStockMovementCancelled = await _stockMovementRepository.CreateAsync(cancelledMovement);
+
+                        List<StockLedgerDetail> stockLedgerDetailsCancelled = new();
+
+                        foreach (var denom in planBagSummaryCancelled.Denominations)
+                        {
+                            StockLedgerDetail stockLedgerDetail = new()
+                            {
+                                CreatedDate = DateTime.Now,
+                                ModifiedDate = DateTime.Now,
+                                CreatedBy = username ?? "unknown",
+                                ModifiedBy = username ?? "unknown",
+                                DenominationId = denom.DenominationId,
+                                NumberOfBoxes = denom.NumBagsBoxes ?? 0,
+                                NumberOfBundles = denom.NumBundles,
+                                NumberOfPieces = ((denom.NumBundles ?? 0) * 1000) + ((denom.NumBagsBoxes ?? 0) * 1000),
+                                Value = denom.SubTotalValue,
+                                CategoryId = cancelled?.Id ?? 2,
+                                //SubCategoryId = denom.SubCategoryId
+                            };
+                            stockLedgerDetailsCancelled.Add(stockLedgerDetail);
+                        }
+
+                        // Create StockLedger entry for Removing from Paids
+                        StockLedger cancelledEntry = new()
+                        {
+                            ReferenceCode = plan.ReferenceNumber,
+                            StoreId = plan.BranchId, //Branch
+                            IsIn = true,
+                            CounterPartyId = moneyWithBoards?.Id ?? 0,
+                            CounterPartyTypeId = counterPartyType.Id, //Currency Category
+                            Notes = remarks,
+                            CreatedBy = username ?? "unknown",
+                            CreatedDate = DateTime.Now,
+                            ModifiedBy = username ?? "unknown",
+                            ModifiedDate = DateTime.Now,
+                            StockLedgerDetails = stockLedgerDetailsCancelled,
+                            StockMovementId = newStockMovementCancelled.Id
+                        };
+
+                        bool createdLedgerRecordCancelled = await _stockLedgerRepository.Create(cancelledEntry);
+                        if (!createdLedgerRecordCancelled)
+                        {
+                            TempData["Error"] = "Error Updating Stock Position";
+                        }
+
+                        // Create StockLedger entry for Removing from Money With Boards
+                        foreach (var denom in stockLedgerDetailsCancelled)
+                        {
+                            denom.CategoryId = moneyWithBoards?.Id ?? 0;
+                        }
+
+                        StockLedger moneyWuthBoardsEntryCancelled = new()
+                        {
+                            ReferenceCode = plan.ReferenceNumber,
+                            StoreId = plan.BranchId, //Branch
+                            IsIn = false,
+                            CounterPartyId = cancelled?.Id ?? 0,
+                            CounterPartyTypeId = counterPartyType.Id, //Currency Category
+                            Notes = remarks,
+                            CreatedBy = username ?? "unknown",
+                            CreatedDate = DateTime.Now,
+                            ModifiedBy = username ?? "unknown",
+                            ModifiedDate = DateTime.Now,
+                            StockLedgerDetails = stockLedgerDetailsCancelled,
+                            StockMovementId = newStockMovementCancelled.Id
+                        };
+
+                        bool createdLedgerRecordMWBCancelled = await _stockLedgerRepository.Create(moneyWuthBoardsEntryCancelled);
+                        if (!createdLedgerRecordMWBCancelled)
+                        {
+                            TempData["Error"] = "Error Updating Stock Position";
+                        }
+
+
+
+                        var planBagIds = await _context.SessionBags
+                            .Where(sb => sb.StockProcessingPlanId == id && !sb.IsDeleted)
+                            .Select(sb => sb.BagId)
+                            .Distinct()
+                            .ToListAsync();
+
+                        var planBags = await _context.Bags
+                            .Where(b => planBagIds.Contains(b.Id) && !b.IsDeleted)
+                            .ToListAsync();
+
+                        foreach (var bag in planBags)
+                            bag.VaultSectionId = null;
+
+                        await _context.SaveChangesAsync();
+
+                        TempData["Success"] = "Stocks Confirmed Successfully. Stock position Updated";
+                    }
                 }
                 else
                 {

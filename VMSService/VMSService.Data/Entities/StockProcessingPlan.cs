@@ -5,6 +5,7 @@ namespace VMSService.Data.Entities
     public class StockProcessingPlan : AuditableEntity
     {
         public int Id { get; set; }
+        public string ReferenceNumber { get; set; } = string.Empty;
         public DateTime ProcessingDate { get; set; }
         public int BranchId { get; set; }
         public int? StockMovementId { get; set; }

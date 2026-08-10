@@ -6,8 +6,6 @@ namespace VMSService.Data.Entities
     public class BoardSessionSurplusShortage : AuditableEntity
     {
         public int Id { get; set; }
-
-        public Guid? DepositRequestId { get; set; }
         public int CommercialBankId { get; set; }
         public int BranchId { get; set; }
         public int? SessionSourceBranch { get; set; }
@@ -20,5 +18,7 @@ namespace VMSService.Data.Entities
 
         public virtual DepositRequest? DepositRequest { get; set; }
         public virtual ICollection<BoardSessionDifferentDenom> DifferentDenoms { get; set; } = [];
+        public int StockProcessingSessionId { get; set; }
+        public virtual StockProcessingSession? StockProcessingSession { get; set; }
     }
 }

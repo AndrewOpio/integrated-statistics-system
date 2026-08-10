@@ -102,6 +102,14 @@ namespace VMSService.Data.Configurations
         public DbSet<MonthlyCommercialBankSettlement> MonthlyCommercialBankSettlements { get; set; }
         public DbSet<MonthlyCommercialBankSettlementStatusHistory> MonthlyCommercialBankSettlementStatusHistories { get; set; }
 
+        // Banking Surplus
+        public DbSet<BankingSurplus> BankingSurpluses { get; set; }
+        public DbSet<BankingSurplusStatusHistory> BankingSurplusStatusHistories { get; set; }
+
+        // Banking Shortage
+        public DbSet<BankingShortage> BankingShortages { get; set; }
+        public DbSet<BankingShortageStatusHistory> BankingShortageStatusHistories { get; set; }
+
         // Destruction
         public DbSet<DestructionRequest> DestructionRequests { get; set; }
         public DbSet<DestructionRequestDenomination> DestructionRequestDenominations { get; set; }
@@ -288,11 +296,11 @@ namespace VMSService.Data.Configurations
                 .OnDelete(DeleteBehavior.Restrict);
 
             // ── BoardSessionSurplusShortage → DepositRequest ─────────────────────────
-            modelBuilder.Entity<BoardSessionSurplusShortage>()
-                .HasOne(s => s.DepositRequest)
-                .WithMany(d => d.BoardSessionSurplusShortages)
-                .HasForeignKey(s => s.DepositRequestId)
-                .OnDelete(DeleteBehavior.SetNull);
+            //modelBuilder.Entity<BoardSessionSurplusShortage>()
+            //    .HasOne(s => s.DepositRequest)
+            //    .WithMany(d => d.BoardSessionSurplusShortages)
+            //    .HasForeignKey(s => s.DepositRequestId)
+            //    .OnDelete(DeleteBehavior.SetNull);
 
             // ── EodDiscrepancyReportEntry (junction) ──────────────────────────────────
             modelBuilder.Entity<EodDiscrepancyReportEntry>(entity =>

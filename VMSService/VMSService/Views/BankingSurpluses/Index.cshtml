@@ -1,0 +1,84 @@
+@model IEnumerable<VMSService.Data.Entities.BankingSurplus>
+
+@using VMSService.Core.Static
+
+@{
+    ViewData["Title"] = "Banking Surpluses";
+    var branchNames = ViewBag.BranchNames as Dictionary<int, string> ?? new();
+}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h2 class="fs-5 fw-bold mb-0">Banking Surpluses</h2>
+                    </div>
+                    <div class="col text-end">
+                        <permission name="@SystemPermissions.BankingSurpluses.Create">
+                            <a asp-action="Generate" class="btn btn-sm btn-primary">
+                                <i class="ti ti-plus me-1"></i>New Banking Surplus
+                            </a>
+                        </permission>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-centered table-nowrap mb-0 rounded datatable">
+                        <thead class="thead-light">
+                            <tr>
+                                <th class="border-0 rounded-start">#</th>
+                                <th class="border-0">Reference</th>
+                                <th class="border-0">Branch</th>
+                                <th class="border-0">Month</th>
+                                <th class="border-0 text-end">Amount (UGX)</th>
+                                <th class="border-0">Deposit Date</th>
+                                <th class="border-0">Status</th>
+                                <th class="border-0 rounded-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{ int rowNumber = 1; }
+                            @foreach (var item in Model)
+                            {
+                                string badgeClass = item.CurrentStatusName switch
+                                {
+                                    "Draft"                   => "bg-secondary",
+                                    "Pending Acknowledgement" => "bg-warning text-dark",
+                                    "Acknowledged"            => "bg-success",
+                                    _                         => "bg-secondary"
+                                };
+                                string branchName = branchNames.TryGetValue(item.BranchId, out var bn) ? bn : $"Branch {item.BranchId}";
+                                <tr>
+                                    <td><span class="text-primary fw-bold">@rowNumber</span></td>
+                                    <td class="fw-bold">@item.ReferenceNumber</td>
+                                    <td>@branchName</td>
+                                    <td>@item.Period.ToString("MMMM yyyy")</td>
+                                    <td class="text-end fw-semibold">@item.Amount.ToString("N0")</td>
+                                    <td>@(item.DepositDate.HasValue ? item.DepositDate.Value.ToString("dd MMM yyyy") : "—")</td>
+                                    <td><span class="badge @badgeClass">@item.CurrentStatusName</span></td>
+                                    <td>
+                                        <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
+                                            <i class="ti ti-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                rowNumber++;
+                            }
+                            @if (!Model.Any())
+                            {
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted py-4">
+                                        <i class="ti ti-inbox fs-4 d-block mb-2"></i>No banking surplus records yet.
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
