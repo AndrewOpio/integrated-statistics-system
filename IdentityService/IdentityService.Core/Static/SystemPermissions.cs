@@ -157,5 +157,14 @@
             public const string Details = "CAS BankingSurplusesController Details";
             public const string Create  = "CAS BankingSurplusesController Create";
         }
+
+        public static class CAS_StockTakes
+        {
+            public const string View         = "CAS StockTakesController Index";
+            public const string Details      = "CAS StockTakesController Details";
+            public const string Create       = "CAS StockTakesController Create";
+            public const string Edit         = "CAS StockTakesController Edit";
+            public const string ViewVariance = "CAS StockTakesController ViewVariance";
+        }
     }
 }

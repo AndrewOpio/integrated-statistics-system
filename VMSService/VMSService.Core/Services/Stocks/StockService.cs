@@ -348,6 +348,30 @@ namespace VMSService.Core.Services.Stocks
             }
         }
 
+        public async Task<ICollection<StockLedger>> GetStockLedgersByStoreId(int storeId)
+        {
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.GetAsync($"{baseUrl}/api/stockledgers/get-by-store/{storeId}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var stockLedgers = await response.Content.ReadFromJsonAsync<ICollection<StockLedger>>();
+                    return stockLedgers ?? new List<StockLedger>();
+                }
+
+                _logger.LogError("Failed to retrieve stock ledgers for store {StoreId}. Status: {StatusCode}", storeId, response.StatusCode);
+                return new List<StockLedger>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving stock ledgers for store {StoreId} from API", storeId);
+                return new List<StockLedger>();
+            }
+        }
+
         public async Task<StockLedger> GetStockLedgerById(int id)
         {
             try

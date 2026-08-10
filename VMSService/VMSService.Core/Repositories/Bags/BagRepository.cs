@@ -578,7 +578,8 @@ namespace VMSService.Core.Repositories.Bags
         {
             return await _db.Bags
                 .Where(b => b.DenominationId == denominationId
-                         && b.BranchId == branchId
+                         //&& b.BranchId == branchId
+                         && b.VaultSection.Vault.BranchId == branchId
                          && b.IsProcessed
                          && !b.IsDeleted
                          && (!categoryId.HasValue || b.CategoryId == categoryId))

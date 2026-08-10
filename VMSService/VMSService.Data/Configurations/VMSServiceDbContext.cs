@@ -125,6 +125,12 @@ namespace VMSService.Data.Configurations
         public DbSet<DestructionAuthorizationDenomination> DestructionAuthorizationDenominations { get; set; }
         public DbSet<DestructionAuthorizationStatusHistory> DestructionAuthorizationStatusHistory { get; set; }
 
+        // Stock Take
+        public DbSet<StockTake> StockTakes { get; set; }
+        public DbSet<StockTakeDetail> StockTakeDetails { get; set; }
+        public DbSet<StockTakeStatusHistory> StockTakeStatusHistory { get; set; }
+        public DbSet<StockTakeSystemPosition> StockTakeSystemPositions { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -239,6 +245,37 @@ namespace VMSService.Data.Configurations
                 entity.HasIndex(e => e.BoardSessionSurplusShortageId).IsUnique();
                 entity.HasIndex(e => e.EodDiscrepancyReportId);
             });
+
+            // ── StockTake ─────────────────────
+            modelBuilder.Entity<StockTakeDetail>()
+                .HasOne(x => x.StockTake)
+                .WithMany(x => x.StockTakeDetails)
+                .HasForeignKey(x => x.StockTakeId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<StockTakeStatusHistory>()
+                .HasOne(x => x.StockTake)
+                .WithMany(x => x.StockTakeStatusHistory)
+                .HasForeignKey(x => x.StockTakeId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<StockTakeDetail>()
+                .HasOne(x => x.VaultSection)
+                .WithMany()
+                .HasForeignKey(x => x.VaultSectionId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<StockTake>()
+                .HasOne(x => x.AmendsStockTake)
+                .WithMany()
+                .HasForeignKey(x => x.AmendsStockTakeId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<StockTakeSystemPosition>()
+                .HasOne(x => x.StockTake)
+                .WithMany()
+                .HasForeignKey(x => x.StockTakeId)
+                .OnDelete(DeleteBehavior.NoAction);
 
             // ✅ ADD THIS AT THE END — catches all remaining FKs not explicitly configured above
             foreach (var relationship in modelBuilder.Model.GetEntityTypes()

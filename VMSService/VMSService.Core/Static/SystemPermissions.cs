@@ -134,5 +134,14 @@ namespace VMSService.Core.Static
             public const string Edit    = "CAS BankingSurplusesController Edit";
         }
 
+        public static class StockTakes
+        {
+            public const string View         = "CAS StockTakesController Index";
+            public const string Details      = "CAS StockTakesController Details";
+            public const string Create       = "CAS StockTakesController Create";
+            public const string Edit         = "CAS StockTakesController Edit";
+            public const string ViewVariance = "CAS StockTakesController ViewVariance";
+        }
+
     }
 }

@@ -468,8 +468,9 @@ namespace VMSService.Core.Services.StockPositions
             {
                 var matrix = new Dictionary<int, Dictionary<int, decimal>>();
 
-                // Get all stock ledgers once
-                var allLedgers = await _stockService.GetAllStockLedgers();
+                // Filtered server-side by branch — avoids fetching and decrypting every
+                // ledger in the system just to compute one branch's position.
+                var branchLedgers = await _stockService.GetStockLedgersByStoreId(branchId);
 
                 // Build the matrix: denomination -> category -> value
                 // Using only the filtered categories and denominations
@@ -480,15 +481,15 @@ namespace VMSService.Core.Services.StockPositions
                     foreach (var categoryId in categoryIds)
                     {
                         // Sum the values for incoming ledgers (IsIn = true)
-                        var incomingValue = allLedgers?
-                            .Where(sl => sl.IsIn == true && sl.StockLedgerDetails != null && sl.StoreId == branchId)
+                        var incomingValue = branchLedgers?
+                            .Where(sl => sl.IsIn == true && sl.StockLedgerDetails != null)
                             .SelectMany(sl => sl.StockLedgerDetails)
                             .Where(sld => sld.DenominationId == denominationId && sld.CategoryId == categoryId)
                             .Sum(sld => sld.Value) ?? 0;
 
                         // Sum the values for outgoing ledgers (IsIn = false)
-                        var outgoingValue = allLedgers?
-                            .Where(sl => sl.IsIn == false && sl.StockLedgerDetails != null && sl.StoreId == branchId)
+                        var outgoingValue = branchLedgers?
+                            .Where(sl => sl.IsIn == false && sl.StockLedgerDetails != null)
                             .SelectMany(sl => sl.StockLedgerDetails)
                             .Where(sld => sld.DenominationId == denominationId && sld.CategoryId == categoryId)
                             .Sum(sld => sld.Value) ?? 0;
@@ -558,6 +559,105 @@ namespace VMSService.Core.Services.StockPositions
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error posting stock ledger for reimbursement {Ref}", reimbursement.ReferenceNumber);
+                return false;
+            }
+        }
+
+        public async Task<bool> ReconcileAmendmentLedgerAsync(StockTake amendment)
+        {
+            try
+            {
+                var lines = (amendment.StockTakeDetails ?? new List<StockTakeDetail>())
+                    .Where(d => !d.IsDeleted)
+                    .ToList();
+
+                if (!lines.Any())
+                    return true;
+
+                var pairGroups = lines.GroupBy(l => (l.CategoryId, l.DenominationId)).ToList();
+                var categoryIds = pairGroups.Select(g => g.Key.CategoryId).Distinct().ToList();
+                var denominationIds = pairGroups.Select(g => g.Key.DenominationId).Distinct().ToList();
+
+                // Current system position for exactly the (category, denomination) pairs this
+                // amendment actually counted — same matching the Details page variance panel uses.
+                var matrix = await GetStockMatrixAsync(amendment.BranchId, categoryIds, denominationIds);
+
+                var counterPartyTypes = await _stockService.GetAllCounterPartyTypes();
+                var branchCounterPartyType = counterPartyTypes?.FirstOrDefault(c =>
+                    c.Name.Equals(StockConstants.StockCounterPartyType.Branch, StringComparison.OrdinalIgnoreCase));
+
+                var increaseDetails = new List<StockLedgerDetail>();
+                var decreaseDetails = new List<StockLedgerDetail>();
+
+                foreach (var group in pairGroups)
+                {
+                    var amendedValue = group.Sum(l => l.Value);
+                    var systemValue = matrix.TryGetValue(group.Key.DenominationId, out var byCategory)
+                        && byCategory.TryGetValue(group.Key.CategoryId, out var v) ? v : 0m;
+
+                    var diff = amendedValue - systemValue;
+                    if (diff == 0) continue;
+
+                    var detail = new StockLedgerDetail
+                    {
+                        DenominationId = group.Key.DenominationId,
+                        CategoryId = group.Key.CategoryId,
+                        NumberOfPieces = 0,
+                        NumberOfBoxes = 0,
+                        NumberOfBundles = 0,
+                        Value = Math.Abs(diff),
+                        SubCategoryId = 0,
+                    };
+
+                    (diff > 0 ? increaseDetails : decreaseDetails).Add(detail);
+                }
+
+                if (!increaseDetails.Any() && !decreaseDetails.Any())
+                {
+                    _logger.LogInformation("Amendment {Ref} already matches the stock ledger — nothing to reconcile", amendment.ReferenceNumber);
+                    return true;
+                }
+
+                bool allPosted = true;
+
+                if (increaseDetails.Any())
+                {
+                    allPosted &= await _stockService.CreateStockLedger(new StockLedger
+                    {
+                        ReferenceCode = $"AMEND-{amendment.ReferenceNumber}-IN",
+                        IsIn = true,
+                        StockMovementId = 0,
+                        CounterPartyTypeId = branchCounterPartyType?.Id ?? 0,
+                        CounterPartyId = amendment.BranchId,
+                        StoreId = amendment.BranchId,
+                        Notes = $"Stock ledger adjustment from amendment {amendment.ReferenceNumber}",
+                        StockLedgerDetails = increaseDetails,
+                    });
+                }
+
+                if (decreaseDetails.Any())
+                {
+                    allPosted &= await _stockService.CreateStockLedger(new StockLedger
+                    {
+                        ReferenceCode = $"AMEND-{amendment.ReferenceNumber}-OUT",
+                        IsIn = false,
+                        StockMovementId = 0,
+                        CounterPartyTypeId = branchCounterPartyType?.Id ?? 0,
+                        CounterPartyId = amendment.BranchId,
+                        StoreId = amendment.BranchId,
+                        Notes = $"Stock ledger adjustment from amendment {amendment.ReferenceNumber}",
+                        StockLedgerDetails = decreaseDetails,
+                    });
+                }
+
+                if (!allPosted)
+                    _logger.LogWarning("One or more stock ledger adjustments failed to post for amendment {Ref}", amendment.ReferenceNumber);
+
+                return allPosted;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error reconciling stock ledger for amendment {Ref}", amendment.ReferenceNumber);
                 return false;
             }
         }

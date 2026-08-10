@@ -23,5 +23,11 @@ namespace VMSService.Core.Services.StockPositions
         /// Post a CFB stock ledger entry (IsIn = true) when a shortage reimbursement is approved
         /// </summary>
         Task<bool> CreateReimbursementLedgerAsync(MonthlyShortageReimbursement reimbursement);
+
+        /// <summary>
+        /// Compares an amendment's counted lines against the current stock ledger position and
+        /// posts adjusting ledger entries so the system position matches the amended count.
+        /// </summary>
+        Task<bool> ReconcileAmendmentLedgerAsync(StockTake amendment);
     }
 }

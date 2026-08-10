@@ -1,0 +1,161 @@
+@using VMSService.Core.Static
+@model IEnumerable<VMSService.Data.Entities.StockTake>
+@inject VMSService.Web.Services.IPermissionService PermissionService
+
+@{
+    ViewData["Title"] = "Stock Takes";
+    var branchNames = ViewBag.BranchNames as Dictionary<int, string> ?? new();
+    var referenceById = ViewBag.ReferenceById as Dictionary<int, string> ?? new();
+    bool canEdit = await PermissionService.HasPermissionAsync(User, SystemPermissions.StockTakes.Edit);
+}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h2 class="fs-5 fw-bold mb-0">Stock Takes</h2>
+                    </div>
+                    <div class="col text-end">
+                        <a asp-action="Create" class="btn btn-sm btn-primary">
+                            <i class="ti ti-plus me-1"></i>New Count
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row g-2 align-items-end mb-3">
+                    <div class="col-sm-6 col-md-3">
+                        <label class="form-label small fw-semibold mb-1">Branch</label>
+                        <select id="filterBranch" class="form-select form-select-sm">
+                            <option value="">All</option>
+                            @foreach (var branch in branchNames.OrderBy(b => b.Value))
+                            {
+                                <option value="@branch.Key">@branch.Value</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-sm-6 col-md-3">
+                        <label class="form-label small fw-semibold mb-1">Count Date</label>
+                        <input type="date" id="filterCountDate" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-sm-12 col-md-6 d-flex gap-2">
+                        <button type="button" id="btnFilter" class="btn btn-sm btn-primary">
+                            <i class="ti ti-filter me-1"></i>Filter
+                        </button>
+                        <button type="button" id="btnClearFilter" class="btn btn-sm btn-outline-secondary">
+                            <i class="ti ti-x me-1"></i>Clear
+                        </button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-centered table-nowrap mb-0 rounded datatable" id="stockTakesTable">
+                        <thead class="thead-light">
+                            <tr>
+                                <th class="border-0 rounded-start">#</th>
+                                <th class="border-0">Reference</th>
+                                <th class="border-0">Branch</th>
+                                <th class="border-0">Count Date</th>
+                                <th class="border-0">Status</th>
+                                <th class="border-0 rounded-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{ int rowNumber = 1; }
+                            @foreach (var item in Model)
+                            {
+                                <tr data-branch-id="@item.BranchId" data-count-date="@item.CountDate.ToString("yyyy-MM-dd")">
+                                    <td><span class="text-primary fw-bold">@rowNumber</span></td>
+                                    <td class="fw-bold">
+                                        @item.ReferenceNumber
+                                        @if (item.AmendsStockTakeId.HasValue)
+                                        {
+                                            var amendsRef = referenceById.TryGetValue(item.AmendsStockTakeId.Value, out var r) ? r : $"#{item.AmendsStockTakeId}";
+                                            <a asp-action="Details" asp-route-id="@item.AmendsStockTakeId"
+                                               class="badge bg-warning text-dark text-decoration-none ms-1"
+                                               title="Amendment of @amendsRef">
+                                                <i class="ti ti-edit me-1"></i>Amendment
+                                            </a>
+                                        }
+                                    </td>
+                                    <td>@(branchNames.TryGetValue(item.BranchId, out var bName) ? bName : $"Branch #{item.BranchId}")</td>
+                                    <td>@item.CountDate.ToString("dd/MMM/yyyy")</td>
+                                    <td>
+                                        @{
+                                            string badgeClass = item.CurrentStatusName switch
+                                            {
+                                                StatusConstants.StockTake.Draft => "bg-secondary",
+                                                StatusConstants.StockTake.PendingReview => "bg-warning text-dark",
+                                                StatusConstants.StockTake.PendingAcknowledgement => "bg-info text-dark",
+                                                StatusConstants.StockTake.Acknowledged => "bg-success",
+                                                StatusConstants.StockTake.Returned => "bg-danger",
+                                                StatusConstants.StockTake.RequiresAmendment => "bg-danger",
+                                                _ => "bg-secondary"
+                                            };
+                                            bool isEditableStatus = item.CurrentStatusName == StatusConstants.StockTake.Draft
+                                                || item.CurrentStatusName == StatusConstants.StockTake.Returned;
+                                        }
+                                        <span class="badge @badgeClass">@item.CurrentStatusName</span>
+                                        @if (item.IsLocked)
+                                        {
+                                            <span class="badge bg-dark" title="Locked — has been amended"><i class="ti ti-lock"></i></span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
+                                            <i class="ti ti-eye"></i>
+                                        </a>
+                                        @if (canEdit && !item.IsLocked && isEditableStatus)
+                                        {
+                                            <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary ms-1" title="Edit">
+                                                <i class="ti ti-edit"></i>
+                                            </a>
+                                        }
+                                    </td>
+                                </tr>
+                                rowNumber++;
+                            }
+                        </tbody>
+                    </table>
+                    @if (!Model.Any())
+                    {
+                        <div class="p-4 text-center">
+                            <p class="text-muted mb-0">
+                                <i class="ti ti-inbox fs-3 d-block mb-2 text-secondary" style="opacity: 0.5;"></i>
+                                No stock takes recorded yet.
+                            </p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(function () {
+            $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+                if (settings.nTable.id !== 'stockTakesTable') return true;
+
+                var $row = $(new $.fn.dataTable.Api(settings).row(dataIndex).node());
+                var branchId = $('#filterBranch').val();
+                var countDate = $('#filterCountDate').val();
+
+                if (branchId && String($row.data('branch-id')) !== branchId) return false;
+                if (countDate && String($row.data('count-date')) !== countDate) return false;
+
+                return true;
+            });
+
+            var table = $('#stockTakesTable').DataTable();
+
+            $('#btnFilter').on('click', function () { table.draw(); });
+            $('#btnClearFilter').on('click', function () {
+                $('#filterBranch, #filterCountDate').val('');
+                table.draw();
+            });
+        });
+    </script>
+}

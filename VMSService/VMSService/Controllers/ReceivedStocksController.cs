@@ -635,32 +635,40 @@ namespace VMSService.Web.Controllers
 
                             if (createdMovement != null)
                             {
-                                // Step 2: Create StockLedger using the movement ID
+                                // Step 2: Create StockLedger using the movement ID, with one StockLedgerDetail
+                                // per denomination actually present in the received stock's details.
                                 var store = await _branchCategoryRepository
                                     .FindByBranchAndCategoryName(receivedStock.ExPrintMint.BranchId, StockConstants.StoreTypes.New);
                                 var counterPartyType = await _counterPartyTypeRepository.FindByName(StockConstants.StockCounterPartyType.Vendor);
-                                var denomination = await _denominationRepository.FindById(receivedStock.ExPrintMint.DenominationId);
                                 var categories = await _categoryRepository.FindAll();
                                 var newCategory = categories?.FirstOrDefault(c => c.Name == StockConstants.StoreTypes.New);
                                 var subCategories = await _subCategoryRepository.FindAll();
                                 var naSubCategory = subCategories?.FirstOrDefault(s => s.Name == StockConstants.SubCategories.NA);
 
-                                int numberOfPieces = receivedStock.NumberOfBoxes * 50000;
+                                var detailsByDenomination = await GroupReceivedStockDetailsByDenomination(updatedReceivedStock);
 
-                                var stockLedgerDetail = new StockLedgerDetail
+                                var stockLedgerDetails = new List<StockLedgerDetail>();
+                                foreach (var (denominationId, details) in detailsByDenomination)
                                 {
-                                    CreatedDate = DateTime.Now,
-                                    ModifiedDate = DateTime.Now,
-                                    CreatedBy = username,
-                                    ModifiedBy = username,
-                                    DenominationId = receivedStock.ExPrintMint.DenominationId,
-                                    NumberOfPieces = numberOfPieces,
-                                    NumberOfBoxes = receivedStock.NumberOfBoxes,
-                                    NumberOfBundles = receivedStock.NumberOfBoxes,
-                                    Value = denomination != null ? denomination.Value * numberOfPieces : 0,
-                                    CategoryId = newCategory?.Id ?? 0,
-                                    SubCategoryId = naSubCategory?.Id ?? 0,
-                                };
+                                    var denomination = await _denominationRepository.FindById(denominationId);
+                                    int numberOfBoxes = details.Sum(d => d.ReceivedEndCaseNumber - d.ReceivedStartCaseNumber + 1);
+                                    int numberOfPieces = numberOfBoxes * (denomination?.NumberOfPiecesInABox ?? 0);
+
+                                    stockLedgerDetails.Add(new StockLedgerDetail
+                                    {
+                                        CreatedDate = DateTime.Now,
+                                        ModifiedDate = DateTime.Now,
+                                        CreatedBy = username,
+                                        ModifiedBy = username,
+                                        DenominationId = denominationId,
+                                        NumberOfPieces = numberOfPieces,
+                                        NumberOfBoxes = numberOfBoxes,
+                                        NumberOfBundles = numberOfBoxes,
+                                        Value = denomination != null ? denomination.Value * numberOfPieces : 0,
+                                        CategoryId = newCategory?.Id ?? 0,
+                                        SubCategoryId = naSubCategory?.Id ?? 0,
+                                    });
+                                }
 
                                 var stockLedger = new StockLedger
                                 {
@@ -675,7 +683,7 @@ namespace VMSService.Web.Controllers
                                     CreatedDate = DateTime.Now,
                                     ModifiedBy = username,
                                     ModifiedDate = DateTime.Now,
-                                    StockLedgerDetails = new List<StockLedgerDetail> { stockLedgerDetail }
+                                    StockLedgerDetails = stockLedgerDetails
                                 };
 
                                 bool createdLedgerRecord = await _stockLedgerRepository.Create(stockLedger);
@@ -728,9 +736,16 @@ namespace VMSService.Web.Controllers
                     receivedStock.ExPrintMint = await _exPrintMintRepository.FindById(receivedStock.ExPrintMintId);
                 }
 
-                if (receivedStock.ExPrintMint?.DenominationId == null || receivedStock.ExPrintMint.DenominationId == 0)
+                if (receivedStock.ExPrintMint == null)
                 {
-                    _logger.LogWarning("Invalid denomination for received stock {ReceivedStockId}", receivedStock.Id);
+                    _logger.LogWarning("ExPrintMint not found for received stock {ReceivedStockId}", receivedStock.Id);
+                    return null;
+                }
+
+                var detailsByDenomination = await GroupReceivedStockDetailsByDenomination(receivedStock);
+                if (!detailsByDenomination.Any())
+                {
+                    _logger.LogWarning("No resolvable denominations for received stock {ReceivedStockId}", receivedStock.Id);
                     return null;
                 }
 
@@ -758,22 +773,27 @@ namespace VMSService.Web.Controllers
                     Denominations = new List<StockMovementDenomination>()
                 };
 
-                var denomination = new StockMovementDenomination
+                // One StockMovementDenomination per denomination actually present in the received
+                // stock's details, since a single received stock can span multiple denominations.
+                foreach (var (denominationId, details) in detailsByDenomination)
                 {
-                    DenominationId = receivedStock.ExPrintMint.DenominationId,
-                    BoxNumberRanges = new List<StockMovementDenominationBoxNumberRange>()
-                };
-
-                foreach (var detail in receivedStock.ReceivedStockDetails)
-                {
-                    denomination.BoxNumberRanges.Add(new StockMovementDenominationBoxNumberRange
+                    var denomination = new StockMovementDenomination
                     {
-                        Start = detail.ReceivedStartCaseNumber.ToString(),
-                        End = detail.ReceivedEndCaseNumber.ToString()
-                    });
-                }
+                        DenominationId = denominationId,
+                        BoxNumberRanges = new List<StockMovementDenominationBoxNumberRange>()
+                    };
 
-                stockMovement.Denominations.Add(denomination);
+                    foreach (var detail in details)
+                    {
+                        denomination.BoxNumberRanges.Add(new StockMovementDenominationBoxNumberRange
+                        {
+                            Start = detail.ReceivedStartCaseNumber.ToString(),
+                            End = detail.ReceivedEndCaseNumber.ToString()
+                        });
+                    }
+
+                    stockMovement.Denominations.Add(denomination);
+                }
 
                 var createdMovement = await _stockMovementRepository.CreateAsync(stockMovement);
 
@@ -787,6 +807,44 @@ namespace VMSService.Web.Controllers
                 _logger.LogError(ex, "Exception in CreateStockMovementFromReceivedStock for received stock {ReceivedStockId}", receivedStock.Id);
                 throw;
             }
+        }
+
+        // Resolves each detail's actual denomination via PackingListRange -> ExPrintMintDetail
+        // (not the single legacy DenominationId on ExPrintMint) and groups details by it, so a
+        // received stock spanning multiple denominations is handled per-denomination.
+        private async Task<Dictionary<int, List<ReceivedStockDetails>>> GroupReceivedStockDetailsByDenomination(ReceivedStock receivedStock)
+        {
+            var detailsByDenomination = new Dictionary<int, List<ReceivedStockDetails>>();
+
+            if (receivedStock?.ReceivedStockDetails == null)
+                return detailsByDenomination;
+
+            foreach (var detail in receivedStock.ReceivedStockDetails)
+            {
+                var packingListRange = await _packingListRangeRepository.FindByIdAsync(detail.PackingListRangeId);
+                if (packingListRange == null)
+                {
+                    _logger.LogWarning("PackingListRange {PackingListRangeId} not found for received stock detail {DetailId}", detail.PackingListRangeId, detail.Id);
+                    continue;
+                }
+
+                var exPrintMintDetail = await _exPrintMintDetailRepository.FindById(packingListRange.ExPrintMintDetailId);
+                if (exPrintMintDetail == null)
+                {
+                    _logger.LogWarning("ExPrintMintDetail {ExPrintMintDetailId} not found for received stock detail {DetailId}", packingListRange.ExPrintMintDetailId, detail.Id);
+                    continue;
+                }
+
+                if (!detailsByDenomination.TryGetValue(exPrintMintDetail.DenominationId, out var group))
+                {
+                    group = new List<ReceivedStockDetails>();
+                    detailsByDenomination[exPrintMintDetail.DenominationId] = group;
+                }
+
+                group.Add(detail);
+            }
+
+            return detailsByDenomination;
         }
 
         private async Task PopulateNewStockMovementLogs(StockMovement movement)

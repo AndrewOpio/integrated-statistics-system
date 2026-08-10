@@ -26,6 +26,8 @@ using VMSService.Core.Repositories.DepositUnitOfWorks;
 using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.ReceivedStocks;
+using VMSService.Core.Repositories.StockTakes;
+using VMSService.Core.Repositories.StockTakeStatusHistories;
 using VMSService.Core.Repositories.StockProcessingPlans;
 using VMSService.Core.Repositories.StockProcessingPlanStatusHistories;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
@@ -82,6 +84,8 @@ namespace VMSService.Core.Services.Workflows
         IBankingShortageStatusHistoryRepository _bankingShortageStatusHistoryRepository,
         IMonthlyShortageReimbursementRepository _reimbursementRepository,
         IMonthlyShortageReimbursementStatusHistoryRepository _reimbursementStatusHistoryRepository,
+        IStockTakeRepository _stockTakeRepository,
+        IStockTakeStatusHistoryRepository _stockTakeStatusHistoryRepository,
         IStockPositionService _stockPositionService) : IWorkflowService
     {
 
@@ -160,6 +164,9 @@ namespace VMSService.Core.Services.Workflows
 
                     case StatusConstants.Entity.MonthlyShortageReimbursements:
                         return await HandleMonthlyShortageReimbursementTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
+
+                    case StatusConstants.Entity.StockTake:
+                        return await HandleStockTakeTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
 
                     default:
                         _logger.LogWarning("Unknown entity type: {EntityType}", entityType);
@@ -417,6 +424,95 @@ namespace VMSService.Core.Services.Workflows
             }
 
             _logger.LogInformation("Received Stock {Id} transitioned from status {From} to {To} by user {UserId} with action {Action}. Attachments: {AttachmentCount}",
+                entityId, currentStatusId, transition.ToStatusId, userId, actionName, attachmentIds?.Count ?? 0);
+
+            return true;
+        }
+
+        private async Task<bool> HandleStockTakeTransitions(int entityId, int currentStatusId, string actionName,
+            string userId, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
+        {
+            var stockTake = await _stockTakeRepository.FindById(entityId);
+            if (stockTake == null)
+            {
+                _logger.LogWarning("Stock Take {Id} not found", entityId);
+                return false;
+            }
+
+            // Verify current status matches
+            if (stockTake.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Stock Take {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, stockTake.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            // "Acknowledge Amendment" is a distinct action/role from the normal Acknowledge,
+            // so the role that acknowledged the original can't also acknowledge the amendment.
+            // The Details UI already only offers the correct one of the two, but this is checked
+            // again here since a role holder could otherwise call ExecuteAction directly with the
+            // wrong action name and bypass that UI-only filter.
+            if (transition.ToStatus.Name == StatusConstants.StockTake.Acknowledged)
+            {
+                bool isAmendmentRecord = stockTake.AmendsStockTakeId.HasValue;
+                bool isAmendmentAction = actionName == StatusConstants.StockTakeActions.AcknowledgeAmendment;
+                if (isAmendmentRecord != isAmendmentAction)
+                {
+                    _logger.LogWarning(
+                        "Stock Take {Id} rejected: action {Action} is not valid for {Kind} records",
+                        entityId, actionName, isAmendmentRecord ? "amendment" : "non-amendment");
+                    return false;
+                }
+            }
+
+            // Create status history record
+            var statusHistory = new StockTakeStatusHistory
+            {
+                StockTakeId = entityId,
+                OldStatusId = stockTake.CurrentStatusId,
+                OldStatusName = stockTake.CurrentStatusName,
+                NewStatusId = transition.ToStatusId,
+                NewStatusName = transition.ToStatus.Name,
+                ChangedBy = userId,
+                ChangedAt = DateTime.Now,
+                Remarks = remarks,
+                AttachmentIds = attachmentIds != null && attachmentIds.Any()
+                    ? string.Join(",", attachmentIds)
+                    : null,
+                IsDeleted = false
+            };
+
+            await _stockTakeStatusHistoryRepository.Create(statusHistory);
+
+            // Update stock take status
+            stockTake.CurrentStatusId = transition.ToStatusId;
+            stockTake.CurrentStatusName = transition.ToStatus.Name;
+            await _stockTakeRepository.Update(stockTake);
+
+            // If an amendment reaches Acknowledged, reconcile the stock ledger so the system
+            // position matches the corrected count going forward. Only amendments trigger this —
+            // an ordinary first-time count reaching Acknowledged does not touch the ledger.
+            if (stockTake.AmendsStockTakeId.HasValue && transition.ToStatus.Name == StatusConstants.StockTake.Acknowledged)
+            {
+                var reconciled = await _stockPositionService.ReconcileAmendmentLedgerAsync(stockTake);
+                if (!reconciled)
+                {
+                    _logger.LogWarning("Stock ledger reconciliation failed for amendment {Id} ({Ref})", entityId, stockTake.ReferenceNumber);
+                }
+            }
+
+            // Send notifications
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                $"Stock Take {stockTake.ReferenceNumber}",
+                transition,
+                statusHistory.NewStatusName,
+                userId,
+                remarks);
+            }
+
+            _logger.LogInformation("Stock Take {Id} transitioned from status {From} to {To} by user {UserId} with action {Action}. Attachments: {AttachmentCount}",
                 entityId, currentStatusId, transition.ToStatusId, userId, actionName, attachmentIds?.Count ?? 0);
 
             return true;

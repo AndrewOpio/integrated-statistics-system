@@ -53,6 +53,9 @@ using VMSService.Core.Repositories.NewStockMovementLogs;
 using VMSService.Core.Repositories.PackingListRangeDetails;
 using VMSService.Core.Repositories.PackingListRanges;
 using VMSService.Core.Repositories.ReceivedStocks;
+using VMSService.Core.Repositories.StockTakes;
+using VMSService.Core.Repositories.StockTakeStatusHistories;
+using VMSService.Core.Repositories.StockTakeSystemPositions;
 using VMSService.Core.Repositories.ReceivedStocksDetails;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
 using VMSService.Core.Repositories.StockMovementDiscrepancies;
@@ -302,6 +305,9 @@ builder.Services.AddScoped<IBankingSurplusStatusHistoryRepository, BankingSurplu
 builder.Services.AddScoped<IBankingShortageRepository, BankingShortageRepository>();
 builder.Services.AddScoped<IBankingShortageStatusHistoryRepository, BankingShortageStatusHistoryRepository>();
 builder.Services.AddScoped<IAttachmentRepository, AttachmentRepository>();
+builder.Services.AddScoped<IStockTakeRepository, StockTakeRepository>();
+builder.Services.AddScoped<IStockTakeStatusHistoryRepository, StockTakeStatusHistoryRepository>();
+builder.Services.AddScoped<IStockTakeSystemPositionRepository, StockTakeSystemPositionRepository>();
 
 // ── Resource-based ownership check ────────────────────────────
 builder.Services.AddSingleton<IAuthorizationHandler, CbOwnershipAuthorizationHandler>();
