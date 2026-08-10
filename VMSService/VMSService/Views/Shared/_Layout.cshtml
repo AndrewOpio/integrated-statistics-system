@@ -209,6 +209,14 @@
                                         <span class="sidebar-text">Agent Details</span>
                                     </a>
                                 </li>
+                                @if (isRemittancesOfficer || isBackOffice)
+                                {
+                                    <li class="nav-item">
+                                        <a asp-controller="AppliedPenalties" asp-action="Index" class="nav-link d-flex align-items-center">
+                                            <span class="sidebar-text">Unsettled Penalties</span>
+                                        </a>
+                                    </li>
+                                }
                             </ul>
                         </div>
                     </li>
@@ -492,6 +500,11 @@
                                 <li class="nav-item">
                                     <a asp-controller="Penalties" asp-action="Index" class="nav-link">
                                         <span class="sidebar-text">Penalty Catalog</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a asp-controller="PenaltyWaivers" asp-action="Index" class="nav-link">
+                                        <span class="sidebar-text">Penalty Waivers</span>
                                     </a>
                                 </li>
                                 <li class="nav-item">

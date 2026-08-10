@@ -53,7 +53,7 @@ namespace VMSService.Core.Models.WithdrawalRequests
         public DateOnly? ReturnRtgsDate { get; init; }
         public IEnumerable<AttachmentViewModel> AllAttachments { get; set; } = [];
         public DenomTableViewModel Denoms { get; init; } = null!;
-        public WithdrawalStepViewModel Steps { get; init; } = null!;
+        public WithdrawalHistoryTrailViewModel HistoryTrail { get; init; } = null!;
         public IEnumerable<AgentDetailViewModel> WithdrawAgents { get; init; } = [];
 
         public IEnumerable<DenominationLineViewModel> Notes { get; init; } = [];

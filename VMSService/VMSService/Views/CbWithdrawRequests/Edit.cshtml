@@ -174,18 +174,56 @@
             if (el) el.value = formState.rtgsCode;
         }
 
-        // If collection date is today and RTGS is not yet filled, mark it required on page load.
-        if (formState.collectionDate === today && !formState.rtgsCode) {
+        formState.requiresSpecialApproval = @Html.Raw(Model.Request.RequiresSpecialApproval ? "true" : "false");
+        formState.specialApprovalReason   = @Html.Raw(string.IsNullOrEmpty(Model.Request.SpecialApprovalReason)
+            ? "null"
+            : $"'{Model.Request.SpecialApprovalReason.Replace("'", "\\'")}'");
+
+        // If this request sat unsubmitted long enough that its collection date has now
+        // passed, don't silently let the stale date through — force a fresh pick.
+        if (formState.collectionDate && formState.collectionDate < today) {
+            clearCollectionDate();
+            showErrors(["This request's collection date has passed — please select a new date."]);
+        }
+
+        // Re-derive grace-awareness on page load — same logic onCollectionDateChanged uses
+        // for interactive changes, so a same-day-but-in-grace request doesn't show a stale
+        // "RTGS required" state (or a missing grace indicator) until the user touches the date,
+        // and a request that silently became same-day-exceptional while sitting unsubmitted
+        // gets surfaced instead of slipping through unnoticed.
+        const isSameDayOnLoad = formState.collectionDate === today;
+        const graceReasonOnLoad = isSameDayOnLoad ? getGracePeriodReason(window.publicHolidayDates) : null;
+        const requiresSameDayApprovalOnLoad = isSameDayOnLoad && !graceReasonOnLoad;
+
+        if (requiresSameDayApprovalOnLoad && !formState.rtgsCode) {
             const rtgsCodeInput = document.getElementById('rtgsCode');
             if (rtgsCodeInput) rtgsCodeInput.required = true;
             const rtgsCodeHint = document.getElementById('rtgsCodeHint');
             if (rtgsCodeHint) rtgsCodeHint.classList.remove('d-none');
         }
 
-        formState.requiresSpecialApproval = @Html.Raw(Model.Request.RequiresSpecialApproval ? "true" : "false");
-        formState.specialApprovalReason   = @Html.Raw(string.IsNullOrEmpty(Model.Request.SpecialApprovalReason)
-            ? "null"
-            : $"'{Model.Request.SpecialApprovalReason.Replace("'", "\\'")}'");
+        const graceIndicator = document.getElementById('gracePeriodIndicator');
+        const graceReasonTextEl = document.getElementById('gracePeriodReasonText');
+        if (graceIndicator) {
+            graceIndicator.classList.toggle('d-none', !graceReasonOnLoad);
+            graceIndicator.classList.toggle('d-flex', !!graceReasonOnLoad);
+        }
+        if (graceReasonTextEl) graceReasonTextEl.textContent = graceReasonOnLoad || '';
+
+        // Same-day warning box reflects current reality, not the (possibly stale) stored flag.
+        const sameDayWarningOnLoad = document.getElementById('sameDayMakerWarning');
+        if (sameDayWarningOnLoad) {
+            sameDayWarningOnLoad.classList.toggle('d-none', !requiresSameDayApprovalOnLoad);
+            sameDayWarningOnLoad.classList.toggle('d-flex', requiresSameDayApprovalOnLoad);
+        }
+
+        // Newly exceptional (became same-day while this request sat unsubmitted) and no
+        // reason captured yet — prompt for one now rather than leaving it to a save-time
+        // rejection. If a reason already exists (it was same-day when saved), don't force
+        // the modal open — the warning box above already shows it with an edit option.
+        if (requiresSameDayApprovalOnLoad && !formState.requiresSpecialApproval) {
+            openSameDayReasonModal();
+        }
 
         // Pre-fill the unified modal textarea with the saved reason.
         const _reasonInput = document.getElementById('sameDayReasonInput');
@@ -200,7 +238,7 @@
             window.setDenomMode('lumpsum');
             const inp = document.getElementById('lumpSumInput');
             if (inp) {
-                inp.value = '@Model.Denoms.LumpSumAmount';
+                inp.value = '@Model.Denoms.LumpSumAmount'.replace(/\D/g, '');
                 window.onLumpSumInput(inp.value);
             }
             </text>

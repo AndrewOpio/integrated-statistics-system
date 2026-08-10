@@ -1,6 +1,9 @@
-@model VMSService.Core.Models.Cfb.TopupDetailsViewModel
+@using static VMSService.Core.Static.CfbConstants
+@model VMSService.Core.Models.CfbTopupRequests.TopupDetailsViewModel
 @{
     ViewData["Title"] = $"Top-Up Request TR-{Model.Id:D4}";
+    var canEdit = Model.CurrentStatusName == CfbStatusNames.Draft
+        || Model.CurrentStatusName == CfbStatusNames.ReturnedForRevision;
 }
 
 <a asp-action="Index" class="d-inline-flex align-items-center gap-1 mb-3 text-muted text-decoration-none fw-bold">
@@ -130,6 +133,12 @@
             <a asp-action="Index" class="btn btn-outline-secondary">
                 <i class="ti ti-arrow-left me-1"></i>Back to List
             </a>
+            @if (canEdit)
+            {
+                <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">
+                    <i class="ti ti-pencil me-1"></i>Edit Request
+                </a>
+            }
         </div>
     </div>
 

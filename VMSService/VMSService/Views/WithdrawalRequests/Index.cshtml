@@ -97,46 +97,36 @@
 </div>
 
 @* ── Status Breakdown Pills ── *@
-<div class="d-flex flex-wrap gap-2 mb-4">
-    <span class="badge rounded-pill bg-tertiary text-dark border px-3 py-2" style="font-size:12px;">
-        <i class="ti ti-clock-hour-4 me-1 text-muted" style="font-size:11px;"></i>Pending Internal Approval
-        <span class="fw-bold text-danger ms-1">@Model.PendingInternalApprovalCount</span>
+<div class="d-flex flex-wrap gap-2 mb-4" id="statusPillGroup">
+    <span class="badge rounded-pill bg-tertiary text-dark border px-3 py-2 status-pill" style="font-size:12px; cursor:pointer;"
+          role="button" data-status="Pending RTGS Verification" onclick="filterByStatus(this)">
+        <i class="ti ti-clock-bolt me-1 text-muted" style="font-size:11px;"></i>Pending RTGS Code
+        <span class="fw-bold text-danger ms-1">@Model.PendingRtgsVerificationCount</span>
     </span>
-    <span class="badge rounded-pill bg-tertiary text-dark border px-3 py-2" style="font-size:12px;">
+    <span class="badge rounded-pill bg-tertiary text-dark border px-3 py-2 status-pill" style="font-size:12px; cursor:pointer;"
+          role="button" data-status="Pending Withdrawal Confirmation" onclick="filterByStatus(this)">
         <i class="ti ti-file-check me-1 text-muted" style="font-size:11px;"></i>Pending Withdrawal Confirmation
         <span class="fw-bold text-danger ms-1">@Model.PendingWithdrawalConfirmationCount</span>
     </span>
-    <span class="badge rounded-pill bg-tertiary text-dark border px-3 py-2" style="font-size:12px;">
+    <span class="badge rounded-pill bg-tertiary text-dark border px-3 py-2 status-pill" style="font-size:12px; cursor:pointer;"
+          role="button" data-status="Pending Exceptional Approval" onclick="filterByStatus(this)">
         <i class="ti ti-star me-1 text-muted" style="font-size:11px;"></i>Pending Exceptional Approval
         <span class="fw-bold text-danger ms-1">@Model.PendingExceptionalApprovalCount</span>
     </span>
-    <span class="badge rounded-pill bg-tertiary text-dark border px-3 py-2" style="font-size:12px;">
+    <span class="badge rounded-pill bg-tertiary text-dark border px-3 py-2 status-pill" style="font-size:12px; cursor:pointer;"
+          role="button" data-status="Pending Verification" onclick="filterByStatus(this)">
         <i class="ti ti-thumb-up me-1 text-muted" style="font-size:11px;"></i>Pending Recommendation
         <span class="fw-bold text-danger ms-1">@Model.PendingRecommendationCount</span>
     </span>
-    <span class="badge rounded-pill bg-tertiary text-dark border px-3 py-2" style="font-size:12px;">
+    <span class="badge rounded-pill bg-tertiary text-dark border px-3 py-2 status-pill" style="font-size:12px; cursor:pointer;"
+          role="button" data-status="Pending Approval" onclick="filterByStatus(this)">
         <i class="ti ti-checkbox me-1 text-muted" style="font-size:11px;"></i>Pending Approval
         <span class="fw-bold text-danger ms-1">@Model.PendingConfirmationCount</span>
     </span>
-    <span class="badge rounded-pill bg-tertiary text-dark border px-3 py-2" style="font-size:12px;">
-        <i class="ti ti-circle-check me-1 text-muted" style="font-size:11px;"></i>Completed
-        <span class="fw-bold text-success ms-1">@Model.WithdrawalConfirmedCount</span>
-    </span>
-    <span class="badge rounded-pill bg-tertiary text-dark border px-3 py-2" style="font-size:12px;">
+    <span class="badge rounded-pill bg-tertiary text-dark border px-3 py-2 status-pill" style="font-size:12px; cursor:pointer;"
+          role="button" data-status="Recall Requested" onclick="filterByStatus(this)">
         <i class="ti ti-alert-triangle me-1 text-muted" style="font-size:11px;"></i>Recall Requested
         <span class="fw-bold text-warning ms-1">@Model.RecallRequestedCount</span>
-    </span>
-    <span class="badge rounded-pill bg-tertiary text-dark border px-3 py-2" style="font-size:12px;">
-        <i class="ti ti-arrow-back-up me-1 text-muted" style="font-size:11px;"></i>Recalled
-        <span class="fw-bold text-warning ms-1">@Model.RecalledCount</span>
-    </span>
-    <span class="badge rounded-pill bg-tertiary text-dark border px-3 py-2" style="font-size:12px;">
-        <i class="ti ti-clock-bolt me-1 text-muted" style="font-size:11px;"></i>Pending RTGS Verification
-        <span class="fw-bold text-danger ms-1">@Model.PendingRtgsVerificationCount</span>
-    </span>
-    <span class="badge rounded-pill bg-tertiary text-dark border px-3 py-2" style="font-size:12px;">
-        <i class="ti ti-arrow-return-left me-1 text-muted" style="font-size:11px;"></i>Return RTGS Pending
-        <span class="fw-bold text-danger ms-1">@Model.ReturnRtgsPendingCount</span>
     </span>
 </div>
 
@@ -176,7 +166,7 @@
                                 <td>
                                     @row.BouBranchCode
                                 </td>
-                                <td class="small">@row.CollectionDate.ToString("dd MMM yyyy")</td>
+                                <td class="small" data-order="@row.CollectionDate.ToString("yyyy-MM-dd")">@row.CollectionDate.ToString("dd MMM yyyy")</td>
                                 <td class="fw-semibold small">@row.Amount.ToString("N0")</td>
                                 <td>
                                     <span class="badge bg-info rounded-pill px-2 py-1">
@@ -226,16 +216,49 @@
 </div>
 
 @section Scripts {
+    <style>
+        .status-pill.active {
+            background-color: #b31b34 !important;
+            border-color: #b31b34 !important;
+            color: #fff !important;
+        }
+
+        .status-pill.active .text-muted,
+        .status-pill.active .text-danger,
+        .status-pill.active .text-warning {
+            color: #fff !important;
+        }
+    </style>
     <script>
 
+        let requestsTable = null;
+
         if ($('#requestsTable tbody tr').length > 0 && !$('#requestsTable tbody tr td[colspan]').length) {
-            $('#requestsTable').DataTable({
+            requestsTable = $('#requestsTable').DataTable({
                 order: [[3, 'desc']],
                 pageLength: 25,
                 columnDefs: [
                     { orderable: false, targets: [1, 5, 6] }
                 ]
             });
+        }
+
+        // Status column (index 5) filtering driven by the status breakdown pills.
+        // Clicking an already-active pill clears the filter and shows every row again.
+        function filterByStatus(el) {
+            if (!requestsTable) return;
+
+            const status = el.dataset.status;
+            const isActive = el.classList.contains('active');
+
+            document.querySelectorAll('#statusPillGroup .status-pill').forEach(p => p.classList.remove('active'));
+
+            if (isActive) {
+                requestsTable.column(5).search('').draw();
+            } else {
+                el.classList.add('active');
+                requestsTable.column(5).search(status, false, false).draw();
+            }
         }
 
     </script>

@@ -9,4 +9,6 @@ namespace StockService.Client;
 public interface IStockServiceClient
 {
     Task<IEnumerable<DenominationDto>> GetAllDenominations();
+
+    Task<IEnumerable<CounterPartyTypeDto>> GetAllCounterPartyTypes();
 }

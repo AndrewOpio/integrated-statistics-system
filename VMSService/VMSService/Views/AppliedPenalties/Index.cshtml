@@ -1,0 +1,72 @@
+@model List<VMSService.Core.Models.Penalties.AppliedPenaltyViewModel>
+
+@{
+    ViewData["Title"] = "Unsettled Penalties";
+}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h2 class="fs-5 fw-bold mb-0">Unsettled Penalties</h2>
+                        <p class="text-muted small mb-0">Applied penalties across all sources that have not yet been settled on RTGS.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-centered table-nowrap mb-0 rounded" id="unsettledPenaltiesTable">
+                        <thead class="thead-light">
+                            <tr>
+                                <th class="border-0 rounded-start">Source</th>
+                                <th class="border-0">Transaction Ref.</th>
+                                <th class="border-0">Penalty</th>
+                                <th class="border-0">Charge (UGX)</th>
+                                <th class="border-0">Applied By</th>
+                                <th class="border-0">Applied At</th>
+                                <th class="border-0 rounded-end">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td><span class="badge bg-secondary">@item.Source</span></td>
+                                    <td class="fw-bold">@item.SourceId</td>
+                                    <td>@item.PenaltyName</td>
+                                    <td class="fw-semibold">@item.ChargeValue.ToString("N0")</td>
+                                    <td class="small text-muted">@item.AppliedBy</td>
+                                    <td class="small text-muted">@item.AppliedAt.ToString("dd MMM yyyy HH:mm")</td>
+                                    <td>
+                                        @if (item.IsSettledOnRtgs)
+                                        {
+                                            <span class="badge bg-success">Settled @(!string.IsNullOrEmpty(item.RtgsCode) ? $"— {item.RtgsCode}" : "")</span>
+                                        }
+                                        else if (!string.IsNullOrEmpty(item.RtgsSettlingMessage))
+                                        {
+                                            <span class="badge bg-danger" title="@item.RtgsSettlingMessage">Failed</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">Pending</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            $('#unsettledPenaltiesTable').DataTable({ order: [[5, 'desc']] });
+        });
+    </script>
+}

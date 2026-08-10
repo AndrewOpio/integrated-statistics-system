@@ -111,7 +111,7 @@
             <td class="px-4 py-2">
                 <input class="form-control form-control-sm text-end"
                        id="denom-amt-inp-${id}"
-                       type="number" min="0" placeholder="0"
+                       type="text" inputmode="numeric" pattern="[0-9]*" placeholder="0"
                        oninput="denomOnAmountInput('${id}','${type}',this)" />
                 <small id="denom-amt-err-${id}" class="text-danger mt-1 d-none">
                     <i class="ti ti-alert-circle me-1"></i>
@@ -152,6 +152,7 @@
 
     // ── On Amount Input ───────────────────────────────────────
     window.denomOnAmountInput = function (id, type, el) {
+        el.value = el.value.replace(/\D/g, '');
         const r = rows[id];
         const enteredAmt = parseInt(el.value) || 0;
         const err = $(`denom-amt-err-${id}`);

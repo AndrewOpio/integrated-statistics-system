@@ -1,4 +1,4 @@
-@model VMSService.Core.Models.Cfb.TopupCreateViewModel
+@model VMSService.Core.Models.CfbTopupRequests.TopupCreateViewModel
 @{
     ViewData["Title"] = "New Top-Up Request";
 }
@@ -30,6 +30,8 @@
     {
         var sid = "box" + box.BoxId;
         var icon = box.BoxType == "Note" ? "banknote" : "coin";
+        var qtyLabel = box.BoxType == "Note" ? "BUNDLES" : "BOXES";
+        var qtyUnit = box.BoxType == "Note" ? "bundle" : "box";
 
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-white d-flex align-items-center gap-2 py-2">
@@ -49,12 +51,12 @@
                         <tr>
                             <th class="ps-3" style="font-size:11px;">DENOMINATION</th>
                             <th class="text-end" style="font-size:11px;">CURRENT BASELINE</th>
-                            <th class="text-end" style="font-size:11px;">INCREMENT (UGX)</th>
+                            <th class="text-end" style="font-size:11px;">@qtyLabel</th>
                             <th class="text-end" style="font-size:11px;">NEW BASELINE</th>
                             <th class="pe-3"></th>
                         </tr>
                     </thead>
-                    <tbody id="@(sid)-tbody"></tbody>
+                    <tbody id="@(sid)-tbody" data-qty-unit="@qtyUnit"></tbody>
                 </table>
 
                 <div class="d-flex align-items-center gap-2">
@@ -101,11 +103,17 @@
             return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
-        function updateNewBase(cellId, baseline, val) {
-            const inc = parseInt(val) || 0;
-            const cell = document.getElementById(cellId);
-            cell.textContent = ugxFmt(baseline + inc);
-            cell.className = inc > 0
+        // Quantity is the only thing the user enters — the increment amount is always derived
+        // as qty * 1000 * denomValue, so a partial bundle/box can never be submitted.
+        function updateNewBase(baseCellId, incCellId, baseline, denomValue, qtyVal) {
+            const qty = parseInt(qtyVal) || 0;
+            const inc = qty * 1000 * denomValue;
+
+            document.getElementById(incCellId).textContent = 'UGX ' + Number(inc).toLocaleString();
+
+            const baseCell = document.getElementById(baseCellId);
+            baseCell.textContent = ugxFmt(baseline + inc);
+            baseCell.className = inc > 0
                 ? 'text-end fw-bold small text-success'
                 : 'text-end small text-muted';
         }
@@ -121,6 +129,8 @@
             const baseline = parseInt(opt.dataset.baseline);
             const name = opt.dataset.name;
             const newBaseId = sid + '-nb-' + denomId;
+            const incId = sid + '-inc-' + denomId;
+            const qtyUnit = document.getElementById(sid + '-tbody').dataset.qtyUnit || 'bundle';
 
             const tr = document.createElement('tr');
             tr.id = sid + '-row-' + denomId;
@@ -139,10 +149,12 @@
                 </td>
                 <td class="text-end text-muted small">${ugxFmt(baseline)}</td>
                 <td class="text-end">
-                    <input type="number" name="amounts" min="1000" step="1000"
-                           class="form-control form-control-sm text-end" style="max-width:160px;margin-left:auto;"
+                    <input type="number" name="quantities" min="1" step="1"
+                           class="form-control form-control-sm text-end" style="max-width:100px;margin-left:auto;"
                            placeholder="0" required
-                           oninput="updateNewBase('${newBaseId}', ${baseline}, this.value)">
+                           oninput="updateNewBase('${newBaseId}', '${incId}', ${baseline}, ${denomValue}, this.value)">
+                    <div class="text-muted small text-end mt-1" id="${incId}">UGX 0</div>
+                    <div class="text-muted text-end" style="font-size:10px;">1 ${qtyUnit} = UGX ${Number(denomValue * 1000).toLocaleString()}</div>
                 </td>
                 <td class="text-end small text-muted" id="${newBaseId}">${ugxFmt(baseline)}</td>
                 <td class="text-end pe-3">

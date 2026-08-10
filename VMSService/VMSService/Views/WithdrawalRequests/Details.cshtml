@@ -53,7 +53,7 @@
 
     @* Stepper *@
 
-    @await Html.PartialAsync("~/Views/Shared/_Withdrawal/_BouWithdrawNavSteps.cshtml", Model.Steps)
+    @await Html.PartialAsync("~/Views/Shared/_Withdrawal/_BouWithdrawNavSteps.cshtml", Model.HistoryTrail)
 </div>
 @* ── Two Column Layout ── *@
 <div class="row g-3">
@@ -530,6 +530,32 @@
 
                 @* Summary rows *@
                 <div class="card-body pb-0">
+                    @if (Model.StatusName == WithdrawalStatusNames.Expired)
+                    {
+                        var expiryEntry = Model.StatusHistory.LastOrDefault(h => h.NewStatusName == WithdrawalStatusNames.Expired);
+                        if (expiryEntry != null && !string.IsNullOrWhiteSpace(expiryEntry.Remarks))
+                        {
+                            <div class="alert alert-danger d-flex align-items-start gap-2 py-2 mb-3">
+                                <i class="ti ti-clock-x text-danger fs-5 flex-shrink-0 mt-1"></i>
+                                <div>
+                                    <p class="fw-bold mb-1">Request Expired</p>
+                                    <p class="mb-0 small">@expiryEntry.Remarks</p>
+                                </div>
+                            </div>
+                        }
+                    }
+
+                    @* Late submission indicator *@
+                    @if (Model.IsLateSubmission)
+                    {
+                        <div class="alert alert-warning d-flex align-items-start gap-2 py-2 mb-3">
+                            <i class="ti ti-clock-exclamation text-warning fs-5 flex-shrink-0 mt-1"></i>
+                            <div>
+                                <p class="fw-bold mb-0 small">Late Submission</p>
+                                <p class="mb-0 small">This request first reached Pending Withdrawal Confirmation after 11:00 AM.</p>
+                            </div>
+                        </div>
+                    }
                     <div class="d-flex justify-content-between py-2 border-bottom small">
                         <span class="text-muted">Request ID</span>
                         <span class="fw-semibold">
@@ -573,17 +599,6 @@
                     </div>
                 </div>
 
-                @* Late submission indicator *@
-                @if (Model.IsLateSubmission)
-                {
-                    <div class="mx-3 mt-3 alert alert-warning d-flex align-items-start gap-2 py-2 mb-3">
-                        <i class="ti ti-clock-exclamation text-warning fs-5 flex-shrink-0 mt-1"></i>
-                        <div>
-                            <p class="fw-bold mb-0 small">Late Submission</p>
-                            <p class="mb-0 small">This request first reached Pending Withdrawal Confirmation after 11:00 AM.</p>
-                        </div>
-                    </div>
-                }
 
                 @* Workflow actions *@
                 @if (Model.RecallRtgsPending)

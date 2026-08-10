@@ -17,6 +17,13 @@ namespace VMSService.Core.Repositories.AppliedPenalties
                 .OrderBy(a => a.Penalty!.Name)
                 .ToListAsync();
 
+        public async Task<ICollection<AppliedPenalty>> FindUnsettled()
+            => await _db.AppliedPenalties
+                .Include(a => a.Penalty)
+                .Where(a => !a.IsSettledOnRtgs)
+                .OrderByDescending(a => a.CreatedDate)
+                .ToListAsync();
+
         public async Task<AppliedPenalty> FindById(int id)
             => await _db.AppliedPenalties.Include(a => a.Penalty).FirstOrDefaultAsync(a => a.Id == id);
 

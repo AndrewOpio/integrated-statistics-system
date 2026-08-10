@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PackageId>BOU.StockService.Client</PackageId>
-    <Version>1.0.1</Version>
+    <Version>1.0.2</Version>
     <Authors>Digital Solutions</Authors>
     <Company>BOU</Company>
     <Description>HTTP client for VMS Stock Microservice</Description>

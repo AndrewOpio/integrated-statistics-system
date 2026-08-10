@@ -3307,6 +3307,60 @@ namespace VMSService.Data.Migrations
                     b.ToTable("Penalties", (string)null);
                 });
 
+            modelBuilder.Entity("VMSService.Data.Entities.PenaltyWaiver", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("BouBranchId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("BouBranchCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("PenaltyId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PenaltyId", "BouBranchId");
+
+                    b.ToTable("PenaltyWaivers", (string)null);
+                });
+
             modelBuilder.Entity("VMSService.Data.Entities.PublicHoliday", b =>
                 {
                     b.Property<int>("Id")
@@ -4678,6 +4732,17 @@ namespace VMSService.Data.Migrations
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.AppliedPenalty", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.Penalty", "Penalty")
+                        .WithMany()
+                        .HasForeignKey("PenaltyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Penalty");
+                });
+
+            modelBuilder.Entity("VMSService.Data.Entities.PenaltyWaiver", b =>
                 {
                     b.HasOne("VMSService.Data.Entities.Penalty", "Penalty")
                         .WithMany()

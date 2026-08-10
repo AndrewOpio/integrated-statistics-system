@@ -1,11 +1,16 @@
 using ConfigurationsService.Client;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using VMSService.Core.Models.Cfb;
+using VMSService.Core.Models.CfbTopupRequests;
 using VMSService.Core.Repositories.CfbBoxes;
 using VMSService.Core.Repositories.CfbCashHoldings;
 using VMSService.Core.Repositories.CfbUnitOfWorks;
+using VMSService.Core.Repositories.Categories;
+using VMSService.Core.Repositories.CounterPartyTypes;
+using VMSService.Core.Repositories.Stocks;
+using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Services.Stocks;
+using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
@@ -20,6 +25,10 @@ namespace VMSService.Web.Controllers
         ICfbUnitOfWork _uow,
         ICfbBoxRepository _boxRepo,
         IStockService _stockService,
+        ICounterPartyTypeRepository _counterPartyTypeRepository,
+        ICategoryRepository _categoryRepository,
+        IStockMovementRepository _stockMovementRepository,
+        IStockLedgerRepository _stockLedgerRepository,
         IWorkflowService _workflowService,
         IWorkflowServiceClient _workflowServiceClient,
         IConfigurationsServiceClient _configServiceClient,
@@ -158,16 +167,88 @@ namespace VMSService.Web.Controllers
             });
         }
 
+        // ── Edit GET ─────────────────────────────────────────────────────────
+
+        [HttpGet]
+        public async Task<IActionResult> Edit(int id)
+        {
+            var roles = GetUserRoles();
+            if (!roles.Contains(SystemPolicy.Roles.CfbSupervisor))
+                return Forbid();
+
+            var topup = await _uow.Requests.FindByIdWithLines(id);
+            if (topup is null) return NotFound();
+
+            if (topup.CurrentStatusName != CfbConstants.CfbStatusNames.Draft
+                && topup.CurrentStatusName != CfbConstants.CfbStatusNames.ReturnedForRevision)
+            {
+                TempData["Error"] = "Only draft or returned requests can be edited.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            var allBranches = await _configServiceClient.GetAllBouBranchesAsync();
+            var (branchId, branchName) = GetUserBranchInfo(roles, allBranches);
+            if (topup.BouBranchId != branchId)
+                return Forbid();
+
+            var boxes = await _boxRepo.FindByBranchId(topup.BouBranchId);
+            var allDenoms = (await _stockService.GetAllDenominations()).Where(d => !d.IsDeleted).ToList();
+            var denomById = allDenoms.ToDictionary(d => d.Id);
+
+            // Existing lines keyed by (box, denomination) so the view can pre-fill their saved quantity.
+            var existingByKey = topup.Lines.ToDictionary(
+                l => (l.CfbBoxId, l.DenominationId),
+                l => l.DenomValue > 0 ? (int)(l.Amount / (l.DenomValue * 1000L)) : 0);
+
+            var boxSections = new List<TopupBoxSectionViewModel>();
+            foreach (var box in boxes)
+            {
+                var lines = box.Holdings.Select(h =>
+                {
+                    denomById.TryGetValue(h.DenominationId, out var d);
+                    existingByKey.TryGetValue((box.Id, h.DenominationId), out var existingQty);
+                    return new TopupCreateLineViewModel
+                    {
+                        DenominationId = h.DenominationId,
+                        DenominationName = d?.Name ?? $"Denom {h.DenominationId}",
+                        DenomValue = h.DenomValue,
+                        CurrentBaseline = h.Amount,
+                        ExistingQuantity = existingByKey.ContainsKey((box.Id, h.DenominationId)) ? existingQty : null,
+                    };
+                }).OrderBy(l => l.DenomValue).ToList();
+
+                if (lines.Count > 0)
+                {
+                    boxSections.Add(new TopupBoxSectionViewModel
+                    {
+                        BoxId = box.Id,
+                        BoxName = box.Name,
+                        BoxType = box.BoxType,
+                        Lines = lines,
+                    });
+                }
+            }
+
+            return View(new TopupCreateViewModel
+            {
+                Id = topup.Id,
+                BouBranchId = topup.BouBranchId,
+                BouBranchName = branchName,
+                Boxes = boxSections,
+            });
+        }
+
         // ── SaveDraft POST ───────────────────────────────────────────────────
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SaveDraft(
+            int? id,
             int bouBranchId,
             List<int> denominationIds,
             List<int> boxIds,
             List<int> denomValues,
-            List<long> amounts,
+            List<int> quantities,
             List<long> baselineBeforeTopups,
             CancellationToken ct)
         {
@@ -175,19 +256,74 @@ namespace VMSService.Web.Controllers
             if (!roles.Contains(SystemPolicy.Roles.CfbSupervisor))
                 return Forbid();
 
+            // The increment amount is always derived from quantity * 1000 * denomValue — never
+            // taken from the client — so a partial bundle/box can never be saved.
             var lines = denominationIds
                 .Select((denomId, i) => (denomId, boxId: boxIds.ElementAtOrDefault(i),
-                    denomValue: denomValues.ElementAtOrDefault(i), amount: amounts.ElementAtOrDefault(i),
+                    denomValue: denomValues.ElementAtOrDefault(i), quantity: quantities.ElementAtOrDefault(i),
                     baseline: baselineBeforeTopups.ElementAtOrDefault(i)))
-                .Where(x => x.amount > 0)
+                .Where(x => x.quantity > 0)
+                .Select(x => (x.denomId, x.boxId, x.denomValue, amount: (long)x.quantity * 1000 * x.denomValue, x.baseline))
                 .ToList();
 
             if (lines.Count == 0)
             {
-                TempData["Error"] = "Enter at least one positive increment amount.";
-                return RedirectToAction(nameof(Create));
+                TempData["Error"] = "Enter at least one bundle or box to top up.";
+                return id.HasValue
+                    ? RedirectToAction(nameof(Edit), new { id })
+                    : RedirectToAction(nameof(Create));
             }
 
+            if (id.HasValue)
+            {
+                // ── EDIT path ──────────────────────────────────────────────
+                var existingTopup = await _uow.Requests.FindByIdWithLines(id.Value);
+                if (existingTopup is null)
+                {
+                    TempData["Error"] = "Top-up request not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                if (existingTopup.CurrentStatusName != CfbConstants.CfbStatusNames.Draft
+                    && existingTopup.CurrentStatusName != CfbConstants.CfbStatusNames.ReturnedForRevision)
+                {
+                    TempData["Error"] = "Only draft or returned requests can be edited.";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
+
+                var allBranches = await _configServiceClient.GetAllBouBranchesAsync();
+                var (branchId, _) = GetUserBranchInfo(roles, allBranches);
+                if (existingTopup.BouBranchId != branchId)
+                    return Forbid();
+
+                existingTopup.Lines.Clear();
+                foreach (var l in lines)
+                {
+                    existingTopup.Lines.Add(new TopupLine
+                    {
+                        CfbBoxId = l.boxId,
+                        DenominationId = l.denomId,
+                        DenomValue = l.denomValue,
+                        Amount = l.amount,
+                        BaselineBeforeTopup = l.baseline,
+                    });
+                }
+
+                try
+                {
+                    await _uow.Requests.Update(existingTopup);
+                    TempData["Success"] = "Draft updated.";
+                    return RedirectToAction(nameof(Details), new { id = existingTopup.Id });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "SaveDraft (edit) failed for request {Id}", id);
+                    TempData["Error"] = "An error occurred saving the draft.";
+                    return RedirectToAction(nameof(Edit), new { id });
+                }
+            }
+
+            // ── CREATE path ────────────────────────────────────────────────
             var draftStatus = await _workflowServiceClient.FindStatusByName(new WorkflowService.Client.Dto.GetStatusByNameRequestDto
             {
                 ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
@@ -374,6 +510,113 @@ namespace VMSService.Web.Controllers
                             Amount = existing.Amount + line.Amount,
                             IsActive = true,
                         });
+                    }
+
+                    // Record the stock movement + ledger for the cash moved out of the branch's
+                    // main store into each CFB box — always Reissue, since CFB top-ups draw from
+                    // existing circulated stock, never fresh new notes.
+                    var referenceCode = $"CFB-TR-{topup.Id:D4}";
+
+                    var allCategories = await _categoryRepository.FindAll();
+                    var reissueCategory = allCategories.FirstOrDefault(c => c.Name == StockConstants.StoreTypes.Reissue);
+
+                    var counterPartyType = await _counterPartyTypeRepository.FindByName(StockConstants.StockCounterPartyType.Cfb);
+
+                    var dispatchedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+                    {
+                        ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                        StatusName = StatusConstants.StockMovement.Dispatched,
+                        EntityTypeName = StatusConstants.Entity.StockMovement,
+                    });
+
+                    var branchBoxes = await _boxRepo.FindByBranchId(topup.BouBranchId);
+                    var boxById = branchBoxes.ToDictionary(b => b.Id);
+
+                    // Bundles/boxes aren't stored on TopupLine (only Amount is), so the quantity
+                    // is derived here from Amount / (1000 * DenomValue) — the same 1000-per-bundle
+                    // convention withdrawal uses. This division is only guaranteed to come out
+                    // whole once entry is quantity-first (Phase 2); until then it's best-effort
+                    // against today's looser "multiple of 1000 UGX" validation.
+                    static int DeriveQuantity(long amount, int denomValue)
+                        => denomValue > 0 ? (int)(amount / (denomValue * 1000L)) : 0;
+
+                    foreach (var boxGroup in topup.Lines.GroupBy(l => l.CfbBoxId))
+                    {
+                        boxById.TryGetValue(boxGroup.Key, out var box);
+                        var isCoinBox = box?.BoxType == CfbConstants.BoxTypes.Coins;
+                        var containerType = isCoinBox
+                            ? StockConstants.ContainerTypes.Box
+                            : StockConstants.ContainerTypes.Bag;
+
+                        var movement = new StockMovement
+                        {
+                            MovementType = StockConstants.StockMovementTypes.BranchToCfb,
+                            Date = DateTime.Now,
+                            ReferenceNumber = referenceCode,
+                            DispatchingBranchId = topup.BouBranchId,
+                            ReceivingBranchId = null,
+                            GrandTotalValue = boxGroup.Sum(l => (decimal)l.Amount),
+                            CurrentStatusId = dispatchedStatus.Id,
+                            CurrentStatusName = dispatchedStatus.Name,
+                            Denominations = boxGroup.Select(l =>
+                            {
+                                var quantity = DeriveQuantity(l.Amount, l.DenomValue);
+                                return new StockMovementDenomination
+                                {
+                                    DenominationId = l.DenominationId,
+                                    NumBundles = isCoinBox ? null : quantity,
+                                    NumBagsBoxes = isCoinBox ? quantity : null,
+                                    CategoryId = reissueCategory?.Id,
+                                    Categorization = reissueCategory?.Name,
+                                    ContainerType = containerType,
+                                    SubTotalValue = l.Amount,
+                                    DenominationType = "Sent",
+                                };
+                            }).ToList(),
+                        };
+
+                        var newStockMovement = await _stockMovementRepository.CreateAsync(movement);
+
+                        var stockLedgerDetails = boxGroup.Select(l =>
+                        {
+                            var quantity = DeriveQuantity(l.Amount, l.DenomValue);
+                            return new StockLedgerDetail
+                            {
+                                CreatedDate = DateTime.Now,
+                                ModifiedDate = DateTime.Now,
+                                CreatedBy = username,
+                                ModifiedBy = username,
+                                DenominationId = l.DenominationId,
+                                NumberOfBoxes = isCoinBox ? quantity : 0,
+                                NumberOfBundles = isCoinBox ? null : quantity,
+                                NumberOfPieces = quantity * 1000,
+                                Value = l.Amount,
+                                CategoryId = reissueCategory?.Id ?? 0,
+                                SubCategoryId = 0,
+                            };
+                        }).ToList();
+
+                        var stockLedger = new StockLedger
+                        {
+                            ReferenceCode = referenceCode,
+                            StockMovementId = newStockMovement.Id,
+                            IsIn = false,
+                            CounterPartyTypeId = counterPartyType.Id,
+                            CounterPartyId = boxGroup.Key,
+                            StoreId = topup.BouBranchId,
+                            Notes = remarks,
+                            CreatedBy = username,
+                            CreatedDate = DateTime.Now,
+                            ModifiedBy = username,
+                            ModifiedDate = DateTime.Now,
+                            StockLedgerDetails = stockLedgerDetails,
+                        };
+
+                        bool createdLedger = await _stockLedgerRepository.Create(stockLedger);
+                        if (!createdLedger)
+                        {
+                            _logger.LogWarning("Failed to create stock ledger for CFB top-up {Id}, box {BoxId}", id, boxGroup.Key);
+                        }
                     }
 
                     await _uow.SaveAsync(ct);

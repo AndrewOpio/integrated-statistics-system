@@ -77,13 +77,13 @@
                 <label class="form-label text-uppercase text-muted small fw-semibold">
                     Total Amount (UGX) <span class="text-danger">*</span>
                 </label>
-                <input type="number"
+                <input type="text"
                        id="lumpSumInput"
                        class="form-control"
                        placeholder="e.g. 50000000"
-                       min="0"
-                       step="1"
-                       oninput="onLumpSumInput(this.value)" />
+                       inputmode="numeric"
+                       pattern="[0-9]*"
+                       oninput="this.value = this.value.replace(/\D/g, ''); onLumpSumInput(this.value)" />
                 <small id="lumpSumHint" class="text-muted mt-1 d-block">
                     Amount must be an exact multiple of @WithdrawConstants.AmountRules.BundleMultiple.ToString("N0") (one bundle), with a minimum of UGX @WithdrawConstants.AmountRules.MinimumWithdrawalAmount.ToString("N0").
                 </small>

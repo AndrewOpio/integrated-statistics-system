@@ -7,6 +7,7 @@
             public const string Vendor = "Vendor";
             public const string CommercialBank = "Commercial Bank";
             public const string Branch = "Branch";
+            public const string Cfb = "CFB";
         }
 
         public static class StoreTypes
@@ -36,6 +37,7 @@
             public const string OperationalToBuffer = "OperationalToBuffer";
             public const string CommBankToBranch = "Commercial Bank To Branch";
             public const string BranchToCommBank = "BranchToCommercialBank";
+            public const string BranchToCfb = "BranchToCfb";
         }
 
         public static readonly (string Key, string Value)[] MovementTypes = new[]

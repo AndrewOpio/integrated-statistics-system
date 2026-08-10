@@ -32,10 +32,9 @@
                 </div>
             }
 
-            <button class="step-pill @step.CssState"
-                    onclick="@(step.IsClickable ? $"switchTab('{step.Key}', this)" : "")"
-                    @(step.IsClickable ? "" : "disabled")
-                    title="@step.Label — @step.SubLabel">
+            @* Progress indicator only — not interactive. There's no tab content on this page
+               (or on Create/Edit) for a step to switch to. *@
+            <div class="step-pill @step.CssState" style="cursor:default;" title="@step.Label — @step.SubLabel">
 
                 <div class="sp-icon">
                     @if (step.ShowCheckIcon)
@@ -53,7 +52,7 @@
                     <div class="text-white-50">@step.SubLabel</div>
                 </div>
 
-            </button>
+            </div>
         }
 
 

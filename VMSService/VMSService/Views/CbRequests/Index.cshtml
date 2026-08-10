@@ -40,6 +40,12 @@
         _ => "bi-circle"
     };
 
+    // A request that has already ended (approved, rejected, cancelled, recalled, expired)
+    // having a past date is normal, not overdue — only flag requests still in one of the
+    // four active buckets (StatusBucket is "" for anything closed).
+    var today = DateOnly.FromDateTime(DateTime.Today);
+    bool IsOverdue(VMSService.Core.Models.CbRequests.RecentRequestRowViewModel r) =>
+        !string.IsNullOrEmpty(r.StatusBucket) && r.CollectionDate < today;
 }
 
 <div class="dash-hero mb-4">
@@ -66,15 +72,16 @@
 </div>
 
 <!-- ── STATS ROW ── -->
-<div class="row g- mb-4">
-    @foreach (var (icon, color, label, val, sub) in new[] {
-        ("ti-file-description", "primary",  "Total Requests",  "9",  "all time"),
-        ("ti-hourglass-low",   "warning",  "Pending",         "2",  "awaiting action"),
-        ("ti-xbox-x",          "danger",   "Rejected",        "1",  "requires resubmission"),
+<div class="row g- mb-4" id="statCardRow">
+    @foreach (var (bucket, icon, color, label, val, sub) in new[] {
+        ("awaiting-action",   "ti-user-exclamation", "warning",  "Awaiting Your Action",       Model.AwaitingActionCount.ToString(),           "needs a maker/approver step"),
+        ("pending-exceptional","ti-star",             "info",     "Pending Exceptional Approval", Model.PendingExceptionalApprovalCount.ToString(), "same-day requests with BOU"),
+        ("with-bou",           "ti-building-bank",    "primary",  "With Bank of Uganda",        Model.WithBouCount.ToString(),                  "out of your hands for now"),
+        ("unsuccessful",       "ti-xbox-x",            "danger",   "Unsuccessful",               Model.UnsuccessfulCount.ToString(),             "rejected, cancelled or expired"),
         })
     {
-        <div class="col-6 col-md-4">
-            <div class="card border-0 shadow-sm h-100">
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100 stat-card" role="button" data-bucket="@bucket" onclick="filterByBucket('@bucket', this)">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between mb-2">
                         <span class="text-muted small">@label</span>
@@ -144,11 +151,15 @@
             </a>
         </div>
 
+        <div id="noFilterResults" class="text-muted small d-none mb-2">
+            <i class="ti ti-inbox me-1"></i>No recent requests in this bucket.
+        </div>
+
         <div class="d-flex flex-column gap-2">
             @foreach (var r in recentRequests)
             {
-                <a href="@($"/Cb{(r.Type == "Withdrawal" ? "Withdraw" : "Deposit")}Requests/Details/{r.Id}")" class="req-row-link">
-                    <div class="card border shadow-sm mb-2 request-card">
+                <a href="@($"/Cb{(r.Type == "Withdrawal" ? "Withdraw" : "Deposit")}Requests/Details/{r.Id}")" class="req-row-link" data-bucket="@r.StatusBucket">
+                    <div class="card border shadow-sm mb-2 request-card @(IsOverdue(r) ? "border-warning bg-warning bg-opacity-10" : "")">
                         <div class="card-body py-3">
                             <div class="d-flex align-items-center gap-3">
 
@@ -237,3 +248,36 @@
     </div>
 
 </div>
+
+@section Scripts {
+    <style>
+        .stat-card { cursor: pointer; transition: box-shadow .15s ease, transform .15s ease; }
+        .stat-card.active { box-shadow: 0 0 0 2px var(--bs-primary) inset; }
+    </style>
+    <script>
+        // Clicking a stat card filters the Recent Requests feed below to that bucket.
+        // Clicking the already-active card clears the filter and shows everything again.
+        function filterByBucket(bucket, cardEl) {
+            const isActive = cardEl.classList.contains('active');
+
+            document.querySelectorAll('#statCardRow .stat-card').forEach(c => c.classList.remove('active'));
+
+            const rows = document.querySelectorAll('.req-row-link');
+            let visibleCount = 0;
+
+            if (isActive) {
+                rows.forEach(r => r.classList.remove('d-none'));
+                visibleCount = rows.length;
+            } else {
+                cardEl.classList.add('active');
+                rows.forEach(r => {
+                    const match = r.dataset.bucket === bucket;
+                    r.classList.toggle('d-none', !match);
+                    if (match) visibleCount++;
+                });
+            }
+
+            document.getElementById('noFilterResults').classList.toggle('d-none', visibleCount > 0);
+        }
+    </script>
+}

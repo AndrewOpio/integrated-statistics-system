@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using VMSService.Core.Models.AgentDetails;
 using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.CbRequests;
+using VMSService.Core.Models.Penalties;
 using VMSService.Core.Models.WithdrawalRequestDenominations;
 using VMSService.Data.Entities;
 using WorkflowService.Client.Dto;
@@ -72,5 +73,8 @@ namespace VMSService.Core.Models.CbWithdrawRequest
         public string? GracePeriodReason { get; set; }
         public IEnumerable<WithdrawalRequestStatusHistoryViewModel> StatusHistory { get; set; } = [];
         public IEnumerable<AttachmentViewModel> AllAttachments { get; set; } = [];
+
+        /// <summary>Read-only — CB can see what's been charged, but never manage/apply penalties themselves.</summary>
+        public IEnumerable<AppliedPenaltyViewModel> AppliedPenalties { get; set; } = [];
     }
 }

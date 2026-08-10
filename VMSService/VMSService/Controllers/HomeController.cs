@@ -180,6 +180,13 @@ namespace VMSService.Controllers
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
 
+        [AllowAnonymous]
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public IActionResult AccessDenied()
+        {
+            return View();
+        }
+
         public IActionResult Logout()
         {
             var username = Request.Cookies["Username"];

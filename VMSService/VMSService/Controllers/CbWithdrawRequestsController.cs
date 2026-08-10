@@ -8,9 +8,11 @@ using VMSService.Core.Models.AgentDetails;
 using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.CbRequests;
 using VMSService.Core.Models.CbWithdrawRequest;
+using VMSService.Core.Models.Penalties;
 using VMSService.Core.Models.WithdrawalRequestDenominations;
 using VMSService.Core.Models.WithdrawalRequests;
 using VMSService.Core.Repositories.AgentDetails;
+using VMSService.Core.Repositories.AppliedPenalties;
 using VMSService.Core.Repositories.Attachments;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.WithdrawalRequestAgents;
@@ -25,6 +27,7 @@ using VMSService.Core.Services.Submissions;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
+using VMSService.Web.Authorization;
 using VMSService.Web.Helpers;
 using WorkflowService.Client;
 using WorkflowService.Client.Dto;
@@ -32,7 +35,7 @@ using static VMSService.Core.Static.WithdrawConstants;
 
 namespace VMSService.Web.Controllers
 {
-
+    [RequirePermission(SystemPermissions.CbWithdrawRequests.Details)]
     public class CbWithdrawRequestsController(
     IAuthorizationService authorizationService,
     IAgentDetailRepository _agentRepo,
@@ -49,14 +52,10 @@ namespace VMSService.Web.Controllers
     IAttachmentRepository _attachmentRepository,
     IIdentityService _identityService,
     IPublicHolidayRepository _publicHolidayRepository,
+    IAppliedPenaltyRepository _appliedPenaltyRepository,
     ILogger<CbWithdrawRequestsController> _logger,
     IMapper _mapper) : BaseWithdrawController(authorizationService)
     {
-        public IActionResult Index()
-        {
-            return View();
-        }
-
         // ── Create ───────────────────────────────
         public async Task<IActionResult> Create(CancellationToken ct)
         {
@@ -480,6 +479,25 @@ namespace VMSService.Web.Controllers
                 })
                 .ToList();
 
+            // CB users see their own side of the workflow (up through RTGS verification)
+            // and whichever terminal outcome the request lands on. The BOU-internal
+            // verification/approval churn in between is not shown to them.
+            if (!isBouUser)
+            {
+                var cbVisibleStatuses = new HashSet<string>
+                {
+                    WithdrawalStatusNames.Draft,
+                    WithdrawalStatusNames.PendingInternalApproval,
+                    WithdrawalStatusNames.ReturnedForRevision,
+                    WithdrawalStatusNames.PendingRTGSVerification,
+                    WithdrawalStatusNames.Approved,
+                    WithdrawalStatusNames.Rejected,
+                    WithdrawalStatusNames.Cancelled,
+                    WithdrawalStatusNames.RecallApproved,
+                };
+                statusHistory = statusHistory.Where(h => cbVisibleStatuses.Contains(h.NewStatusName)).ToList();
+            }
+
             // ── Global attachments for this request ───────────────────────────────
             var allAttachmentsRaw = await _attachmentRepository.FindByEntityId(id.ToString());
             var allAttachments = allAttachmentsRaw
@@ -605,6 +623,28 @@ namespace VMSService.Web.Controllers
                     .FirstOrDefault(),
             };
 
+            // ── Penalties ─────────────────────────────────────────────────────────
+            // Read-only for CB — visible whenever penalties exist, regardless of the request's
+            // current status, since the "when" is already controlled on the BOU side (penalties
+            // are only entered right before Panel B approval).
+            if (!string.IsNullOrEmpty(request.TransactionRefNumber))
+            {
+                var appliedPenalties = await _appliedPenaltyRepository.FindBySourceId(request.TransactionRefNumber);
+                vm.AppliedPenalties = appliedPenalties.Select(a => new AppliedPenaltyViewModel
+                {
+                    Id = a.Id,
+                    PenaltyId = a.PenaltyId,
+                    PenaltyName = a.Penalty?.Name ?? string.Empty,
+                    ChargeValue = a.ChargeValue,
+                    Quantity = a.Quantity,
+                    IsSettledOnRtgs = a.IsSettledOnRtgs,
+                    RtgsCode = a.RtgsCode,
+                    RtgsSettlingMessage = a.RtgsSettlingMessage,
+                    AppliedBy = a.CreatedBy,
+                    AppliedAt = a.CreatedDate,
+                }).ToList();
+            }
+
             return View(vm);
         }
 
@@ -722,6 +762,12 @@ namespace VMSService.Web.Controllers
                 return RedirectToAction(nameof(Details), new { id });
             }
 
+            if (reason.Trim().Length < ReasonRules.MinLength)
+            {
+                TempData["Error"] = $"The exceptional approval reason must be at least {ReasonRules.MinLength} characters.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
             var request = await _uow.Requests.FindById(id);
             if (request is null)
             {
@@ -783,6 +829,12 @@ namespace VMSService.Web.Controllers
             if (!rtgsUpdateableStatuses.Contains(request.StatusTypeName))
             {
                 TempData["Error"] = "RTGS details can no longer be updated at this stage.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (request.RequiresSpecialApproval && string.IsNullOrWhiteSpace(rtgsCode))
+            {
+                TempData["Error"] = "RTGS code is required when a request requires exceptional approval.";
                 return RedirectToAction(nameof(Details), new { id });
             }
 
@@ -1045,20 +1097,17 @@ namespace VMSService.Web.Controllers
         //    return request;
         //}
 
+        // CB-facing progress: Maker -> Approver -> RTGS Verification -> everything
+        // downstream of that (BOU's internal verification/approval workflow) is shown
+        // as a single "BOU Processing" step, since CB users don't track BOU's internal
+        // stages individually — see GetCurrentStepKeyBOU for the BOU-facing view.
         private static string GetCurrentStepKey(string statusName) => statusName switch
         {
-            WithdrawalStatusNames.Draft => "CbMaker",
+            WithdrawalStatusNames.Draft or
             WithdrawalStatusNames.ReturnedForRevision => "CbMaker",
             WithdrawalStatusNames.PendingInternalApproval => "CbApprover",
-            WithdrawalStatusNames.PendingExceptionalApproval => "BOU",
-            WithdrawalStatusNames.PendingWithdrawalConfirmation => "Remittance",
-            WithdrawalStatusNames.PendingVerification => "Remittance",
-            WithdrawalStatusNames.PendingApproval => "PanelB",
-            WithdrawalStatusNames.Approved => "PanelA",
-            WithdrawalStatusNames.RejectExceptionalApproval => "PanelB",
-            WithdrawalStatusNames.RecallRequested => "Remittance",
-            WithdrawalStatusNames.RecallApproved => "Remittance",
-            _ => "CbMaker",
+            WithdrawalStatusNames.PendingRTGSVerification => "RtgsVerification",
+            _ => "BouProcessing",
         };
 
         private static string GetCurrentStepKeyBOU(string statusName) => statusName switch

@@ -19,8 +19,10 @@ namespace VMSService.Core.Static
             public const string PendingExceptionalApproval = "Pending Exceptional Approval";
             public const string RejectExceptionalApproval = "Reject Exceptional Approval";
             public const string PendingVerification = "Pending Verification";
+            public const string PendingExceptionalVerification = "Pending Exceptional Verification";
             public const string PendingApproval = "Pending Approval";
             public const string RecallRequested = "Recall Requested";
+            public const string RecallVerified = "Recall Verified";
             public const string RecallApproved = "Recall Approved";
             public const string RecallComplete = "Recall Complete";
             //public const string BouDraft = "BOU Draft";
@@ -35,9 +37,36 @@ namespace VMSService.Core.Static
         }
         public static class WithdrawalStatusActionNames
         {
-            public const string ApproveRecall = "ApproveRecall";
+            // CB Maker / CB Approver
+            public const string SubmitForInternalApproval = "SubmitForInternalApproval";
+            public const string ReturnForRevision = "ReturnForRevision";
+            public const string ResubmitForApproval = "ResubmitForApproval";
+            public const string ApproveToRTGSVerification = "ApproveToRTGSVefification";
+            public const string ExceptionalWithdrawalRequest = "ExceptionalWithdrawaRequest";
+            public const string RequestRecall = "RequestRecall";
+
+            // Back Office
             public const string Submit_Verification_Exceptional = "Submit_Verification_Exceptional";
             public const string Submit_Verification = "Submit_Verification";
+            public const string RtgsConfirmationFailed = "RTGS Confirmation Failed";
+            public const string VerifyExceptional = "VerifyExceptional";
+            public const string VerifyRecall = "VerifyRecall";
+            public const string CompleteRejectExceptional = "Complete Reject Exceptional";
+            public const string CompleteReject = "Complete Reject";
+            public const string CompleteCancel = "Complete Cancel";
+            public const string CompleteRecall = "Complete Recall";
+
+            // Panel B
+            public const string SubmitForApproval = "Submit for Approval";
+
+            // Panel A
+            public const string Approve = "Approve";
+            public const string Reject = "Reject";
+
+            // Currency Approver
+            public const string ApproveExceptional = "ApproveExceptional";
+            public const string RejectExceptional = "RejectExceptional";
+            public const string ApproveRecall = "ApproveRecall";
         }
 
         public static class AmountRules

@@ -23,6 +23,7 @@ using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Repositories.WithdrawalRequestDenominations;
 using VMSService.Core.Repositories.WithdrawalRequests;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
+using VMSService.Core.Repositories.PenaltyWaivers;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
@@ -53,6 +54,7 @@ namespace VMSService.Web.Controllers
         ICounterPartyTypeRepository _counterPartyTypeRepository,
         IPenaltyRepository _penaltyRepository,
         IAppliedPenaltyRepository _appliedPenaltyRepository,
+        IPenaltyWaiverRepository _penaltyWaiverRepository,
         ILogger<WithdrawalRequestsController> _logger,
         IMapper _mapper) : Controller
     {
@@ -131,7 +133,7 @@ namespace VMSService.Web.Controllers
             var active = filteredRequests.Where(r => !r.IsDeleted).ToList();
 
             var pendingInternalApproval = active.Count(r => r.StatusTypeName == WithdrawalStatusNames.PendingInternalApproval);
-            var pendingWithdrawalConfirmation = active.Count(r => r.StatusTypeName == WithdrawalStatusNames.PendingApproval);
+            var pendingWithdrawalConfirmation = active.Count(r => r.StatusTypeName == WithdrawalStatusNames.PendingWithdrawalConfirmation);
             var pendingExceptionalApproval = active.Count(r => r.StatusTypeName == WithdrawalStatusNames.PendingExceptionalApproval);
             var pendingRecommendation = active.Count(r => r.StatusTypeName == WithdrawalStatusNames.PendingVerification);
             var pendingConfirmation = active.Count(r => r.StatusTypeName == WithdrawalStatusNames.PendingApproval);
@@ -384,9 +386,6 @@ namespace VMSService.Web.Controllers
 
             var currentStatus = await _workflowServiceClient.FindStatusById(request.StatusTypeId);
 
-            var Steps = BuildStepViewModel(request.StatusTypeName,
-                           request.StatusTypeName == WithdrawalStatusNames.Approved, request.RequiresSpecialApproval);
-
             //Status history
             var statusHistoryList = _mapper.Map<IEnumerable<WithdrawalRequestStatusHistoryViewModel>>(request.WithdrawalRequestStatusHistory);
             foreach (var history in statusHistoryList)
@@ -446,6 +445,30 @@ namespace VMSService.Web.Controllers
                 })
                 .ToList();
 
+            // ── BOU-facing history trail ────────────────────────────────────────────
+            // One node per status the request actually passed through — starts after the
+            // CB Maker's initial submission (Internal Draft), since BOU has nothing to act
+            // on before that. Built from real history rather than a fixed step list, so
+            // branches (exceptional approval, recall, reject) show correctly.
+            var trailEntries = statusHistoryList
+                .Where(h => h.NewStatusName != WithdrawalStatusNames.Draft)
+                .OrderBy(h => h.ChangedAt)
+                .ToList();
+
+            var nextActor = WithdrawalNextActorMap.GetNextActor(request.StatusTypeName);
+            var historyTrail = new WithdrawalHistoryTrailViewModel
+            {
+                Steps = trailEntries.Select((h, i) => new WithdrawalHistoryTrailStep
+                {
+                    StatusName = h.NewStatusName,
+                    ChangedAt = h.ChangedAt,
+                    ChangedBy = h.ChangedBy,
+                    IsCurrent = i == trailEntries.Count - 1,
+                }).ToList(),
+                NextActor = nextActor,
+                IsClosed = nextActor is null,
+            };
+
             // ── Build ViewModel ───────────────────────────────────────────────────
             var vm = new BouWithdrawalRequestDetailsViewModel
             {
@@ -474,8 +497,7 @@ namespace VMSService.Web.Controllers
                 IsLumpSum = request.IsLumpSum,
                 IsPostApprovalView = displayOrigin == WithdrawalOrigin.Bou,
                 IsLateSubmission = isLateSubmission,
-                Steps = BuildStepViewModel(request.StatusTypeName,
-                           request.StatusTypeName == WithdrawalStatusNames.Approved, request.RequiresSpecialApproval),
+                HistoryTrail = historyTrail,
                 RtgsVerificationStatus = request.RtgsVerificationStatus,
                 RtgsVerifiedDate = request.RtgsVerifiedDate,
                 CanVerifyRtgs = userRoles.Contains(Roles.BackOffice)
@@ -495,7 +517,11 @@ namespace VMSService.Web.Controllers
                 DispatchedReissueBanknotes = dispatchedReissueBanknotes,
                 DispatchedCoins = dispatchedCoins,
                 AllAttachments = withdrawalAttachments,
-                StatusHistory = statusHistoryList.OrderBy(h => h.ChangedAt),
+                // BOU sees everything except the CB Maker's initial submission entry — the
+                // trail above already starts there, so it adds nothing as a comment either.
+                StatusHistory = statusHistoryList
+                    .Where(h => h.NewStatusName != WithdrawalStatusNames.Draft)
+                    .OrderBy(h => h.ChangedAt),
                 SubmissionDate = statusHistoryList
                     .Where(h => h.NewStatusName == WithdrawalStatusNames.PendingRTGSVerification
                              || h.NewStatusName == WithdrawalStatusNames.PendingWithdrawalConfirmation)
@@ -556,14 +582,26 @@ namespace VMSService.Web.Controllers
                 {
                     var appliedPenaltyIds = appliedPenalties.Select(a => a.PenaltyId).ToHashSet();
                     var applicablePenalties = await _penaltyRepository.FindApplicableFor(PenaltyConstants.AppliesTo.PreTransaction);
-                    vm.ApplicablePenalties = applicablePenalties.Select(p => new PenaltyChecklistItemViewModel
+
+                    var checklist = new List<PenaltyChecklistItemViewModel>();
+                    foreach (var p in applicablePenalties)
                     {
-                        Id = p.Id,
-                        Name = p.Name,
-                        Description = p.Description,
-                        PenaltyValue = p.PenaltyValue,
-                        IsChecked = appliedPenaltyIds.Contains(p.Id),
-                    }).ToList();
+                        // A branch-scoped waiver, checked against the request's collection date,
+                        // suppresses the penalty from being selectable — it stays visible so
+                        // Back Office can see why it's not offered rather than it just vanishing.
+                        var waiver = await _penaltyWaiverRepository.FindActiveAsync(p.Id, request.BouBranchId, request.CollectionDate);
+                        checklist.Add(new PenaltyChecklistItemViewModel
+                        {
+                            Id = p.Id,
+                            Name = p.Name,
+                            Description = p.Description,
+                            PenaltyValue = p.PenaltyValue,
+                            IsChecked = appliedPenaltyIds.Contains(p.Id),
+                            IsWaived = waiver is not null,
+                            WaiverEndDate = waiver?.EndDate,
+                        });
+                    }
+                    vm.ApplicablePenalties = checklist;
                 }
             }
 
@@ -620,6 +658,11 @@ namespace VMSService.Web.Controllers
 
                 foreach (var penaltyId in checkedPenaltyIds)
                 {
+                    // Re-check server-side even though waived penalties aren't offered on the
+                    // checklist — a waiver could have been added after the page was loaded.
+                    if (await _penaltyWaiverRepository.IsWaivedAsync(penaltyId, request.BouBranchId, request.CollectionDate))
+                        continue;
+
                     await _appliedPenaltyRepository.Apply(
                         PenaltyConstants.Source.Withdrawal, request.TransactionRefNumber, penaltyId);
                 }
@@ -1332,29 +1375,6 @@ namespace VMSService.Web.Controllers
             });
         }
 
-        private WithdrawalStepViewModel BuildStepViewModel(string statusName, bool isApproved, bool requiresSpecialApproval)
-            => WithdrawalStepViewModelFactory.Build(
-                currentStepKey: GetCurrentStepKey(statusName),
-                isRequestApproved: isApproved,
-                requiresSpecialApproval: requiresSpecialApproval,
-                user: User);
-
-
-        private static string GetCurrentStepKey(string statusName) => statusName switch
-        {
-            WithdrawalStatusNames.Draft => "CbMaker",
-            WithdrawalStatusNames.ReturnedForRevision => "CbMaker",
-            WithdrawalStatusNames.PendingInternalApproval => "CbApprover",
-            WithdrawalStatusNames.PendingExceptionalApproval or
-            WithdrawalStatusNames.PendingWithdrawalConfirmation => "Remittance",
-            WithdrawalStatusNames.PendingVerification => "PanelB",
-            WithdrawalStatusNames.PendingApproval => "PanelA",
-            WithdrawalStatusNames.Approved => "BOU",
-            WithdrawalStatusNames.RejectExceptionalApproval => "BOU",
-            WithdrawalStatusNames.RecallRequested or
-            WithdrawalStatusNames.RecallApproved => "Remittance",
-            _ => "CbMaker",
-        };
         //private int GetUserRole()
         //    => User.FindAll(SystemSettings.AppRoleClaimType)
         //    .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))

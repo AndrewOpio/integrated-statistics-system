@@ -13,6 +13,8 @@ namespace VMSService.Core.Repositories.WithdrawalRequests
         Task<WithdrawalRequest?> GetWithDetailsAsync(Guid id, CancellationToken ct = default);
         Task<IEnumerable<WithdrawalRequest>> GetByCbAsync(int cbId, CancellationToken ct = default);
         Task<int> CountByCbBranchAndDateAsync(int cbId, int bouBranchId, DateOnly date, CancellationToken ct = default);
-        Task<IEnumerable<WithdrawalRequest>> GetPendingRtgsWithoutCodeAsync(CancellationToken ct = default);
+        /// <summary>Requests stuck at Pending RTGS Verification without a code, whose collection date
+        /// has arrived (on or before <paramref name="asOfDate"/>) — used by the daily expiry job.</summary>
+        Task<IEnumerable<WithdrawalRequest>> GetPendingRtgsWithoutCodeAsync(DateOnly asOfDate, CancellationToken ct = default);
     }
 }

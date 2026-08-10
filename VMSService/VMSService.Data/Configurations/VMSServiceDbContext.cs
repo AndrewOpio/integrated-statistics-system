@@ -122,6 +122,7 @@ namespace VMSService.Data.Configurations
 
         public DbSet<Penalty> Penalties => Set<Penalty>();
         public DbSet<AppliedPenalty> AppliedPenalties => Set<AppliedPenalty>();
+        public DbSet<PenaltyWaiver> PenaltyWaivers => Set<PenaltyWaiver>();
         public DbSet<PublicHoliday> PublicHolidays => Set<PublicHoliday>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

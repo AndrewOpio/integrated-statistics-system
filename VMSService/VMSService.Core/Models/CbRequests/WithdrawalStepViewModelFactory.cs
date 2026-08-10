@@ -12,9 +12,10 @@ public class WithdrawalStepViewModelFactory
 
     private static readonly (string Key, string Icon, string Label, string SubLabel)[] CbSteps =
     [
-        ("CbMaker",     "ti-user-plus",     "Initiator",   "Initiate request"),
-        ("CbApprover",  "ti-building-bank", "Approved",    "Withdrawal Approved"),
-        //("BOU",        "ti-clock-hour-4",  "BOU Handling",   "For processing"),
+        ("CbMaker",          "ti-user-plus",     "Initiator",         "Initiate request"),
+        ("CbApprover",       "ti-user-check",    "Approver",          "Internal approval"),
+        ("RtgsVerification", "ti-clock-bolt",    "RTGS Verification", "Awaiting RTGS code"),
+        ("BouProcessing",    "ti-settings",      "BOU Processing",    "Processing at BOU"),
     ];
 
     private static readonly (string Key, string Icon, string Label, string SubLabel)[] BouSteps =
