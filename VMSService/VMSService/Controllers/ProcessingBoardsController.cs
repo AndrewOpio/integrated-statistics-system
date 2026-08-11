@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using SmartBreadcrumbs.Attributes;
 using VMSService.Controllers;
+using VMSService.Core.Models.CountingRooms;
 using VMSService.Core.Models.ProcessingBoards;
 using VMSService.Core.Repositories.BPSMachines;
 using VMSService.Core.Repositories.CountingRooms;
@@ -276,6 +277,9 @@ namespace VMSService.Web.Controllers
             var rooms = await _countingRoomRepository.FindAll();
             model.CountingRoomList = rooms
                 .Select(r => new SelectListItem(r.Name, r.Id.ToString()))
+                .ToList();
+            model.CountingRooms = rooms
+                .Select(r => new CountingRoomViewModel { Id = r.Id, Name = r.Name, BranchId = r.BranchId })
                 .ToList();
         }
     }

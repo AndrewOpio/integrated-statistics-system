@@ -6,5 +6,6 @@ namespace VMSService.Core.Repositories.BankingSurpluses
     public interface IBankingSurplusRepository : IRepositoryBase<BankingSurplus, int>
     {
         Task<BankingSurplus?> FindByBranchAndPeriod(int branchId, DateTime periodStart);
+        Task<int> CountForPeriodAndBranch(int branchId, int year, int month);
     }
 }

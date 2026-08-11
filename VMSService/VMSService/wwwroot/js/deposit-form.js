@@ -280,10 +280,7 @@ function buildDepositFormData() {
         rtgsCode: depositFormState.rtgsCode,
         requiresSpecialApproval: depositFormState.requiresSpecialApproval,
         specialApprovalReason: depositFormState.specialApprovalReason,
-        agentIds: [
-            parseInt(document.getElementById('agentId-1')?.value || 0),
-            parseInt(document.getElementById('agentId-2')?.value || 0)
-        ],
+        agentIds: depositFormState.agentIds.filter(Boolean).map(id => parseInt(id)),
         denominations: Object.values(depDtGetRows())
             .filter(r => r.valid && r.amount > 0 && r.denomValue > 0)
             .map(r => ({

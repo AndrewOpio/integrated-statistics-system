@@ -1,6 +1,8 @@
 ﻿using AutoMapper;
+using ConfigurationsService.Client;
 using IdentityService.Core.Models;
 using IdentityService.Core.Repository.ApplicationPermissions;
+using IdentityService.Core.Repository.ApplicationRoleBranches;
 using IdentityService.Core.Repository.ApplicationRoles;
 using IdentityService.Core.Repository.Applications;
 using IdentityService.Core.Repository.Roles;
@@ -15,10 +17,12 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 namespace IdentityService.Web.Controllers
 {
     [Authorize]
-    public class RolesController(IRoleRepository _roleRepo, IApplicationRepository _appRepo, 
-        IApplicationRoleRepository _appRoleRepo, IUserApplicationRoleRepository _userAppRoleRepo, 
-        IUserRepository _userRepo, IMapper _mapper, ILogger<RolesController> _logger, 
-        IApplicationPermissionRepository _permissionRepo) : Controller
+    public class RolesController(IRoleRepository _roleRepo, IApplicationRepository _appRepo,
+        IApplicationRoleRepository _appRoleRepo, IUserApplicationRoleRepository _userAppRoleRepo,
+        IUserRepository _userRepo, IMapper _mapper, ILogger<RolesController> _logger,
+        IApplicationPermissionRepository _permissionRepo,
+        IApplicationRoleBranchRepository _appRoleBranchRepo,
+        IConfigurationsServiceClient _configServiceClient) : Controller
     {
         // GET: RolesController
         public async Task<ActionResult> Index()
@@ -300,6 +304,79 @@ namespace IdentityService.Web.Controllers
         {
             var parts = permission.Split(' ');
             return parts.Length > 2 ? parts[2] : permission;
+        }
+
+        public async Task<IActionResult> ManageBranches(int appRoleId)
+        {
+            var appRole = await _appRoleRepo.FindById(appRoleId);
+            if (appRole == null)
+                return NotFound();
+
+            var allBranches = await _configServiceClient.GetAllBouBranchesAsync();
+            var assignedBranches = await _appRoleBranchRepo.FindByApplicationRoleId(appRoleId);
+            var assignedBranchIds = assignedBranches.Select(b => b.BranchId).ToHashSet();
+
+            var model = new ManageBranchesViewModel
+            {
+                ApplicationRoleId = appRoleId,
+                RoleName = appRole.Role.Name,
+                ApplicationName = appRole.Application.Name,
+                Branches = allBranches.Select(b => new BranchSelectViewModel
+                {
+                    BranchId = b.Id,
+                    BranchName = b.Name,
+                    BranchCode = b.BranchCode,
+                    IsSelected = assignedBranchIds.Contains(b.Id)
+                }).ToList()
+            };
+
+            return View(model);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ManageBranches(ManageBranchesViewModel model)
+        {
+            var appRole = await _appRoleRepo.FindById(model.ApplicationRoleId);
+            if (appRole == null)
+                return NotFound();
+
+            var currentAssignments = await _appRoleBranchRepo.FindByApplicationRoleId(model.ApplicationRoleId);
+            var currentBranchIds = currentAssignments.Select(a => a.BranchId).ToHashSet();
+
+            var selectedBranchIds = model.Branches
+                .Where(b => b.IsSelected)
+                .Select(b => b.BranchId)
+                .ToHashSet();
+
+            try
+            {
+                // Remove deselected branches
+                foreach (var assignment in currentAssignments.Where(a => !selectedBranchIds.Contains(a.BranchId)))
+                {
+                    await _appRoleBranchRepo.Delete(assignment.Id);
+                }
+
+                // Add newly selected branches
+                foreach (var branchId in selectedBranchIds.Where(id => !currentBranchIds.Contains(id)))
+                {
+                    await _appRoleBranchRepo.Create(new ApplicationRoleBranch
+                    {
+                        ApplicationRoleId = model.ApplicationRoleId,
+                        BranchId = branchId
+                    });
+                }
+
+                TempData["Success"] = $"Branch assignments for '{appRole.Role.Name}' updated successfully.";
+                _logger.LogInformation("Branch assignments updated for application role {AppRoleId}.", model.ApplicationRoleId);
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = $"Failed to update branch assignments. {ex.Message}";
+                _logger.LogError(ex, "Error updating branch assignments for application role {AppRoleId}.", model.ApplicationRoleId);
+            }
+
+            return RedirectToAction(nameof(Index));
         }
 
         // GET: RolesController/Delete/5

@@ -38,6 +38,7 @@
   </ItemGroup>
 
   <ItemGroup>
+	<ProjectReference Include="..\..\IdentityService\IdentityService.Dto\IdentityService.Dto.csproj" />
 	<ProjectReference Include="..\ConfigurationsService.Core\ConfigurationsService.Core.csproj" />
 	<ProjectReference Include="..\ConfigurationsService.Data\ConfigurationsService.Data.csproj" />
 	  <ProjectReference Include="..\ConfigurationsService.Dto\ConfigurationsService.Dto.csproj" />

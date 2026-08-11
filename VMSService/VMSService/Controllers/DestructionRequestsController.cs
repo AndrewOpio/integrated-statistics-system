@@ -464,7 +464,7 @@ namespace VMSService.Web.Controllers
             string username)
         {
             var uploaded = new List<long>();
-            var uploadsPath = Path.Combine(_environment.WebRootPath, "uploads", "destruction", entityId.ToString());
+            var uploadsPath = Path.Combine(FileStorageConstants.UploadsRoot, "destruction", entityId.ToString());
             Directory.CreateDirectory(uploadsPath);
 
             var formatMap = new Dictionary<string, List<string>>

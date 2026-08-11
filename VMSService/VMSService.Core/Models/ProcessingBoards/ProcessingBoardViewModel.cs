@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System.ComponentModel.DataAnnotations;
+using VMSService.Core.Models.CountingRooms;
 
 namespace VMSService.Core.Models.ProcessingBoards
 {
@@ -24,5 +25,8 @@ namespace VMSService.Core.Models.ProcessingBoards
         public List<SelectListItem> BranchList { get; set; } = new();
         public List<SelectListItem> BPSMachineList { get; set; } = new();
         public List<SelectListItem> CountingRoomList { get; set; } = new();
+
+        // All counting rooms (with their BranchId) for client-side branch filtering on Create
+        public List<CountingRoomViewModel> CountingRooms { get; set; } = new();
     }
 }

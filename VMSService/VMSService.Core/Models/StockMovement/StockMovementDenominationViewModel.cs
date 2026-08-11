@@ -12,7 +12,10 @@ namespace VMSService.Core.Models.StockMovement
         // Buffer/Operational per denomination
         public string? Categorization { get; set; } // "buffer" or "operational"
 
-        // Box number ranges for denominations
+        // Box number ranges for New category
         public List<BoxNumberRangeViewModel>? BoxNumberRanges { get; set; }
+
+        // Selected bag IDs for non-New categories
+        public List<int>? SelectedBagIds { get; set; }
     }
 }

@@ -69,7 +69,7 @@ namespace VMSService.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            var availableBags = await _vaultSectionRepository.GetAvailableBagsAsync();
+            var availableBags = await _vaultSectionRepository.GetAvailableBagsAsync(section.BranchId);
 
             await EnrichBagDenominations(section.Bags);
             await EnrichBagDenominations(availableBags);
@@ -86,15 +86,33 @@ namespace VMSService.Controllers
         {
             try
             {
-                var result = await _vaultSectionRepository.AttachBagAsync(model.BagId, model.VaultSectionId);
-                if (result)
-                    TempData["Success"] = "Bag attached to vault section successfully!";
+                var section = await _vaultSectionRepository.FindById(model.VaultSectionId);
+                if (section != null && VaultConstants.IsSystemManagedSectionName(section.Name))
+                {
+                    TempData["Error"] = $"Bags cannot be manually attached to the '{section.Name}' section.";
+                    return RedirectToAction(nameof(Section), new { id = model.VaultSectionId });
+                }
+
+                var bagIds = (model.BagIds ?? new List<int>()).Where(id => id > 0).Distinct().ToList();
+
+                if (bagIds.Count == 0)
+                {
+                    TempData["Error"] = "Please select at least one bag to attach.";
+                    return RedirectToAction(nameof(Section), new { id = model.VaultSectionId });
+                }
+
+                var attachedCount = await _vaultSectionRepository.AttachBagsAsync(bagIds, model.VaultSectionId);
+
+                if (attachedCount == bagIds.Count)
+                    TempData["Success"] = $"{attachedCount} bag{(attachedCount == 1 ? "" : "s")} attached to vault section successfully!";
+                else if (attachedCount > 0)
+                    TempData["Error"] = $"Attached {attachedCount} of {bagIds.Count} selected bags. Some bags could not be found.";
                 else
-                    TempData["Error"] = "Bag or vault section not found.";
+                    TempData["Error"] = "Bags or vault section not found.";
             }
             catch (Exception ex)
             {
-                TempData["Error"] = $"Error attaching bag: {ex.Message}";
+                TempData["Error"] = $"Error attaching bags: {ex.Message}";
             }
 
             return RedirectToAction(nameof(Section), new { id = model.VaultSectionId });

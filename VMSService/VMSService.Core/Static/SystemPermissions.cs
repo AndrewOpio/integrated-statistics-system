@@ -113,6 +113,12 @@ namespace VMSService.Core.Static
             public const string Generate = "CAS MonthlyShortagesController Generate";
         }
 
+        public static class MonthlyShortageReimbursements
+        {
+            public const string View   = "CAS MonthlyShortageReimbursementsController Index";
+            public const string Create = "CAS MonthlyShortageReimbursementsController Create";
+        }
+
         public static class MonthlyCommercialBankSettlements
         {
             public const string View     = "CAS MonthlyCommercialBankSettlementsController Index";
@@ -132,6 +138,17 @@ namespace VMSService.Core.Static
             public const string View    = "CAS BankingSurplusesController Index";
             public const string Details = "CAS BankingSurplusesController Details";
             public const string Create  = "CAS BankingSurplusesController Create";
+            public const string Edit    = "CAS BankingSurplusesController Edit";
         }
+
+        public static class StockTakes
+        {
+            public const string View         = "CAS StockTakesController Index";
+            public const string Details      = "CAS StockTakesController Details";
+            public const string Create       = "CAS StockTakesController Create";
+            public const string Edit         = "CAS StockTakesController Edit";
+            public const string ViewVariance = "CAS StockTakesController ViewVariance";
+        }
+
     }
 }

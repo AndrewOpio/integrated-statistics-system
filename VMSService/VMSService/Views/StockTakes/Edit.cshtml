@@ -1,0 +1,338 @@
+@model dynamic
+
+@using ConfigurationsService.Client
+@using VMSService.Core.Services.Stocks.StockEntities
+@using VMSService.Data.Entities
+
+@{
+    ViewData["Title"] = "Edit Stock Take";
+    var branches = ViewBag.Branches as List<BranchDto> ?? new();
+    var categories = ViewBag.Categories as List<Category> ?? new();
+    var denominations = ViewBag.Denominations as List<Denomination> ?? new();
+    var vaultSections = ViewBag.VaultSections as List<VaultSection> ?? new();
+
+    int editStockTakeId = ViewBag.EditStockTakeId;
+    int? existingBranchId = ViewBag.ExistingBranchId as int?;
+    DateTime existingCountDate = ViewBag.ExistingCountDate as DateTime? ?? DateTime.Now;
+    string? existingRemarks = ViewBag.ExistingRemarks as string;
+    var existingLines = ViewBag.ExistingLines as List<object> ?? new();
+}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header pb-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="d-flex flex-column">
+                        <span class="text-muted small mb-2">Vault Operations</span>
+                        <h2 class="fs-4 fw-bold mb-0">Edit Stock Take</h2>
+                    </div>
+                    <a asp-action="Details" asp-route-id="@editStockTakeId" class="btn btn-outline-secondary">
+                        <i class="ti ti-arrow-left me-1"></i> Back to Details
+                    </a>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <div id="formAlerts"></div>
+
+                <div class="row mb-4">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Branch <span class="text-danger">*</span></label>
+                        <select class="form-select" id="branchId">
+                            <option value="">-- Select Branch --</option>
+                            @foreach (var b in branches)
+                            {
+                                <option value="@b.Id" selected="@(existingBranchId.HasValue && existingBranchId.Value == b.Id)">@b.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Count Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="countDate" value="@existingCountDate.ToString("yyyy-MM-dd")" />
+                    </div>
+                    <div class="col-md-5 mb-3">
+                        <label class="form-label">Remarks</label>
+                        <input type="text" class="form-control" id="remarks" placeholder="Optional notes for this count" value="@existingRemarks" />
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white border-bottom no-after">
+                        <h6 class="card-title mb-0"><i class="ti ti-plus me-2 text-primary"></i>Add a Count</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-2 align-items-start">
+                            <div class="col-md-3">
+                                <label class="form-label small">Vault Section <span class="text-danger">*</span></label>
+                                <select class="form-select form-select-sm" id="rowVaultSection" disabled>
+                                    <option value="">-- Select a branch first --</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">Category <span class="text-danger">*</span></label>
+                                <select class="form-select form-select-sm" id="rowCategory">
+                                    <option value="">-- Category --</option>
+                                    @foreach (var c in categories)
+                                    {
+                                        <option value="@c.Id">@c.Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">Denomination <span class="text-danger">*</span></label>
+                                <select class="form-select form-select-sm" id="rowDenomination">
+                                    <option value="">-- Denomination --</option>
+                                    @foreach (var d in denominations)
+                                    {
+                                        <option value="@d.Id" data-value="@d.Value">@d.Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">Amount <span class="text-danger">*</span></label>
+                                <input type="text" inputmode="numeric" class="form-control form-control-sm figures" id="rowAmount" placeholder="0" />
+                            </div>
+                            <div class="col-md-1 align-self-end">
+                                <button type="button" class="btn btn-sm btn-primary w-100" id="addRowBtn">
+                                    <i class="ti ti-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="rowAlert" class="text-danger small mt-2 d-none"></div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white border-bottom no-after">
+                        <h6 class="card-title mb-0"><i class="ti ti-list-details me-2 text-primary"></i>Physical Count</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0" id="linesTable">
+                                <thead class="table-verylight">
+                                    <tr>
+                                        <th>Vault Section</th>
+                                        <th>Category</th>
+                                        <th>Denomination</th>
+                                        <th class="text-end">Value</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="linesTableBody">
+                                    <tr id="emptyRow"><td colspan="5" class="text-center text-muted py-3">No lines added yet.</td></tr>
+                                </tbody>
+                                <tfoot>
+                                    <tr class="fw-bold table-verylight">
+                                        <td colspan="3" class="text-end">Grand Total</td>
+                                        <td class="text-end figures" id="grandTotalCell">0</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end mt-4">
+                    <button type="button" class="btn btn-primary" id="submitBtn">
+                        <i class="ti ti-check me-1"></i>Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .figures { font-variant-numeric: tabular-nums; }
+    #linesTable thead.table-verylight th,
+    #linesTable tfoot tr.table-verylight td {
+        background-color: #eef1f4;
+        border-color: #e3e6ea;
+    }
+</style>
+
+<script>
+    const DENOMINATIONS = @Html.Raw(Json.Serialize(denominations.Select(d => new { id = d.Id, name = d.Name, value = d.Value })));
+    const CATEGORIES = @Html.Raw(Json.Serialize(categories.Select(c => new { id = c.Id, name = c.Name })));
+    const VAULT_SECTIONS = @Html.Raw(Json.Serialize(vaultSections.Select(s => new { id = s.Id, name = s.Name, vaultName = s.Vault.Name, branchId = s.Vault.BranchId })));
+
+    const fmt = n => Number(n || 0).toLocaleString('en-UG', { maximumFractionDigits: 0 });
+    const denomById = id => DENOMINATIONS.find(d => d.id === id);
+    const categoryById = id => CATEGORIES.find(c => c.id === id);
+    const vaultSectionById = id => VAULT_SECTIONS.find(v => v.id === id);
+
+    // { categoryId, vaultSectionId, denominationId, value, pieces } — preloaded with this
+    // record's existing counted lines.
+    let rows = @Html.Raw(Json.Serialize(existingLines));
+
+    function refreshVaultSectionOptions() {
+        const branchId = parseInt(document.getElementById('branchId').value, 10);
+        const select = document.getElementById('rowVaultSection');
+
+        if (!branchId) {
+            select.innerHTML = '<option value="">-- Select a branch first --</option>';
+            select.disabled = true;
+            return;
+        }
+
+        const sections = VAULT_SECTIONS.filter(s => s.branchId === branchId);
+        select.disabled = sections.length === 0;
+        select.innerHTML = sections.length
+            ? '<option value="">-- Vault Section --</option>' + sections.map(s => `<option value="${s.id}">${s.vaultName} — ${s.name}</option>`).join('')
+            : '<option value="">No vault sections configured for this branch</option>';
+    }
+
+    function renderLinesTable() {
+        const tbody = document.getElementById('linesTableBody');
+        const emptyRow = document.getElementById('emptyRow');
+
+        if (rows.length === 0) {
+            tbody.innerHTML = '';
+            tbody.appendChild(emptyRow);
+            document.getElementById('grandTotalCell').textContent = '0';
+            return;
+        }
+
+        // Group by Vault Section only — its label spans every row under it, while Category
+        // stays a plain per-row column.
+        const indexed = rows.map((r, idx) => ({ r, idx }));
+        indexed.sort((a, b) => {
+            const vsA = vaultSectionById(a.r.vaultSectionId), vsB = vaultSectionById(b.r.vaultSectionId);
+            return `${vsA.vaultName} — ${vsA.name}`.localeCompare(`${vsB.vaultName} — ${vsB.name}`);
+        });
+
+        const vsSizes = {};
+        indexed.forEach(({ r }) => { vsSizes[r.vaultSectionId] = (vsSizes[r.vaultSectionId] || 0) + 1; });
+
+        const seenVs = new Set();
+        let grand = 0;
+        tbody.innerHTML = indexed.map(({ r, idx }) => {
+            const cat = categoryById(r.categoryId);
+            const vs = vaultSectionById(r.vaultSectionId);
+            const den = denomById(r.denominationId);
+            grand += r.value;
+
+            let vsCell = '';
+            if (!seenVs.has(r.vaultSectionId)) {
+                seenVs.add(r.vaultSectionId);
+                vsCell = `<td rowspan="${vsSizes[r.vaultSectionId]}" class="align-top fw-semibold">${vs.vaultName} — ${vs.name}</td>`;
+            }
+
+            return `<tr>
+                ${vsCell}
+                <td class="text-muted">${cat.name}</td>
+                <td class="figures">${den.name}</td>
+                <td class="text-end figures">${fmt(r.value)}</td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-link text-danger p-0 remove-row" data-idx="${idx}" title="Remove">
+                        <i class="ti ti-x"></i>
+                    </button>
+                </td>
+            </tr>`;
+        }).join('');
+
+        document.getElementById('grandTotalCell').textContent = fmt(grand);
+
+        tbody.querySelectorAll('.remove-row').forEach(btn => {
+            btn.addEventListener('click', () => {
+                rows.splice(parseInt(btn.dataset.idx, 10), 1);
+                renderLinesTable();
+            });
+        });
+    }
+
+    document.getElementById('branchId').addEventListener('change', refreshVaultSectionOptions);
+
+    // Comma-formats the amount input as the user types; the raw numeric value is
+    // recovered by stripping commas wherever this field is read (display-only formatting).
+    document.getElementById('rowAmount').addEventListener('input', function () {
+        const digits = this.value.replace(/\D/g, '');
+        this.value = digits ? Number(digits).toLocaleString('en-UG') : '';
+    });
+
+    document.getElementById('addRowBtn').addEventListener('click', function () {
+        const rowAlert = document.getElementById('rowAlert');
+        rowAlert.classList.add('d-none');
+
+        const categoryId = parseInt(document.getElementById('rowCategory').value, 10);
+        const vaultSectionId = parseInt(document.getElementById('rowVaultSection').value, 10);
+        const denominationId = parseInt(document.getElementById('rowDenomination').value, 10);
+        const amount = Number(document.getElementById('rowAmount').value.replace(/,/g, '') || 0);
+
+        if (!categoryId || !vaultSectionId || !denominationId || amount <= 0) {
+            rowAlert.textContent = 'Category, vault section, denomination, and an amount greater than zero are all required.';
+            rowAlert.classList.remove('d-none');
+            return;
+        }
+
+        const denValue = denomById(denominationId).value;
+        const pieces = denValue > 0 ? Math.round(amount / denValue) : 0;
+
+        rows.push({ categoryId, vaultSectionId, denominationId, value: amount, pieces });
+        renderLinesTable();
+
+        document.getElementById('rowCategory').value = '';
+        document.getElementById('rowVaultSection').value = '';
+        document.getElementById('rowDenomination').value = '';
+        document.getElementById('rowAmount').value = '';
+        document.getElementById('rowCategory').focus();
+    });
+
+    refreshVaultSectionOptions();
+    renderLinesTable();
+
+    document.getElementById('submitBtn').addEventListener('click', function () {
+        const branchId = parseInt(document.getElementById('branchId').value, 10);
+        const countDate = document.getElementById('countDate').value;
+        const remarks = document.getElementById('remarks').value.trim();
+        const alerts = document.getElementById('formAlerts');
+        alerts.innerHTML = '';
+
+        if (!branchId) {
+            alerts.innerHTML = '<div class="alert alert-warning"><i class="ti ti-alert-circle me-1"></i>Please select a branch.</div>';
+            return;
+        }
+
+        if (rows.length === 0) {
+            alerts.innerHTML = '<div class="alert alert-warning"><i class="ti ti-alert-circle me-1"></i>Add at least one counted line before saving.</div>';
+            return;
+        }
+
+        const lines = rows.map(r => ({
+            categoryId: r.categoryId,
+            vaultSectionId: r.vaultSectionId,
+            denominationId: r.denominationId,
+            numberOfPieces: r.pieces,
+            value: r.value
+        }));
+
+        const payload = { branchId, countDate, remarks, lines };
+
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving…';
+
+        fetch('@Url.Action("Edit", new { id = editStockTakeId })', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+            .then(async res => {
+                const data = await res.json().catch(() => ({}));
+                if (res.ok && data.redirectUrl) {
+                    window.location.href = data.redirectUrl;
+                    return;
+                }
+                alerts.innerHTML = `<div class="alert alert-danger"><i class="ti ti-alert-circle me-1"></i>${data.message || 'Failed to save changes.'}</div>`;
+            })
+            .catch(() => {
+                alerts.innerHTML = '<div class="alert alert-danger"><i class="ti ti-alert-circle me-1"></i>Network error. Please try again.</div>';
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ti ti-check me-1"></i>Save Changes';
+            });
+    });
+</script>

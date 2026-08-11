@@ -28,9 +28,19 @@ namespace VMSService.Core.Models.BankingSurpluses
         public string CreatedBy { get; set; } = string.Empty;
         public DateTime CreatedDate { get; set; }
 
+        public List<BankingSurplusEodEntryViewModel> EodEntries { get; set; } = [];
         public ICollection<WorkflowTransitionDto> AvailableTransitions { get; set; } = [];
         public IEnumerable<BankingSurplusStatusHistoryViewModel> StatusHistory { get; set; } = [];
         public IEnumerable<AttachmentViewModel> Attachments { get; set; } = [];
+    }
+
+    public class BankingSurplusEodEntryViewModel
+    {
+        public DateTime SessionDate { get; set; }
+        public bool IsSurplus { get; set; }
+        public decimal Amount { get; set; }
+        public string CommercialBankName { get; set; } = string.Empty;
+        public string DenominationName { get; set; } = "—";
     }
 
     public class BankingSurplusStatusHistoryViewModel

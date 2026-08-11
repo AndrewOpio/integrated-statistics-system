@@ -1,0 +1,260 @@
+@model VMSService.Core.Models.MonthlyShortageReimbursements.CreateReimbursementViewModel
+
+@{
+    ViewData["Title"] = "Capture Reimbursement";
+    var lastMonth = DateTime.Today.AddMonths(-1);
+}
+
+<div class="row justify-content-center">
+    <div class="col-12">
+
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header py-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center">
+                        <i class="ti ti-cash-banknote me-3 fs-5"></i>
+                        <h5 class="mb-0 fw-bold">Capture Reimbursement</h5>
+                    </div>
+                    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+                        <i class="ti ti-arrow-left me-1"></i>Back
+                    </a>
+                </div>
+            </div>
+
+            <div class="card-body">
+
+                @* ── Monthly Shortage ── *@
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Monthly Shortage <span class="text-danger">*</span></label>
+                    <select id="shortageSelect" class="form-select" disabled>
+                        <option value="">-- Select Monthly Shortage --</option>
+                        @foreach (var s in Model.ShortageOptions)
+                        {
+                            var isLastMonth = s.Period.Year == lastMonth.Year && s.Period.Month == lastMonth.Month;
+                            <option value="@s.Id" selected="@(isLastMonth ? "selected" : null)">@s.ReferenceNumber — @s.Period.ToString("MMMM yyyy")</option>
+                        }
+                    </select>
+                </div>
+
+                @* ── Branch ── *@
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Branch <span class="text-danger">*</span></label>
+                    <select id="branchSelect" class="form-select" disabled>
+                        <option value="">-- Select Shortage First --</option>
+                    </select>
+                </div>
+
+                @* ── Denomination Table ── *@
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Denomination Breakdown</label>
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle mb-0" id="denomTable">
+                            <thead style="background-color:#f8fafc;">
+                                <tr>
+                                    <th style="min-width:220px">Denomination</th>
+                                    <th style="min-width:180px">Amount (UGX)</th>
+                                    <th style="min-width:140px">No. of Pieces</th>
+                                    <th style="width:60px"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="denomBody">
+                            </tbody>
+                            <tfoot>
+                                <tr style="background-color:#f8fafc;" class="fw-bold">
+                                    <td>Total</td>
+                                    <td><span id="grandTotal">0</span></td>
+                                    <td><span id="grandPieces">0</span></td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="addRow()">
+                        <i class="ti ti-plus me-1"></i>Add Row
+                    </button>
+                </div>
+
+                @* ── Remarks ── *@
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Remarks</label>
+                    <textarea id="remarks" class="form-control" rows="2" placeholder="Optional remarks..."></textarea>
+                </div>
+
+                <div id="formError" class="alert alert-danger d-none"></div>
+
+                <div class="d-flex justify-content-end gap-2">
+                    <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+                    <button type="button" class="btn btn-primary" onclick="submitForm()">
+                        <i class="ti ti-device-floppy me-1"></i>Save Reimbursement
+                    </button>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    const denomOptions = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DenominationOptions));
+
+    // ── Cascade: shortage → branches ──────────────────────────────────────
+    document.getElementById('shortageSelect').addEventListener('change', async function () {
+        const branchSelect = document.getElementById('branchSelect');
+        branchSelect.innerHTML = '<option value="">Loading...</option>';
+        branchSelect.disabled = true;
+
+        const shortageId = this.value;
+        if (!shortageId) {
+            branchSelect.innerHTML = '<option value="">-- Select Shortage First --</option>';
+            return;
+        }
+
+        try {
+            const res = await fetch(`/MonthlyShortageReimbursements/BranchesForShortage?shortageId=${shortageId}`);
+            const branches = await res.json();
+
+            if (branches.length === 0) {
+                branchSelect.innerHTML = '<option value="">No branches found for this shortage</option>';
+            } else {
+                branchSelect.innerHTML = '<option value="">-- Select Branch --</option>';
+                branches.forEach(b => {
+                    const opt = document.createElement('option');
+                    opt.value = b.branchId;
+                    opt.textContent = b.branchName;
+                    branchSelect.appendChild(opt);
+                });
+                branchSelect.disabled = false;
+            }
+        } catch {
+            branchSelect.innerHTML = '<option value="">Failed to load branches</option>';
+        }
+    });
+
+    // ── Denomination row ───────────────────────────────────────────────────
+    function addRow() {
+        const tbody = document.getElementById('denomBody');
+        const rowIndex = tbody.rows.length;
+
+        const options = denomOptions.map(d =>
+            `<option value="${d.Id}" data-value="${d.Value}">${d.Name} (UGX ${d.Value.toLocaleString()})</option>`
+        ).join('');
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>
+                <select class="form-select form-select-sm denom-select" onchange="recalcRow(this)">
+                    <option value="">-- Select --</option>
+                    ${options}
+                </select>
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm amount-input" min="0" step="1000"
+                    placeholder="0" oninput="recalcRow(this.closest('tr').querySelector('.denom-select'))">
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm pieces-input bg-light" readonly placeholder="0">
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)">
+                    <i class="ti ti-trash"></i>
+                </button>
+            </td>`;
+        tbody.appendChild(tr);
+    }
+
+    function recalcRow(denomSelect) {
+        const row = denomSelect.closest('tr');
+        const option = denomSelect.options[denomSelect.selectedIndex];
+        const denomValue = parseFloat(option?.dataset?.value) || 0;
+        const amountInput = row.querySelector('.amount-input');
+        const piecesInput = row.querySelector('.pieces-input');
+
+        const amount = parseFloat(amountInput.value) || 0;
+        piecesInput.value = denomValue > 0 ? Math.round(amount / denomValue) : 0;
+
+        updateTotals();
+    }
+
+    function removeRow(btn) {
+        btn.closest('tr').remove();
+        updateTotals();
+    }
+
+    function updateTotals() {
+        let totalAmount = 0, totalPieces = 0;
+        document.querySelectorAll('#denomBody tr').forEach(row => {
+            totalAmount += parseFloat(row.querySelector('.amount-input')?.value) || 0;
+            totalPieces += parseInt(row.querySelector('.pieces-input')?.value) || 0;
+        });
+        document.getElementById('grandTotal').textContent = totalAmount.toLocaleString();
+        document.getElementById('grandPieces').textContent = totalPieces.toLocaleString();
+    }
+
+    // ── Submit ─────────────────────────────────────────────────────────────
+    async function submitForm() {
+        const errorEl = document.getElementById('formError');
+        errorEl.classList.add('d-none');
+
+        const shortageId = parseInt(document.getElementById('shortageSelect').value);
+        const branchId = parseInt(document.getElementById('branchSelect').value);
+        const remarks = document.getElementById('remarks').value;
+
+        if (!shortageId || !branchId) {
+            errorEl.textContent = 'Please select a Monthly Shortage and a Branch.';
+            errorEl.classList.remove('d-none');
+            return;
+        }
+
+        const rows = document.querySelectorAll('#denomBody tr');
+        if (rows.length === 0) {
+            errorEl.textContent = 'Please add at least one denomination row.';
+            errorEl.classList.remove('d-none');
+            return;
+        }
+
+        const denominations = [];
+        let valid = true;
+        rows.forEach(row => {
+            const denomId = parseInt(row.querySelector('.denom-select').value);
+            const amount = parseFloat(row.querySelector('.amount-input').value) || 0;
+            const pieces = parseInt(row.querySelector('.pieces-input').value) || 0;
+            if (!denomId || amount <= 0) { valid = false; return; }
+            denominations.push({ denominationId: denomId, amount, numberOfPieces: pieces });
+        });
+
+        if (!valid) {
+            errorEl.textContent = 'Each row must have a denomination selected and a valid amount.';
+            errorEl.classList.remove('d-none');
+            return;
+        }
+
+        const payload = { monthlyShortageId: shortageId, branchId, remarks, denominations };
+
+        try {
+            const res = await fetch('/MonthlyShortageReimbursements/Create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '' },
+                body: JSON.stringify(payload),
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success) {
+                window.location.href = '/MonthlyShortageReimbursements';
+            } else {
+                errorEl.textContent = data.message ?? 'An error occurred.';
+                errorEl.classList.remove('d-none');
+            }
+        } catch {
+            errorEl.textContent = 'Failed to save. Please try again.';
+            errorEl.classList.remove('d-none');
+        }
+    }
+
+    // Add one empty row on load
+    addRow();
+
+    // Auto-trigger branch cascade if a shortage is pre-selected
+    const preselected = document.getElementById('shortageSelect');
+    if (preselected.value) preselected.dispatchEvent(new Event('change'));
+</script>

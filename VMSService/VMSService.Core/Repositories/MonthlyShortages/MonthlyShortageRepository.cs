@@ -38,6 +38,14 @@ namespace VMSService.Core.Repositories.MonthlyShortages
             return await Save();
         }
 
+        public async Task<int> CountForPeriod(int year, int month)
+        {
+            var start = new DateTime(year, month, 1);
+            var end   = start.AddMonths(1);
+            return await _db.MonthlyShortages
+                .CountAsync(s => s.Period >= start && s.Period < end);
+        }
+
         public async Task<bool> Save()
             => await _db.SaveChangesAsync() > 0;
     }

@@ -9,7 +9,25 @@ namespace StockService.Core.Repository.StockLedgers
     {
         public async Task<ICollection<StockLedger>> FindAllAsync()
         {
-            var ledgers = await _db.StockLedger
+            var ledgers = await BaseQuery().ToListAsync();
+            DecryptDetails(ledgers);
+            return ledgers;
+        }
+
+        // Filters by StoreId (branch) at the SQL level, so branch-scoped callers like the
+        // stock position matrix don't have to fetch and decrypt every ledger in the system.
+        public async Task<ICollection<StockLedger>> FindByStoreIdAsync(int storeId)
+        {
+            var ledgers = await BaseQuery()
+                .Where(sl => sl.StoreId == storeId)
+                .ToListAsync();
+            DecryptDetails(ledgers);
+            return ledgers;
+        }
+
+        private IQueryable<StockLedger> BaseQuery()
+        {
+            return _db.StockLedger
                 .AsNoTracking()
                 .AsSplitQuery()
                 .Include(sl => sl.CounterPartyType)
@@ -18,10 +36,11 @@ namespace StockService.Core.Repository.StockLedgers
                 .Include(sl => sl.StockLedgerDetails)
                     .ThenInclude(sld => sld.Denomination)
                 .Include(sl => sl.StockLedgerDetails)
-                    .ThenInclude(sld => sld.SubCategory)
-                .ToListAsync();
+                    .ThenInclude(sld => sld.SubCategory);
+        }
 
-            // Decrypt values after fetching
+        private void DecryptDetails(ICollection<StockLedger> ledgers)
+        {
             foreach (var ledger in ledgers)
             {
                 foreach (var detail in ledger.StockLedgerDetails)
@@ -32,7 +51,6 @@ namespace StockService.Core.Repository.StockLedgers
                     }
                 }
             }
-            return ledgers;
         }
 
         public async Task<StockLedger> FindByIdAsync(int id)
@@ -102,6 +120,24 @@ namespace StockService.Core.Repository.StockLedgers
         public async Task<bool> Save()
         {
             return await _db.SaveChangesAsync() > 0;
+        }
+
+        public async Task<ICollection<StockLedgerDetailReportItem>> GetStockLedgerDetailsByBranchAsync(int? branchId)
+        {
+            var items = await _db.StockLedgerDetailReportItems
+                .FromSqlInterpolated($"SELECT * FROM dbo.fn_GetStockLedgerDetails({branchId})")
+                .AsNoTracking()
+                .ToListAsync();
+
+            foreach (var item in items)
+            {
+                if (!string.IsNullOrEmpty(item.EncryptedValue))
+                {
+                    item.EncryptedValue = _encryptionService.Decrypt(item.EncryptedValue).ToString();
+                }
+            }
+
+            return items;
         }
     }
 }

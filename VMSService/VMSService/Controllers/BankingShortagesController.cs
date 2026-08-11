@@ -10,6 +10,7 @@ using VMSService.Core.Models.BankingShortages;
 using VMSService.Core.Repositories.Attachments;
 using VMSService.Core.Repositories.BankingShortages;
 using VMSService.Core.Repositories.BankingShortageStatusHistories;
+using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Configurations;
@@ -28,6 +29,7 @@ namespace VMSService.Web.Controllers
         IWorkflowServiceClient _workflowServiceClient,
         IWorkflowService _workflowService,
         IConfigurationsServiceClient _configServiceClient,
+        IDenominationRepository _denominationRepo,
         VMSServiceDbContext _db,
         IWebHostEnvironment _environment) : Controller
     {
@@ -65,7 +67,7 @@ namespace VMSService.Web.Controllers
 
                 var allBanks   = await _configServiceClient.GetAllCommercialBankAsync();
                 var bankingIds = allBanks?
-                    .Where(b => b.Name.Equals("Banking", StringComparison.OrdinalIgnoreCase))
+                    .Where(b => b.Name.Equals(StatusConstants.CommercialBank.Banking, StringComparison.OrdinalIgnoreCase))
                     .Select(b => b.Id)
                     .ToHashSet() ?? new HashSet<int>();
 
@@ -89,7 +91,7 @@ namespace VMSService.Web.Controllers
                     return RedirectToAction(nameof(Generate));
                 }
 
-                // Banking only — all entries (surplus + shortage)
+                // All Banking entries (surplus + shortage) — net determines whether to create
                 var branchTotals = eodReports
                     .SelectMany(r => r.Entries.Select(e => e.BoardSessionSurplusShortage))
                     .Where(t => bankingIds.Contains(t.CommercialBankId))
@@ -99,8 +101,6 @@ namespace VMSService.Web.Controllers
                         BranchId      = g.Key,
                         TotalSurplus  = g.Where(t => t.IsSurplus).Sum(t => t.Amount),
                         TotalShortage = g.Where(t => !t.IsSurplus).Sum(t => t.Amount),
-                        NetShortage   = g.Where(t => !t.IsSurplus).Sum(t => t.Amount)
-                                      - g.Where(t => t.IsSurplus).Sum(t => t.Amount),
                     })
                     .ToList();
 
@@ -113,6 +113,12 @@ namespace VMSService.Web.Controllers
                 decimal grandSurplus  = branchTotals.Sum(b => b.TotalSurplus);
                 decimal grandShortage = branchTotals.Sum(b => b.TotalShortage);
                 decimal grandNet      = grandShortage - grandSurplus;
+
+                if (grandNet <= 0)
+                {
+                    TempData["Error"] = $"The net position for {periodStart:MMMM yyyy} is not a shortage (Surplus: {grandSurplus:N0}, Shortage: {grandShortage:N0}, Net: {grandNet:N0}). No report created.";
+                    return RedirectToAction(nameof(Generate));
+                }
 
                 int initialStatusId      = 0;
                 string initialStatusName = StatusConstants.BankingShortage.Draft;
@@ -142,9 +148,10 @@ namespace VMSService.Web.Controllers
                 }
                 else
                 {
+                    int seq = await _shortageRepo.CountForPeriod(year, month) + 1;
                     var shortage = new BankingShortage
                     {
-                        ReferenceNumber   = $"BKS-SHT/{year}/{month:D2}",
+                        ReferenceNumber   = ReferenceNumberGenerator.BankingShortage(year, month, seq),
                         Period            = periodStart,
                         TotalSurplus      = grandSurplus,
                         TotalShortage     = grandShortage,
@@ -208,13 +215,14 @@ namespace VMSService.Web.Controllers
                 if (transitions != null)
                     availableTransitions.AddRange(transitions);
             }
+            availableTransitions = availableTransitions.DistinctBy(t => t.ActionName).ToList();
 
             var branches    = await _configServiceClient.GetAllBouBranchesAsync();
             var branchNames = branches?.ToDictionary(b => b.Id, b => b.Name) ?? new();
 
             var allBanks   = await _configServiceClient.GetAllCommercialBankAsync();
             var bankingIds = allBanks?
-                .Where(b => b.Name.Equals("Banking", StringComparison.OrdinalIgnoreCase))
+                .Where(b => b.Name.Equals(StatusConstants.CommercialBank.Banking, StringComparison.OrdinalIgnoreCase))
                 .Select(b => b.Id)
                 .ToHashSet() ?? new HashSet<int>();
 
@@ -327,10 +335,11 @@ namespace VMSService.Web.Controllers
             var periodEnd   = periodStart.AddMonths(1);
 
             var allBanks   = await _configServiceClient.GetAllCommercialBankAsync();
+            var bankMap    = allBanks?.ToDictionary(b => b.Id, b => b.Name) ?? [];
             var bankingIds = allBanks?
-                .Where(b => b.Name.Equals("Banking", StringComparison.OrdinalIgnoreCase))
+                .Where(b => b.Name.Equals(StatusConstants.CommercialBank.Banking, StringComparison.OrdinalIgnoreCase))
                 .Select(b => b.Id)
-                .ToHashSet() ?? new HashSet<int>();
+                .ToHashSet() ?? [];
 
             var entries = await _db.EodDiscrepancyReportEntries
                 .AsNoTracking()
@@ -344,11 +353,16 @@ namespace VMSService.Web.Controllers
                 .OrderBy(e => e.EodDiscrepancyReport.SessionDate)
                 .ToListAsync();
 
+            var denominations = await _denominationRepo.FindAll();
+            var denomMap = denominations?.ToDictionary(d => d.Id, d => d.Name) ?? [];
+
             var transactions = entries.Select(e => new
             {
-                sessionDate = e.EodDiscrepancyReport.SessionDate.ToString("dd MMM yyyy"),
-                isSurplus   = e.BoardSessionSurplusShortage.IsSurplus,
-                amount      = e.BoardSessionSurplusShortage.Amount,
+                sessionDate    = e.EodDiscrepancyReport.SessionDate.ToString("dd MMM yyyy"),
+                isSurplus      = e.BoardSessionSurplusShortage.IsSurplus,
+                amount         = e.BoardSessionSurplusShortage.Amount,
+                commercialBank = bankMap.TryGetValue(e.BoardSessionSurplusShortage.CommercialBankId, out var bname) ? bname : "—",
+                denomination   = denomMap.TryGetValue(e.BoardSessionSurplusShortage.DenominationId, out var dname) ? dname : "—",
             });
 
             return Ok(new { transactions });
@@ -448,7 +462,7 @@ namespace VMSService.Web.Controllers
             string username)
         {
             var uploadedIds = new List<long>();
-            var uploadDir   = Path.Combine(_environment.WebRootPath, "uploads", "banking-shortages", entityId.ToString());
+            var uploadDir   = Path.Combine(FileStorageConstants.UploadsRoot, "banking-shortages", entityId.ToString());
             Directory.CreateDirectory(uploadDir);
 
             foreach (var req in requirements)
@@ -482,6 +496,7 @@ namespace VMSService.Web.Controllers
 
             return uploadedIds;
         }
+
 
         private List<int> GetUserRoles()
             => User.FindAll("appRoleId")

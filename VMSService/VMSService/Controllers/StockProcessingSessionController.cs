@@ -1,3 +1,4 @@
+using ConfigurationsService.Client;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -6,11 +7,16 @@ using VMSService.Controllers;
 using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.BoardSessionDifferentDenoms;
 using VMSService.Core.Models.BoardSessionSurplusShortages;
+using VMSService.Core.Models.Penalties;
 using VMSService.Core.Models.StockProcessingResults;
 using VMSService.Core.Models.StockProcessingSessions;
 using VMSService.Core.Models.StockProcessingSessionStatusHistories;
+using VMSService.Core.Repositories.AppliedPenalties;
 using VMSService.Core.Repositories.Attachments;
+using VMSService.Core.Repositories.CfbBoxes;
 using VMSService.Core.Repositories.CommercialBanks;
+using VMSService.Core.Repositories.NoteExaminers;
+using VMSService.Core.Repositories.Penalties;
 using VMSService.Core.Repositories.StockProcessingResults;
 using VMSService.Core.Repositories.StockProcessingSessions;
 using VMSService.Core.Repositories.StockProcessingSessionStatusHistories;
@@ -32,6 +38,11 @@ namespace VMSService.Web.Controllers
         IStockProcessingResultRepository _resultRepository,
         ICommercialBankRepository _commercialBankRepository,
         IAttachmentRepository _attachmentRepository,
+        ICfbBoxRepository _cfbBoxRepository,
+        INoteExaminerRepository _noteExaminerRepository,
+        IPenaltyRepository _penaltyRepository,
+        IAppliedPenaltyRepository _appliedPenaltyRepository,
+        IConfigurationsServiceClient _configServiceClient,
         IStockService _stockService,
         IIdentityService _identityService,
         IWorkflowService _workflowService,
@@ -42,10 +53,12 @@ namespace VMSService.Web.Controllers
     {
         [HttpGet]
         [Breadcrumb("My Sessions")]
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(bool showClosed = false)
         {
             try
             {
+                ViewBag.ShowClosed = showClosed;
+
                 var username = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value;
                 if (string.IsNullOrEmpty(username))
                     return View(new List<StockProcessingSessionIndexItemViewModel>());
@@ -153,6 +166,15 @@ namespace VMSService.Web.Controllers
                         };
                     }).ToList();
 
+                // Draft sessions aren't yet issued to a board — they're not the supervisor's to act on.
+                viewModel = viewModel
+                    .Where(s => s.CurrentStatusName != StatusConstants.StockProcessingSession.Draft)
+                    .ToList();
+
+                viewModel = showClosed
+                    ? viewModel.Where(s => s.CurrentStatusName == StatusConstants.StockProcessingSession.Closed).ToList()
+                    : viewModel.Where(s => s.CurrentStatusName != StatusConstants.StockProcessingSession.Closed).ToList();
+
                 return View(viewModel);
             }
             catch (Exception ex)
@@ -210,23 +232,7 @@ namespace VMSService.Web.Controllers
                     });
 
                 // SubCategory per bag (own, or fall back to parent bag)
-                var bagSubCatById = await _context.Bags
-                    .Where(b => bagIds.Contains(b.Id) && !b.IsDeleted)
-                    .Select(b => new { b.Id, b.SubCategoryId })
-                    .ToDictionaryAsync(b => b.Id, b => b.SubCategoryId);
-
-                var bagsWithNoSubCat = bagSubCatById
-                    .Where(kvp => !kvp.Value.HasValue).Select(kvp => kvp.Key).ToList();
-                if (bagsWithNoSubCat.Count > 0)
-                {
-                    var parentSubCats = await _context.BaggedBags
-                        .Where(bb => bagsWithNoSubCat.Contains(bb.ChildBagId) && !bb.IsDeleted)
-                        .Join(_context.Bags, bb => bb.ParentBagId, b => b.Id,
-                              (bb, b) => new { bb.ChildBagId, b.SubCategoryId })
-                        .ToListAsync();
-                    foreach (var item in parentSubCats.Where(x => x.SubCategoryId.HasValue))
-                        bagSubCatById[item.ChildBagId] = item.SubCategoryId;
-                }
+                var bagSubCatById = await ResolveBagSubCategoryIdsAsync(bagIds);
 
                 var bags = session.ProcessingSessionBags
                     .Where(psb => !psb.IsDeleted)
@@ -364,6 +370,38 @@ namespace VMSService.Web.Controllers
                     }
                 }
 
+                // Note Examiners captured for this session (manual boards)
+                var branchId = session.ProcessingBoard?.BranchId ?? 0;
+
+                var noteExaminerEntities = await _context.StockProcessingSessionNoteExaminers
+                    .Include(ne => ne.NoteExaminer)
+                    .Where(ne => ne.StockProcessingSessionId == id && !ne.IsDeleted)
+                    .OrderBy(ne => ne.CreatedDate)
+                    .ToListAsync();
+
+                var noteExaminers = noteExaminerEntities.Select(ne => new SessionNoteExaminerViewModel
+                {
+                    Id = ne.Id,
+                    NoteExaminerId = ne.NoteExaminerId,
+                    NoteExaminerName = ne.NoteExaminer != null
+                        ? $"{ne.NoteExaminer.FirstName} {ne.NoteExaminer.LastName}".Trim()
+                        : $"Examiner {ne.NoteExaminerId}",
+                    NumberOfBundles = ne.NumberOfBundles,
+                    CreatedDate = ne.CreatedDate
+                }).ToList();
+
+                var availableNoteExaminers = (await _noteExaminerRepository.FindAll())
+                    .Where(ne => ne.BranchId == branchId && ne.IsActive)
+                    .OrderBy(ne => ne.FirstName).ThenBy(ne => ne.LastName)
+                    .Select(ne => new NoteExaminerOptionViewModel
+                    {
+                        Id = ne.Id,
+                        Name = string.IsNullOrWhiteSpace(ne.MiddleName)
+                            ? $"{ne.FirstName} {ne.LastName}"
+                            : $"{ne.FirstName} {ne.MiddleName} {ne.LastName}"
+                    })
+                    .ToList();
+
                 // Existing processing results for this session
                 var resultEntities = await _resultRepository.FindBySessionIdAsync(id);
                 var results = resultEntities.Select(r => new StockProcessingResultViewModel
@@ -372,7 +410,7 @@ namespace VMSService.Web.Controllers
                     StockProcessingSessionId = r.StockProcessingSessionId,
                     Count = r.Count,
                     FitValue = r.FitValue,
-                    UnfitShredValue = r.UnfitShredValue,
+                    UnFitShredValue = r.UnFitShredValue,
                     FitShredValue = r.FitShredValue,
                     CanceledValue = r.CanceledValue,
                     ReissueValue = r.ReissueValue,
@@ -408,6 +446,14 @@ namespace VMSService.Web.Controllers
                     .OrderByDescending(s => s.CreatedDate)
                     .ToListAsync();
 
+                var surplusShortageStatusIds = surplusShortageEntities.Select(s => s.CurrentStatusId).Distinct().ToList();
+                var surplusShortageStatusNameDict = new Dictionary<int, string?>();
+                foreach (var statusId in surplusShortageStatusIds)
+                {
+                    var status = await _workflowServiceClient.FindStatusById(statusId);
+                    surplusShortageStatusNameDict[statusId] = status?.Name;
+                }
+
                 var surplusShortages = surplusShortageEntities.Select(s =>
                 {
                     var sd = denomDict.GetValueOrDefault(s.DenominationId);
@@ -421,9 +467,48 @@ namespace VMSService.Web.Controllers
                         DenominationValue = sd?.Value ?? 0m,
                         CommercialBankId = s.CommercialBankId,
                         CommercialBankName = bankDict.GetValueOrDefault(s.CommercialBankId),
+                        CurrentStatusId = s.CurrentStatusId,
+                        CurrentStatusName = surplusShortageStatusNameDict.GetValueOrDefault(s.CurrentStatusId),
                         CreatedDate = s.CreatedDate
                     };
                 }).ToList();
+
+                // Penalties applied to this processing session
+                var appliedPenaltyEntities = await _appliedPenaltyRepository.FindBySourceId(session.ReferenceNumber);
+                var appliedPenalties = appliedPenaltyEntities.Select(a => new AppliedPenaltyViewModel
+                {
+                    Id = a.Id,
+                    PenaltyId = a.PenaltyId,
+                    PenaltyName = a.Penalty?.Name ?? string.Empty,
+                    ChargeValue = a.ChargeValue,
+                    Quantity = a.Quantity,
+                    IsSettledOnRtgs = a.IsSettledOnRtgs,
+                    RtgsCode = a.RtgsCode,
+                    RtgsSettlingMessage = a.RtgsSettlingMessage,
+                    AppliedBy = a.CreatedBy,
+                    AppliedAt = a.CreatedDate,
+                }).ToList();
+
+                var applicablePenalties = new List<PenaltyChecklistItemViewModel>();
+                if (statusType?.Name == StatusConstants.StockProcessingSession.Open && availableTransitions.Distinct().Any())
+                {
+                    var appliedPenaltyIds = appliedPenaltyEntities.Select(a => a.PenaltyId).ToHashSet();
+                    var processingPenalties = await _penaltyRepository.FindApplicableFor(PenaltyConstants.AppliesTo.Processing);
+                    applicablePenalties = processingPenalties.Select(p => new PenaltyChecklistItemViewModel
+                    {
+                        Id = p.Id,
+                        Name = p.Name,
+                        Description = p.Description,
+                        Unit = p.Unit,
+                        PenaltyValue = p.PenaltyValue,
+                        PenaltyPercent = p.PenaltyPercent,
+                        PercentCutOff = p.PercentCutOff,
+                        PenaltyMultiplier = p.PenaltyMultiplier,
+                        IsChecked = appliedPenaltyIds.Contains(p.Id),
+                        Quantity = appliedPenaltyEntities.FirstOrDefault(a => a.PenaltyId == p.Id)?.Quantity,
+                        IsAutomatic = AutomaticPenaltyNames.Contains(p.Name),
+                    }).ToList();
+                }
 
                 ViewBag.Denominations = allDenominations
                     .OrderBy(d => d.DenominationTypeId)
@@ -460,7 +545,11 @@ namespace VMSService.Web.Controllers
                     StatusHistory = statusHistory,
                     AvailableTransitions = availableTransitions.Distinct().ToList(),
                     AllAttachments = allAttachments,
-                    BoardSupervisorUserId = supervisorId ?? ""
+                    BoardSupervisorUserId = supervisorId ?? "",
+                    NoteExaminers = noteExaminers,
+                    AvailableNoteExaminers = availableNoteExaminers,
+                    AppliedPenalties = appliedPenalties,
+                    ApplicablePenalties = applicablePenalties
                 };
 
                 return View(model);
@@ -493,6 +582,48 @@ namespace VMSService.Web.Controllers
                     {
                         TempData["Error"] = "No processing results have been saved for this session. Please save results before submitting.";
                         return RedirectToAction(nameof(Details), new { id });
+                    }
+
+                    
+                    var hasNoteExaminers = await _context.StockProcessingSessionNoteExaminers
+                        .AnyAsync(ne => ne.StockProcessingSessionId == id && !ne.IsDeleted);
+                    if (!hasNoteExaminers)
+                    {
+                        TempData["Error"] = "Please capture the Note Examiners who worked this board, and the bundles each processed, before submitting results.";
+                        return RedirectToAction(nameof(Details), new { id });
+                    }
+
+                    if (session.IsManual)
+                    {
+                        var bagIds = session.ProcessingSessionBags
+                            .Where(psb => !psb.IsDeleted)
+                            .Select(psb => psb.BagId)
+                            .ToList();
+
+                        var totalBagBundles = await _context.BagDenominations
+                            .Where(bd => bagIds.Contains(bd.BagId) && !bd.IsDeleted)
+                            .SumAsync(bd => bd.NumberOfBundlesOrBoxes);
+
+                        var totalExaminerBundles = await _context.StockProcessingSessionNoteExaminers
+                            .Where(ne => ne.StockProcessingSessionId == id && !ne.IsDeleted)
+                            .SumAsync(ne => ne.NumberOfBundles);
+
+                        // Unprocessed Value (Money With Boards) hasn't been examined yet, so it's converted to
+                        // bundle-equivalent units (1 bundle = DenominationValue * 1000, same factor used for
+                        // BagDenomination amounts above) and subtracted from the bag total before comparing.
+                        var unverifiedResult = existingResults.First(r => !r.IsVerified);
+                        var denomination = await _stockService.GetDenominationById(session.DenominationId);
+                        var denominationValue = denomination?.Value ?? 0m;
+                        var unprocessedBundles = denominationValue > 0
+                            ? (int)Math.Round(unverifiedResult.UnProcessedValue / (denominationValue * 1000))
+                            : 0;
+                        var expectedExaminerBundles = totalBagBundles - unprocessedBundles;
+
+                        if (totalExaminerBundles != expectedExaminerBundles)
+                        {
+                            TempData["Error"] = $"The total bundles captured for Note Examiners ({totalExaminerBundles}) does not match the expected total ({totalBagBundles} bag bundles − {unprocessedBundles} unprocessed bundles = {expectedExaminerBundles}). Please correct the Note Examiner entries before submitting results.";
+                            return RedirectToAction(nameof(Details), new { id });
+                        }
                     }
                 }
 
@@ -610,6 +741,45 @@ namespace VMSService.Web.Controllers
                             _logger.LogError(ex, "Error advancing plan status after SubmitResults for session {Id}", id);
                         }
                     }
+                    else if (actionName == "Return To Board")
+                    {
+                        var sessionResults = await _resultRepository.FindBySessionIdAsync(id);
+                        var latestResult = sessionResults.OrderByDescending(r => r.CreatedDate).FirstOrDefault();
+                        if (latestResult != null)
+                        {
+                            latestResult.IsVerified = false;
+                            await _resultRepository.Update(latestResult);
+                        }
+
+                        try
+                        {
+                            var issuedToBoardsStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+                            {
+                                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                                EntityTypeName = StatusConstants.Entity.StockProcessingPlan,
+                                StatusName = StatusConstants.StockProcessingPlan.IssuedToBoards
+                            });
+
+                            if (issuedToBoardsStatus != null)
+                            {
+                                var plan = await _context.StockProcessingPlans
+                                    .FirstOrDefaultAsync(p => p.Id == session.StockProcessingPlanId && !p.IsDeleted);
+
+                                if (plan != null)
+                                {
+                                    plan.CurrentStatusId = issuedToBoardsStatus.Id;
+                                    await _context.SaveChangesAsync();
+                                    _logger.LogInformation(
+                                        "Stock Processing Plan {PlanId} reverted to '{Status}' — session {SessionId} returned to board.",
+                                        plan.Id, StatusConstants.StockProcessingPlan.IssuedToBoards, id);
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error reverting plan status after Return To Board for session {Id}", id);
+                        }
+                    }
                 }
                 else
                 {
@@ -649,16 +819,39 @@ namespace VMSService.Web.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
+                var allDenominationsForResult = await _stockService.GetAllDenominations();
+                var denomDictForResult = allDenominationsForResult.ToDictionary(d => d.Id);
+                var denominationValue = denomDictForResult.GetValueOrDefault(session.DenominationId)?.Value ?? 0m;
+
+                // Machine-only fields — never captured for a manual board.
+                var fitShredValue = session.IsManual ? 0m : model.FitShredValue;
+                var fitValue = session.IsManual ? 0m : model.FitValue;
+                var unFitShredValue = session.IsManual ? 0m : model.UnFitShredValue;
+                decimal processedTotal = model.CanceledValue + model.ReissueValue + fitShredValue;
+                decimal unProcessedValue = session.TotalIssuedValue - processedTotal;
+                // Count is the machine's piece count: the fit/unfit-shred/fit-shred values over face value.
+                decimal countTotal = fitValue + unFitShredValue + fitShredValue;
+
+                if (unProcessedValue < 0)
+                {
+                    TempData["ResultErrors"] = System.Text.Json.JsonSerializer.Serialize(new List<string>
+                    {
+                        "Reissue, Canceled" + (session.IsManual ? "" : " and Fit/Shred") +
+                        " values cannot exceed the Total Issued Value — Unprocessed Value cannot be less than 0."
+                    });
+                    return RedirectToAction(nameof(Details), new { id = model.SessionId });
+                }
+
                 var result = new StockProcessingResult
                 {
                     StockProcessingSessionId = model.SessionId,
-                    Count = model.Count,
-                    UnProcessedValue = model.UnProcessedValue,
-                    FitValue       = session.IsManual ? 0m : model.FitValue,
-                    UnfitShredValue = session.IsManual ? 0m : model.UnfitShredValue,
-                    FitShredValue  = session.IsManual ? 0m : model.FitShredValue,
-                    CanceledValue  = session.IsManual ? model.CanceledValue : 0m,
-                    ReissueValue   = session.IsManual ? model.ReissueValue  : 0m,
+                    Count = denominationValue > 0 ? (int)Math.Round(countTotal / denominationValue) : 0,
+                    UnProcessedValue = unProcessedValue,
+                    FitValue = fitValue,
+                    UnFitShredValue = unFitShredValue,
+                    FitShredValue = fitShredValue,
+                    CanceledValue = model.CanceledValue,
+                    ReissueValue = model.ReissueValue,
                 };
 
                 await _resultRepository.Create(result);
@@ -670,9 +863,6 @@ namespace VMSService.Web.Controllers
 
                 if (validDenomEntries.Count > 0)
                 {
-                    var allDenominationsForResult = await _stockService.GetAllDenominations();
-                    var denomDictForResult = allDenominationsForResult.ToDictionary(d => d.Id);
-
                     foreach (var entry in validDenomEntries)
                     {
                         denomDictForResult.TryGetValue(entry.DenominationId, out var denom);
@@ -684,30 +874,34 @@ namespace VMSService.Web.Controllers
                             Amount = (denom?.Value ?? 0m) * entry.NumberOfPieces
                         });
                     }
-                }
 
-                // Calculate and stage surplus/shortage
-                decimal saveProcessedTotal = session.IsManual
-                    ? result.CanceledValue + result.ReissueValue
-                    : result.FitValue + result.UnfitShredValue + result.FitShredValue;
-                decimal saveDiscrepancy = saveProcessedTotal - session.TotalIssuedValue;
-                if (saveDiscrepancy != 0)
-                {
-                    _context.BoardSessionSurplusShortages.Add(new BoardSessionSurplusShortage
-                    {
-                        StockProcessingSessionId = model.SessionId,
-                        CommercialBankId = session.CommercialBankId,
-                        BranchId = session.ProcessingBoard?.BranchId ?? 0,
-                        DenominationId = session.DenominationId,
-                        Amount = Math.Abs(saveDiscrepancy),
-                        IsSurplus = saveDiscrepancy > 0,
-                        IsDifferentDenomination = false,
-                        IsProcessedOnRtgs = false
-                    });
-                }
-
-                if (validDenomEntries.Count > 0 || saveDiscrepancy != 0)
                     await _context.SaveChangesAsync();
+                }
+
+                await SyncDenominationMixUpPenaltyAsync(model.SessionId);
+                await SyncFitUnfitPenaltyAsync(session, model.ReissueValue, model.CanceledValue);
+
+                // Stage note examiner entries
+                // Machine sessions only capture the examiner's name — bundles are always 0 there.
+                var validNoteExaminerEntries = model.NoteExaminerEntries
+                    .Where(e => e.NoteExaminerId > 0 && (!session.IsManual || e.NumberOfBundles > 0))
+                    .ToList();
+
+                if (validNoteExaminerEntries.Count > 0)
+                {
+                    foreach (var entry in validNoteExaminerEntries)
+                    {
+                        _context.StockProcessingSessionNoteExaminers.Add(new StockProcessingSessionNoteExaminer
+                        {
+                            StockProcessingSessionId = model.SessionId,
+                            NoteExaminerId = entry.NoteExaminerId,
+                            NumberOfBundles = entry.NumberOfBundles,
+                            IsDeleted = false
+                        });
+                    }
+
+                    await _context.SaveChangesAsync();
+                }
 
                 TempData["ResultSuccess"] = "Processing result saved successfully.";
             }
@@ -757,13 +951,36 @@ namespace VMSService.Web.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
-                result.Count          = model.Count;
-                result.UnProcessedValue = model.UnProcessedValue;
-                result.FitValue       = session.IsManual ? 0m : model.FitValue;
-                result.UnfitShredValue = session.IsManual ? 0m : model.UnfitShredValue;
-                result.FitShredValue  = session.IsManual ? 0m : model.FitShredValue;
-                result.CanceledValue  = session.IsManual ? model.CanceledValue : 0m;
-                result.ReissueValue   = session.IsManual ? model.ReissueValue  : 0m;
+                var allDenominationsForEdit = await _stockService.GetAllDenominations();
+                var denomDictForEdit = allDenominationsForEdit.ToDictionary(d => d.Id);
+                var denominationValue = denomDictForEdit.GetValueOrDefault(session.DenominationId)?.Value ?? 0m;
+
+                // Machine-only fields — never captured for a manual board.
+                var fitShredValue = session.IsManual ? 0m : model.FitShredValue;
+                var fitValue = session.IsManual ? 0m : model.FitValue;
+                var unFitShredValue = session.IsManual ? 0m : model.UnFitShredValue;
+                decimal processedTotal = model.CanceledValue + model.ReissueValue + fitShredValue;
+                decimal unProcessedValue = session.TotalIssuedValue - processedTotal;
+                // Count is the machine's piece count: the fit/unfit-shred/fit-shred values over face value.
+                decimal countTotal = fitValue + unFitShredValue + fitShredValue;
+
+                if (unProcessedValue < 0)
+                {
+                    TempData["ResultErrors"] = System.Text.Json.JsonSerializer.Serialize(new List<string>
+                    {
+                        "Reissue, Canceled" + (session.IsManual ? "" : " and Fit/Shred") +
+                        " values cannot exceed the Total Issued Value — Unprocessed Value cannot be less than 0."
+                    });
+                    return RedirectToAction(nameof(Details), new { id = model.SessionId });
+                }
+
+                result.Count = denominationValue > 0 ? (int)Math.Round(countTotal / denominationValue) : 0;
+                result.UnProcessedValue = unProcessedValue;
+                result.FitValue = fitValue;
+                result.UnFitShredValue = unFitShredValue;
+                result.FitShredValue = fitShredValue;
+                result.CanceledValue = model.CanceledValue;
+                result.ReissueValue = model.ReissueValue;
 
                 await _resultRepository.Update(result);
 
@@ -779,9 +996,6 @@ namespace VMSService.Web.Controllers
 
                 if (validDenomEntries.Count > 0)
                 {
-                    var allDenominationsForEdit = await _stockService.GetAllDenominations();
-                    var denomDictForEdit = allDenominationsForEdit.ToDictionary(d => d.Id);
-
                     foreach (var entry in validDenomEntries)
                     {
                         denomDictForEdit.TryGetValue(entry.DenominationId, out var denom);
@@ -795,45 +1009,33 @@ namespace VMSService.Web.Controllers
                     }
                 }
 
-                // Update or create surplus/shortage record
-                decimal editProcessedTotal = session.IsManual
-                    ? result.CanceledValue + result.ReissueValue
-                    : result.FitValue + result.UnfitShredValue + result.FitShredValue;
-                decimal editDiscrepancy = editProcessedTotal - session.TotalIssuedValue;
+                // Replace note examiner entries
+                // Machine sessions only capture the examiner's name — bundles are always 0 there.
+                var existingNoteExaminers = await _context.StockProcessingSessionNoteExaminers
+                    .Where(ne => ne.StockProcessingSessionId == model.SessionId && !ne.IsDeleted)
+                    .ToListAsync();
+                _context.StockProcessingSessionNoteExaminers.RemoveRange(existingNoteExaminers);
 
-                var existingSurplusShortage = await _context.BoardSessionSurplusShortages
-                    .Where(s => s.StockProcessingSessionId == model.SessionId)
-                    .OrderByDescending(s => s.CreatedDate)
-                    .FirstOrDefaultAsync();
+                var validNoteExaminerEntries = model.NoteExaminerEntries
+                    .Where(e => e.NoteExaminerId > 0 && (!session.IsManual || e.NumberOfBundles > 0))
+                    .ToList();
 
-                if (editDiscrepancy != 0)
+                foreach (var entry in validNoteExaminerEntries)
                 {
-                    if (existingSurplusShortage != null)
+                    _context.StockProcessingSessionNoteExaminers.Add(new StockProcessingSessionNoteExaminer
                     {
-                        existingSurplusShortage.Amount = Math.Abs(editDiscrepancy);
-                        existingSurplusShortage.IsSurplus = editDiscrepancy > 0;
-                    }
-                    else
-                    {
-                        _context.BoardSessionSurplusShortages.Add(new BoardSessionSurplusShortage
-                        {
-                            StockProcessingSessionId = model.SessionId,
-                            CommercialBankId = session.CommercialBankId,
-                            BranchId = session.ProcessingBoard?.BranchId ?? 0,
-                            DenominationId = session.DenominationId,
-                            Amount = Math.Abs(editDiscrepancy),
-                            IsSurplus = editDiscrepancy > 0,
-                            IsDifferentDenomination = false,
-                            IsProcessedOnRtgs = false
-                        });
-                    }
-                }
-                else if (existingSurplusShortage != null)
-                {
-                    _context.BoardSessionSurplusShortages.Remove(existingSurplusShortage);
+                        StockProcessingSessionId = model.SessionId,
+                        NoteExaminerId = entry.NoteExaminerId,
+                        NumberOfBundles = entry.NumberOfBundles,
+                        IsDeleted = false
+                    });
                 }
 
                 await _context.SaveChangesAsync();
+
+                await SyncDenominationMixUpPenaltyAsync(model.SessionId);
+                await SyncFitUnfitPenaltyAsync(session, model.ReissueValue, model.CanceledValue);
+
                 TempData["ResultSuccess"] = "Processing result updated successfully.";
             }
             catch (Exception ex)
@@ -843,6 +1045,298 @@ namespace VMSService.Web.Controllers
             }
 
             return RedirectToAction(nameof(Details), new { id = model.SessionId });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> SendCfbRequest(int sessionId)
+        {
+            var session = await _sessionRepository.FindById(sessionId);
+            if (session == null)
+            {
+                TempData["Error"] = "Processing Session not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (!await CanSendCfbRequestAsync(session))
+            {
+                TempData["Error"] = "A CFB request can only be sent while the session is Open and only if one hasn't already been sent.";
+                return RedirectToAction(nameof(Details), new { id = sessionId });
+            }
+
+            var branchId = session.ProcessingBoard?.BranchId ?? 0;
+
+            var denomination = await _stockService.GetDenominationById(session.DenominationId);
+
+            var allBanks = await _commercialBankRepository.FindAll();
+            var bank = allBanks.FirstOrDefault(b => b.Id == session.CommercialBankId);
+
+            var cfbBox = await FindCfbBoxForSessionAsync(branchId, denomination?.DenominationType?.Name);
+            if (cfbBox == null)
+            {
+                TempData["Error"] = $"No CFB box is configured for this branch{(denomination?.DenominationType?.Name != null ? $" ({denomination.DenominationType.Name})" : "")}. Please contact CFB administration.";
+                return RedirectToAction(nameof(Details), new { id = sessionId });
+            }
+
+            var pendingCfbStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                EntityTypeName = StatusConstants.Entity.BoardSessionSurplusShortage,
+                StatusName = StatusConstants.BoardSessionSurplusShortage.PendingCFBSupervisor
+            });
+
+            if (pendingCfbStatus == null)
+            {
+                TempData["Error"] = "CFB request workflow status is not configured. Please contact an administrator.";
+                return RedirectToAction(nameof(Details), new { id = sessionId });
+            }
+
+            string? branchName = null;
+            try
+            {
+                var branch = await _configServiceClient.GetBouBranchByIdAsync(branchId);
+                branchName = branch?.Name;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not resolve branch name {BranchId} for CFB request form", branchId);
+            }
+
+            var model = new CfbRequestViewModel
+            {
+                StockProcessingSessionId = session.Id,
+                SessionReferenceNumber = session.ReferenceNumber,
+                CommercialBankId = session.CommercialBankId,
+                CommercialBankName = bank?.Name,
+                BranchId = branchId,
+                BranchName = branchName,
+                DenominationId = session.DenominationId,
+                DenominationName = denomination?.Name,
+                DenominationValue = denomination?.Value ?? 0m,
+                TotalIssuedValue = session.TotalIssuedValue,
+                CfbBoxId = cfbBox.Id,
+                CurrentStatusId = pendingCfbStatus.Id,
+            };
+
+            return View(model);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SendCfbRequest(CfbRequestViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                TempData["Error"] = "Please correct the errors and try again.";
+                return RedirectToAction(nameof(SendCfbRequest), new { sessionId = model.StockProcessingSessionId });
+            }
+
+            try
+            {
+                var session = await _sessionRepository.FindById(model.StockProcessingSessionId);
+                if (session == null)
+                {
+                    TempData["Error"] = "Processing Session not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                if (!await CanSendCfbRequestAsync(session))
+                {
+                    TempData["Error"] = "A CFB request can only be sent while the session is Open and only if one hasn't already been sent.";
+                    return RedirectToAction(nameof(Details), new { id = model.StockProcessingSessionId });
+                }
+
+                // Re-derive the autopopulated fields server-side rather than trusting the posted hidden values.
+                var branchId = session.ProcessingBoard?.BranchId ?? 0;
+
+                var denomination = await _stockService.GetDenominationById(session.DenominationId);
+
+                var cfbBox = await FindCfbBoxForSessionAsync(branchId, denomination?.DenominationType?.Name);
+                if (cfbBox == null)
+                {
+                    TempData["Error"] = "No CFB box is configured for this branch. Please contact CFB administration.";
+                    return RedirectToAction(nameof(Details), new { id = model.StockProcessingSessionId });
+                }
+
+                var pendingCfbStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+                {
+                    ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                    EntityTypeName = StatusConstants.Entity.BoardSessionSurplusShortage,
+                    StatusName = StatusConstants.BoardSessionSurplusShortage.PendingCFBSupervisor
+                });
+
+                if (pendingCfbStatus == null)
+                {
+                    TempData["Error"] = "CFB request workflow status is not configured. Please contact an administrator.";
+                    return RedirectToAction(nameof(Details), new { id = model.StockProcessingSessionId });
+                }
+
+                var entity = new BoardSessionSurplusShortage
+                {
+                    StockProcessingSessionId = session.Id,
+                    CommercialBankId = session.CommercialBankId,
+                    BranchId = branchId,
+                    DenominationId = session.DenominationId,
+                    CfbBoxId = cfbBox.Id,
+                    CurrentStatusId = pendingCfbStatus.Id,
+                    Amount = model.Amount,
+                    IsSurplus = model.IsSurplus,
+                    IsDifferentDenomination = model.IsDifferentDenomination,
+                    IsProcessedOnRtgs = false,
+                    IsDeleted = false,
+                };
+
+                _context.BoardSessionSurplusShortages.Add(entity);
+                await _context.SaveChangesAsync();
+
+                if (!entity.IsSurplus)
+                    await ApplyMissingPiecesPenaltyAsync(session, entity);
+
+                TempData["Success"] = "CFB request sent successfully.";
+                return RedirectToAction(nameof(Details), new { id = session.Id });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending CFB request for Processing Session {Id}", model.StockProcessingSessionId);
+                TempData["Error"] = "An error occurred while sending the CFB request.";
+                return RedirectToAction(nameof(Details), new { id = model.StockProcessingSessionId });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ApplyPenalties(int id, List<int>? penaltyIds, Dictionary<int, int>? quantities)
+        {
+            var session = await _sessionRepository.FindById(id);
+            if (session is null)
+            {
+                TempData["Error"] = "Processing Session not found.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            var statusType = await _workflowServiceClient.FindStatusById(session.CurrentStatusId);
+            if (statusType?.Name != StatusConstants.StockProcessingSession.Open)
+            {
+                TempData["Error"] = "Penalties can only be applied while the session is Open.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (string.IsNullOrEmpty(session.ReferenceNumber))
+            {
+                TempData["Error"] = "This session does not have a reference number yet.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            // Same check used to gate the workflow action buttons — only someone whose role has an
+            // available transition on this session right now may apply/adjust its penalties.
+            var hasAvailableTransition = false;
+            foreach (var roleId in GetUserRoleIds())
+            {
+                var roleTransitions = await _workflowService.GetAvailableTransitionsAsync(
+                    StatusConstants.Entity.StockProcessingSession, session.CurrentStatusId, roleId);
+                if (roleTransitions.Count > 0)
+                {
+                    hasAvailableTransition = true;
+                    break;
+                }
+            }
+
+            if (!hasAvailableTransition)
+            {
+                TempData["Error"] = "You are not authorized to act on this session at its current status.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            try
+            {
+                var checkedPenaltyIds = (penaltyIds ?? []).ToHashSet();
+
+                // Restrict to active Processing penalties — also blocks tampered penaltyIds for other categories.
+                var processingPenalties = await _penaltyRepository.FindApplicableFor(PenaltyConstants.AppliesTo.Processing);
+                var processingPenaltiesById = processingPenalties.ToDictionary(p => p.Id);
+
+                // The 3 automatic penalties are managed by the system (SaveResult/EditResult/SendCfbRequest) —
+                // this manual form can never apply or remove them, even via a hand-crafted POST.
+                var automaticPenaltyIds = processingPenalties
+                    .Where(p => AutomaticPenaltyNames.Contains(p.Name))
+                    .Select(p => p.Id)
+                    .ToHashSet();
+                checkedPenaltyIds.ExceptWith(automaticPenaltyIds);
+
+                var currentlyApplied = await _appliedPenaltyRepository.FindBySourceId(session.ReferenceNumber);
+                var denomination = await _stockService.GetDenominationById(session.DenominationId);
+                var description = await BuildPenaltyDescriptionAsync(session);
+
+                foreach (var penaltyId in checkedPenaltyIds)
+                {
+                    if (!processingPenaltiesById.TryGetValue(penaltyId, out var penalty))
+                        throw new InvalidOperationException($"Penalty {penaltyId} is not a valid Processing penalty.");
+
+                    int? quantity = null;
+                    if (penalty.PenaltyMultiplier.HasValue)
+                    {
+                        quantity = quantities?.GetValueOrDefault(penaltyId);
+                        if (!quantity.HasValue || quantity <= 0)
+                            throw new InvalidOperationException($"Please enter a quantity for '{penalty.Name}'.");
+                    }
+
+                    await _appliedPenaltyRepository.Apply(
+                        PenaltyConstants.Source.Processing,
+                        session.ReferenceNumber,
+                        penaltyId,
+                        quantity: quantity,
+                        denomValue: penalty.PenaltyMultiplier.HasValue ? denomination?.Value : null,
+                        baseValue: penalty.PenaltyPercent.HasValue ? session.TotalIssuedValue : null,
+                        // TODO: correctlyClassifiedValue should come from a fit/unfit-style breakdown on
+                        // StockProcessingResult once one exists again; until then this always applies the
+                        // percent-cutoff penalty in full when checked (correctlyClassifiedValue / baseValue = 0).
+                        correctlyClassifiedValue: 0,
+                        description: description);
+                }
+
+                foreach (var applied in currentlyApplied.Where(a => !checkedPenaltyIds.Contains(a.PenaltyId) && !automaticPenaltyIds.Contains(a.PenaltyId)))
+                {
+                    await _appliedPenaltyRepository.Remove(applied.Id);
+                }
+
+                await _appliedPenaltyRepository.Save();
+                TempData["Success"] = "Penalties updated.";
+            }
+            catch (InvalidOperationException ex)
+            {
+                TempData["Error"] = ex.Message;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error applying penalties to stock processing session {Id}", id);
+                TempData["Error"] = "An error occurred while updating penalties.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        private List<int> GetUserRoleIds()
+            => User.FindAll(SystemPolicy.SystemSettings.AppRoleClaimType)
+                .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
+                .Select(c => int.TryParse(c.Value.Split(":")[1], out var roleId) ? roleId : 0)
+                .Where(r => r > 0)
+                .ToList();
+
+        private async Task<CfbBox?> FindCfbBoxForSessionAsync(int branchId, string? boxType)
+        {
+            var branchBoxes = await _cfbBoxRepository.FindByBranchId(branchId);
+            return branchBoxes.FirstOrDefault(b => b.BoxType == boxType);
+        }
+
+        private async Task<bool> CanSendCfbRequestAsync(StockProcessingSession session)
+        {
+            var statusType = await _workflowServiceClient.FindStatusById(session.CurrentStatusId);
+            if (statusType?.Name != StatusConstants.StockProcessingSession.Open)
+                return false;
+
+            var hasExistingRequest = await _context.BoardSessionSurplusShortages
+                .AnyAsync(s => s.StockProcessingSessionId == session.Id);
+
+            return !hasExistingRequest;
         }
 
         [HttpPost]
@@ -877,6 +1371,9 @@ namespace VMSService.Web.Controllers
                 }
 
                 await _context.SaveChangesAsync();
+
+                await SyncDenominationMixUpPenaltyAsync(model.SessionId);
+
                 TempData["DifferentDenomSuccess"] = $"{validEntries.Count} different denomination entr{(validEntries.Count == 1 ? "y" : "ies")} saved successfully.";
             }
             catch (Exception ex)
@@ -888,6 +1385,248 @@ namespace VMSService.Web.Controllers
             return RedirectToAction(nameof(Details), new { id = model.SessionId });
         }
 
+        // Net adjustment to add to the raw processed total: shortages count as processed (add),
+        // surpluses were over-counted in what was reported as processed (subtract).
+        // Only records the CFB has confirmed as balanced are counted.
+        private async Task<decimal> GetSurplusShortageAdjustmentAsync(int stockProcessingSessionId)
+        {
+            var balancedStatus = await _workflowServiceClient.FindStatusByName(new GetStatusByNameRequestDto
+            {
+                ApplicationAcronym = SystemPolicy.SystemSettings.AppAcronym,
+                EntityTypeName = StatusConstants.Entity.BoardSessionSurplusShortage,
+                StatusName = StatusConstants.BoardSessionSurplusShortage.BalancedByCFB
+            });
+
+            if (balancedStatus == null)
+                return 0m;
+
+            var surplusShortages = await _context.BoardSessionSurplusShortages
+                .Where(s => s.StockProcessingSessionId == stockProcessingSessionId
+                            && !s.IsDeleted
+                            && s.CurrentStatusId == balancedStatus.Id)
+                .ToListAsync();
+
+            var totalSurplus = surplusShortages.Where(s => s.IsSurplus).Sum(s => s.Amount);
+            var totalShortage = surplusShortages.Where(s => !s.IsSurplus).Sum(s => s.Amount);
+
+            return totalShortage - totalSurplus;
+        }
+
+        // Exact Penalty.Name values that are applied automatically rather than manually checked in
+        // the Manage Penalties modal — see ApplyMissingPiecesPenaltyAsync / SyncDenominationMixUpPenaltyAsync
+        // / SyncFitUnfitPenaltyAsync below.
+        private static readonly HashSet<string> AutomaticPenaltyNames = new()
+        {
+            PenaltyConstants.AutomaticPenalties.MissingPieces,
+            PenaltyConstants.AutomaticPenalties.DenominationMixUp,
+            PenaltyConstants.AutomaticPenalties.FitUnfitMixUp,
+        };
+
+        // Human-readable summary stored on each penalty so it reads standalone in listings and
+        // settlement reports, away from the session itself — same format as DepositRequestsController.
+        private async Task<string> BuildPenaltyDescriptionAsync(StockProcessingSession session)
+        {
+            var allBanks = await _commercialBankRepository.FindAll();
+            var bank = allBanks.FirstOrDefault(b => b.Id == session.CommercialBankId);
+
+            var branchId = session.ProcessingBoard?.BranchId ?? 0;
+            string? branchName = null;
+            try
+            {
+                var branch = await _configServiceClient.GetBouBranchByIdAsync(branchId);
+                branchName = branch?.Name;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not resolve branch name {BranchId} for penalty description", branchId);
+            }
+
+            var plan = await _context.StockProcessingPlans
+                .FirstOrDefaultAsync(p => p.Id == session.StockProcessingPlanId);
+
+            return $"Penalty for Non Compliance on Processing Session {session.ReferenceNumber} from " +
+                   $"{bank?.Name ?? "Unknown Bank"} {branchName ?? "Unknown Branch"} " +
+                   $"of UGX {session.TotalIssuedValue:N0} dated {(plan?.ProcessingDate ?? DateTime.UtcNow):dd MMM yyyy}";
+        }
+
+        // SubCategoryId per bag: own SubCategoryId, falling back to the parent bag's when a (child) bag
+        // has none of its own.
+        private async Task<Dictionary<int, int?>> ResolveBagSubCategoryIdsAsync(List<int> bagIds)
+        {
+            var bagSubCatById = await _context.Bags
+                .Where(b => bagIds.Contains(b.Id) && !b.IsDeleted)
+                .Select(b => new { b.Id, b.SubCategoryId })
+                .ToDictionaryAsync(b => b.Id, b => b.SubCategoryId);
+
+            var bagsWithNoSubCat = bagSubCatById
+                .Where(kvp => !kvp.Value.HasValue).Select(kvp => kvp.Key).ToList();
+            if (bagsWithNoSubCat.Count > 0)
+            {
+                var parentSubCats = await _context.BaggedBags
+                    .Where(bb => bagsWithNoSubCat.Contains(bb.ChildBagId) && !bb.IsDeleted)
+                    .Join(_context.Bags, bb => bb.ParentBagId, b => b.Id,
+                          (bb, b) => new { bb.ChildBagId, b.SubCategoryId })
+                    .ToListAsync();
+                foreach (var item in parentSubCats.Where(x => x.SubCategoryId.HasValue))
+                    bagSubCatById[item.ChildBagId] = item.SubCategoryId;
+            }
+
+            return bagSubCatById;
+        }
+
+        // Trigger 1: a Shortage recorded via a CFB request automatically charges the
+        // "Discrepancies in deposits — missing pieces" penalty for the missing piece count.
+        private async Task ApplyMissingPiecesPenaltyAsync(StockProcessingSession session, BoardSessionSurplusShortage shortage)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(session.ReferenceNumber)) return;
+
+                var penalty = await _penaltyRepository.FindByName(PenaltyConstants.AutomaticPenalties.MissingPieces);
+                if (penalty == null) return;
+
+                var denomination = await _stockService.GetDenominationById(shortage.DenominationId);
+                var denomValue = denomination?.Value ?? 0m;
+                if (denomValue <= 0) return;
+
+                var piecesShort = (int)Math.Ceiling(shortage.Amount / denomValue);
+
+                await _appliedPenaltyRepository.Apply(
+                    PenaltyConstants.Source.Processing,
+                    session.ReferenceNumber,
+                    penalty.Id,
+                    quantity: piecesShort,
+                    denomValue: denomValue,
+                    baseValue: shortage.Amount,
+                    correctlyClassifiedValue: 0,
+                    description: await BuildPenaltyDescriptionAsync(session));
+
+                await _appliedPenaltyRepository.Save();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error applying automatic missing-pieces penalty for session {Id}", session.Id);
+            }
+        }
+
+        // Trigger 2: recomputes the "Mix-up of denominations within bundles" penalty from every
+        // BoardSessionDifferentDenom currently recorded for the session (not just the latest batch),
+        // so edits/removals of different-denom entries keep the AppliedPenalty row in sync.
+        private async Task SyncDenominationMixUpPenaltyAsync(int stockProcessingSessionId)
+        {
+            try
+            {
+                var session = await _sessionRepository.FindById(stockProcessingSessionId);
+                if (session == null || string.IsNullOrEmpty(session.ReferenceNumber)) return;
+
+                var penalty = await _penaltyRepository.FindByName(PenaltyConstants.AutomaticPenalties.DenominationMixUp);
+                if (penalty == null) return;
+
+                var entries = await _context.BoardSessionDifferentDenoms
+                    .Where(d => d.StockProcessingSessionId == stockProcessingSessionId)
+                    .ToListAsync();
+
+                var totalPieces = entries.Sum(d => d.NumberOfPieces);
+                var totalAmount = entries.Sum(d => d.Amount);
+
+                var existing = (await _appliedPenaltyRepository.FindBySourceId(session.ReferenceNumber))
+                    .FirstOrDefault(a => a.PenaltyId == penalty.Id);
+
+                if (totalPieces <= 0)
+                {
+                    if (existing != null)
+                    {
+                        await _appliedPenaltyRepository.Remove(existing.Id);
+                        await _appliedPenaltyRepository.Save();
+                    }
+                    return;
+                }
+
+                var denomination = await _stockService.GetDenominationById(session.DenominationId);
+
+                await _appliedPenaltyRepository.Apply(
+                    PenaltyConstants.Source.Processing,
+                    session.ReferenceNumber,
+                    penalty.Id,
+                    quantity: totalPieces,
+                    denomValue: denomination?.Value,
+                    baseValue: totalAmount,
+                    correctlyClassifiedValue: 0,
+                    description: await BuildPenaltyDescriptionAsync(session));
+
+                await _appliedPenaltyRepository.Save();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error syncing automatic denomination mix-up penalty for session {Id}", stockProcessingSessionId);
+            }
+        }
+
+        // Trigger 3: when every bag in the session shares the same Fit/Unfit sub-category, charges the
+        // "Fit notes in unfit notes and vice versa" penalty if the correctly-classified ratio
+        // (ReissueValue/TotalIssuedValue for Fit, CanceledValue/TotalIssuedValue for Unfit) falls below
+        // the penalty's PercentCutOff. Mixed or non-Fit/Unfit sessions are never charged.
+        private async Task SyncFitUnfitPenaltyAsync(StockProcessingSession session, decimal reissueValue, decimal canceledValue)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(session.ReferenceNumber)) return;
+
+                var penalty = await _penaltyRepository.FindByName(PenaltyConstants.AutomaticPenalties.FitUnfitMixUp);
+                if (penalty == null || !penalty.PercentCutOff.HasValue) return;
+
+                var bagIds = session.ProcessingSessionBags
+                    .Where(psb => !psb.IsDeleted)
+                    .Select(psb => psb.BagId)
+                    .ToList();
+
+                var subCatIdsByBag = await ResolveBagSubCategoryIdsAsync(bagIds);
+                var distinctSubCatIds = subCatIdsByBag.Values.Distinct().ToList();
+
+                decimal? correctlyClassifiedValue = null;
+                if (bagIds.Count > 0 && distinctSubCatIds.Count == 1 && distinctSubCatIds[0].HasValue)
+                {
+                    var subCategories = await _stockService.GetAllSubCategories();
+                    var subCatName = subCategories.FirstOrDefault(sc => sc.Id == distinctSubCatIds[0]!.Value)?.Name;
+
+                    if (subCatName == StockConstants.SubCategories.Fit)
+                        correctlyClassifiedValue = reissueValue;
+                    else if (subCatName == StockConstants.SubCategories.Unfit)
+                        correctlyClassifiedValue = canceledValue;
+                }
+
+                var existing = (await _appliedPenaltyRepository.FindBySourceId(session.ReferenceNumber))
+                    .FirstOrDefault(a => a.PenaltyId == penalty.Id);
+
+                var baseValue = session.TotalIssuedValue;
+                var shouldApply = correctlyClassifiedValue.HasValue && baseValue != 0
+                    && (correctlyClassifiedValue.Value / baseValue) < penalty.PercentCutOff.Value;
+
+                if (shouldApply)
+                {
+                    await _appliedPenaltyRepository.Apply(
+                        PenaltyConstants.Source.Processing,
+                        session.ReferenceNumber,
+                        penalty.Id,
+                        quantity: null,
+                        denomValue: null,
+                        baseValue: baseValue,
+                        correctlyClassifiedValue: correctlyClassifiedValue,
+                        description: await BuildPenaltyDescriptionAsync(session));
+                    await _appliedPenaltyRepository.Save();
+                }
+                else if (existing != null)
+                {
+                    await _appliedPenaltyRepository.Remove(existing.Id);
+                    await _appliedPenaltyRepository.Save();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error syncing automatic fit/unfit penalty for session {Id}", session.Id);
+            }
+        }
+
         private async Task<List<long>> HandleAttachmentUploads(
             List<TransitionAttachmentRequirementDto> requirements,
             int workflowTransitionId,
@@ -896,7 +1635,7 @@ namespace VMSService.Web.Controllers
             string username)
         {
             var uploadedAttachmentIds = new List<long>();
-            var uploadsPath = Path.Combine(_environment.WebRootPath, "uploads", "stockprocessingsession", entityId.ToString());
+            var uploadsPath = Path.Combine(FileStorageConstants.UploadsRoot, "stockprocessingsession", entityId.ToString());
             Directory.CreateDirectory(uploadsPath);
 
             foreach (var requirement in requirements)

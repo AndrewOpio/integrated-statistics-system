@@ -22,6 +22,9 @@ namespace VMSService.Core.Repositories.Penalties
         public async Task<Penalty> FindById(int id)
             => await _db.Penalties.FirstOrDefaultAsync(p => p.Id == id);
 
+        public async Task<Penalty?> FindByName(string name)
+            => await _db.Penalties.FirstOrDefaultAsync(p => p.Active && p.Name == name);
+
         public async Task<bool> IsExists(int id)
             => await _db.Penalties.AnyAsync(p => p.Id == id);
 

@@ -6,6 +6,7 @@ namespace VMSService.Core.Models.Vaults
         public string Name { get; set; } = string.Empty;
         public int VaultId { get; set; }
         public string VaultName { get; set; } = string.Empty;
+        public int BranchId { get; set; }
         public bool IsActive { get; set; }
         public List<VaultBagViewModel> Bags { get; set; } = [];
         public List<VaultBagViewModel> AvailableBags { get; set; } = [];

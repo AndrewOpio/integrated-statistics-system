@@ -73,6 +73,18 @@ namespace VMSService.Web.Controllers
 
             try
             {
+                var existingVaults = await _vaultRepository.FindAll();
+                bool isDuplicate = existingVaults.Any(v =>
+                    v.BranchId == model.BranchId &&
+                    string.Equals(v.Name.Trim(), model.Name.Trim(), StringComparison.OrdinalIgnoreCase));
+
+                if (isDuplicate)
+                {
+                    ModelState.AddModelError(nameof(model.Name), "A vault with this name already exists in the selected branch.");
+                    await PopulateBranchList(model);
+                    return View(model);
+                }
+
                 var vault = _mapper.Map<Vault>(model);
                 bool isCreated = await _vaultRepository.Create(vault);
 

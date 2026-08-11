@@ -10,6 +10,8 @@ namespace VMSService.Core.Models.BoardSessionSurplusShortages
         public decimal DenominationValue { get; set; }
         public int CommercialBankId { get; set; }
         public string? CommercialBankName { get; set; }
+        public int CurrentStatusId { get; set; }
+        public string? CurrentStatusName { get; set; }
         public DateTime CreatedDate { get; set; }
     }
 }

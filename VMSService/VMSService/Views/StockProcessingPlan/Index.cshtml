@@ -7,6 +7,11 @@
     var branches = ViewBag.Branches as ICollection<BranchDto> ?? new List<BranchDto>();
     int? selectedBranchId = ViewBag.SelectedBranchId as int?;
     var userRoles = string.Join(", ", User.FindAll("appRole").Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:")).Select(c => c.Value.Split(":")[1]).ToList());
+
+    // A branch may only have one plan in flight — set when an earlier plan is neither Completed nor Cancelled.
+    var openPlanReference = ViewBag.OpenPlanReference as string;
+    var openPlanId = ViewBag.OpenPlanId as int?;
+    var hasOpenPlan = !string.IsNullOrEmpty(openPlanReference);
 }
 
 <style>
@@ -51,6 +56,23 @@
     }
 </div>
 
+@if (hasOpenPlan && userRoles.Contains(SystemPolicy.Roles.PanelB))
+{
+    <div class="alert alert-info d-flex align-items-start gap-2" role="alert">
+        <i class="ti ti-info-circle mt-1 flex-shrink-0"></i>
+        <div>
+            <span class="fw-semibold">A processing plan is already in progress for this branch.</span>
+            Plan <span class="fw-semibold">@openPlanReference</span> must reach
+            <span class="fw-semibold">Completed</span> or <span class="fw-semibold">Cancelled</span>
+            before a new plan can be created.
+            @if (openPlanId.HasValue)
+            {
+                <a asp-action="Details" asp-route-id="@openPlanId.Value" class="alert-link ms-1">View plan</a>
+            }
+        </div>
+    </div>
+}
+
 <div class="row">
     <div class="col-12">
         <div class="card border-0 shadow mb-4">
@@ -62,10 +84,25 @@
                     <div class="col-auto">
                         @if (userRoles.Contains(SystemPolicy.Roles.PanelB))
                         {
-                            <button type="button" class="btn btn-sm btn-primary"
-                                    data-bs-toggle="modal" data-bs-target="#createPlanModal">
-                                <i class="ti ti-plus me-1"></i>Create New Plan
-                            </button>
+                            @if (hasOpenPlan)
+                            {
+                                <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                                    <span class="badge bg-warning text-dark p-2">
+                                        <i class="ti ti-lock me-1"></i>Plan @openPlanReference in progress
+                                    </span>
+                                    <button type="button" class="btn btn-sm btn-primary" disabled
+                                            title="Complete or cancel plan @openPlanReference before creating a new one.">
+                                        <i class="ti ti-plus me-1"></i>Create New Plan
+                                    </button>
+                                </div>
+                            }
+                            else
+                            {
+                                <button type="button" class="btn btn-sm btn-primary"
+                                        data-bs-toggle="modal" data-bs-target="#createPlanModal">
+                                    <i class="ti ti-plus me-1"></i>Create New Plan
+                                </button>
+                            }
                         }
                     </div>
                 </div>
@@ -90,6 +127,7 @@
                         <thead class="thead-light">
                             <tr>
                                 <th class="border-0 rounded-start">#</th>
+                                <th class="border-0">Reference Number</th>
                                 <th class="border-0">Processing Date</th>
                                 <th class="border-0">Branch</th>
                                 <th class="border-0">Status</th>
@@ -111,7 +149,12 @@
                                 // };
                                 <tr>
                                     <td><span class="text-primary fw-bold">@rowNumber</span></td>
-                                    <td class="fw-bold">@item.ProcessingDate.ToString("dd MMM yyyy")</td>
+                                    <td>@item.ReferenceNumber</td>
+                                    @* data-order gives DataTables a sortable value — without it the column
+                                       sorts the formatted string alphabetically rather than by date. *@
+                                    <td class="fw-bold" data-order="@item.ProcessingDate.ToString("yyyy-MM-dd")">
+                                        @item.ProcessingDate.ToString("dd MMM yyyy")
+                                    </td>
                                     <td>
                                         @if (!string.IsNullOrEmpty(item.BranchName))
                                         {
@@ -160,7 +203,7 @@
                         Processing Date <span class="text-danger">*</span>
                     </label>
                     <input type="date" class="form-control" id="planDate" onchange="validateDate()" />
-                    <div class="form-text">Only today and tomorrow are available.</div>
+                    <div class="form-text">Only today and the next 5 days are available.</div>
                     <div class="text-danger small mt-1" id="dateError"></div>
                 </div>
             </div>
@@ -178,37 +221,23 @@
 @section Scripts {
     <script>
         $(document).ready(function () {
-            $('#plansTable').DataTable({ order: [[1, 'desc']] });
+            // Column 2 is Processing Date (0 = #, 1 = Reference Number)
+            $('#plansTable').DataTable({ order: [[2, 'desc']] });
         });
 
-        let usedDates = [];
         const selectedBranchId = @(selectedBranchId.HasValue ? selectedBranchId.Value.ToString() : "0");
 
-        document.getElementById('createPlanModal').addEventListener('show.bs.modal', async function () {
+        document.getElementById('createPlanModal').addEventListener('show.bs.modal', function () {
             const dateInput = document.getElementById('planDate');
             const today = new Date();
-            const tomorrow = new Date(today);
-            tomorrow.setDate(tomorrow.getDate() + 1);
+            const maxDate = new Date(today);
+            maxDate.setDate(maxDate.getDate() + 5);
 
-            const todayStr = formatDateStr(today);
-            const tomorrowStr = formatDateStr(tomorrow);
-
-            dateInput.min = todayStr;
-            dateInput.max = tomorrowStr;
+            dateInput.min = formatDateStr(today);
+            dateInput.max = formatDateStr(maxDate);
             dateInput.value = '';
             document.getElementById('dateError').textContent = '';
             document.getElementById('createPlanBtn').disabled = true;
-
-            if (selectedBranchId > 0) {
-                try {
-                    const resp = await fetch(`@Url.Action("GetUsedDates", "StockProcessingPlan")?branchId=${selectedBranchId}`);
-                    usedDates = await resp.json();
-                } catch (e) {
-                    usedDates = [];
-                }
-            } else {
-                usedDates = [];
-            }
         });
 
         function formatDateStr(d) {
@@ -220,27 +249,13 @@
 
         function validateDate() {
             const val = document.getElementById('planDate').value;
-            const errEl = document.getElementById('dateError');
-            const btn = document.getElementById('createPlanBtn');
-
-            if (!val) {
-                errEl.textContent = '';
-                btn.disabled = true;
-                return;
-            }
-
-            if (usedDates.includes(val)) {
-                errEl.textContent = 'A processing plan already exists for this date in the selected branch.';
-                btn.disabled = true;
-            } else {
-                errEl.textContent = '';
-                btn.disabled = false;
-            }
+            document.getElementById('dateError').textContent = '';
+            document.getElementById('createPlanBtn').disabled = !val;
         }
 
         function navigateToCreate() {
             const val = document.getElementById('planDate').value;
-            if (!val || usedDates.includes(val)) return;
+            if (!val) return;
             if (selectedBranchId <= 0) {
                 document.getElementById('dateError').textContent = 'Please select a branch first using the branch filter above.';
                 return;

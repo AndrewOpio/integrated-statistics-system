@@ -109,6 +109,35 @@ namespace WorkflowService.Web.Controllers
         /// </summary>
         /// <param name="request">The request containing entityTypeName, fromStatusId, and actionName</param>
         /// <returns>The requested workflow transition</returns>
+        [HttpPost("from-statuses-by-roles")]
+        public async Task<IActionResult> GetFromStatusesByRoles([FromBody] GetFromStatusesByRolesRequest request)
+        {
+            try
+            {
+                if (request.RoleIds == null || request.RoleIds.Count == 0)
+                    return Ok(new List<object>());
+
+                var application = await _identityService.GetApplicationByAcronymAsync(request.AppAcronym);
+                if (application == null)
+                    return NotFound(new { message = $"Application '{request.AppAcronym}' not found." });
+
+                var map = await _transitionRepository.FindFromStatusesByRoles(application.Id, request.RoleIds);
+
+                var result = map.Select(kv => new
+                {
+                    entityTypeName = kv.Key,
+                    fromStatusIds  = kv.Value
+                });
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetFromStatusesByRoles for {AppAcronym}", request?.AppAcronym);
+                return StatusCode(500, new { message = "An error occurred." });
+            }
+        }
+
         [HttpPost("get-transition")]
         public async Task<IActionResult> GetTransitionByKey([FromBody] GetTransitionByKeyRequest request)
         {
@@ -196,6 +225,15 @@ namespace WorkflowService.Web.Controllers
         /// The application role ID to filter transitions
         /// </summary>
         public int AppRole { get; set; }
+    }
+
+    /// <summary>
+    /// Request model for getting actionable from-statuses by roles
+    /// </summary>
+    public class GetFromStatusesByRolesRequest
+    {
+        public string AppAcronym { get; set; } = string.Empty;
+        public List<int> RoleIds { get; set; } = [];
     }
 
     /// <summary>

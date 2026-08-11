@@ -35,6 +35,13 @@ namespace VMSService.Core.Repositories.StockProcessingResults
                 .ToListAsync();
         }
 
+        public async Task<ICollection<StockProcessingResult>> FindBySessionIdsAsync(IEnumerable<int> sessionIds)
+        {
+            return await _db.StockProcessingResults
+                .Where(x => sessionIds.Contains(x.StockProcessingSessionId) && !x.IsDeleted)
+                .ToListAsync();
+        }
+
         public async Task<bool> IsExists(int id)
         {
             return await _db.StockProcessingResults.AnyAsync(x => x.Id == id);

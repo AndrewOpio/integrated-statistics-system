@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using NotificationService.Client;
 using OpenTelemetry;
@@ -12,6 +13,7 @@ using SmartBreadcrumbs.Extensions;
 using System.Reflection;
 using System.Text;
 using VMSService.Core.Authorization;
+using VMSService.Core.Static;
 using VMSService.Core.Mappings;
 using VMSService.Core.Models.Authentication;
 using VMSService.Core.Repositories.Attachments;
@@ -64,6 +66,9 @@ using VMSService.Core.Repositories.Penalties;
 using VMSService.Core.Repositories.PenaltyWaivers;
 using VMSService.Core.Repositories.PublicHolidays;
 using VMSService.Core.Repositories.ReceivedStocks;
+using VMSService.Core.Repositories.StockTakes;
+using VMSService.Core.Repositories.StockTakeStatusHistories;
+using VMSService.Core.Repositories.StockTakeSystemPositions;
 using VMSService.Core.Repositories.ReceivedStocksDetails;
 using VMSService.Core.Repositories.ReceivedStockStatusHistories;
 using VMSService.Core.Repositories.StockMovementDiscrepancies;
@@ -101,14 +106,20 @@ using VMSService.Core.Repositories.MonthlySurpluses;
 using VMSService.Core.Repositories.MonthlySurplusStatusHistories;
 using VMSService.Core.Repositories.MonthlyShortages;
 using VMSService.Core.Repositories.MonthlyShortageStatusHistories;
+using VMSService.Core.Repositories.MonthlyShortageReimbursements;
 using VMSService.Core.Repositories.MonthlyCommercialBankSettlements;
 using VMSService.Core.Repositories.MonthlyCommercialBankSettlementStatusHistories;
 using VMSService.Core.Repositories.BankingSurpluses;
 using VMSService.Core.Repositories.BankingSurplusStatusHistories;
+using VMSService.Core.Repositories.BoardSessionSurplusShortageStatusHistories;
+using VMSService.Core.Repositories.BoardSessionSurplusShortages;
+using VMSService.Core.Repositories.NoteExaminers;
 using VMSService.Core.Repositories.BankingShortages;
 using VMSService.Core.Repositories.BankingShortageStatusHistories;
 using VMSService.Web.Services;
 using VMSService.Core.Repositories.BagMovements;
+using VMSService.Core.Repositories.BagMovementStatusHistories;
+using VMSService.Core.Repositories.MIandFits;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -277,6 +288,7 @@ builder.Services.AddScoped<IPackingListDetailsRepository, PackingListDetailsRepo
 builder.Services.AddScoped<IStockLedgerDetailRepository, StockLedgerDetailRepository>();
 builder.Services.AddScoped<ICommercialBankRepository, CommercialBankRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<ISubCategoryRepository, SubCategoryRepository>();
 builder.Services.AddScoped<IBranchCategoryRepository, BranchCategoryRepository>();
 builder.Services.AddScoped<IBranchRepository, BranchRepository>();
 builder.Services.AddScoped<ICommercialBankBranchRepository, CommercialBankBranchRepository>();
@@ -309,10 +321,15 @@ builder.Services.AddScoped<IMonthlySurplusStatusHistoryRepository, MonthlySurplu
 builder.Services.AddScoped<IMonthlyShortageRepository, MonthlyShortageRepository>();
 builder.Services.AddScoped<IMonthlyShortageDetailRepository, MonthlyShortageDetailRepository>();
 builder.Services.AddScoped<IMonthlyShortageStatusHistoryRepository, MonthlyShortageStatusHistoryRepository>();
+builder.Services.AddScoped<IMonthlyShortageReimbursementRepository, MonthlyShortageReimbursementRepository>();
+builder.Services.AddScoped<IMonthlyShortageReimbursementStatusHistoryRepository, MonthlyShortageReimbursementStatusHistoryRepository>();
 builder.Services.AddScoped<IMonthlyCommercialBankSettlementRepository, MonthlyCommercialBankSettlementRepository>();
 builder.Services.AddScoped<IMonthlyCommercialBankSettlementStatusHistoryRepository, MonthlyCommercialBankSettlementStatusHistoryRepository>();
 builder.Services.AddScoped<IBankingSurplusRepository, BankingSurplusRepository>();
 builder.Services.AddScoped<IBankingSurplusStatusHistoryRepository, BankingSurplusStatusHistoryRepository>();
+builder.Services.AddScoped<IBoardSessionSurplusShortageStatusHistoryRepository, BoardSessionSurplusShortageStatusHistoryRepository>();
+builder.Services.AddScoped<IBoardSessionSurplusShortageRepository, BoardSessionSurplusShortageRepository>();
+builder.Services.AddScoped<INoteExaminerRepository, NoteExaminerRepository>();
 builder.Services.AddScoped<IBankingShortageRepository, BankingShortageRepository>();
 builder.Services.AddScoped<IBankingShortageStatusHistoryRepository, BankingShortageStatusHistoryRepository>();
 builder.Services.AddScoped<IAttachmentRepository, AttachmentRepository>();
@@ -326,6 +343,9 @@ builder.Services.AddScoped<IPenaltyRepository, PenaltyRepository>();
 builder.Services.AddScoped<IAppliedPenaltyRepository, AppliedPenaltyRepository>();
 builder.Services.AddScoped<IPenaltyWaiverRepository, PenaltyWaiverRepository>();
 builder.Services.AddScoped<IPublicHolidayRepository, PublicHolidayRepository>();
+builder.Services.AddScoped<IStockTakeRepository, StockTakeRepository>();
+builder.Services.AddScoped<IStockTakeStatusHistoryRepository, StockTakeStatusHistoryRepository>();
+builder.Services.AddScoped<IStockTakeSystemPositionRepository, StockTakeSystemPositionRepository>();
 
 // ── Resource-based ownership check ────────────────────────────
 builder.Services.AddSingleton<IAuthorizationHandler, CbOwnershipAuthorizationHandler>();
@@ -343,6 +363,8 @@ builder.Services.AddScoped<IBagRepository, BagRepository>();
 builder.Services.AddScoped<IVaultRepository, VaultRepository>();
 builder.Services.AddScoped<IVaultSectionRepository, VaultSectionRepository>();
 builder.Services.AddScoped<IBagMovementRepository, BagMovementRepository>();
+builder.Services.AddScoped<IBagMovementStatusHistoryRepository, BagMovementStatusHistoryRepository>();
+builder.Services.AddScoped<IMIandFitRepository, MIandFitRepository>();
 builder.Services.AddScoped<IStockProcessingResultRepository, StockProcessingResultRepository>();
 builder.Services.AddScoped<IMinDepositStandardRepository, MinDepositStandardRepository>();
 builder.Services.AddScoped<IDepositProcessingFeeRepository, DepositProcessingFeeRepository>();
@@ -441,6 +463,13 @@ if (!app.Environment.IsDevelopment())
 
 //app.UseHttpsRedirection();
 app.UseStaticFiles();
+
+Directory.CreateDirectory(FileStorageConstants.UploadsRoot);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(FileStorageConstants.UploadsRoot),
+    RequestPath = "/uploads"
+});
 
 app.UseRouting();
 

@@ -48,7 +48,7 @@
                                     <td>
                                         @if (!string.IsNullOrEmpty(item.PassportPhoto))
                                         {
-                                            <img src="@item.PassportPhoto" alt="Passport Photo" class="rounded-circle" style="width: 40px; height: 40px; object-fit: cover;">
+                                            <img src="@FileUrlHelper.ToWebPath(item.PassportPhoto)" alt="Passport Photo" class="rounded-circle" style="width: 40px; height: 40px; object-fit: cover;">
                                         }
                                         else
                                         {

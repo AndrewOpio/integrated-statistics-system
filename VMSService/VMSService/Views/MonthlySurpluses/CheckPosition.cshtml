@@ -9,7 +9,7 @@
 }
 @Html.AntiForgeryToken()
 
-<div class="row g-4">
+<div class="row g-4 pb-5">
 
     @* ── Left: form + result ── *@
     <div class="col-12 col-xl-8">
@@ -91,6 +91,88 @@
             return Number(n).toLocaleString('en-UG', { maximumFractionDigits: 0 });
         }
 
+        let _txData = [];
+        let _txPage = 1;
+        const TX_PER_PAGE = 10;
+
+        function renderTxTableContent() {
+            const total      = _txData.length;
+            const totalPages = Math.ceil(total / TX_PER_PAGE);
+            const start      = (_txPage - 1) * TX_PER_PAGE;
+            const end        = Math.min(start + TX_PER_PAGE, total);
+
+            const rows = _txData.slice(start, end).map(t => `
+                <tr>
+                    <td class="text-muted small">${t.date}</td>
+                    <td class="small">${t.bank}</td>
+                    <td class="text-center">
+                        <span class="badge ${t.isSurplus ? 'bg-success bg-opacity-10 text-success' : 'bg-danger bg-opacity-10 text-danger'}">
+                            ${t.isSurplus ? 'Surplus' : 'Shortage'}
+                        </span>
+                    </td>
+                    <td class="text-end small fw-semibold ${t.isSurplus ? 'text-success' : 'text-danger'}">
+                        UGX ${fmt(t.amount)}
+                    </td>
+                </tr>`).join('');
+
+            const pagination = totalPages > 1 ? `
+                <div class="d-flex justify-content-between align-items-center mt-2 px-1">
+                    <span class="text-muted small">Showing ${start + 1}–${end} of ${total}</span>
+                    <div class="d-flex gap-1 align-items-center">
+                        <button class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="txPrev()" ${_txPage === 1 ? 'disabled' : ''}>
+                            <i class="ti ti-chevron-left"></i>
+                        </button>
+                        <span class="small text-muted px-1">${_txPage} / ${totalPages}</span>
+                        <button class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="txNext()" ${_txPage === totalPages ? 'disabled' : ''}>
+                            <i class="ti ti-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>` : '';
+
+            return `
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="small text-muted fw-semibold">Date</th>
+                                <th class="small text-muted fw-semibold">Commercial Bank</th>
+                                <th class="small text-muted fw-semibold text-center">Type</th>
+                                <th class="small text-muted fw-semibold text-end">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+                ${pagination}`;
+        }
+
+        function txPrev() {
+            if (_txPage > 1) {
+                _txPage--;
+                document.getElementById('txTableContainer').innerHTML = renderTxTableContent();
+            }
+        }
+
+        function txNext() {
+            if (_txPage < Math.ceil(_txData.length / TX_PER_PAGE)) {
+                _txPage++;
+                document.getElementById('txTableContainer').innerHTML = renderTxTableContent();
+            }
+        }
+
+        function buildTransactionsTable(transactions) {
+            if (!transactions || transactions.length === 0) return '';
+            _txData = transactions;
+            _txPage = 1;
+            const total = transactions.length;
+            return `
+                <hr class="mt-4 mb-3" />
+                <h6 class="fw-semibold small text-muted mb-3">
+                    <i class="ti ti-list me-1"></i>Transaction Breakdown (${total} record${total !== 1 ? 's' : ''})
+                </h6>
+                <div id="txTableContainer">${renderTxTableContent()}</div>`;
+        }
+
         function checkPosition() {
             const branchSel = document.getElementById('branchId');
             const branchId  = branchSel.value;
@@ -151,6 +233,7 @@
                                         </div>
                                     </div>
                                     <p class="text-muted small mt-3 mb-0">No surplus or shortage record is required for this period.</p>
+                                    ${buildTransactionsTable(data.transactions)}
                                 </div>
                             </div>`;
                         return;
@@ -193,6 +276,7 @@
                                     <a href="@Url.Action("Generate","MonthlyShortages")" class="btn btn-danger">
                                         <i class="ti ti-report me-1"></i>Go to Monthly Shortages
                                     </a>
+                                    ${buildTransactionsTable(data.transactions)}
                                 </div>
                             </div>`;
                         return;
@@ -242,9 +326,9 @@
                                 </p>
                                 <div class="d-flex gap-2 flex-wrap">
                                     ${canUpdateStockPosition ? `
-                                    <button type="button" class="btn btn-outline-warning" onclick="openStockConfirmModal()">
+                                    @* <button type="button" class="btn btn-outline-warning" onclick="openStockConfirmModal()">
                                         <i class="ti ti-package-export me-1"></i>Update Stock Position
-                                    </button>
+                                    </button> *@
                                     <a id="btnInitiateSurplus" href="${createUrl}" class="btn btn-success">
                                         <i class="ti ti-plus me-1"></i>Initiate Surplus
                                     </a>` : ''}
@@ -254,6 +338,7 @@
                                         <i class="ti ti-circle-check me-1"></i>Stock position confirmed
                                     </span>
                                 </div>
+                                ${buildTransactionsTable(data.transactions)}
                             </div>
                         </div>`;
                 })

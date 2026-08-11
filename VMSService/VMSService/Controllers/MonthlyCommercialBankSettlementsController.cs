@@ -8,6 +8,7 @@ using VMSService.Controllers;
 using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.MonthlyCommercialBankSettlements;
 using VMSService.Core.Repositories.Attachments;
+using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.MonthlyCommercialBankSettlements;
 using VMSService.Core.Repositories.MonthlyCommercialBankSettlementStatusHistories;
 using VMSService.Core.Services.Workflows;
@@ -28,6 +29,7 @@ namespace VMSService.Web.Controllers
         IWorkflowServiceClient _workflowServiceClient,
         IWorkflowService _workflowService,
         IConfigurationsServiceClient _configServiceClient,
+        IDenominationRepository _denominationRepo,
         VMSServiceDbContext _db,
         IWebHostEnvironment _environment) : Controller
     {
@@ -284,11 +286,16 @@ namespace VMSService.Web.Controllers
                 .OrderBy(e => e.EodDiscrepancyReport.SessionDate)
                 .ToListAsync();
 
+            var denominations = await _denominationRepo.FindAll();
+            var denomMap = denominations?.ToDictionary(d => d.Id, d => d.Name) ?? [];
+
             var transactions = entries.Select(e => new
             {
-                sessionDate = e.EodDiscrepancyReport.SessionDate.ToString("dd MMM yyyy"),
-                isSurplus   = e.BoardSessionSurplusShortage?.IsSurplus ?? false,
-                amount      = e.BoardSessionSurplusShortage?.Amount ?? 0,
+                sessionDate   = e.EodDiscrepancyReport.SessionDate.ToString("dd MMM yyyy"),
+                isSurplus     = e.BoardSessionSurplusShortage?.IsSurplus ?? false,
+                amount        = e.BoardSessionSurplusShortage?.Amount ?? 0,
+                denomination  = e.BoardSessionSurplusShortage != null
+                    && denomMap.TryGetValue(e.BoardSessionSurplusShortage.DenominationId, out var dn) ? dn : "—",
             }).ToList();
 
             return Json(new { transactions });
@@ -388,7 +395,7 @@ namespace VMSService.Web.Controllers
             string username)
         {
             var uploadedIds = new List<long>();
-            var uploadDir   = Path.Combine(_environment.WebRootPath, "uploads", "cb-settlements", entityId.ToString());
+            var uploadDir   = Path.Combine(FileStorageConstants.UploadsRoot, "cb-settlements", entityId.ToString());
             Directory.CreateDirectory(uploadDir);
 
             foreach (var req in requirements)

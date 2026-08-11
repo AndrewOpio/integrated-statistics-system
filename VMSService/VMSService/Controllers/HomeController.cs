@@ -73,6 +73,21 @@ namespace VMSService.Controllers
             }
             if (isCommercialBank) return RedirectToAction("Index", "CbRequests");
 
+            if (roles.Contains(SystemPolicy.Roles.BoardSupervisor))
+            {
+                return RedirectToAction("Index", "StockProcessingSession", new { showClosed = false });
+            }
+
+            if (roles.Contains(SystemPolicy.Roles.VerificationOfficer))
+            {
+                return RedirectToAction("Index", "StockProcessingPlan");
+            }
+
+            if (roles.Contains(SystemPolicy.Roles.CfbSupervisor))
+            {
+                return RedirectToAction("Index", "BoardSessionSurplusShortages");
+            }
+
             try
             {
                 // Get pending deliveries
@@ -118,10 +133,14 @@ namespace VMSService.Controllers
                     }
                 }
                 
-                // Fallback to Kampala if no valid branchId provided
+                // Fallback to the user's branch (from roles), then Kampala, if no valid branchId provided
                 if (selectedBranch == null)
                 {
-                    var kampalaBranch = allBranches.FirstOrDefault(b => b.Name == "Kampala Branch");
+                    var userBranchName = roles.FirstOrDefault(r => allBranches.Any(b => b.Name == r));
+
+                    var kampalaBranch = userBranchName != null
+                        ? allBranches.FirstOrDefault(b => b.Name == userBranchName)
+                        : allBranches.FirstOrDefault(b => b.Name == "Kampala Branch");
 
                     if (kampalaBranch != null)
                     {
@@ -139,13 +158,13 @@ namespace VMSService.Controllers
                     // Get all denominations sorted by value
                     var allDenominations = await _denominationRepository.FindAll();
                     var sortedDenominations = allDenominations?.OrderBy(d => d.Value).ToList();
-                    
+
                     // Get stock position matrix from service with filtered categories and denominations
                     var stockPositionMatrix = await _stockPositionService.GetStockMatrixAsync(
-                        selectedBranch.Id, 
+                        selectedBranch.Id,
                         allCategories.Select(c => c.Id).ToList(),
                         sortedDenominations.Select(d => d.Id).ToList());
-                    
+
                     ViewBag.KampalaBranch = selectedBranch;
                     ViewBag.SelectedBranchId = selectedBranch.Id;
                     ViewBag.Categories = allCategories;

@@ -11,9 +11,7 @@ namespace VMSService.Data.Entities
         public int BranchId { get; set; }
         public DateTime Period { get; set; }
         public decimal Amount { get; set; }
-        public DateTime? DepositDate { get; set; }
-        public int? CommercialBankId { get; set; }
-        public string? AccountNumber { get; set; }
+        public DateTime? EftDate { get; set; }
         public string? Remarks { get; set; }
         public int CurrentStatusId { get; set; }
         public string CurrentStatusName { get; set; } = "Draft";

@@ -15,6 +15,8 @@ using VMSService.Core.Models.CbDepositRequests;
 using VMSService.Core.Models.CbRequests;
 using VMSService.Core.Models.DepositRequests;
 using VMSService.Core.Repositories.AgentDetails;
+using VMSService.Core.Models.Penalties;
+using VMSService.Core.Repositories.AppliedPenalties;
 using VMSService.Core.Repositories.Attachments;
 using VMSService.Core.Repositories.Bags;
 using VMSService.Core.Repositories.BranchCategories;
@@ -23,6 +25,7 @@ using VMSService.Core.Repositories.CounterPartyTypes;
 using VMSService.Core.Repositories.DenominationTypes;
 using VMSService.Core.Repositories.DepositUnitOfWorks;
 using VMSService.Core.Repositories.FeeTypes;
+using VMSService.Core.Repositories.Penalties;
 using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Services.Stocks.StockEntities;
@@ -52,8 +55,19 @@ namespace VMSService.Web.Controllers
         IFeeTypeRepository _feeTypeRepo,
         IAttachmentRepository _attachmentRepository,
         IWebHostEnvironment _environment,
-        IBagRepository _bagRepository) : Controller
+        IBagRepository _bagRepository,
+        IPenaltyRepository _penaltyRepository,
+        IAppliedPenaltyRepository _appliedPenaltyRepository) : Controller
     {
+        // Penalties may only be captured while BOU is confirming the physical deposit.
+        private const string PenaltyCaptureStatus = DepositStatuses.DepositStatusNames.SubmittedToBank;
+
+        /// <summary>Workflow entity name for a request — exceptional deposits run a separate workflow.</summary>
+        private static string EntityTypeNameFor(bool requiresSpecialApproval)
+            => requiresSpecialApproval
+                ? StatusConstants.Entity.DepositRequestExceptional
+                : StatusConstants.Entity.DepositRequest;
+
         [Breadcrumb("Deposit Requests", FromController = typeof(HomeController), FromAction = nameof(Index))]
         public async Task<IActionResult> Index(string? branchCode = null)
         {
@@ -157,9 +171,11 @@ namespace VMSService.Web.Controllers
                 CollectionDate = r.DepositDate,
                 CreationDate = r.CreatedDate,
                 RequiresSpecialApproval = r.RequiresSpecialApproval,
-                RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "�" : r.RtgsCode,
-                BouBranchCode = (await _configServiceClient.GetBouBranchByIdAsync(r.BouBranchId))?.BranchCode ?? "�"
+                RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "�" : r.RtgsCode,
+                BouBranchCode = (await _configServiceClient.GetBouBranchByIdAsync(r.BouBranchId))?.BranchCode ?? "�"
             }).ToList());
+
+            rows = [.. rows.OrderByDescending(r => r.CollectionDate)];
 
             var vm = new BouDepositRequestViewModel
             {
@@ -367,6 +383,48 @@ namespace VMSService.Web.Controllers
                 }
             }
 
+            // ── Penalties ─────────────────────
+            // Tracked separately from the FeeType-based fees above; the view presents a combined total.
+            var appliedPenaltyVms = new List<AppliedPenaltyViewModel>();
+            var applicablePenaltyVms = new List<PenaltyChecklistItemViewModel>();
+
+            if (!string.IsNullOrEmpty(request.TransactionRefNumber))
+            {
+                var appliedPenalties = await _appliedPenaltyRepository.FindBySourceId(request.TransactionRefNumber);
+                appliedPenaltyVms = appliedPenalties.Select(a => new AppliedPenaltyViewModel
+                {
+                    Id = a.Id,
+                    PenaltyId = a.PenaltyId,
+                    PenaltyName = a.Penalty?.Name ?? string.Empty,
+                    ChargeValue = a.ChargeValue,
+                    Quantity = a.Quantity,
+                    IsSettledOnRtgs = a.IsSettledOnRtgs,
+                    RtgsCode = a.RtgsCode,
+                    RtgsSettlingMessage = a.RtgsSettlingMessage,
+                    AppliedBy = a.CreatedBy,
+                    AppliedAt = a.CreatedDate,
+                }).ToList();
+
+                // The checklist only appears to someone who can actually act on the request now.
+                if (currentStatus.Name == PenaltyCaptureStatus && availableTransitions.Count > 0)
+                {
+                    var appliedPenaltyIds = appliedPenalties.Select(a => a.PenaltyId).ToHashSet();
+                    var applicablePenalties = await _penaltyRepository.FindApplicableFor(PenaltyConstants.AppliesTo.PreTransaction);
+                    applicablePenaltyVms = applicablePenalties.Select(p => new PenaltyChecklistItemViewModel
+                    {
+                        Id = p.Id,
+                        Name = p.Name,
+                        Description = p.Description,
+                        Unit = p.Unit,
+                        PenaltyValue = p.PenaltyValue,
+                        PenaltyPercent = p.PenaltyPercent,
+                        PercentCutOff = p.PercentCutOff,
+                        PenaltyMultiplier = p.PenaltyMultiplier,
+                        IsChecked = appliedPenaltyIds.Contains(p.Id),
+                    }).ToList();
+                }
+            }
+
             // Fetch bags associated with this deposit request
             var depositBags = await _bagRepository.GetBagsByDepositRequestIdAsync(id);
             var cbDisplayName = cb?.Name ?? string.Empty;
@@ -386,12 +444,12 @@ namespace VMSService.Web.Controllers
                 RequiresSpecialApproval = request.RequiresSpecialApproval,
                 SpecialApprovalReason = request.SpecialApprovalReason,
                 DepositAgents = agentDetails,
-                CbName = cb?.Name ?? "�",
+                CbName = cb?.Name ?? "�",
                 CbBranchName = cbBranchName,
-                CbBicCode = cb?.Code ?? "�",
-                CbCode = cb?.CBCode ?? "�",
-                BouBranchName = bouBranch?.Name ?? "�",
-                BouBranchCode = bouBranch?.BranchCode ?? "�",
+                CbBicCode = cb?.Code ?? "�",
+                CbCode = cb?.CBCode ?? "�",
+                BouBranchName = bouBranch?.Name ?? "�",
+                BouBranchCode = bouBranch?.BranchCode ?? "�",
                 BouBranchId = bouBranch?.Id ?? 0,
                 FitNotes = cbDenoms
                     .Where(d => d.DenominationTypeId == noteTypeId && d.SubCategoryId == 1)
@@ -448,11 +506,111 @@ namespace VMSService.Web.Controllers
                 MinimumDepositPenaltyFee = penaltyFee,
                 TotalFees = processingFee + penaltyFee,
                 HasPenaltyViolations = penaltyFee > 0,
+                AppliedPenalties = appliedPenaltyVms,
+                ApplicablePenalties = applicablePenaltyVms,
                 AllAttachments = depositAttachments,
                 Bags = depositBags,
             };
 
             return View(vm);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ApplyPenalties(Guid id, List<int>? penaltyIds)
+        {
+            var request = await _uow.Requests.FindById(id);
+            if (request is null)
+            {
+                TempData["Error"] = "Deposit request not found.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            var currentStatus = await _workflowServiceClient.FindStatusById(request.StatusTypeId);
+            if (currentStatus?.Name != PenaltyCaptureStatus)
+            {
+                TempData["Error"] = $"Penalties can only be applied while the request is {PenaltyCaptureStatus}.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (string.IsNullOrEmpty(request.TransactionRefNumber))
+            {
+                TempData["Error"] = "This request does not have a transaction reference number yet.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            // Same check used to gate the workflow action buttons — only someone whose role has an
+            // available transition on this request right now may apply/adjust its penalties.
+            var entityTypeName = EntityTypeNameFor(request.RequiresSpecialApproval);
+            var hasAvailableTransition = false;
+            foreach (var roleId in GetUserRoles())
+            {
+                var roleTransitions = await _workflowService.GetAvailableTransitionsAsync(
+                    entityTypeName, request.StatusTypeId, roleId);
+                if (roleTransitions.Count > 0)
+                {
+                    hasAvailableTransition = true;
+                    break;
+                }
+            }
+
+            if (!hasAvailableTransition)
+            {
+                TempData["Error"] = "You are not authorized to act on this request at its current status.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            try
+            {
+                var checkedPenaltyIds = (penaltyIds ?? []).ToHashSet();
+
+                // Restrict to the Pre-Transaction catalogue so a tampered post cannot apply a
+                // penalty from another category.
+                var allowedPenaltyIds = (await _penaltyRepository.FindApplicableFor(PenaltyConstants.AppliesTo.PreTransaction))
+                    .Select(p => p.Id)
+                    .ToHashSet();
+                checkedPenaltyIds.IntersectWith(allowedPenaltyIds);
+
+                var currentlyApplied = await _appliedPenaltyRepository.FindBySourceId(request.TransactionRefNumber);
+
+                // Human-readable summary stored on each penalty so it reads standalone in listings
+                // and settlement reports, away from the deposit request itself.
+                var cb = await _configServiceClient.GetCbIdAsync(request.CbId);
+                var bouBranch = await _configServiceClient.GetBouBranchByIdAsync(request.BouBranchId);
+                var description =
+                    $"Penalty for Non Compliance on Deposit {request.TransactionRefNumber} from {cb?.Name ?? "Unknown Bank"} " +
+                    $"{bouBranch?.Name ?? "Unknown Branch"} " +
+                    $"of UGX {request.TotalAmount:N0} dated {request.DepositDate:dd MMM yyyy}";
+
+                foreach (var penaltyId in checkedPenaltyIds)
+                {
+                    await _appliedPenaltyRepository.Apply(
+                        PenaltyConstants.Source.Deposit,
+                        request.TransactionRefNumber,
+                        penaltyId,
+                        baseValue: request.TotalAmount,
+                        description: description);
+                }
+
+                foreach (var applied in currentlyApplied.Where(a => !checkedPenaltyIds.Contains(a.PenaltyId)))
+                {
+                    await _appliedPenaltyRepository.Remove(applied.Id);
+                }
+
+                await _appliedPenaltyRepository.Save();
+                TempData["Success"] = "Penalties updated.";
+            }
+            catch (InvalidOperationException ex)
+            {
+                TempData["Error"] = ex.Message;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error applying penalties to deposit request {Id}", id);
+                TempData["Error"] = "An error occurred while updating penalties.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         [HttpPost]
@@ -723,7 +881,7 @@ namespace VMSService.Web.Controllers
             var uploadedAttachmentIds = new List<long>();
 
             // Create uploads directory if it doesn't exist
-            var uploadsPath = Path.Combine(_environment.WebRootPath, "uploads", "deposits", entityId.ToString());
+            var uploadsPath = Path.Combine(FileStorageConstants.UploadsRoot, "deposits", entityId.ToString());
             Directory.CreateDirectory(uploadsPath);
 
             foreach (var requirement in requirements)

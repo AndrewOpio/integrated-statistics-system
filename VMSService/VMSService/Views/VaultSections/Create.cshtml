@@ -21,9 +21,19 @@
                         <span asp-validation-for="Name" class="text-danger small d-block mt-1"></span>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label">Branch <span class="text-danger">*</span></label>
+                        <select class="form-select" id="branchSelector" asp-items="@Model.BranchList" required>
+                            <option value="">-- Select Branch --</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label" asp-for="VaultId">Vault <span class="text-danger">*</span></label>
-                        <select class="form-select" asp-for="VaultId" asp-items="@Model.VaultList" required>
-                            <option value="">-- Select Vault --</option>
+                        <select class="form-select" asp-for="VaultId" required>
+                            <option value="">-- Select Branch First --</option>
+                            @foreach (var vault in Model.Vaults)
+                            {
+                                <option value="@vault.Id" data-branch-id="@vault.BranchId">@vault.Name</option>
+                            }
                         </select>
                         <span asp-validation-for="VaultId" class="text-danger small d-block mt-1"></span>
                     </div>
@@ -51,4 +61,31 @@
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
+    <script>
+        (function () {
+            const branchSelect = document.getElementById('branchSelector');
+            const vaultSelect = document.getElementById('VaultId');
+
+            function filterVaultsByBranch() {
+                const branchId = branchSelect.value;
+
+                Array.from(vaultSelect.options).forEach(function (opt) {
+                    if (!opt.value) return;
+                    const matches = opt.dataset.branchId === branchId;
+                    opt.hidden = !matches;
+                    opt.disabled = !matches;
+                });
+
+                const selected = vaultSelect.options[vaultSelect.selectedIndex];
+                if (selected && selected.value && selected.disabled) {
+                    vaultSelect.value = '';
+                }
+
+                vaultSelect.disabled = !branchId;
+            }
+
+            branchSelect.addEventListener('change', filterVaultsByBranch);
+            filterVaultsByBranch();
+        })();
+    </script>
 }

@@ -1,0 +1,148 @@
+@using VMSService.Core.Models.BoardSessionSurplusShortages
+@using VMSService.Core.Models.Shared
+@model BoardSessionSurplusShortageDetailsViewModel
+
+@{
+    ViewData["Title"] = "CFB Request Details";
+}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow mb-3">
+            <div class="card-header pb-4 bg-light">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="d-flex flex-column">
+                        <span class="text-muted small mb-2">CFB Request &mdash; @(Model.SessionReferenceNumber ?? $"Session {Model.StockProcessingSessionId}")</span>
+                        <h2 class="fs-4 fw-bold mb-3" style="color:@(Model.IsSurplus ? "#198754" : "#dc3545");">UGX @Model.Amount.ToString("N0")</h2>
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <span class="badge bg-info">
+                                <i class="ti ti-badge me-1"></i>@Model.CurrentStatusName
+                            </span>
+                            @if (Model.IsSurplus)
+                            {
+                                <span class="badge bg-success">
+                                    <i class="ti ti-trending-up me-1"></i>Surplus
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-danger">
+                                    <i class="ti ti-trending-down me-1"></i>Shortage
+                                </span>
+                            }
+                            @if (Model.IsDifferentDenomination)
+                            {
+                                <span class="badge bg-warning text-dark">
+                                    <i class="ti ti-exchange me-1"></i>Different Denomination
+                                </span>
+                            }
+                        </div>
+                    </div>
+                    <!-- Action Buttons -->
+                    <div class="d-flex gap-2 flex-row align-items-end">
+                        <a asp-action="Index" class="btn btn-secondary btn-sm">
+                            <i class="ti ti-arrow-left me-1"></i>Back to List
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="field mb-4">
+                            <span class="d-block text-muted small mb-2 text-uppercase">Amount</span>
+                            <span class="d-block fw-normal">UGX @Model.Amount.ToString("N0")</span>
+                        </div>
+
+                        <div class="field mb-4">
+                            <span class="d-block text-muted small mb-2 text-uppercase">Session</span>
+                            <span class="d-block fw-normal">
+                                <a asp-controller="StockProcessingSession" asp-action="Details" asp-route-id="@Model.StockProcessingSessionId" class="text-decoration-underline text-tertiary fw-bold">
+                                    @(Model.SessionReferenceNumber ?? $"Session {Model.StockProcessingSessionId}")
+                                </a>
+                            </span>
+                        </div>
+
+                        <div class="field mb-4">
+                            <span class="d-block text-muted small mb-2 text-uppercase">Branch</span>
+                            <span class="badge bg-brown text-brown bg-opacity-10 rounded-pill">
+                                <i class="ti ti-building-bank me-1"></i>@Model.BranchName
+                            </span>
+                        </div>
+
+                        <div class="field mb-4">
+                            <span class="d-block text-muted small mb-2 text-uppercase">Commercial Bank</span>
+                            <span class="badge bg-primary text-primary bg-opacity-10 rounded-pill">
+                                <i class="ti ti-building me-1"></i>@Model.CommercialBankName
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="field mb-4">
+                            <span class="d-block text-muted small mb-2 text-uppercase">Denomination</span>
+                            <span class="d-block fw-normal">
+                                @(Model.DenominationName ?? "-")
+                                @if (Model.DenominationValue > 0)
+                                {
+                                    <text> (UGX @Model.DenominationValue.ToString("N0"))</text>
+                                }
+                            </span>
+                        </div>
+
+                        <div class="field mb-4">
+                            <span class="d-block text-muted small mb-2 text-uppercase">CFB Box</span>
+                            <span class="d-block fw-normal">@(Model.CfbBoxName ?? "-")</span>
+                        </div>
+
+                        @* <div class="field mb-4">
+                            <span class="d-block text-muted small mb-2 text-uppercase">Processed on RTGS</span>
+                            <span class="d-block fw-normal">
+                                @if (Model.IsProcessedOnRtgs)
+                                {
+                                    <text>Yes@(string.IsNullOrEmpty(Model.RtgsCode) ? "" : $" ({Model.RtgsCode})")</text>
+                                }
+                                else
+                                {
+                                    <text>No</text>
+                                }
+                            </span>
+                        </div> *@
+
+                        <div class="field mb-4">
+                            <span class="d-block text-muted small mb-2 text-uppercase">Different Denomination Found</span>
+                            <span class="d-block fw-normal">@(Model.IsDifferentDenomination ? "Yes" : "No")</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <span class="d-block text-muted small mb-2 text-uppercase">Submitted</span>
+                    <span class="d-block fw-normal">@Model.CreatedDate.ToString("dd MMM yyyy HH:mm") by @Model.CreatedBy</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* ── Workflow Attachments ───────────────────────────────────────── *@
+@await Html.PartialAsync("_WorkflowAttachments", Model.AllAttachments)
+
+@* ── Workflow Comments ──────────────────────────────────────────── *@
+@await Html.PartialAsync("_WorkflowComments", Model.StatusHistory)
+
+@* ── Workflow Actions ───────────────────────────────────────────── *@
+@{
+    var workflowActionsViewModel = new WorkflowActionsViewModel
+    {
+        EntityId = Model.Id,
+        ControllerName = "BoardSessionSurplusShortages",
+        AvailableTransitions = Model.AvailableTransitions ?? new List<WorkflowService.Client.Dto.WorkflowTransitionDto>(),
+        IsValid = true
+    };
+}
+@await Html.PartialAsync("_WorkflowActions", workflowActionsViewModel)
+
+@section Scripts {
+    @await Html.PartialAsync("_WorkflowActionsScript")
+}

@@ -2,6 +2,7 @@ using VMSService.Core.Models.AgentDetails;
 using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.Bags;
 using VMSService.Core.Models.CbDepositRequests;
+using VMSService.Core.Models.Penalties;
 using WorkflowService.Client.Dto;
 
 namespace VMSService.Core.Models.CbDepositRequest
@@ -68,6 +69,19 @@ namespace VMSService.Core.Models.CbDepositRequest
         public decimal TotalFees { get; set; }
         public bool HasPenaltyViolations { get; set; }
         public string PenaltyDetails { get; set; } = string.Empty;
+
+        // Penalties (AppliedPenalty system, keyed on TransactionRefNumber)
+        public IList<AppliedPenaltyViewModel> AppliedPenalties { get; set; } = [];
+        public IList<PenaltyChecklistItemViewModel> ApplicablePenalties { get; set; } = [];
+
+        /// <summary>Sum of charges from the AppliedPenalty system only.</summary>
+        public decimal TotalAppliedPenalties => AppliedPenalties.Sum(a => a.ChargeValue);
+
+        /// <summary>
+        /// Single figure spanning both mechanisms: the FeeType-based deposit fees (processing +
+        /// minimum-deposit penalty) and the AppliedPenalty charges, which are tracked separately.
+        /// </summary>
+        public decimal TotalFeesAndPenalties => TotalFees + TotalAppliedPenalties;
 
         // Panelists
         public string PanelAName { get; set; } = string.Empty;

@@ -34,18 +34,23 @@ namespace VMSService.Core.Repositories.StockMovements
         public async Task<StockMovement> FindByIdAsync(int id)
         {
             return await _context.StockMovements
-                 .AsSplitQuery()  // Runs separate queries instead of one big JOIN
+                .AsSplitQuery()
                 .Include(m => m.Denominations)
                     .ThenInclude(d => d.BoxNumberRanges)
+                .Include(m => m.Denominations)
+                    .ThenInclude(d => d.DenominationBags)
                 .FirstOrDefaultAsync(m => m.Id == id);
         }
 
         public async Task<StockMovement> FindByIdForEditAsync(int id)
         {
             return await _context.StockMovements
-                 .AsSplitQuery()
+                .AsSplitQuery()
                 .Include(m => m.Denominations)
                     .ThenInclude(d => d.BoxNumberRanges)
+                .Include(m => m.Denominations)
+                    .ThenInclude(d => d.DenominationBags)
+                        .ThenInclude(db => db.Bag)
                 .FirstOrDefaultAsync(m => m.Id == id);
         }
 

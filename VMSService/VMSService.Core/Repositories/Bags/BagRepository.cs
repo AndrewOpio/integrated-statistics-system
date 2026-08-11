@@ -573,5 +573,26 @@ namespace VMSService.Core.Repositories.Bags
             await _db.SaveChangesAsync();
             return true;
         }
+
+        public async Task<List<Bag>> GetProcessedBagsByDenominationAndBranchAsync(int denominationId, int branchId, int? categoryId = null)
+        {
+            return await _db.Bags
+                .Where(b => b.DenominationId == denominationId
+                         //&& b.BranchId == branchId
+                         && b.VaultSection.Vault.BranchId == branchId
+                         && b.IsProcessed
+                         && !b.IsDeleted
+                         && (!categoryId.HasValue || b.CategoryId == categoryId))
+                .OrderBy(b => b.ReferenceNumber)
+                .ToListAsync();
+        }
+
+        public async Task<List<Bag>> GetBagsByIdsAsync(List<int> bagIds)
+        {
+            return await _db.Bags
+                .Where(b => bagIds.Contains(b.Id) && !b.IsDeleted)
+                .Select(b => new Bag { Id = b.Id, ReferenceNumber = b.ReferenceNumber })
+                .ToListAsync();
+        }
     }
 }

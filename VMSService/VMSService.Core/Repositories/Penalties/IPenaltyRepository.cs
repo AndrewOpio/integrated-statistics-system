@@ -10,6 +10,9 @@ namespace VMSService.Core.Repositories.Penalties
         /// <summary>Active penalties for a given AppliesTo category — e.g. the Pre-Transaction checklist for withdrawals.</summary>
         Task<ICollection<Penalty>> FindApplicableFor(string appliesTo);
 
+        /// <summary>Looks up a single active Penalty by its exact Name — used by automatic penalty triggers.</summary>
+        Task<Penalty?> FindByName(string name);
+
         /// <summary>
         /// Computes the charge for a penalty from its configured rate field plus the values entered
         /// for this occurrence. Pure and stateless — no DB access, no rounding; round when persisting.

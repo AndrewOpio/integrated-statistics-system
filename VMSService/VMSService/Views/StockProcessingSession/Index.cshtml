@@ -2,7 +2,8 @@
 @model List<StockProcessingSessionIndexItemViewModel>
 
 @{
-    ViewData["Title"] = "My Processing Sessions";
+    bool showClosed = ViewBag.ShowClosed ?? false;
+    ViewData["Title"] = showClosed ? "All Sessions" : "My Processing Sessions";
 }
 
 <style>
@@ -70,7 +71,7 @@
             <div class="d-flex align-items-center justify-content-between mb-4">
                 <div>
                     <p class="text-muted small mb-0">Board Supervisor</p>
-                    <h4 class="fw-bold mb-0 text-tertiary">My Processing Sessions</h4>
+                    <h4 class="fw-bold mb-0 text-tertiary">@(showClosed ? "All Sessions" : "My Processing Sessions")</h4>
                 </div>
                 <div class="d-flex align-items-center gap-2">
                     <span class="badge bg-light border text-secondary">
@@ -86,7 +87,9 @@
             </div>
             <div>
                 <h6 class="fw-bold mb-0 text-tertiary">Assigned Sessions</h6>
-                <span class="small text-muted">Sessions assigned to your counting room(s)</span>
+                <span class="small text-muted">
+                    @(showClosed ? "Closed sessions assigned to your counting room(s)" : "Sessions assigned to your counting room(s)")
+                </span>
             </div>
         </div>
     </div>

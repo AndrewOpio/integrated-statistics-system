@@ -15,5 +15,14 @@ namespace VMSService.Core.Static
             public const string Deposit = "DEPOSIT";
             public const string Processing = "PROCESSING";
         }
+
+        /// <summary>Exact Penalty.Name values for penalties applied automatically by the system rather
+        /// than manually checked in the Manage Penalties modal.</summary>
+        public static class AutomaticPenalties
+        {
+            public const string MissingPieces = "Discrepancies in deposits — missing pieces";
+            public const string DenominationMixUp = "Mix-up of denominations within bundles";
+            public const string FitUnfitMixUp = "Fit notes in unfit notes and vice versa";
+        }
     }
 }

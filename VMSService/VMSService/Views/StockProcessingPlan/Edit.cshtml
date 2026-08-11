@@ -1,4 +1,5 @@
 @using VMSService.Core.Models.StockProcessingPlans
+@using VMSService.Core.Models.MIandFits
 @model StockProcessingPlanEditViewModel
 
 @{
@@ -82,6 +83,7 @@
     @Html.AntiForgeryToken()
     <input type="hidden" id="assignmentsJson" name="assignmentsJson" value="[]" />
     <input type="hidden" id="roomSupervisorsJson" name="roomSupervisorsJson" value="[]" />
+    <input type="hidden" id="miAndFitsJson" name="miAndFitsJson" value="[]" />
 </form>
 
 @* Pre-assigned data for JS initialization *@
@@ -96,7 +98,7 @@
 ))
 </script>
 
-<div class="row g-4 align-items-start">
+<div class="row g-4 align-items-start mb-4">
 
     @* ── Left column: Counting Rooms ─────────────────────────── *@
     <div class="col-12 col-xl-8">
@@ -175,11 +177,24 @@
                                                     }
                                                 </div>
                                             </div>
-                                            <button type="button" class="btn btn-xs btn-outline-danger"
-                                                    style="padding:.15rem .4rem;font-size:.7rem;"
-                                                    onclick="clearBoard(@board.Id)" title="Clear board">
-                                                <i class="ti ti-x"></i>
-                                            </button>
+                                            <div class="d-flex gap-1">
+                                                @if (Model.CurrentStatusName == StatusConstants.StockProcessingPlan.Draft)
+                                                {
+                                                    <button type="button"
+                                                            class="btn btn-xs"
+                                                            style="padding:.15rem .5rem;font-size:.7rem;background:#eef0ff;color:#31316A;border:1px solid #c5c7e8;"
+                                                            data-board-name="@board.Name"
+                                                            onclick="openNewBagModal(@board.Id, this.dataset.boardName)"
+                                                            title="Add a new bag to this board">
+                                                        <i class="ti ti-plus me-1"></i>New Bag
+                                                    </button>
+                                                }
+                                                <button type="button" class="btn btn-xs btn-outline-danger"
+                                                        style="padding:.15rem .4rem;font-size:.7rem;"
+                                                        onclick="clearBoard(@board.Id)" title="Clear board">
+                                                    <i class="ti ti-x"></i>
+                                                </button>
+                                            </div>
                                         </div>
                                         <div class="p-3">
                                             <div class="board-zone" id="zone-@board.Id" data-board-id="@board.Id"
@@ -266,6 +281,7 @@
                                              data-bag-id="@bag.Id"
                                              data-bag-ref="@bag.ReferenceNumber"
                                              data-denomination-value="@bag.DenominationValue.ToString("F0")"
+                                             data-denomination-id="@bag.DenominationId"
                                              data-vault-id="@(bag.VaultId?.ToString() ?? "0")"
                                              data-vault-name="@(bag.VaultName ?? "")"
                                              data-vault-section-id="@(bag.VaultSectionId?.ToString() ?? "0")"
@@ -316,10 +332,99 @@
 
 </div>
 
+@await Html.PartialAsync("_MIandFitCard", new MIandFitCardViewModel { MIandFits = Model.MIandFits, BoardSupervisors = Model.BoardSupervisors })
+
+@if (Model.CurrentStatusName == StatusConstants.StockProcessingPlan.Draft)
+{
+    @* ── Add New Bag Modal ──────────────────────────────────────────── *@
+    <div class="modal fade" id="newBagModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" style="max-width:480px;">
+            <div class="modal-content border-0 shadow-lg" style="border-radius:.65rem;overflow:hidden;">
+                <div class="modal-header py-3 px-4" style="background:#31316A;">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="rounded d-flex align-items-center justify-content-center flex-shrink-0"
+                             style="width:30px;height:30px;background:rgba(255,255,255,.12);">
+                            <i class="ti ti-package" style="color:#fff;font-size:.9rem;"></i>
+                        </div>
+                        <div>
+                            <h6 class="modal-title text-white fw-bold mb-0" style="font-size:.88rem;line-height:1.2;">Add New Bag</h6>
+                            <p class="text-white mb-0" style="font-size:.68rem;opacity:.7;line-height:1.2;" id="newBagBoardLabel"></p>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body px-4 pt-3 pb-2">
+                    <input type="hidden" id="newBagTargetBoardId" />
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold mb-1" style="color:#31316A;">
+                                <i class="ti ti-building me-1"></i>Commercial Bank <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select form-select-sm" id="newBagBank">
+                                <option value="">— Select Commercial Bank —</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label small fw-semibold mb-1" style="color:#31316A;">
+                                <i class="ti ti-calendar me-1"></i>Deposit Date <span class="text-danger">*</span>
+                            </label>
+                            <input type="date" class="form-control form-control-sm" id="newBagDepositDate" />
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label small fw-semibold mb-1" style="color:#31316A;">
+                                <i class="ti ti-building-bank me-1"></i>Source Deposit Branch <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select form-select-sm" id="newBagBranch">
+                                <option value="">— Select Branch —</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label small fw-semibold mb-1" style="color:#31316A;">
+                                <i class="ti ti-coin me-1"></i>Denomination <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select form-select-sm" id="newBagDenom">
+                                <option value="" data-denom-value="0">— Select Denomination —</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label small fw-semibold mb-1" style="color:#31316A;">
+                                <i class="ti ti-cash me-1"></i>Value (UGX) <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text px-2"
+                                      style="font-size:.75rem;background:#f8fafc;border-color:#dee2e6;">UGX</span>
+                                <input type="text" class="form-control" id="newBagValue"
+                                       placeholder="0" inputmode="decimal"
+                                       oninput="newBagFormatValue(this)" />
+                            </div>
+                        </div>
+                    </div>
+                    <div id="newBagError" class="alert alert-danger mt-3 mb-0 py-2 px-3 d-none"
+                         style="font-size:.78rem;"></div>
+                </div>
+                <div class="modal-footer px-4 py-2" style="background:#f8fafc;border-top:1px solid #e9ecef;">
+                    <span class="text-muted me-auto" style="font-size:.68rem;">
+                        <span class="text-danger">*</span> Required fields
+                    </span>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">
+                        Cancel
+                    </button>
+                    <button type="button" class="btn btn-sm btn-primary" id="newBagSubmitBtn"
+                            onclick="submitNewBag()">
+                        <i class="ti ti-device-floppy me-1"></i>Save Bag
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @section Scripts {
 <script>
     let selectedBag = null;
     const assignments = {};
+    const currentStatusName = '@Model.CurrentStatusName';
+    const pendingVerificationStatus = '@StatusConstants.StockProcessingPlan.PendingVerification';
 
     // ── Filters ───────────────────────────────────────────────────
 
@@ -511,6 +616,7 @@
     function updateCount() {
         const visible = document.querySelectorAll('#bagPool .bag-card:not(.hidden-assigned):not(.hidden-filter)').length;
         document.getElementById('availableCount').textContent = visible;
+        if (typeof refreshMIandFitVisibility === 'function') refreshMIandFitVisibility();
     }
 
     // ── Pre-populate existing assignments ─────────────────────────
@@ -556,7 +662,19 @@
 
     // ── Submit ────────────────────────────────────────────────────
 
+    function getUnassignedBagCount() {
+        return document.querySelectorAll('#bagPool .bag-card:not(.hidden-assigned)').length;
+    }
+
     function submitPlan() {
+        if (currentStatusName === pendingVerificationStatus) {
+            const unassignedCount = getUnassignedBagCount();
+            if (unassignedCount > 0) {
+                alert(`All bags must be assigned to a processing board before saving. ${unassignedCount} bag${unassignedCount === 1 ? '' : 's'} still unassigned.`);
+                return;
+            }
+        }
+
         const result = Object.entries(assignments)
             .filter(([, bags]) => bags.length > 0)
             .map(([boardId, bags]) => ({ processingBoardId: +boardId, bagIds: bags.map(b => b.id) }));
@@ -570,9 +688,200 @@
         });
         document.getElementById('roomSupervisorsJson').value = JSON.stringify(supervisors);
 
+        const miAndFits = collectMIandFits();
+        if (miAndFits.errors.length > 0) {
+            alert('Please assign a Board Supervisor for: ' + miAndFits.errors.join(', '));
+            return;
+        }
+        document.getElementById('miAndFitsJson').value = JSON.stringify(miAndFits.entries);
+
         document.getElementById('planForm').submit();
     }
 
-    document.addEventListener('DOMContentLoaded', () => { populateFilters(); initPreAssigned(); });
+    // ── New Bag Modal ─────────────────────────────────────────────
+    @{
+        var _modalBanks = Model.AvailableBags
+            .SelectMany(b => b.CommercialBankNames)
+            .Distinct()
+            .OrderBy(n => n)
+            .ToList();
+
+        var _modalDenoms = Model.AvailableBags
+            .Where(b => b.DenominationValue > 0)
+            .GroupBy(b => b.DenominationId)
+            .Select(g => new {
+                id    = g.Key,
+                name  = g.First().DenominationName ?? $"UGX {g.First().DenominationValue:N0}",
+                value = g.First().DenominationValue
+            })
+            .OrderBy(d => d.value)
+            .ToList();
+    }
+
+    const NEW_BAG_BANKS  = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(_modalBanks));
+    const NEW_BAG_DENOMS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(_modalDenoms));
+
+    function openNewBagModal(boardId, boardName) {
+        document.getElementById('newBagTargetBoardId').value = boardId;
+        document.getElementById('newBagBoardLabel').textContent = boardName;
+
+        // Reset fields
+        ['newBagBank','newBagBranch','newBagDenom'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('newBagDepositDate').value = '';
+        document.getElementById('newBagValue').value = '';
+        document.getElementById('newBagError').classList.add('d-none');
+
+        // Populate Commercial Bank
+        const bankSel = document.getElementById('newBagBank');
+        bankSel.innerHTML = '<option value="">— Select Commercial Bank —</option>';
+        NEW_BAG_BANKS.forEach(name => bankSel.add(new Option(name, name)));
+
+        // Populate Denomination
+        const denomSel = document.getElementById('newBagDenom');
+        denomSel.innerHTML = '<option value="" data-denom-value="0">— Select Denomination —</option>';
+        NEW_BAG_DENOMS.forEach(d => {
+            const opt = new Option(d.name, d.id);
+            opt.dataset.denomValue = d.value;
+            denomSel.add(opt);
+        });
+
+        // Populate Source Deposit Branch via API
+        const branchSel = document.getElementById('newBagBranch');
+        branchSel.innerHTML = '<option value="">Loading…</option>';
+        branchSel.disabled = true;
+        fetch('/StockProcessingPlan/GetBranchesJson')
+            .then(r => r.ok ? r.json() : [])
+            .then(list => {
+                branchSel.innerHTML = '<option value="">— Select Branch —</option>';
+                (list || []).forEach(b => branchSel.add(new Option(b.name, b.id)));
+            })
+            .catch(() => {
+                branchSel.innerHTML = '<option value="">— Select Branch —</option>';
+            })
+            .finally(() => { branchSel.disabled = false; });
+
+        new bootstrap.Modal(document.getElementById('newBagModal')).show();
+    }
+
+    function newBagFormatValue(input) {
+        const caret = input.selectionStart;
+        const before = (input.value.slice(0, caret).match(/,/g) || []).length;
+        const raw = input.value.replace(/[^0-9.]/g, '');
+        const parts = raw.split('.');
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        input.value = parts.length > 1 ? parts[0] + '.' + parts[1] : parts[0];
+        const after = (input.value.slice(0, caret).match(/,/g) || []).length;
+        input.setSelectionRange(caret + after - before, caret + after - before);
+    }
+
+    function submitNewBag() {
+        const bankVal   = document.getElementById('newBagBank').value.trim();
+        const dateVal   = document.getElementById('newBagDepositDate').value.trim();
+        const branchVal = document.getElementById('newBagBranch').value.trim();
+        const denomSel  = document.getElementById('newBagDenom');
+        const denomId   = denomSel.value;
+        const denomOpt  = denomSel.options[denomSel.selectedIndex];
+        const denomName = denomOpt?.text ?? '';
+        const denomVal  = parseFloat(denomOpt?.dataset?.denomValue ?? '0');
+        const rawVal    = document.getElementById('newBagValue').value.replace(/,/g, '');
+        const numVal    = parseFloat(rawVal);
+
+        const errEl  = document.getElementById('newBagError');
+        const errors = [];
+        if (!bankVal)                          errors.push('Commercial Bank is required.');
+        if (!dateVal)                          errors.push('Deposit Date is required.');
+        if (!branchVal)                        errors.push('Source Deposit Branch is required.');
+        if (!denomId)                          errors.push('Denomination is required.');
+        if (!rawVal || isNaN(numVal) || numVal <= 0) {
+            errors.push('A valid Value is required.');
+        } else if (denomId && denomVal > 0) {
+            const maxBagValue = denomVal * 1000 * 50;
+            if (numVal % denomVal !== 0) {
+                errors.push(`Value must be an exact multiple of the denomination value (UGX ${denomVal.toLocaleString()}).`);
+            }
+            if (numVal > maxBagValue) {
+                errors.push(`Value cannot exceed UGX ${maxBagValue.toLocaleString()} (a full bag of 50 bundles/boxes for this denomination).`);
+            }
+        }
+
+        if (errors.length) {
+            errEl.innerHTML = errors.map(e => `<span>${e}</span>`).join('<br>');
+            errEl.classList.remove('d-none');
+            return;
+        }
+        errEl.classList.add('d-none');
+
+        const boardId   = +document.getElementById('newBagTargetBoardId').value;
+        const submitBtn = document.getElementById('newBagSubmitBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>Saving…';
+
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+
+        fetch('/StockProcessingPlan/CreateBag', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
+            body: JSON.stringify({
+                commercialBankName:    bankVal,
+                depositDate:           dateVal,
+                sourceDepositBranchId: +branchVal,
+                denominationId:        +denomId,
+                value:                 numVal,
+                branchId:              @Model.BranchId
+            })
+        })
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(data => {
+            _addNewBagToPool(data.id, data.referenceNumber, bankVal, denomName, denomVal, boardId, +denomId);
+            bootstrap.Modal.getInstance(document.getElementById('newBagModal'))?.hide();
+        })
+        .catch(() => {
+            errEl.textContent = 'Failed to save the bag. Please try again.';
+            errEl.classList.remove('d-none');
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="ti ti-device-floppy me-1"></i>Save Bag';
+        });
+    }
+
+    function _addNewBagToPool(bagId, refNum, bankName, denomName, denomValue, boardId, denomId) {
+        const col  = document.createElement('div');
+        col.className = 'col-md-6 p-1';
+
+        const card = document.createElement('div');
+        card.className = 'bag-card';
+        card.dataset.bagId            = bagId;
+        card.dataset.bagRef           = refNum;
+        card.dataset.denominationValue = denomValue;
+        card.dataset.denominationId   = denomId;
+        card.dataset.vaultId          = '0';
+        card.dataset.vaultName        = '';
+        card.dataset.vaultSectionId   = '0';
+        card.dataset.vaultSectionName = '';
+        card.dataset.bankNames        = bankName;
+        card.innerHTML =
+            `<span class="bag-ref"><i class="ti ti-package" style="font-size:.7rem;"></i> ${refNum}</span>` +
+            `<span class="bag-denom">UGX ${parseFloat(denomValue).toLocaleString()} &middot; ${denomName}</span>` +
+            `<span class="bag-meta">${bankName}</span>` +
+            `<span class="bag-meta" style="font-size:.62rem;color:#31316A;font-weight:600;">` +
+                `<i class="ti ti-sparkles" style="font-size:.6rem;"></i> Newly added</span>`;
+        card.addEventListener('click', () => toggleSelectBag(card));
+        col.appendChild(card);
+        document.getElementById('bagPool').appendChild(col);
+
+        // Auto-select and assign to the originating board
+        selectedBag = { id: bagId, ref: refNum, el: card };
+        card.classList.add('selected');
+        const zone = document.getElementById('zone-' + boardId);
+        if (zone) handleZoneClick(zone);
+        updateCount();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        populateFilters();
+        initPreAssigned();
+        if (typeof refreshMIandFitVisibility === 'function') refreshMIandFitVisibility();
+    });
 </script>
 }

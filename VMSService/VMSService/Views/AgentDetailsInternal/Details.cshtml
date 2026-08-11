@@ -15,7 +15,7 @@
                         <div class="d-flex align-items-center gap-3 mb-3 mt-2">
                             @if (!string.IsNullOrEmpty(Model.PassportPhoto))
                             {
-                                <img src="@Model.PassportPhoto" alt="Passport Photo" class="rounded-circle" style="width: 80px; height: 80px; object-fit: cover;">
+                                <img src="@FileUrlHelper.ToWebPath(Model.PassportPhoto)" alt="Passport Photo" class="rounded-circle" style="width: 80px; height: 80px; object-fit: cover;">
                             }
                             else
                             {
@@ -80,8 +80,8 @@
                         {
                             <div class="field mb-4">
                                 <span class="d-block text-muted small mb-2 text-uppercase">Work ID Scan</span>
-                                <a href="@Model.WorkIdScan" target="_blank" title="Click to view full size">
-                                    <img src="@Model.WorkIdScan" alt="Work ID Scan"
+                                <a href="@FileUrlHelper.ToWebPath(Model.WorkIdScan)" target="_blank" title="Click to view full size">
+                                    <img src="@FileUrlHelper.ToWebPath(Model.WorkIdScan)" alt="Work ID Scan"
                                          class="rounded-2 border img-scan" style="cursor: pointer;" />
                                 </a>
                             </div>
@@ -98,7 +98,7 @@
                                         <span class="d-block fw-semibold small">MD Approval Document</span>
                                         <span class="d-block text-muted" style="font-size: 11px;">Uploaded attachment</span>
                                     </div>
-                                    <a href="@Model.ApprovalAttachment" target="_blank" class="btn btn-sm qc-history" title="View Document">
+                                    <a href="@FileUrlHelper.ToWebPath(Model.ApprovalAttachment)" target="_blank" class="btn btn-sm qc-history" title="View Document">
                                         <i class="ti ti-external-link me-1"></i>View
                                     </a>
                                 </div>
@@ -118,8 +118,8 @@
                         {
                             <div class="field mb-4">
                                 <span class="d-block text-muted small mb-2 text-uppercase">Signature Scan</span>
-                                <a href="@Model.SignatureScan" target="_blank" title="Click to view full size">
-                                    <img src="@Model.SignatureScan" alt="Signature Scan"
+                                <a href="@FileUrlHelper.ToWebPath(Model.SignatureScan)" target="_blank" title="Click to view full size">
+                                    <img src="@FileUrlHelper.ToWebPath(Model.SignatureScan)" alt="Signature Scan"
                                          class="rounded-2 border img-scan" style="cursor: pointer;" />
                                 </a>
                             </div>
@@ -266,7 +266,7 @@
                         <div class="d-flex align-items-center gap-3">
                             @if (!string.IsNullOrEmpty(Model.PassportPhoto))
                             {
-                                <img src="@Model.PassportPhoto" alt="Photo" class="rounded-circle" style="width: 44px; height: 44px; object-fit: cover;">
+                                <img src="@FileUrlHelper.ToWebPath(Model.PassportPhoto)" alt="Photo" class="rounded-circle" style="width: 44px; height: 44px; object-fit: cover;">
                             }
                             else
                             {
@@ -322,7 +322,7 @@
                         <div class="d-flex align-items-center gap-3">
                             @if (!string.IsNullOrEmpty(Model.PassportPhoto))
                             {
-                                <img src="@Model.PassportPhoto" alt="Photo" class="rounded-circle" style="width: 44px; height: 44px; object-fit: cover;">
+                                <img src="@FileUrlHelper.ToWebPath(Model.PassportPhoto)" alt="Photo" class="rounded-circle" style="width: 44px; height: 44px; object-fit: cover;">
                             }
                             else
                             {
