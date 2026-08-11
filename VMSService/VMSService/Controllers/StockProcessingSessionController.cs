@@ -20,6 +20,7 @@ using VMSService.Core.Repositories.Penalties;
 using VMSService.Core.Repositories.StockProcessingResults;
 using VMSService.Core.Repositories.StockProcessingSessions;
 using VMSService.Core.Repositories.StockProcessingSessionStatusHistories;
+using VMSService.Core.Services.BpsXmlImports;
 using VMSService.Core.Services.Identity;
 using VMSService.Core.Services.Stocks;
 using VMSService.Core.Services.Workflows;
@@ -42,6 +43,7 @@ namespace VMSService.Web.Controllers
         INoteExaminerRepository _noteExaminerRepository,
         IPenaltyRepository _penaltyRepository,
         IAppliedPenaltyRepository _appliedPenaltyRepository,
+        IBpsXmlImportService _bpsXmlImportService,
         IConfigurationsServiceClient _configServiceClient,
         IStockService _stockService,
         IIdentityService _identityService,
@@ -823,10 +825,21 @@ namespace VMSService.Web.Controllers
                 var denomDictForResult = allDenominationsForResult.ToDictionary(d => d.Id);
                 var denominationValue = denomDictForResult.GetValueOrDefault(session.DenominationId)?.Value ?? 0m;
 
+                // Machine files, when picked, are re-read here and override whatever the browser
+                // posted for the machine fields; with none picked the keyed-in figures stand.
+                var xmlSelection = await ResolveXmlSelectionAsync(
+                    session, model.SelectedXmlFiles, denominationValue, currentResultId: null);
+
+                if (!xmlSelection.IsValid)
+                {
+                    TempData["ResultErrors"] = System.Text.Json.JsonSerializer.Serialize(xmlSelection.Errors);
+                    return RedirectToAction(nameof(Details), new { id = model.SessionId });
+                }
+
                 // Machine-only fields — never captured for a manual board.
-                var fitShredValue = session.IsManual ? 0m : model.FitShredValue;
-                var fitValue = session.IsManual ? 0m : model.FitValue;
-                var unFitShredValue = session.IsManual ? 0m : model.UnFitShredValue;
+                var fitShredValue = session.IsManual ? 0m : (xmlSelection.HasFiles ? xmlSelection.FitShredValue : model.FitShredValue);
+                var fitValue = session.IsManual ? 0m : (xmlSelection.HasFiles ? xmlSelection.FitValue : model.FitValue);
+                var unFitShredValue = session.IsManual ? 0m : (xmlSelection.HasFiles ? xmlSelection.UnFitShredValue : model.UnFitShredValue);
                 decimal processedTotal = model.CanceledValue + model.ReissueValue + fitShredValue;
                 decimal unProcessedValue = session.TotalIssuedValue - processedTotal;
                 // Count is the machine's piece count: the fit/unfit-shred/fit-shred values over face value.
@@ -855,6 +868,9 @@ namespace VMSService.Web.Controllers
                 };
 
                 await _resultRepository.Create(result);
+
+                if (xmlSelection.HasFiles)
+                    await PersistXmlImportsAsync(model.SessionId, result.Id, xmlSelection);
 
                 // Stage denom entries
                 var validDenomEntries = model.DifferentDenomEntries
@@ -955,10 +971,21 @@ namespace VMSService.Web.Controllers
                 var denomDictForEdit = allDenominationsForEdit.ToDictionary(d => d.Id);
                 var denominationValue = denomDictForEdit.GetValueOrDefault(session.DenominationId)?.Value ?? 0m;
 
+                // The result's own files stay selectable while it is being edited; anything dropped
+                // from the selection is released back to the picker by PersistXmlImportsAsync below.
+                var xmlSelection = await ResolveXmlSelectionAsync(
+                    session, model.SelectedXmlFiles, denominationValue, currentResultId: result.Id);
+
+                if (!xmlSelection.IsValid)
+                {
+                    TempData["ResultErrors"] = System.Text.Json.JsonSerializer.Serialize(xmlSelection.Errors);
+                    return RedirectToAction(nameof(Details), new { id = model.SessionId });
+                }
+
                 // Machine-only fields — never captured for a manual board.
-                var fitShredValue = session.IsManual ? 0m : model.FitShredValue;
-                var fitValue = session.IsManual ? 0m : model.FitValue;
-                var unFitShredValue = session.IsManual ? 0m : model.UnFitShredValue;
+                var fitShredValue = session.IsManual ? 0m : (xmlSelection.HasFiles ? xmlSelection.FitShredValue : model.FitShredValue);
+                var fitValue = session.IsManual ? 0m : (xmlSelection.HasFiles ? xmlSelection.FitValue : model.FitValue);
+                var unFitShredValue = session.IsManual ? 0m : (xmlSelection.HasFiles ? xmlSelection.UnFitShredValue : model.UnFitShredValue);
                 decimal processedTotal = model.CanceledValue + model.ReissueValue + fitShredValue;
                 decimal unProcessedValue = session.TotalIssuedValue - processedTotal;
                 // Count is the machine's piece count: the fit/unfit-shred/fit-shred values over face value.
@@ -983,6 +1010,9 @@ namespace VMSService.Web.Controllers
                 result.ReissueValue = model.ReissueValue;
 
                 await _resultRepository.Update(result);
+
+                if (!session.IsManual)
+                    await PersistXmlImportsAsync(model.SessionId, result.Id, xmlSelection);
 
                 // Replace denom entries
                 var existingDenoms = await _context.BoardSessionDifferentDenoms
@@ -1312,6 +1342,160 @@ namespace VMSService.Web.Controllers
             }
 
             return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // ── BPS machine XML result imports ────────────────────────────────────
+        // Machine result files are offered for a session only when they came off that session's own
+        // machine, hold that session's denomination, and no other result has taken them yet.
+
+        /// <summary>
+        /// Backs the "Import from machine" picker. <paramref name="resultId"/> is supplied when
+        /// editing so the result's own files come back pre-ticked rather than looking unavailable.
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> AvailableMachineFiles(int sessionId, int? resultId, CancellationToken ct)
+        {
+            var session = await _sessionRepository.FindById(sessionId);
+            if (session == null) return NotFound();
+
+            if (!await IsSessionBoardSupervisorAsync(session))
+                return Forbid();
+
+            var serial = session.ProcessingBoard?.BPSMachine?.Name;
+            if (session.IsManual || string.IsNullOrWhiteSpace(serial))
+                return Json(new { machineName = serial, files = Array.Empty<object>() });
+
+            try
+            {
+                var denomination = await _stockService.GetDenominationById(session.DenominationId);
+                var denominationValue = denomination?.Value ?? 0m;
+
+                var files = await _bpsXmlImportService.GetSelectableFilesAsync(serial, denominationValue, resultId, ct);
+
+                return Json(new
+                {
+                    machineName = serial,
+                    denominationValue,
+                    denominationName = denomination?.Name,
+                    files = files.Select(f => new
+                    {
+                        fileName = f.FileName,
+                        displayName = f.DisplayName,
+                        generatedAt = f.GeneratedAt,
+                        fitValue = f.FitValue,
+                        unFitShredValue = f.UnFitShredValue,
+                        fitShredValue = f.FitShredValue,
+                        fitPieces = f.FitPieces,
+                        unFitShredPieces = f.UnFitShredPieces,
+                        fitShredPieces = f.FitShredPieces,
+                        rejectPieces = f.RejectPieces,
+                        totalPieces = f.TotalPieces,
+                        totalValue = f.TotalValue,
+                        isAlreadyLinked = f.IsAlreadyLinked,
+                        isMissingOnDisk = f.IsMissingOnDisk
+                    })
+                });
+            }
+            catch (Exception ex)
+            {
+                // The picker shows this text, so keep it actionable — a bare 500 left the operator
+                // with a message that wrongly blamed the drop folder for any kind of fault.
+                _logger.LogError(ex, "Error listing BPS machine result files for session {SessionId}", sessionId);
+                Response.StatusCode = StatusCodes.Status500InternalServerError;
+                return Json(new { error = "The machine result files could not be read. " + ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// The same check that gates the result forms in the view — only the board supervisor
+        /// assigned to this session's counting room may see or import its machine files.
+        /// </summary>
+        private async Task<bool> IsSessionBoardSupervisorAsync(StockProcessingSession session)
+        {
+            var username = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value;
+            if (string.IsNullOrEmpty(username) || session.ProcessingBoard == null) return false;
+
+            return await _context.CountingRoomSessions.AnyAsync(crs =>
+                crs.StockProcessingPlanId == session.StockProcessingPlanId
+                && crs.CountingRoomId == session.ProcessingBoard.CountingRoomId
+                && crs.BoardSupervisorUserId == username
+                && !crs.IsDeleted);
+        }
+
+        /// <summary>
+        /// Re-parses the picked files server-side. Returns an empty selection for manual sessions or
+        /// when nothing was picked, in which case the operator's keyed-in figures stand.
+        /// </summary>
+        private async Task<BpsXmlImportSelection> ResolveXmlSelectionAsync(
+            StockProcessingSession session, List<string>? selectedFiles, decimal denominationValue, int? currentResultId)
+        {
+            if (session.IsManual || selectedFiles == null || selectedFiles.Count == 0)
+                return new BpsXmlImportSelection();
+
+            var serial = session.ProcessingBoard?.BPSMachine?.Name;
+            if (string.IsNullOrWhiteSpace(serial))
+            {
+                return new BpsXmlImportSelection
+                {
+                    Errors = { "This session's board has no BPS machine assigned, so machine results cannot be imported." }
+                };
+            }
+
+            return await _bpsXmlImportService.ResolveSelectionAsync(
+                selectedFiles, serial, denominationValue, currentResultId);
+        }
+
+        /// <summary>
+        /// Stores the imported figures against the result. Files dropped from an edited selection are
+        /// soft-deleted, which is what releases them back into the picker for other results.
+        /// </summary>
+        private async Task PersistXmlImportsAsync(int sessionId, int resultId, BpsXmlImportSelection selection)
+        {
+            var existing = await _context.BpsXmlImports
+                .Where(x => x.StockProcessingResultId == resultId)
+                .ToListAsync();
+
+            var keep = selection.Files.Select(f => f.FileName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var row in existing.Where(r => !r.IsDeleted && !keep.Contains(r.FileName)))
+                row.IsDeleted = true;
+
+            var existingByName = existing
+                .GroupBy(r => r.FileName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            foreach (var file in selection.Files)
+            {
+                if (existingByName.TryGetValue(file.FileName, out var row))
+                {
+                    row.IsDeleted = false;
+                }
+                else
+                {
+                    row = new BpsXmlImport
+                    {
+                        FileName = file.FileName,
+                        StockProcessingSessionId = sessionId,
+                        StockProcessingResultId = resultId
+                    };
+                    _context.BpsXmlImports.Add(row);
+                }
+
+                // Refreshed on every save so a re-read of the file cannot leave stale figures behind.
+                row.MachineSerialNumber = file.MachineSerialNumber;
+                row.SiteCode = file.SiteCode;
+                row.FileGeneratedAt = file.GeneratedAt;
+                row.DenominationValue = file.DenominationValue;
+                row.FitPieces = file.FitPieces;
+                row.UnFitShredPieces = file.UnFitShredPieces;
+                row.FitShredPieces = file.FitShredPieces;
+                row.RejectPieces = file.RejectPieces;
+                row.FitValue = file.FitValue;
+                row.UnFitShredValue = file.UnFitShredValue;
+                row.FitShredValue = file.FitShredValue;
+            }
+
+            await _context.SaveChangesAsync();
         }
 
         private List<int> GetUserRoleIds()

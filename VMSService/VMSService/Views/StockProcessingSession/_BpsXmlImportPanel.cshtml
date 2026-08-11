@@ -1,0 +1,41 @@
+@*
+    Machine-result import panel, rendered once inside the Save form and once inside the Edit modal.
+    The model is the scope key ("save" / "edit") which keeps the two instances' element ids distinct.
+
+    Importing is entirely optional: with nothing selected the Fit / UnFit Shred / Fit-Shred inputs
+    stay editable exactly as before. Selecting files locks them to the imported figures, and the
+    server re-reads the files on submit rather than trusting anything posted from here.
+*@
+@model string
+@{
+    var scope = string.IsNullOrEmpty(Model) ? "save" : Model;
+}
+
+<div class="border rounded-3 p-3" style="background:#f8f9fb;" data-role="xml-panel" data-scope="@scope">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div>
+            <p class="small fw-semibold mb-0" style="color:#31316A;">
+                <i class="ti ti-file-import me-1"></i>Import Machine Results
+                <span class="text-muted fw-normal small ms-1">(optional)</span>
+            </p>
+            <p class="text-muted mb-0" style="font-size:.72rem;">
+                Pick the BPS result files for this machine and denomination, or key the values in by hand below.
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-outline-primary" data-role="xml-open" data-scope="@scope">
+                <i class="ti ti-file-search me-1"></i>Browse Files
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary d-none" data-role="xml-clear" data-scope="@scope">
+                <i class="ti ti-eraser me-1"></i>Clear
+            </button>
+        </div>
+    </div>
+
+    @* Selected file chips + the SelectedXmlFiles hidden inputs the form posts *@
+    <div class="mt-2 d-none" data-role="xml-summary">
+        <div class="d-flex flex-wrap gap-2" data-role="xml-chips"></div>
+        <div class="small text-muted mt-2" data-role="xml-totals"></div>
+    </div>
+    <div data-role="xml-inputs"></div>
+</div>

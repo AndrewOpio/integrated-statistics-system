@@ -366,6 +366,13 @@ builder.Services.AddScoped<IBagMovementRepository, BagMovementRepository>();
 builder.Services.AddScoped<IBagMovementStatusHistoryRepository, BagMovementStatusHistoryRepository>();
 builder.Services.AddScoped<IMIandFitRepository, MIandFitRepository>();
 builder.Services.AddScoped<IStockProcessingResultRepository, StockProcessingResultRepository>();
+
+// BPS machine XML result imports — the drop folder is environment-specific, so it comes from config.
+builder.Services.AddScoped<VMSService.Core.Services.BpsXmlImports.IBpsXmlImportService>(sp =>
+    new VMSService.Core.Services.BpsXmlImports.BpsXmlImportService(
+        sp.GetRequiredService<VMSService.Data.Configurations.VMSServiceDbContext>(),
+        builder.Configuration["BpsXmlImport:FolderPath"] ?? @"E:\CASFiles\BPS_XML_FILES",
+        sp.GetRequiredService<ILogger<VMSService.Core.Services.BpsXmlImports.BpsXmlImportService>>()));
 builder.Services.AddScoped<IMinDepositStandardRepository, MinDepositStandardRepository>();
 builder.Services.AddScoped<IDepositProcessingFeeRepository, DepositProcessingFeeRepository>();
 builder.Services.AddScoped<IDepositFeeRepository, DepositFeeRepository>();

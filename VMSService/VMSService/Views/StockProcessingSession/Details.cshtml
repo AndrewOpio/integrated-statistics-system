@@ -489,6 +489,12 @@
                                 }
                             </p>
 
+                            @* Import machine results straight off the BPS drop folder — optional; the
+                               three value fields below stay keyable when nothing is imported. *@
+                            <div class="col-12">
+                                @await Html.PartialAsync("_BpsXmlImportPanel", "save")
+                            </div>
+
                             @* Machine-only fields, four across one line *@
                             <div class="col-12 col-md-3">
                                 <label class="form-label fw-semibold small text-muted">
@@ -609,7 +615,7 @@
                                 }
                             </p>
                         </div>
-                        <div class="col-12 col-md-@(Model.IsManual ? "4" : "4")">
+                        <div class="col-12 col-md-4">
                             <label class="form-label fw-semibold small" style="color:#31316A;">Reissue Value</label>
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text bg-light" style="font-size:.72rem;font-weight:600;">UGX</span>
@@ -623,51 +629,6 @@
                                 <input type="text" inputmode="numeric" class="form-control num-input-modal calc-source" data-role="canceled" id="editCanceled" name="CanceledValue" placeholder="0" autocomplete="off" />
                             </div>
                         </div>
-                        @if (!Model.IsManual)
-                        {
-                            @* Machine-only fields, four across one line *@
-                            <div class="col-12">
-                                <div class="row g-3">
-                                    <div class="col-12 col-md-3">
-                                        <label class="form-label fw-semibold small" style="color:#31316A;">Fit Value</label>
-                                        <div class="input-group input-group-sm">
-                                            <span class="input-group-text" style="background:#e3f2fd;font-size:.72rem;font-weight:600;color:#1565c0;">UGX</span>
-                                            <input type="text" inputmode="numeric" class="form-control num-input-modal calc-source" data-role="fit" id="editFit" name="FitValue" placeholder="0" autocomplete="off" />
-                                        </div>
-                                    </div>
-                                    <div class="col-12 col-md-3">
-                                        <label class="form-label fw-semibold small" style="color:#31316A;">UnFit Shred Value</label>
-                                        <div class="input-group input-group-sm">
-                                            <span class="input-group-text" style="background:#e3f2fd;font-size:.72rem;font-weight:600;color:#1565c0;">UGX</span>
-                                            <input type="text" inputmode="numeric" class="form-control num-input-modal calc-source" data-role="unfitshred" id="editUnFitShred" name="UnFitShredValue" placeholder="0" autocomplete="off" />
-                                        </div>
-                                    </div>
-                                    <div class="col-12 col-md-3">
-                                        <label class="form-label fw-semibold small" style="color:#31316A;">Fit / Shred Value</label>
-                                        <div class="input-group input-group-sm">
-                                            <span class="input-group-text" style="background:#e3f2fd;font-size:.72rem;font-weight:600;color:#1565c0;">UGX</span>
-                                            <input type="text" inputmode="numeric" class="form-control num-input-modal calc-source" data-role="fitshred" id="editFitShred" name="FitShredValue" placeholder="0" autocomplete="off" />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        }
-
-                        <div class="col-12">
-                            <hr class="my-1" />
-                        </div>
-
-                        <div class="col-12 col-md-4">
-                            <label class="form-label fw-semibold small text-muted">
-                                Count
-                                <span class="badge bg-secondary-subtle text-secondary border ms-1" style="font-size:.6rem;">Auto-calculated</span>
-                            </label>
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text bg-light"><i class="ti ti-hash"></i></span>
-                                <input type="text" class="form-control bg-light" data-role="calc-count" readonly value="0" tabindex="-1" />
-                            </div>
-                        </div>
-
                         <div class="col-12 col-md-4">
                             <label class="form-label fw-semibold small text-muted">
                                 Unprocessed Value
@@ -681,6 +642,63 @@
                                 <i class="ti ti-alert-triangle me-1"></i>Cannot exceed Total Issued Value — Unprocessed Value cannot be less than 0.
                             </div>
                         </div>
+
+                        @if (!Model.IsManual)
+                        {
+                            <div class="col-12">
+                                <hr class="my-1" />
+                            </div>
+
+                            <p class="small fw-semibold mb-0" style="color:#31316A;">
+                                <i class="ti ti-cpu me-1"></i>Machine Processing Fields
+                                @if (!string.IsNullOrEmpty(Model.MachineName))
+                                {
+                                    <span class="text-muted fw-normal">— @Model.MachineName</span>
+                                }
+                            </p>
+
+                            @* Import machine results straight off the BPS drop folder — optional; the
+                               three value fields below stay keyable when nothing is imported. *@
+                            <div class="col-12">
+                                @await Html.PartialAsync("_BpsXmlImportPanel", "edit")
+                            </div>
+
+                            @* Machine-only fields, four across one line *@
+                            <div class="col-12 col-md-3">
+                                <label class="form-label fw-semibold small text-muted">
+                                    Count
+                                    <span class="badge bg-secondary-subtle text-secondary border ms-1" style="font-size:.6rem;">Auto-calculated</span>
+                                </label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-light"><i class="ti ti-hash"></i></span>
+                                    <input type="text" class="form-control bg-light" data-role="calc-count" readonly value="0" tabindex="-1" />
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <label class="form-label fw-semibold small" style="color:#31316A;">Fit Value</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text" style="background:#e3f2fd;font-size:.72rem;font-weight:600;color:#1565c0;">UGX</span>
+                                    <input type="text" inputmode="numeric" class="form-control num-input-modal calc-source" data-role="fit" id="editFit" name="FitValue" placeholder="0" autocomplete="off" />
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <label class="form-label fw-semibold small" style="color:#31316A;">UnFit Shred Value</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text" style="background:#e3f2fd;font-size:.72rem;font-weight:600;color:#1565c0;">UGX</span>
+                                    <input type="text" inputmode="numeric" class="form-control num-input-modal calc-source" data-role="unfitshred" id="editUnFitShred" name="UnFitShredValue" placeholder="0" autocomplete="off" />
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-md-3">
+                                <label class="form-label fw-semibold small" style="color:#31316A;">Fit / Shred Value</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text" style="background:#e3f2fd;font-size:.72rem;font-weight:600;color:#1565c0;">UGX</span>
+                                    <input type="text" inputmode="numeric" class="form-control num-input-modal calc-source" data-role="fitshred" id="editFitShred" name="FitShredValue" placeholder="0" autocomplete="off" />
+                                </div>
+                            </div>
+                        }
 
                         <div class="col-12">
                             <hr class="my-2" />
@@ -733,6 +751,65 @@
         </div>
     </div>
 </div>
+
+@* ── Machine Result File Picker ─────────────────────────────────────
+   Deliberately a sibling of the Edit Result modal rather than nested inside it, so the two stack
+   cleanly when the picker is opened from within the edit form. *@
+@if (!Model.IsManual)
+{
+    <div class="modal fade" id="xmlImportModal" tabindex="-1" aria-labelledby="xmlImportModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header" style="border-top:3px solid #31316A;border-radius:.5rem .5rem 0 0;">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="section-icon"><i class="ti ti-file-import" style="color:#31316A;font-size:.9rem;"></i></span>
+                        <div>
+                            <h6 class="fw-bold mb-0" style="color:#31316A;" id="xmlImportModalLabel">Machine Result Files</h6>
+                            <p class="text-muted mb-0 small" id="xmlImportSubtitle">
+                                Machine @Model.MachineName · @Model.DenominationName
+                            </p>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body p-0">
+                    <div id="xmlImportLoading" class="p-4 text-center text-muted small">
+                        <span class="spinner-border spinner-border-sm me-2"></span>Reading the machine folder…
+                    </div>
+
+                    <div id="xmlImportMessage" class="p-4 text-center small d-none"></div>
+
+                    <div class="table-responsive d-none" id="xmlImportTableWrap">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:38px;"></th>
+                                    <th class="small">Result File</th>
+                                    <th class="small text-end">Fit</th>
+                                    <th class="small text-end">UnFit / Shred</th>
+                                    <th class="small text-end">Fit / Shred</th>
+                                    <th class="small text-end">Pieces</th>
+                                </tr>
+                            </thead>
+                            <tbody id="xmlImportRows"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light border-top">
+                    <span class="me-auto small text-muted" id="xmlImportSelectionSummary"></span>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="ti ti-x me-1"></i>Cancel
+                    </button>
+                    <button type="button" class="btn btn-sm btn-primary fw-semibold" id="xmlImportApplyBtn">
+                        <i class="ti ti-check me-1"></i>Apply Selection
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @* ── Different Denominations ────────────────────────────────────── *@
 @{
@@ -1473,6 +1550,320 @@
                         editNoteExaminerContainer.querySelectorAll('.ne-bundles-input').forEach(stripCommas);
                     }
                 });
+            }
+
+            // ── BPS machine result import ────────────────────────────────────
+            // Files picked here replace the three machine value fields and are re-read server-side
+            // on submit. With nothing picked the fields stay editable and behave exactly as before.
+            var xmlModalEl = document.getElementById('xmlImportModal');
+
+            if (xmlModalEl && !SESSION_IS_MANUAL) {
+                var SESSION_ID    = @Model.Id;
+                var FILES_URL     = '@Url.Action("AvailableMachineFiles", "StockProcessingSession")';
+                var xmlModal      = new bootstrap.Modal(xmlModalEl);
+                var xmlRows       = document.getElementById('xmlImportRows');
+                var xmlLoading    = document.getElementById('xmlImportLoading');
+                var xmlMessage    = document.getElementById('xmlImportMessage');
+                var xmlTableWrap  = document.getElementById('xmlImportTableWrap');
+                var xmlApplyBtn   = document.getElementById('xmlImportApplyBtn');
+                var xmlSelSummary = document.getElementById('xmlImportSelectionSummary');
+
+                // Files currently attached, per form.
+                var xmlState  = { save: [], edit: [] };
+                var xmlScope  = 'save';
+
+                function money(n) { return Math.round(n || 0).toLocaleString('en-US'); }
+
+                function panelFor(scope) {
+                    return document.querySelector('[data-role="xml-panel"][data-scope="' + scope + '"]');
+                }
+
+                function formFor(scope) {
+                    return scope === 'edit' ? editForm : resultForm;
+                }
+
+                // Imported figures are authoritative, so the inputs go read-only while files are
+                // attached; clearing the selection hands them back to the operator.
+                function applyMachineValues(scope) {
+                    var form = formFor(scope);
+                    if (!form) return;
+
+                    var files   = xmlState[scope];
+                    var hasFiles = files.length > 0;
+                    var sum = function (key) {
+                        return files.reduce(function (t, f) { return t + (f[key] || 0); }, 0);
+                    };
+
+                    [['fit', 'fitValue'], ['unfitshred', 'unFitShredValue'], ['fitshred', 'fitShredValue']]
+                        .forEach(function (pair) {
+                            var el = form.querySelector('[data-role="' + pair[0] + '"]');
+                            if (!el) return;
+
+                            if (hasFiles) {
+                                el.value = String(sum(pair[1]));
+                                applyFormat(el);
+                                el.readOnly = true;
+                                el.classList.add('bg-light');
+                                el.title = 'Imported from the selected machine result files';
+                            } else {
+                                el.readOnly = false;
+                                el.classList.remove('bg-light');
+                                el.removeAttribute('title');
+                            }
+                        });
+
+                    recalcResultFields(form);
+                }
+
+                function renderPanel(scope) {
+                    var panel = panelFor(scope);
+                    if (!panel) return;
+
+                    var files    = xmlState[scope];
+                    var chips    = panel.querySelector('[data-role="xml-chips"]');
+                    var inputs   = panel.querySelector('[data-role="xml-inputs"]');
+                    var summary  = panel.querySelector('[data-role="xml-summary"]');
+                    var totals   = panel.querySelector('[data-role="xml-totals"]');
+                    var clearBtn = panel.querySelector('[data-role="xml-clear"]');
+
+                    chips.innerHTML  = '';
+                    inputs.innerHTML = '';
+
+                    if (!files.length) {
+                        summary.classList.add('d-none');
+                        clearBtn.classList.add('d-none');
+                        applyMachineValues(scope);
+                        return;
+                    }
+
+                    files.forEach(function (f) {
+                        var chip = document.createElement('span');
+                        chip.className = 'badge rounded-pill text-bg-light border d-inline-flex align-items-center gap-1';
+                        chip.style.fontWeight = '500';
+
+                        var label = document.createElement('span');
+                        label.innerHTML = '<i class="ti ti-file-text me-1"></i>' + f.displayName;
+                        chip.appendChild(label);
+
+                        var remove = document.createElement('button');
+                        remove.type = 'button';
+                        remove.className = 'btn-close ms-1';
+                        remove.style.fontSize = '.5rem';
+                        remove.title = 'Remove this file';
+                        remove.addEventListener('click', function () {
+                            xmlState[scope] = xmlState[scope].filter(function (o) {
+                                return o.fileName !== f.fileName;
+                            });
+                            renderPanel(scope);
+                        });
+                        chip.appendChild(remove);
+
+                        chips.appendChild(chip);
+
+                        // What the form actually posts — the server re-reads these by name.
+                        var hidden = document.createElement('input');
+                        hidden.type  = 'hidden';
+                        hidden.name  = 'SelectedXmlFiles';
+                        hidden.value = f.fileName;
+                        inputs.appendChild(hidden);
+                    });
+
+                    var pieces = files.reduce(function (t, f) { return t + (f.totalPieces || 0); }, 0);
+                    var value  = files.reduce(function (t, f) { return t + (f.totalValue || 0); }, 0);
+                    totals.innerHTML = '<i class="ti ti-calculator me-1"></i>' + files.length +
+                        ' file' + (files.length === 1 ? '' : 's') + ' · ' + money(pieces) +
+                        ' pieces · <strong>UGX ' + money(value) + '</strong>';
+
+                    summary.classList.remove('d-none');
+                    clearBtn.classList.remove('d-none');
+                    applyMachineValues(scope);
+                }
+
+                // detail is rendered via textContent so a server-supplied string can never inject markup.
+                function showMessage(html, cssClass, detail) {
+                    xmlLoading.classList.add('d-none');
+                    xmlTableWrap.classList.add('d-none');
+                    xmlMessage.className = 'p-4 text-center small ' + (cssClass || 'text-muted');
+                    xmlMessage.innerHTML = html;
+
+                    if (detail) {
+                        var d = document.createElement('div');
+                        d.className = 'text-muted mt-2';
+                        d.style.fontSize = '.72rem';
+                        d.textContent = detail;
+                        xmlMessage.appendChild(d);
+                    }
+
+                    xmlMessage.classList.remove('d-none');
+                    xmlApplyBtn.disabled = true;
+                    xmlSelSummary.textContent = '';
+                }
+
+                function updateSelectionSummary() {
+                    var checked = xmlRows.querySelectorAll('input[type="checkbox"]:checked');
+                    var pieces = 0, value = 0;
+
+                    checked.forEach(function (cb) {
+                        var f = JSON.parse(cb.dataset.file);
+                        pieces += f.totalPieces || 0;
+                        value  += f.totalValue || 0;
+                    });
+
+                    xmlSelSummary.innerHTML = checked.length
+                        ? checked.length + ' selected · ' + money(pieces) + ' pieces · <strong>UGX ' + money(value) + '</strong>'
+                        : 'No files selected — the machine fields stay as keyed in.';
+                }
+
+                function renderRows(files) {
+                    xmlRows.innerHTML = '';
+                    var attached = xmlState[xmlScope].map(function (f) { return f.fileName; });
+
+                    files.forEach(function (f, i) {
+                        var tr = document.createElement('tr');
+                        var id = 'xmlFile_' + i;
+                        var isChecked = attached.indexOf(f.fileName) !== -1 || f.isAlreadyLinked;
+
+                        tr.innerHTML =
+                            '<td class="text-center">' +
+                                '<input class="form-check-input" type="checkbox" id="' + id + '"' +
+                                    (isChecked ? ' checked' : '') + '>' +
+                            '</td>' +
+                            '<td>' +
+                                '<label class="form-check-label d-block" for="' + id + '" style="cursor:pointer;">' +
+                                    '<span class="fw-semibold small d-block">' + f.displayName + '</span>' +
+                                    '<span class="text-muted" style="font-size:.68rem;word-break:break-all;">' + f.fileName + '</span>' +
+                                    (f.isMissingOnDisk
+                                        ? '<span class="badge text-bg-warning ms-1" style="font-size:.6rem;">no longer on disk</span>'
+                                        : '') +
+                                    (f.rejectPieces
+                                        ? '<span class="badge text-bg-light border ms-1" style="font-size:.6rem;">' +
+                                          money(f.rejectPieces) + ' rejects excluded</span>'
+                                        : '') +
+                                '</label>' +
+                            '</td>' +
+                            '<td class="text-end small">' + money(f.fitValue) + '</td>' +
+                            '<td class="text-end small">' + money(f.unFitShredValue) + '</td>' +
+                            '<td class="text-end small">' + money(f.fitShredValue) + '</td>' +
+                            '<td class="text-end small fw-semibold">' + money(f.totalPieces) + '</td>';
+
+                        var cb = tr.querySelector('input[type="checkbox"]');
+                        cb.dataset.file = JSON.stringify(f);
+                        cb.addEventListener('change', updateSelectionSummary);
+
+                        xmlRows.appendChild(tr);
+                    });
+
+                    xmlLoading.classList.add('d-none');
+                    xmlMessage.classList.add('d-none');
+                    xmlTableWrap.classList.remove('d-none');
+                    xmlApplyBtn.disabled = false;
+                    updateSelectionSummary();
+                }
+
+                function openPicker(scope) {
+                    xmlScope = scope;
+
+                    xmlLoading.classList.remove('d-none');
+                    xmlMessage.classList.add('d-none');
+                    xmlTableWrap.classList.add('d-none');
+                    xmlApplyBtn.disabled = true;
+                    xmlSelSummary.textContent = '';
+                    xmlModal.show();
+
+                    var url = FILES_URL + '?sessionId=' + SESSION_ID;
+                    if (scope === 'edit') {
+                        var resultIdEl = document.getElementById('editResultId');
+                        if (resultIdEl && resultIdEl.value) url += '&resultId=' + resultIdEl.value;
+                    }
+
+                    fetch(url, { headers: { 'Accept': 'application/json' } })
+                        .then(function (r) {
+                            if (r.ok) return r.json();
+
+                            // Surface why it failed rather than always blaming the folder — a signed-out
+                            // session, a missing permission and a server fault each need a different fix.
+                            if (r.status === 401 || r.status === 403) {
+                                throw new Error('You are not permitted to import machine results for this session, ' +
+                                                'or your sign-in has expired.');
+                            }
+                            return r.text().then(function (body) {
+                                console.error('AvailableMachineFiles responded', r.status, body);
+                                var parsed = null;
+                                try { parsed = JSON.parse(body); } catch (ignored) { }
+                                throw new Error((parsed && parsed.error)
+                                    ? parsed.error
+                                    : 'The server returned ' + r.status + (r.statusText ? ' ' + r.statusText : '') + '.');
+                            });
+                        })
+                        .then(function (data) {
+                            if (data.error) throw new Error(data.error);
+
+                            if (!data.files || !data.files.length) {
+                                showMessage(
+                                    '<i class="ti ti-folder-off d-block mb-2" style="font-size:1.5rem;"></i>' +
+                                    'No unimported result files were found for machine <strong>' +
+                                    (data.machineName || '—') + '</strong> at this denomination.');
+                                return;
+                            }
+                            renderRows(data.files);
+                        })
+                        .catch(function (err) {
+                            console.error('Could not load machine result files', err);
+                            showMessage(
+                                '<i class="ti ti-alert-triangle d-block mb-2" style="font-size:1.5rem;"></i>' +
+                                '<span class="d-block">Could not load the machine result files.</span>' +
+                                '<span class="d-block text-muted mt-1" style="font-size:.72rem;">' +
+                                'You can still key the values in by hand.</span>',
+                                'text-danger',
+                                err && err.message ? err.message : '');
+                        });
+                }
+
+                document.querySelectorAll('[data-role="xml-open"]').forEach(function (btn) {
+                    btn.addEventListener('click', function () { openPicker(btn.dataset.scope); });
+                });
+
+                document.querySelectorAll('[data-role="xml-clear"]').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        xmlState[btn.dataset.scope] = [];
+                        renderPanel(btn.dataset.scope);
+                    });
+                });
+
+                xmlApplyBtn.addEventListener('click', function () {
+                    xmlState[xmlScope] = Array.prototype.map.call(
+                        xmlRows.querySelectorAll('input[type="checkbox"]:checked'),
+                        function (cb) { return JSON.parse(cb.dataset.file); });
+
+                    renderPanel(xmlScope);
+                    xmlModal.hide();
+                });
+
+                // Editing starts from whatever the result was saved with, so its files come back
+                // attached rather than the operator having to re-pick them.
+                if (editModal) {
+                    editModal.addEventListener('show.bs.modal', function (e) {
+                        var btn = e.relatedTarget;
+                        if (!btn) return;
+
+                        xmlState.edit = [];
+                        renderPanel('edit');
+
+                        fetch(FILES_URL + '?sessionId=' + SESSION_ID + '&resultId=' + btn.dataset.id,
+                              { headers: { 'Accept': 'application/json' } })
+                            .then(function (r) { return r.ok ? r.json() : null; })
+                            .then(function (data) {
+                                if (!data || !data.files) return;
+                                xmlState.edit = data.files.filter(function (f) { return f.isAlreadyLinked; });
+                                renderPanel('edit');
+                            })
+                            .catch(function (err) {
+                                console.error('Could not load imported machine files for this result', err);
+                            });
+                    });
+                }
+
+                renderPanel('save');
             }
         })();
     </script>
