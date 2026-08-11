@@ -1,6 +1,5 @@
 ﻿using ConfigurationsService.Client;
 using IdentityService.Core.Models;
-using IdentityService.Core.Repository.ApplicationRoleBranches;
 using IdentityService.Core.Repository.CommercialBankUsers;
 using IdentityService.Core.Repository.UserApplicationRoles;
 using IdentityService.Core.Repository.Users;
@@ -22,7 +21,6 @@ namespace IdentityService.Controllers
         ILogger<AuthController> _logger,
         IConfiguration _config,
         IUserApplicationRoleRepository _userAppRoleRepo,
-        IApplicationRoleBranchRepository _appRoleBranchRepo,
         IUserRepository _userRepo,
         UserManager<User> _userManager,
         IConfigurationsServiceClient _configServiceClient,
@@ -230,7 +228,7 @@ namespace IdentityService.Controllers
                     _logger.LogWarning("Second factor attempt for inactive user: {Username}", request.Username);
                     return Unauthorized(new { message = "User account is inactive. Please contact administrator." });
                 }
-               _logger.LogInformation("Processing RSA 2FA verification for user: {Username}", request.Username);
+                _logger.LogInformation("Processing RSA 2FA verification for user: {Username}", request.Username);
 
                 // Verify RSA SecurID passcode
                 //var rsaVerifyResponse = await _rsaService.VerifyAuthenticationAsync(
@@ -440,33 +438,11 @@ namespace IdentityService.Controllers
                 claims.Add(new Claim("appRoleId", $"{userAppRole.ApplicationRole.Application.Acronym}:{userAppRole.ApplicationRole.Id}"));
             }
 
-            var roleIds = userAppRoles.Select(r => r.ApplicationRoleId);
-            var branchAssignments = await _appRoleBranchRepo.FindByApplicationRoleIds(roleIds);
-            var branchIds = branchAssignments.Select(b => b.BranchId).ToHashSet();
-
-            foreach (var branchId in branchIds)
-                claims.Add(new Claim("branchId", branchId.ToString()));
-
-            try
-            {
-                var allBranches = await _configServiceClient.GetAllBouBranchesAsync();
-                var branchMap = allBranches.ToDictionary(b => b.Id, b => b.Name);
-                foreach (var branchId in branchIds)
-                {
-                    if (branchMap.TryGetValue(branchId, out var name))
-                        claims.Add(new Claim("branchName", name));
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Could not fetch branch names from ConfigurationsService for user {Username}.", username);
-            }
-
             // Add IsStaff claim
             claims.Add(new Claim("isStaff", dbUser.IsStaff.ToString().ToLower()));
             claims.Add(new Claim(ClaimTypes.Name, username));
             claims.Add(new Claim(ClaimTypes.NameIdentifier, dbUser.Id));
-            
+
             if (!dbUser.IsStaff)
             {
                 CommercialBankUser commercialBankUser = await _commercialBankUserRepo.FindByUserId(dbUser.Id);
@@ -648,7 +624,7 @@ namespace IdentityService.Controllers
             try
             {
                 var result = await _rsaService.CancelAuthenticationAsync(request.AuthnAttemptId, request.Reason);
-                
+
                 if (result)
                 {
                     return Ok(new { message = "RSA authentication cancelled successfully" });

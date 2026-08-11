@@ -103,8 +103,7 @@ namespace VMSService.Core.Services.Workflows
         IBoardSessionSurplusShortageStatusHistoryRepository _boardSessionSurplusShortageStatusHistoryRepository,
         IBagMovementRepository _bagMovementRepository,
         IBagMovementStatusHistoryRepository _bagMovementStatusHistoryRepository,
-        IBagRepository _bagRepository) : IWorkflowService
-        IBankingShortageStatusHistoryRepository _bankingShortageStatusHistoryRepository,
+        IBagRepository _bagRepository,
         IMonthlyShortageReimbursementRepository _reimbursementRepository,
         IMonthlyShortageReimbursementStatusHistoryRepository _reimbursementStatusHistoryRepository,
         IStockTakeRepository _stockTakeRepository,

@@ -204,6 +204,8 @@
             public const string BankingShortages                  = "BankingShortages";
             public const string BoardSessionSurplusShortage = "BoardSessionSurplusShortage";
             public const string CfbTopupRequest = "CfbTopupRequest";
+            public const string MonthlyShortageReimbursements = "MonthlyShortageReimbursements";
+            public const string StockTake = "StockTake";
         }
 
         public static class DenominationName { 
