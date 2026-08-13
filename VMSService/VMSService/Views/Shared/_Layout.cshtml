@@ -816,6 +816,7 @@
     <!-- Volt JS -->
     <script src="../../js/volt.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    @await Html.PartialAsync("_SessionTimeout")
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 

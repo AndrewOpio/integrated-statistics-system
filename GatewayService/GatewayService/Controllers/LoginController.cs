@@ -1,14 +1,18 @@
 ﻿using GatewayService.Models;
 using GatewayService.Services;
 using GatewayService.Services.Identity;
+using GatewayService.Static;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using static GatewayService.Models.LoginModel;
 
 namespace GatewayService.Controllers
 {
-    public class LoginController(ILogger<LoginController> _logger, IIdentityService _identityService) : Controller
+    public class LoginController(ILogger<LoginController> _logger, IIdentityService _identityService, IConfiguration _configuration) : Controller
     {
+        private CookieOptions BuildAuthCookieOptions(bool httpOnly) =>
+            AuthCookie.Build(_configuration, httpOnly);
+
         public IActionResult Index(string? errorMessage)
         {
             @ViewBag.Error = errorMessage;
@@ -88,21 +92,20 @@ namespace GatewayService.Controllers
                 {
                     var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
 
-                    // Set authentication cookie (TEST)
-                    Response.Cookies.Append("AuthToken", result.Token, new CookieOptions
-                    {
-                        HttpOnly = true,
-                        Secure = false, // Set to true in production with HTTPS
-                        SameSite = SameSiteMode.Lax,
-                        Expires = DateTimeOffset.UtcNow.AddHours(2)
-                    });
+                    // Keep the cookie lifetime aligned with the JWT lifetime. A cookie that
+                    // outlives its token just means the browser keeps replaying a token
+                    // every service is bound to reject.
+                    var expiresAt = DateTimeOffset.UtcNow.AddMinutes(
+                        _configuration.GetValue<int?>("JwtSettings:ExpirationMinutes") ?? 15);
 
-                    Response.Cookies.Append("Username", result.Username, new CookieOptions
-                    {
-                        Secure = false,
-                        SameSite = SameSiteMode.Lax,
-                        Expires = DateTimeOffset.UtcNow.AddHours(2)
-                    });
+                    var authCookieOptions = BuildAuthCookieOptions(httpOnly: true);
+                    authCookieOptions.Expires = expiresAt;
+                    Response.Cookies.Append("AuthToken", result.Token, authCookieOptions);
+
+                    // Read by client-side script, so not HttpOnly.
+                    var usernameCookieOptions = BuildAuthCookieOptions(httpOnly: false);
+                    usernameCookieOptions.Expires = expiresAt;
+                    Response.Cookies.Append("Username", result.Username, usernameCookieOptions);
 
                     return RedirectToAction("Index", "Home");
 
@@ -241,8 +244,9 @@ namespace GatewayService.Controllers
                 //return RedirectToAction("Index");
             }
 
-            Response.Cookies.Delete("AuthToken");
-            Response.Cookies.Delete("Username");
+            // Delete with the same domain/path/attributes used to issue them.
+            Response.Cookies.Delete("AuthToken", BuildAuthCookieOptions(httpOnly: true));
+            Response.Cookies.Delete("Username", BuildAuthCookieOptions(httpOnly: false));
 
             //string errorMessage = await response.Content.ReadAsStringAsync();
             //ViewBag.Error = $"{response.ReasonPhrase} - {errorMessage}";

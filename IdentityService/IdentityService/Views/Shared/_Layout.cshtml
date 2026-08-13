@@ -88,6 +88,7 @@
     <script src="~/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/dataTables.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    @await Html.PartialAsync("_SessionTimeout")
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

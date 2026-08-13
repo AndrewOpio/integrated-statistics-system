@@ -1,0 +1,143 @@
+@*
+    Session expiry prompt. Rendered on every page for signed-in users only.
+    Active users are renewed silently; idle users get this countdown before being
+    signed out. Styles are self-contained so the partial can be dropped into any
+    of the Aswam services without depending on their CSS or JS frameworks.
+*@
+@if (Context.Request.Cookies["AuthToken"] != null)
+{
+    <div id="session-timeout"
+         data-status-url="@Url.Action("Status", "Session")"
+         data-extend-url="@Url.Action("Extend", "Session")"
+         data-end-url="@Url.Action("End", "Session")"
+         data-idle-threshold-seconds="120"
+         data-renew-before-seconds="300"
+         data-warn-before-seconds="120"
+         data-poll-interval-seconds="5">
+        @Html.AntiForgeryToken()
+    </div>
+
+    <div id="session-timeout-modal" class="session-timeout-modal" hidden
+         role="alertdialog" aria-modal="true" aria-labelledby="session-timeout-title">
+        <div class="session-timeout-dialog">
+            <h2 id="session-timeout-title" class="session-timeout-title">Still there?</h2>
+            <p class="session-timeout-text">
+                You have been inactive for a while. For security, your session will end in
+                <span id="session-timeout-countdown" class="session-timeout-clock">2:00</span>.
+            </p>
+            <p id="session-timeout-error" class="session-timeout-error" hidden></p>
+            <div class="session-timeout-actions">
+                <button type="button" id="session-timeout-stay" class="session-timeout-btn session-timeout-btn-primary">
+                    Stay signed in
+                </button>
+                <button type="button" id="session-timeout-logout" class="session-timeout-btn session-timeout-btn-secondary">
+                    Log out
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .session-timeout-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 1rem;
+        }
+
+        .session-timeout-modal[hidden] {
+            display: none;
+        }
+
+        .session-timeout-dialog {
+            background: #fff;
+            border-radius: 0.5rem;
+            box-shadow: 0 1.25rem 2.5rem rgba(15, 23, 42, 0.25);
+            max-width: 26rem;
+            width: 100%;
+            padding: 1.5rem;
+            font-family: inherit;
+        }
+
+        .session-timeout-title {
+            margin: 0 0 0.75rem;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .session-timeout-text {
+            margin: 0 0 1rem;
+            color: #334155;
+            line-height: 1.5;
+        }
+
+        .session-timeout-clock {
+            font-variant-numeric: tabular-nums;
+            font-weight: 700;
+            color: #b91c1c;
+        }
+
+        .session-timeout-error {
+            margin: 0 0 1rem;
+            padding: 0.625rem 0.75rem;
+            border-radius: 0.375rem;
+            background: #fef2f2;
+            color: #b91c1c;
+            font-size: 0.875rem;
+        }
+
+        .session-timeout-error[hidden] {
+            display: none;
+        }
+
+        .session-timeout-actions {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .session-timeout-btn {
+            border: 1px solid transparent;
+            border-radius: 0.375rem;
+            padding: 0.5rem 1rem;
+            font-size: 0.9375rem;
+            cursor: pointer;
+        }
+
+        .session-timeout-btn:disabled {
+            opacity: 0.65;
+            cursor: default;
+        }
+
+        .session-timeout-btn-primary {
+            background: #1d4ed8;
+            color: #fff;
+        }
+
+        .session-timeout-btn-primary:hover:not(:disabled) {
+            background: #1e40af;
+        }
+
+        .session-timeout-btn-secondary {
+            background: #fff;
+            color: #334155;
+            border-color: #cbd5e1;
+        }
+
+        .session-timeout-btn-secondary:hover {
+            background: #f1f5f9;
+        }
+
+        body.session-timeout-open {
+            overflow: hidden;
+        }
+    </style>
+
+    <script src="~/js/session-timeout.js" asp-append-version="true"></script>
+}

@@ -137,6 +137,7 @@
     <script src="~/js/site.js" asp-append-version="true"></script>
     <!-- Theme Toggle Script -->
     <script src="~/js/theme-toggle.js" asp-append-version="true"></script>
+    @await Html.PartialAsync("_SessionTimeout")
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

@@ -100,18 +100,34 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             },
             OnAuthenticationFailed = context =>
             {
-                // Handle specific authentication failures
+                // NEVER redirect from here. This event runs during authentication,
+                // which happens on EVERY request that carries an AuthToken cookie -
+                // including anonymous pages such as /Login itself. Redirecting here
+                // sent the browser to /Login, which re-sent the same expired cookie
+                // and was redirected again: ERR_TOO_MANY_REDIRECTS.
+                // Just record the failure and let OnChallenge decide, since that only
+                // runs for endpoints that actually require authorization.
                 context.NoResult();
-                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                context.Response.Redirect(authenticationSettings?.LoginPath ?? "/logout");
                 return Task.CompletedTask;
             },
             OnChallenge = async context =>
             {
-                // This event fires when authentication fails
+                // Fires only when a protected endpoint rejected the request.
                 context.HandleResponse();
-                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                context.Response.Redirect(authenticationSettings?.LoginPath ?? "/logout");
+
+                // Clear the stale token, otherwise the browser keeps replaying it.
+                // Options must match how the cookie was issued or the delete is ignored.
+                context.Response.Cookies.Delete("AuthToken", new CookieOptions
+                {
+                    Path = "/",
+                    Domain = string.IsNullOrWhiteSpace(authenticationSettings?.CookieDomain)
+                        ? null
+                        : authenticationSettings.CookieDomain,
+                    Secure = true,
+                    SameSite = SameSiteMode.None
+                });
+
+                context.Response.Redirect(authenticationSettings?.LoginPath ?? "/Login");
                 await context.Response.CompleteAsync();
             }
         };
