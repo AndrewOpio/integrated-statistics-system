@@ -187,12 +187,6 @@
             public const string MonthlyCommercialBankSettlements = "MonthlyCommercialBankSettlements";
             public const string BankingSurpluses                  = "BankingSurpluses";
             public const string BankingShortages                  = "BankingShortages";
-            public const string DestructionRequest = "Destruction";
-            public const string DestructionAuthorization = "DestructionAuthorization";
-            public const string CfbReport = "EndOfDayDiscrepancies";
-            public const string MonthlySurpluses = "MonthlySurpluses";
-            public const string MonthlyShortages = "MonthlyShortages";
-            public const string MonthlyCommercialBankSettlements = "MonthlyCommercialBankSettlements";
             public const string CfbTopupRequest = "CfbTopupRequest";
         }
 

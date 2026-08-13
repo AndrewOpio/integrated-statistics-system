@@ -18,6 +18,7 @@ namespace VMSService.Core.Repositories.WithdrawalRequestDenominations
 
         //Task CopyToBouAsync(Guid requestId, string userId, CancellationToken ct);
         Task<bool> HasBouOriginAsync(Guid requestId, CancellationToken ct = default);
+        Task<HashSet<Guid>> GetRequestIdsWithBouOriginAsync(IEnumerable<Guid> requestIds, CancellationToken ct = default);
         Task DeleteBouRowsWithChildrenAsync(Guid requestId, CancellationToken ct = default);
         Task<List<AvailableBoxDto>> GetAvailableBoxesAsync(int denominationId, int branchId, Guid? excludeRequestId, CancellationToken ct = default);
         

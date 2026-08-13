@@ -627,8 +627,7 @@
                             </div>
                         }
                         else if (!Model.HasDispatchData
-                                 && (Model.StatusName == WithdrawConstants.WithdrawalStatusNames.PendingVerification
-                        || Model.StatusName == WithdrawConstants.WithdrawalStatusNames.ReturnedForRevision))
+                                 && Model.StatusName == WithdrawConstants.WithdrawalStatusNames.PendingVerification)
                         {
                             <div class="alert alert-info d-flex gap-2 py-2 mb-0 small">
                                 <i class="ti ti-packages flex-shrink-0 mt-1"></i>

@@ -653,6 +653,12 @@
         else if (e.target.classList.contains('simple-qty')) onSimpleQtyChange(e.target);
     });
 
+    // Enter in any field must never implicitly submit the dispatch form —
+    // "Add" and "Save Draft" are deliberate, separate steps.
+    document.getElementById('bankDispatchForm')?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') e.preventDefault();
+    });
+
     document.addEventListener('change', e => {
         if (e.target.classList.contains('simple-denom')) onSimpleDenomChange(e.target);
     });

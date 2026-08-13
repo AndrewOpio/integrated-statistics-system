@@ -157,6 +157,12 @@ namespace VMSService.Web.Controllers
                 .Sum(r => r.TotalAmount);
 
             // ── Requests table ───────────────────────────────────────────────────────
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            var pendingVerificationIds = filteredRequests
+                .Where(r => r.StatusTypeName == WithdrawalStatusNames.PendingVerification && r.CollectionDate < today)
+                .Select(r => r.Id);
+            var withBouOrigin = await _wrDenomRepo.GetRequestIdsWithBouOriginAsync(pendingVerificationIds);
+
             var rows = filteredRequests.Select(r => new RecentRequestRowViewModel
             {
                 Id = r.Id,
@@ -174,6 +180,9 @@ namespace VMSService.Web.Controllers
                      r.StatusTypeName == WithdrawalStatusNames.Rejected ||
                      r.StatusTypeName == WithdrawalStatusNames.RejectExceptionalApproval ||
                      r.StatusTypeName == WithdrawalStatusNames.RecallApproved),
+                IsAbandoned = r.StatusTypeName == WithdrawalStatusNames.PendingVerification
+                    && r.CollectionDate < today
+                    && withBouOrigin.Contains(r.Id),
             }).OrderBy(r => r.CollectionDate).ToList();
 
 
@@ -277,8 +286,7 @@ namespace VMSService.Web.Controllers
             var isPanelB = userRoles.Contains(SystemPolicy.Roles.PanelB);
 
             var canEditDispatch = isPanelB
-                && (request.StatusTypeName == WithdrawConstants.WithdrawalStatusNames.PendingVerification
-                    || request.StatusTypeName == WithdrawConstants.WithdrawalStatusNames.ReturnedForRevision);
+                && request.StatusTypeName == WithdrawConstants.WithdrawalStatusNames.PendingVerification;
 
             var bankRows = request.WithdrawalRequestDenominations
                 .Where(d => d.Origin == WithdrawalOrigin.Bou)
@@ -717,8 +725,7 @@ namespace VMSService.Web.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
-                if (request.StatusTypeName != WithdrawalStatusNames.PendingVerification
-                    && request.StatusTypeName != WithdrawalStatusNames.ReturnedForRevision)
+                if (request.StatusTypeName != WithdrawalStatusNames.PendingVerification)
                 {
                     TempData["Error"] = "This request is not editable in its current status.";
                     return RedirectToAction(nameof(Details), new { id });
@@ -1057,6 +1064,14 @@ namespace VMSService.Web.Controllers
                         }
 
                         TempData["Success"] = "Withdrawal confirmed. Stock position updated.";
+                    }
+                    else if (updatedRequest?.StatusTypeName == WithdrawalStatusNames.Rejected)
+                    {
+                        // Dispatch was recorded at Pending Verification (boxes held, serials advanced)
+                        // but the request was rejected before reaching Approved — nothing physically
+                        // left, so release the hold.
+                        await ReverseBoxStateForRequestAsync(id, ct);
+                        TempData["Success"] = "Action completed successfully.";
                     }
                     else
                     {

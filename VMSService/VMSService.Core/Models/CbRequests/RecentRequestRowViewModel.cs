@@ -26,6 +26,7 @@ namespace VMSService.Core.Models.CbRequests
         public string CbName { get; set; } = "—";
         public string BouBranchCode { get; set; } = "—";
         public bool ReturnRtgsPending { get; set; }
+        public bool IsAbandoned { get; set; }
 
         /// <summary>One of "awaiting-action", "pending-exceptional", "with-bou", "unsuccessful", or "" (closed/successful — not shown on any dashboard card).</summary>
         public string StatusBucket { get; set; } = string.Empty;
