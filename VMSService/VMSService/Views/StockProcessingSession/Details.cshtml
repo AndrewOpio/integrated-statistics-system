@@ -61,6 +61,37 @@
         display: inline-flex; align-items: center; justify-content: center;
         flex-shrink: 0;
     }
+
+    /* ── Processing results table ── */
+    /* Lining figures keep the money columns aligned digit-for-digit down the page. */
+    .results-table td, .results-table th { font-variant-numeric: tabular-nums; }
+    .results-table .col-num { text-align: right; white-space: nowrap; }
+    /* Marks where the machine's own output ends and the board's accounting begins. */
+    .results-table .grp-start { border-left: 1px solid #e9ecef; }
+    .results-table thead .grp-head {
+        font-size: .6rem;
+        font-weight: 700;
+        letter-spacing: .09em;
+        text-transform: uppercase;
+        color: #8792a2;
+        padding-top: .5rem;
+        padding-bottom: .25rem;
+    }
+    .results-table thead .col-head {
+        font-size: .68rem;
+        font-weight: 600;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: #6c757d;
+        padding-bottom: .5rem;
+    }
+    .results-table tfoot td {
+        background: #f8fafc;
+        font-weight: 700;
+        color: #31316A;
+        border-top: 2px solid #e9ecef;
+    }
+    .machine-cell { color: #1565c0; }
 </style>
 
 @* ── Page Header ─────────────────────────────────────────────────── *@
@@ -319,17 +350,36 @@
         @* ── Submitted results table ── *@
         @if (Model.Results.Any())
         {
+            @* Machine sessions get the machine's own output columns alongside the board's figures;
+               manual boards never produce them, so those columns are left out entirely. *@
             <div class="table-responsive">
-                <table class="table table-hover small mb-0">
+                <table class="table table-hover small mb-0 results-table">
                     <thead style="background:#f8fafc;">
                         <tr>
-                            <th class="ps-4 py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">#</th>
-                            @* <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">COUNT</th> *@
-                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">REISSUE VALUE</th>
-                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">CANCELED VALUE</th>
-                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">MONEY WITH BOARD</th>
-                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">VERIFIED</th>
-                            <th class="py-2 pe-4 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;width:60px;"></th>
+                            <th class="ps-4 col-head" rowspan="2" style="vertical-align:bottom;">#</th>
+                            @if (!Model.IsManual)
+                            {
+                                <th class="grp-head text-center grp-start" colspan="4">
+                                    <i class="ti ti-cpu me-1"></i>Machine Output
+                                </th>
+                            }
+                            <th class="grp-head text-center grp-start" colspan="3">
+                                <i class="ti ti-clipboard-check me-1"></i>Board Accounting
+                            </th>
+                            <th class="col-head grp-start" rowspan="2" style="vertical-align:bottom;">Verified</th>
+                            <th class="col-head pe-4" rowspan="2" style="vertical-align:bottom;width:60px;"></th>
+                        </tr>
+                        <tr>
+                            @if (!Model.IsManual)
+                            {
+                                <th class="col-head col-num grp-start">Count</th>
+                                <th class="col-head col-num">Fit Value</th>
+                                <th class="col-head col-num">UnFit / Shred</th>
+                                <th class="col-head col-num">Fit / Shred</th>
+                            }
+                            <th class="col-head col-num grp-start">Reissue Value</th>
+                            <th class="col-head col-num">Cancelled Value</th>
+                            <th class="col-head col-num">Money With Board</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -337,34 +387,84 @@
                         @foreach (VMSService.Core.Models.StockProcessingResults.StockProcessingResultViewModel r in Model.Results)
                         {
                             <tr>
-                                <td class="ps-4 py-2 text-muted">@rn</td>
-                                @* <td class="py-2 fw-semibold">@r.Count.ToString("N0")</td> *@
-                                <td class="py-2">
-                                    @if (r.ReissueValue > 0) { <text>UGX @r.ReissueValue.ToString("N0")</text> } else { <span class="text-muted">—</span> }
+                                <td class="ps-4 py-2 px-1 text-muted">@rn</td>
+
+                                @if (!Model.IsManual)
+                                {
+                                    <td class="py-2 px-1 col-num grp-start">
+                                        @if (r.Count > 0)
+                                        {
+                                            <span class="fw-semibold machine-cell">@r.Count.ToString("N0")</span>
+                                            <span class="text-muted" style="font-size:.68rem;"> pcs</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
+                                    <td class="py-2 px-1 col-num">
+                                        @if (r.FitValue > 0)
+                                        {
+                                            <span class="machine-cell">UGX @r.FitValue.ToString("N0")</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
+                                    <td class="py-2 px-1 col-num">
+                                        @if (r.UnFitShredValue > 0)
+                                        {
+                                            <span class="machine-cell">UGX @r.UnFitShredValue.ToString("N0")</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
+                                    <td class="py-2 px-1 col-num">
+                                        @if (r.FitShredValue > 0)
+                                        {
+                                            <span class="machine-cell">UGX @r.FitShredValue.ToString("N0")</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
+                                }
+
+                                <td class="py-2 px-1 col-num grp-start">
+                                    @if (r.ReissueValue > 0)
+                                    {
+                                        <text>UGX @r.ReissueValue.ToString("N0")</text>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
                                 </td>
-                                <td class="py-2">
+                                <td class="py-2 px-1 col-num">
                                     @if (r.CanceledValue > 0)
                                     {
                                         <text>UGX @r.CanceledValue.ToString("N0")</text>
                                     }
                                     else
                                     {
-
                                         <span class="text-muted">—</span>
                                     }
                                 </td>
-                                <td class="py-2">
+                                <td class="py-2 px-1 col-num">
                                     @if (r.UnProcessedValue > 0)
                                     {
                                         <span class="fw-semibold text-warning-emphasis">UGX @r.UnProcessedValue.ToString("N0")</span>
                                     }
                                     else
                                     {
-
                                         <span class="text-muted">—</span>
                                     }
                                 </td>
-                                <td class="py-2">
+                                <td class="py-2 px-1 grp-start">
                                     @if (r.IsVerified)
                                     {
                                         <span class="badge bg-success border border-success-subtle" style="font-size:.68rem;">
@@ -378,7 +478,7 @@
                                         </span>
                                     }
                                 </td>
-                                <td class="py-2 pe-4">
+                                <td class="py-2 px-1 pe-4">
                                     @if (!r.IsVerified && Model.BoardSupervisorUserId == userId && userRoles.Contains(SystemPolicy.Roles.BoardSupervisor)
                                     && Model.CurrentStatusName == StatusConstants.StockProcessingSession.Open)
                                     {
@@ -400,6 +500,28 @@
                             rn++;
                         }
                     </tbody>
+
+                    @* Only worth a totals line once there is more than one result to add up. *@
+                    @if (Model.Results.Count > 1)
+                    {
+                        <tfoot>
+                            <tr>
+                                <td class="ps-4 py-2" style="font-size:.68rem;letter-spacing:.05em;">TOTAL</td>
+                                @if (!Model.IsManual)
+                                {
+                                    <td class="py-2 col-num grp-start">@Model.Results.Sum(x => x.Count).ToString("N0")</td>
+                                    <td class="py-2 col-num">UGX @Model.Results.Sum(x => x.FitValue).ToString("N0")</td>
+                                    <td class="py-2 col-num">UGX @Model.Results.Sum(x => x.UnFitShredValue).ToString("N0")</td>
+                                    <td class="py-2 col-num">UGX @Model.Results.Sum(x => x.FitShredValue).ToString("N0")</td>
+                                }
+                                <td class="py-2 col-num grp-start">UGX @Model.Results.Sum(x => x.ReissueValue).ToString("N0")</td>
+                                <td class="py-2 col-num">UGX @Model.Results.Sum(x => x.CanceledValue).ToString("N0")</td>
+                                <td class="py-2 col-num">UGX @Model.Results.Sum(x => x.UnProcessedValue).ToString("N0")</td>
+                                <td class="py-2 grp-start"></td>
+                                <td class="py-2 pe-4"></td>
+                            </tr>
+                        </tfoot>
+                    }
                 </table>
             </div>
         } else
@@ -586,7 +708,7 @@
 
 @* ── Edit Result Modal ──────────────────────────────────────────── *@
 <div class="modal fade" id="editResultModal" tabindex="-1" aria-labelledby="editResultModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
         <div class="modal-content border-0 shadow">
             <div class="modal-header" style="border-top:3px solid #31316A;border-radius:.5rem .5rem 0 0;">
                 <div class="d-flex align-items-center gap-2">
@@ -606,7 +728,7 @@
 
                 <div class="modal-body p-4">
                     <div class="row g-3">
-                        <div class="col-12">
+                        @* <div class="col-12">
                             <p class="small fw-semibold mb-0" style="color:#31316A;">
                                 <i class="ti ti-@(Model.IsManual ? "hand" : "cpu") me-1"></i>@(Model.IsManual ? "Manual" : "Machine") Processing Fields
                                 @if (!Model.IsManual && !string.IsNullOrEmpty(Model.MachineName))
@@ -614,7 +736,7 @@
                                     <span class="text-muted fw-normal">— @Model.MachineName</span>
                                 }
                             </p>
-                        </div>
+                        </div> *@
                         <div class="col-12 col-md-4">
                             <label class="form-label fw-semibold small" style="color:#31316A;">Reissue Value</label>
                             <div class="input-group input-group-sm">
@@ -759,7 +881,7 @@
 {
     <div class="modal fade" id="xmlImportModal" tabindex="-1" aria-labelledby="xmlImportModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-            <div class="modal-content border-0 shadow">
+            <div class="modal-content border-0 shadow bg-gray-100">
                 <div class="modal-header" style="border-top:3px solid #31316A;border-radius:.5rem .5rem 0 0;">
                     <div class="d-flex align-items-center gap-2">
                         <span class="section-icon"><i class="ti ti-file-import" style="color:#31316A;font-size:.9rem;"></i></span>
@@ -783,7 +905,7 @@
                     <div class="table-responsive d-none" id="xmlImportTableWrap">
                         <table class="table table-sm align-middle mb-0">
                             <thead class="table-light">
-                                <tr>
+                                <tr class="text-white">
                                     <th style="width:38px;"></th>
                                     <th class="small">Result File</th>
                                     <th class="small text-end">Fit</th>
@@ -1638,7 +1760,7 @@
 
                     files.forEach(function (f) {
                         var chip = document.createElement('span');
-                        chip.className = 'badge rounded-pill text-bg-light border d-inline-flex align-items-center gap-1';
+                        chip.className = 'badge rounded-pill text-info border d-inline-flex align-items-center gap-1';
                         chip.style.fontWeight = '500';
 
                         var label = document.createElement('span');
@@ -1733,10 +1855,10 @@
                                     '<span class="fw-semibold small d-block">' + f.displayName + '</span>' +
                                     '<span class="text-muted" style="font-size:.68rem;word-break:break-all;">' + f.fileName + '</span>' +
                                     (f.isMissingOnDisk
-                                        ? '<span class="badge text-bg-warning ms-1" style="font-size:.6rem;">no longer on disk</span>'
+                                        ? '<span class="badge text-warning ms-1" style="font-size:.6rem;">no longer on disk</span>'
                                         : '') +
                                     (f.rejectPieces
-                                        ? '<span class="badge text-bg-light border ms-1" style="font-size:.6rem;">' +
+                                        ? '<span class="badge text-info border ms-1" style="font-size:.6rem;">' +
                                           money(f.rejectPieces) + ' rejects excluded</span>'
                                         : '') +
                                 '</label>' +

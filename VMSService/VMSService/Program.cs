@@ -389,7 +389,7 @@ builder.Services.AddScoped<IStockProcessingResultRepository, StockProcessingResu
 builder.Services.AddScoped<VMSService.Core.Services.BpsXmlImports.IBpsXmlImportService>(sp =>
     new VMSService.Core.Services.BpsXmlImports.BpsXmlImportService(
         sp.GetRequiredService<VMSService.Data.Configurations.VMSServiceDbContext>(),
-        builder.Configuration["BpsXmlImport:FolderPath"] ?? @"E:\CASFiles\BPS_XML_FILES",
+        builder.Configuration["BpsXmlImport:FolderPath"] ?? @"C:\CASFiles\BPS_XML_FILES",
         sp.GetRequiredService<ILogger<VMSService.Core.Services.BpsXmlImports.BpsXmlImportService>>()));
 builder.Services.AddScoped<IMinDepositStandardRepository, MinDepositStandardRepository>();
 builder.Services.AddScoped<IDepositProcessingFeeRepository, DepositProcessingFeeRepository>();

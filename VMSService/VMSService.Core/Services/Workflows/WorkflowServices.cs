@@ -787,7 +787,7 @@ namespace VMSService.Core.Services.Workflows
                 }
             }
 
-            // If supervisor is submitting to bank � generate ref number + copy denominations
+            // If supervisor is submitting to bank — generate ref number + copy denominations
             //if (transition.ToStatusId == WithdrawStatuses.WithdrawalStatusIds.SubmittedToBOU)
             //{
             //    //request.SupervisorUserId = username;

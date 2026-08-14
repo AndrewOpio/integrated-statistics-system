@@ -96,7 +96,7 @@ namespace VMSService.Web.Controllers
                     TransactionRefNumber = r.TransactionRefNumber ?? "Not Generated",
                     CreationDate = r.CreatedDate,
                     RequiresSpecialApproval = r.RequiresSpecialApproval,
-                    RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "�" : r.RtgsCode,
+                    RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "—" : r.RtgsCode,
                 }));
 
                 var vm = new DepositRequestIndexViewModel
