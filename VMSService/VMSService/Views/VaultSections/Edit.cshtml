@@ -19,10 +19,16 @@
                 </div>
                 <form asp-action="Edit" method="post">
                     <input type="hidden" asp-for="Id">
+                    <input type="hidden" asp-for="BranchId">
+                    <input type="hidden" asp-for="BranchName">
                     <div class="mb-3">
                         <label class="form-label" asp-for="Name">Name <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" asp-for="Name" required>
                         <span asp-validation-for="Name" class="text-danger small d-block mt-1"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Branch</label>
+                        <input type="text" class="form-control" value="@(Model.BranchName ?? "-")" readonly>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" asp-for="VaultId">Vault <span class="text-danger">*</span></label>

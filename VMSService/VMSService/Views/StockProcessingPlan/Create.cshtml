@@ -1,4 +1,5 @@
 @using VMSService.Core.Models.StockProcessingPlans
+@using VMSService.Core.Models.MIandFits
 @model StockProcessingPlanCreateViewModel
 
 @{
@@ -84,9 +85,10 @@
     <input type="hidden" name="branchId" value="@Model.BranchId" />
     <input type="hidden" id="assignmentsJson" name="assignmentsJson" value="[]" />
     <input type="hidden" id="roomSupervisorsJson" name="roomSupervisorsJson" value="[]" />
+    <input type="hidden" id="miAndFitsJson" name="miAndFitsJson" value="[]" />
 </form>
 
-<div class="row g-4 align-items-start">
+<div class="row g-4 align-items-start mb-4">
 
     @* ── Left column: Counting Rooms ─────────────────────────── *@
     <div class="col-12 col-xl-8">
@@ -259,6 +261,7 @@
                                              data-bag-id="@bag.Id"
                                              data-bag-ref="@bag.ReferenceNumber"
                                              data-denomination-value="@bag.DenominationValue.ToString("F0")"
+                                             data-denomination-id="@bag.DenominationId"
                                              data-vault-id="@(bag.VaultId?.ToString() ?? "0")"
                                              data-vault-name="@(bag.VaultName ?? "")"
                                              data-vault-section-id="@(bag.VaultSectionId?.ToString() ?? "0")"
@@ -309,6 +312,8 @@
     </div>
 
 </div>
+
+@await Html.PartialAsync("_MIandFitCard", new MIandFitCardViewModel { MIandFits = Model.MIandFits, BoardSupervisors = Model.BoardSupervisors })
 
 @* ── Add New Bag Modal ──────────────────────────────────────────── *@
 <div class="modal fade" id="newBagModal" tabindex="-1" aria-hidden="true">
@@ -587,6 +592,7 @@
     function updateCount() {
         const visible = document.querySelectorAll('#bagPool .bag-card:not(.hidden-assigned):not(.hidden-filter)').length;
         document.getElementById('availableCount').textContent = visible;
+        if (typeof refreshMIandFitVisibility === 'function') refreshMIandFitVisibility();
     }
 
     function submitPlan() {
@@ -603,10 +609,20 @@
         });
         document.getElementById('roomSupervisorsJson').value = JSON.stringify(supervisors);
 
+        const miAndFits = collectMIandFits();
+        if (miAndFits.errors.length > 0) {
+            alert('Please assign a Board Supervisor for: ' + miAndFits.errors.join(', '));
+            return;
+        }
+        document.getElementById('miAndFitsJson').value = JSON.stringify(miAndFits.entries);
+
         document.getElementById('planForm').submit();
     }
 
-    document.addEventListener('DOMContentLoaded', populateFilters);
+    document.addEventListener('DOMContentLoaded', () => {
+        populateFilters();
+        if (typeof refreshMIandFitVisibility === 'function') refreshMIandFitVisibility();
+    });
 
     // ── New Bag Modal ─────────────────────────────────────────────
     @{
@@ -704,7 +720,17 @@
         if (!dateVal)                          errors.push('Deposit Date is required.');
         if (!branchVal)                        errors.push('Source Deposit Branch is required.');
         if (!denomId)                          errors.push('Denomination is required.');
-        if (!rawVal || isNaN(numVal) || numVal <= 0) errors.push('A valid Value is required.');
+        if (!rawVal || isNaN(numVal) || numVal <= 0) {
+            errors.push('A valid Value is required.');
+        } else if (denomId && denomVal > 0) {
+            const maxBagValue = denomVal * 1000 * 50;
+            if (numVal % denomVal !== 0) {
+                errors.push(`Value must be an exact multiple of the denomination value (UGX ${denomVal.toLocaleString()}).`);
+            }
+            if (numVal > maxBagValue) {
+                errors.push(`Value cannot exceed UGX ${maxBagValue.toLocaleString()} (a full bag of 50 bundles/boxes for this denomination).`);
+            }
+        }
 
         if (errors.length) {
             errEl.innerHTML = errors.map(e => `<span>${e}</span>`).join('<br>');
@@ -734,7 +760,7 @@
         })
         .then(r => r.ok ? r.json() : Promise.reject())
         .then(data => {
-            _addNewBagToPool(data.id, data.referenceNumber, bankVal, denomName, denomVal, boardId);
+            _addNewBagToPool(data.id, data.referenceNumber, bankVal, denomName, denomVal, boardId, +denomId);
             bootstrap.Modal.getInstance(document.getElementById('newBagModal'))?.hide();
         })
         .catch(() => {
@@ -747,7 +773,7 @@
         });
     }
 
-    function _addNewBagToPool(bagId, refNum, bankName, denomName, denomValue, boardId) {
+    function _addNewBagToPool(bagId, refNum, bankName, denomName, denomValue, boardId, denomId) {
         const col  = document.createElement('div');
         col.className = 'col-md-6 p-1';
 
@@ -756,6 +782,7 @@
         card.dataset.bagId            = bagId;
         card.dataset.bagRef           = refNum;
         card.dataset.denominationValue = denomValue;
+        card.dataset.denominationId   = denomId;
         card.dataset.vaultId          = '0';
         card.dataset.vaultName        = '';
         card.dataset.vaultSectionId   = '0';
@@ -763,7 +790,7 @@
         card.dataset.bankNames        = bankName;
         card.innerHTML =
             `<span class="bag-ref"><i class="ti ti-package" style="font-size:.7rem;"></i> ${refNum}</span>` +
-            `<span class="bag-denom">UGX ${parseFloat(denomValue).toLocaleString()} &middot; ${denomName}</span>` +
+            `<span class="bag-denom">UGX ${parseFloat(denomValue).toLocaleString()} &middot; N/A</span>` +
             `<span class="bag-meta">${bankName}</span>` +
             `<span class="bag-meta" style="font-size:.62rem;color:#31316A;font-weight:600;">` +
                 `<i class="ti ti-sparkles" style="font-size:.6rem;"></i> Newly added</span>`;

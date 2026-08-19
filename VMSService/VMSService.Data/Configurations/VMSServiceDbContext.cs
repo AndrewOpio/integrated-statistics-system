@@ -28,6 +28,7 @@ namespace VMSService.Data.Configurations
         public DbSet<StockMovement> StockMovements { get; set; }
         public DbSet<StockMovementDenomination> StockMovementDenominations { get; set; }
         public DbSet<StockMovementDenominationBoxNumberRange> StockMovementDenominationBoxNumberRanges { get; set; }
+        public DbSet<StockMovementDenominationBag> StockMovementDenominationBags { get; set; }
         public DbSet<StockMovementStatusHistory> StockMovementStatusHistory { get; set; }
         public DbSet<StockMovementDiscrepancy> StockMovementDiscrepancies { get; set; }
         public DbSet<Logistics> Logistics { get; set; }
@@ -76,11 +77,16 @@ namespace VMSService.Data.Configurations
         public DbSet<VaultSection> VaultSections { get; set; }
         public DbSet<BaggedBag> BaggedBags { get; set; }
         public DbSet<BagMovement> BagMovements { get; set; }
+        public DbSet<BagMovementBag> BagMovementBags { get; set; }
         public DbSet<BagMovementStatusHistory> BagMovementStatusHistory { get; set; }
         public DbSet<SessionBag> SessionBags { get; set; }
         public DbSet<CountingRoom> CountingRooms { get; set; }
         public DbSet<CountingRoomSession> CountingRoomSessions { get; set; }
         public DbSet<ProcessingSessionBag> ProcessingSessionBags { get; set; }
+        public DbSet<BoardSessionSurplusShortageStatusHistory> BoardSessionSurplusShortageStatusHistory { get; set; }
+        public DbSet<NoteExaminer> NoteExaminers { get; set; }
+        public DbSet<StockProcessingSessionNoteExaminer> StockProcessingSessionNoteExaminers { get; set; }
+        public DbSet<MIandFit> MIandFits { get; set; }
 
         // End of Day Discrepancies
         public DbSet<EodDiscrepancyReport> EodDiscrepancyReports { get; set; }
@@ -97,6 +103,9 @@ namespace VMSService.Data.Configurations
         public DbSet<MonthlyShortage> MonthlyShortages { get; set; }
         public DbSet<MonthlyShortageDetail> MonthlyShortageDetails { get; set; }
         public DbSet<MonthlyShortageStatusHistory> MonthlyShortageStatusHistories { get; set; }
+        public DbSet<MonthlyShortageReimbursement> MonthlyShortageReimbursements { get; set; }
+        public DbSet<MonthlyShortageReimbursementDenomination> MonthlyShortageReimbursementDenominations { get; set; }
+        public DbSet<MonthlyShortageReimbursementStatusHistory> MonthlyShortageReimbursementStatusHistories { get; set; }
 
         // Monthly Commercial Bank Settlement
         public DbSet<MonthlyCommercialBankSettlement> MonthlyCommercialBankSettlements { get; set; }
@@ -132,6 +141,12 @@ namespace VMSService.Data.Configurations
         public DbSet<AppliedPenalty> AppliedPenalties => Set<AppliedPenalty>();
         public DbSet<PenaltyWaiver> PenaltyWaivers => Set<PenaltyWaiver>();
         public DbSet<PublicHoliday> PublicHolidays => Set<PublicHoliday>();
+
+        // Stock Take
+        public DbSet<StockTake> StockTakes { get; set; }
+        public DbSet<StockTakeDetail> StockTakeDetails { get; set; }
+        public DbSet<StockTakeStatusHistory> StockTakeStatusHistory { get; set; }
+        public DbSet<StockTakeSystemPosition> StockTakeSystemPositions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -318,6 +333,37 @@ namespace VMSService.Data.Configurations
                 entity.HasIndex(e => e.BoardSessionSurplusShortageId).IsUnique();
                 entity.HasIndex(e => e.EodDiscrepancyReportId);
             });
+
+            // ── StockTake ─────────────────────
+            modelBuilder.Entity<StockTakeDetail>()
+                .HasOne(x => x.StockTake)
+                .WithMany(x => x.StockTakeDetails)
+                .HasForeignKey(x => x.StockTakeId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<StockTakeStatusHistory>()
+                .HasOne(x => x.StockTake)
+                .WithMany(x => x.StockTakeStatusHistory)
+                .HasForeignKey(x => x.StockTakeId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<StockTakeDetail>()
+                .HasOne(x => x.VaultSection)
+                .WithMany()
+                .HasForeignKey(x => x.VaultSectionId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<StockTake>()
+                .HasOne(x => x.AmendsStockTake)
+                .WithMany()
+                .HasForeignKey(x => x.AmendsStockTakeId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<StockTakeSystemPosition>()
+                .HasOne(x => x.StockTake)
+                .WithMany()
+                .HasForeignKey(x => x.StockTakeId)
+                .OnDelete(DeleteBehavior.NoAction);
 
             // ✅ ADD THIS AT THE END — catches all remaining FKs not explicitly configured above
             foreach (var relationship in modelBuilder.Model.GetEntityTypes()

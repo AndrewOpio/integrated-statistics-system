@@ -14,6 +14,7 @@
                 {
                     detailsList.Add(new
                     {
+                        id = d.Id,
                         itemName = d.ItemName,
                         description = d.Description ?? "",
                         unitCost = d.UnitCost,
@@ -26,6 +27,7 @@
             }
             categoriesList.Add(new
             {
+                id = c.Id,
                 name = c.Name,
                 details = detailsList
             });
@@ -227,6 +229,9 @@
                 // Set existing values if provided
                 if (categoryData) {
                     card.querySelector('.category-name').value = categoryData.name || '';
+                    card.setAttribute('data-category-id', categoryData.id || 0);
+                } else {
+                    card.setAttribute('data-category-id', 0);
                 }
 
                 $('#categoriesContainer').append(card);
@@ -274,6 +279,7 @@
                 });
 
                 // Set existing values if provided
+                row.setAttribute('data-detail-id', (detailData && detailData.id) || 0);
                 if (detailData) {
                     row.querySelector('.detail-item-name').value = detailData.itemName || '';
                     row.querySelector('.detail-description').value = detailData.description || '';
@@ -327,6 +333,7 @@
                     const details = [];
                     categoryCard.querySelectorAll('.detail-row').forEach(function (row) {
                         details.push({
+                            id: parseInt(row.getAttribute('data-detail-id'), 10) || 0,
                             itemName: row.querySelector('.detail-item-name').value.trim(),
                             description: row.querySelector('.detail-description').value.trim(),
                             unitCost: parseFloat(row.querySelector('.detail-unit-price').value.replace(/,/g, '')) || 0,
@@ -338,6 +345,7 @@
                     });
 
                     categories.push({
+                        id: parseInt(categoryCard.getAttribute('data-category-id'), 10) || 0,
                         name: categoryName,
                         description: '',
                         details: details

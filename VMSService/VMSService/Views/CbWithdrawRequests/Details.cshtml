@@ -1,4 +1,4 @@
-﻿@using System.Security.Claims
+@using System.Security.Claims
 @using static VMSService.Core.Static.WithdrawConstants
 @model VMSService.Core.Models.CbWithdrawRequest.WithdrawalRequestDetailsViewModel
 @{
@@ -251,7 +251,7 @@
                                     <div class="flex-shrink-0">
                                         @if (!string.IsNullOrEmpty(agent.PassportPhoto))
                                         {
-                                            <img src="@agent.PassportPhoto" alt="Photo"
+                                            <img src="@FileUrlHelper.ToWebPath(agent.PassportPhoto)" alt="Photo"
                                                  class="rounded-2 border"
                                                  style="width:80px;height:100px;object-fit:cover;" />
                                         }
@@ -285,7 +285,7 @@
                                     <p class="text-muted mb-1" style="font-size:9px;">WORK ID SCAN</p>
                                     @if (!string.IsNullOrEmpty(agent.WorkIdScan))
                                     {
-                                        <img src="@agent.WorkIdScan" alt="Work ID"
+                                        <img src="@FileUrlHelper.ToWebPath(agent.WorkIdScan)" alt="Work ID"
                                              class="rounded-2 border w-100"
                                              style="max-height:120px;object-fit:contain;" />
                                     }
@@ -303,7 +303,7 @@
                                     <p class="text-muted mb-1" style="font-size:9px;">SIGNATURE</p>
                                     @if (!string.IsNullOrEmpty(agent.SignatureScan))
                                     {
-                                        <img src="@agent.SignatureScan" alt="Signature"
+                                        <img src="@FileUrlHelper.ToWebPath(agent.SignatureScan)" alt="Signature"
                                              class="rounded-2 border w-100"
                                              style="max-height:56px;object-fit:contain;" />
                                     }
@@ -754,7 +754,7 @@
                                                     @(attachment.IsPdf ? "Open PDF" : "Open")
                                                 </a>
                                             }
-                                            <a asp-action="DownloadAttachment" asp-route-id="@attachment.Id"
+                                            <a href="@FileUrlHelper.ToWebPath(attachment.FilePath)" download="@attachment.FileName" target="_blank"
                                                class="btn btn-sm btn-outline-primary flex-fill">
                                                 <i class="ti ti-download me-1"></i>Download
                                             </a>

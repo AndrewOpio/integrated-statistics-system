@@ -1,0 +1,167 @@
+@model VMSService.Core.Models.StockProcessingPlans.ProcessingSessionsPrintViewModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Processing Sessions - @Model.PlanReferenceNumber</title>
+    <style>
+        @@media print {
+            .no-print { display: none; }
+            @@page { size: landscape; margin: 1cm; }
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            margin: 0 auto;
+            font-size: 12px;
+            color: #111;
+        }
+
+        .print-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 15px;
+        }
+        .print-button:hover { background-color: #0056b3; }
+
+        /* ── Header ── */
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #111; padding-bottom: 14px; }
+        .header img { width: 60px; height: auto; margin-bottom: 6px; }
+        .header h1 { margin: 2px 0; font-size: 20px; font-weight: bold; }
+        .header .subtitle { font-size: 14px; margin: 2px 0; letter-spacing: .06em; }
+        .header .ref { font-size: 12px; color: #555; margin-top: 4px; }
+
+        /* ── Info grid ── */
+        .info-grid {
+            display: grid;
+            grid-template-columns: max-content 1fr max-content 1fr;
+            gap: 5px 16px;
+            margin-bottom: 18px;
+            padding: 10px 0;
+            border-top: 1px solid #ccc;
+            border-bottom: 1px solid #ccc;
+        }
+        .info-label { font-weight: bold; white-space: nowrap; }
+
+        /* ── Table ── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 6px;
+            font-size: 11px;
+        }
+        table th {
+            border-bottom: 2px solid #111;
+            padding: 5px 6px;
+            font-weight: bold;
+            text-align: left;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: .03em;
+            color: #333;
+            white-space: nowrap;
+        }
+        table td {
+            border-bottom: 1px solid #e0e0e0;
+            padding: 5px 6px;
+        }
+        table tbody tr:last-child td { border-bottom: none; }
+
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+
+        tfoot td {
+            border-top: 2px solid #111;
+            border-bottom: none;
+            font-weight: bold;
+            padding: 6px;
+        }
+
+        .signature-cell { min-width: 90px; }
+    </style>
+</head>
+<body>
+
+    <button class="print-button no-print" onclick="window.print()">&#128424; Print</button>
+
+    @* ── Header ── *@
+    <div class="header">
+        <img src="~/img/bou.png" alt="Bank of Uganda Logo" />
+        <h1>BANK OF UGANDA</h1>
+        <div class="subtitle">Processing Sessions Report</div>
+        <div class="ref">@Model.PlanReferenceNumber</div>
+    </div>
+
+    @* ── Plan Details ── *@
+    <div class="info-grid">
+        <span class="info-label">Branch</span><span>@(Model.BranchName ?? "—")</span>
+        <span class="info-label">Processing Date</span><span>@Model.ProcessingDate.ToString("dd MMMM yyyy")</span>
+        <span class="info-label">Printed</span><span>@DateTime.Now.ToString("dd MMMM yyyy HH:mm")</span>
+        <span class="info-label">Sessions</span><span>@Model.Rows.Count</span>
+    </div>
+
+    @* ── Sessions Table ── *@
+    <table>
+        <thead>
+            <tr>
+                <th>Commercial Bank</th>
+                <th>Sub Category</th>
+                <th>Waste Number</th>
+                @foreach (var col in Model.DenominationColumns)
+                {
+                    <th class="text-right">@col.Value.ToString("N0")</th>
+                }
+                <th class="text-right">Total</th>
+                <th>Board Supervisor</th>
+                <th class="text-center">Signature</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in Model.Rows)
+            {
+                <tr>
+                    <td>@(row.CommercialBankName ?? "—")</td>
+                    <td>@(row.SubCategoryName ?? "—")</td>
+                    <td>@row.WasteNumber</td>
+                    @foreach (var col in Model.DenominationColumns)
+                    {
+                        var amount = row.AmountByDenominationId.GetValueOrDefault(col.DenominationId);
+                        <td class="text-right">@(amount > 0 ? amount.ToString("N0") : "—")</td>
+                    }
+                    <td class="text-right"><strong>@row.Total.ToString("N0")</strong></td>
+                    <td>@(row.BoardSupervisorName ?? "—")</td>
+                    <td class="signature-cell">&nbsp;</td>
+                </tr>
+            }
+            @if (!Model.Rows.Any())
+            {
+                <tr><td colspan="@(6 + Model.DenominationColumns.Count)" class="text-center" style="color:#aaa;">No processing sessions</td></tr>
+            }
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="3">TOTAL</td>
+                @foreach (var col in Model.DenominationColumns)
+                {
+                    <td class="text-right">@Model.Rows.Sum(r => r.AmountByDenominationId.GetValueOrDefault(col.DenominationId)).ToString("N0")</td>
+                }
+                <td class="text-right">@Model.Rows.Sum(r => r.Total).ToString("N0")</td>
+                <td></td>
+                <td></td>
+            </tr>
+        </tfoot>
+    </table>
+</body>
+</html>

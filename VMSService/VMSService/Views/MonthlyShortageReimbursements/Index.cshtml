@@ -1,0 +1,88 @@
+@model VMSService.Core.Models.MonthlyShortageReimbursements.ReimbursementIndexPageViewModel
+
+@using VMSService.Core.Static
+
+@{
+    ViewData["Title"] = "Shortage Reimbursements";
+}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h2 class="fs-5 fw-bold mb-0">Shortage Reimbursements</h2>
+                    </div>
+                    <div class="col text-end">
+                        <permission name="@SystemPermissions.MonthlyShortageReimbursements.Create">
+                            <a asp-action="Create" class="btn btn-sm btn-primary">
+                                <i class="ti ti-plus me-1"></i>Capture Reimbursement
+                            </a>
+                        </permission>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                @if (TempData["Success"] != null)
+                {
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="ti ti-circle-check me-1"></i>@TempData["Success"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                }
+                @if (TempData["Error"] != null)
+                {
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="ti ti-alert-circle me-1"></i>@TempData["Error"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                }
+                <div class="table-responsive">
+                    <table class="table table-centered table-nowrap mb-0 rounded datatable">
+                        <thead class="thead-light">
+                            <tr>
+                                <th class="border-0 rounded-start">#</th>
+                                <th class="border-0">Reference</th>
+                                <th class="border-0">Monthly Shortage</th>
+                                <th class="border-0">Branch</th>
+                                <th class="border-0 text-end">Total Amount (UGX)</th>
+                                <th class="border-0">Captured On</th>
+                                <th class="border-0">Status</th>
+                                <th class="border-0 rounded-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{ int i = 1; }
+                            @foreach (var r in Model.Reimbursements)
+                            {
+                                string badgeClass = r.CurrentStatusName switch
+                                {
+                                    "Draft"            => "bg-secondary",
+                                    "Pending Approval" => "bg-warning text-dark",
+                                    "Approved"         => "bg-success",
+                                    _                  => "bg-secondary"
+                                };
+                                <tr>
+                                    <td><span class="text-primary fw-bold">@i</span></td>
+                                    <td class="fw-bold">@r.ReferenceNumber</td>
+                                    <td>@r.ShortageReference</td>
+                                    <td>@r.BranchName</td>
+                                    <td class="text-end fw-semibold">@r.TotalAmount.ToString("N0")</td>
+                                    <td>@r.CreatedDate.ToString("dd MMM yyyy")</td>
+                                    <td><span class="badge @badgeClass">@r.CurrentStatusName</span></td>
+                                    <td>
+                                        <a asp-action="Details" asp-route-id="@r.Id" class="btn btn-sm btn-outline-info" title="View Details">
+                                            <i class="ti ti-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                i++;
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

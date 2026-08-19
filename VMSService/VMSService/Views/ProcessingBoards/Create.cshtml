@@ -36,8 +36,12 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label" asp-for="CountingRoomId">Counting Room <span class="text-danger">*</span></label>
-                        <select class="form-select" asp-for="CountingRoomId" asp-items="@Model.CountingRoomList" required>
-                            <option value="">-- Select Counting Room --</option>
+                        <select class="form-select" asp-for="CountingRoomId" required>
+                            <option value="">-- Select Branch First --</option>
+                            @foreach (var room in Model.CountingRooms)
+                            {
+                                <option value="@room.Id" data-branch-id="@room.BranchId">@room.Name</option>
+                            }
                         </select>
                         <span asp-validation-for="CountingRoomId" class="text-danger small d-block mt-1"></span>
                     </div>
@@ -59,4 +63,31 @@
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
+    <script>
+        (function () {
+            const branchSelect = document.getElementById('BranchId');
+            const roomSelect = document.getElementById('CountingRoomId');
+
+            function filterCountingRoomsByBranch() {
+                const branchId = branchSelect.value;
+
+                Array.from(roomSelect.options).forEach(function (opt) {
+                    if (!opt.value) return;
+                    const matches = opt.dataset.branchId === branchId;
+                    opt.hidden = !matches;
+                    opt.disabled = !matches;
+                });
+
+                const selected = roomSelect.options[roomSelect.selectedIndex];
+                if (selected && selected.value && selected.disabled) {
+                    roomSelect.value = '';
+                }
+
+                roomSelect.disabled = !branchId;
+            }
+
+            branchSelect.addEventListener('change', filterCountingRoomsByBranch);
+            filterCountingRoomsByBranch();
+        })();
+    </script>
 }

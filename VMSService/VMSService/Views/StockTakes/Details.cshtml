@@ -1,0 +1,589 @@
+@model VMSService.Core.Models.StockTakes.StockTakeDetailsViewModel
+@using VMSService.Core.Static
+@inject VMSService.Web.Services.IPermissionService PermissionService
+
+@{
+    ViewData["Title"] = "Stock Take Details";
+    string statusBadgeClass = Model.CurrentStatusName switch
+    {
+        StatusConstants.StockTake.Draft => "bg-secondary",
+        StatusConstants.StockTake.PendingReview => "bg-warning text-dark",
+        StatusConstants.StockTake.PendingAcknowledgement => "bg-info text-dark",
+        StatusConstants.StockTake.Acknowledged => "bg-success",
+        StatusConstants.StockTake.Returned => "bg-danger",
+        StatusConstants.StockTake.RequiresAmendment => "bg-danger",
+        _ => "bg-secondary"
+    };
+    string mismatchTileClass = Model.MismatchCount > 0 ? "text-danger" : "text-success";
+
+    // Drives both whether the Mismatches tile renders and how wide the remaining
+    // tiles are, so the stat strip fills the row either way instead of leaving a
+    // gap when the tile is hidden.
+    bool canViewVariance = await PermissionService.HasPermissionAsync(User, SystemPermissions.StockTakes.ViewVariance);
+    string statTileColClass = canViewVariance ? "col-6 col-md-3" : "col-6 col-md-4";
+
+    bool canEdit = await PermissionService.HasPermissionAsync(User, SystemPermissions.StockTakes.Edit);
+    bool isEditableStatus = Model.CurrentStatusName == StatusConstants.StockTake.Draft
+        || Model.CurrentStatusName == StatusConstants.StockTake.Returned;
+    bool showEditButton = canEdit && !Model.IsLocked && isEditableStatus;
+}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card card-bordered shadow mb-3">
+            <div class="card-header bg-gradient">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h2 class="fs-5 fw-bold mb-0 text-primary">
+                            <i class="ti ti-clipboard-list me-2"></i>Stock Take — @Model.ReferenceNumber
+                        </h2>
+                    </div>
+                    <div class="col text-end">
+                        <span class="badge @statusBadgeClass">@Model.CurrentStatusName</span>
+                        @if (Model.IsLocked)
+                        {
+                            <span class="badge bg-dark"><i class="ti ti-lock me-1"></i>Locked</span>
+                        }
+                        else if (Model.CurrentStatusName == StatusConstants.StockTake.RequiresAmendment)
+                        {
+                            <a asp-action="Create" asp-route-amendsId="@Model.Id" class="btn btn-outline-warning btn-sm ms-2">
+                                <i class="ti ti-edit me-1"></i>Create Amendment
+                            </a>
+                        }
+                        @if (showEditButton)
+                        {
+                            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-secondary btn-sm ms-2">
+                                <i class="ti ti-pencil me-1"></i>Edit
+                            </a>
+                        }
+                        <a asp-action="Index" class="btn btn-secondary btn-sm ms-2">
+                            <i class="ti ti-arrow-left me-1"></i>Back to List
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body bg-light">
+                @if (Model.IsLocked && Model.AmendedByStockTakeId.HasValue)
+                {
+                    <div class="alert alert-secondary d-flex align-items-center gap-2 mb-3">
+                        <i class="ti ti-lock"></i>
+                        <div>
+                            This record has been amended and is read-only. See
+                            <a asp-action="Details" asp-route-id="@Model.AmendedByStockTakeId" class="alert-link">@Model.AmendedByStockTakeReference</a>
+                            for the corrected count.
+                        </div>
+                    </div>
+                }
+                @if (Model.AmendsStockTakeId.HasValue)
+                {
+                    <div class="alert alert-warning d-flex align-items-center gap-2 mb-3">
+                        <i class="ti ti-alert-triangle"></i>
+                        <div>
+                            This is an amendment of
+                            <a asp-action="Details" asp-route-id="@Model.AmendsStockTakeId" class="alert-link">@Model.AmendsStockTakeReference</a>.
+                        </div>
+                    </div>
+                }
+
+                <div class="row g-3">
+                    <div class="@statTileColClass">
+                        <div class="stat-tile">
+                            <span class="stat-label">Total Counted</span>
+                            <span class="stat-value figures">@Model.TotalCountedValue.ToString("N0")</span>
+                        </div>
+                    </div>
+                    <div class="@statTileColClass">
+                        <div class="stat-tile">
+                            <span class="stat-label">Entries</span>
+                            <span class="stat-value figures">@Model.LineCount</span>
+                        </div>
+                    </div>
+                    <div class="@statTileColClass">
+                        <div class="stat-tile">
+                            <span class="stat-label">Vault Sections</span>
+                            <span class="stat-value figures">@Model.VaultSectionCount</span>
+                        </div>
+                    </div>
+                    @if (canViewVariance)
+                    {
+                        <div class="@statTileColClass">
+                            <div class="stat-tile">
+                                <span class="stat-label">Mismatches</span>
+                                <span class="stat-value figures @mismatchTileClass">@Model.MismatchCount</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card card-bordered shadow mb-3">
+            <div class="card-header bg-white border-bottom no-after">
+                <h6 class="card-title mb-0"><i class="ti ti-grid-dots me-2 text-info"></i>Physical Count</h6>
+            </div>
+            <div class="card-body p-0">
+                @if (Model.Lines.Any())
+                {
+                    var groupedByVault = Model.Lines
+                        .GroupBy(l => (l.VaultSectionId, l.VaultSectionName, l.VaultName))
+                        .OrderBy(g => g.Key.VaultSectionName)
+                        .ToList();
+
+                    <div class="accordion accordion-flush" id="physicalCountAccordion">
+                        @foreach (var group in groupedByVault)
+                        {
+                            var collapseId = $"vaultCollapse{group.Key.VaultSectionId}";
+                            var groupTotal = group.Sum(l => l.Value);
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#@collapseId">
+                                        <div class="d-flex justify-content-between align-items-center flex-grow-1 me-2">
+                                            <span class="fw-semibold">@group.Key.VaultName — @group.Key.VaultSectionName</span>
+                                            <span class="text-muted small figures">@groupTotal.ToString("N0")</span>
+                                        </div>
+                                    </button>
+                                </h2>
+                                <div id="@collapseId" class="accordion-collapse collapse" data-bs-parent="#physicalCountAccordion">
+                                    <div class="accordion-body p-0">
+                                        <div class="table-responsive scroll-box">
+                                            <table class="table table-sm mb-0">
+                                                <thead>
+                                                    <tr>
+                                                        <th class="fs-7 fw-semibold text-secondary">Category</th>
+                                                        <th class="fs-7 fw-semibold text-secondary">Denomination</th>
+                                                        <th class="fs-7 fw-semibold text-secondary text-end">Pieces</th>
+                                                        <th class="fs-7 fw-semibold text-secondary text-end">Value</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var catGroup in group.GroupBy(l => l.CategoryName).OrderBy(g => g.Key))
+                                                    {
+                                                        @foreach (var line in catGroup.OrderBy(l => l.DenominationName))
+                                                        {
+                                                            <tr>
+                                                                <td class="text-muted small">@line.CategoryName</td>
+                                                                <td class="fw-semibold figures">@line.DenominationName</td>
+                                                                <td class="text-end figures">@line.NumberOfPieces.ToString("N0")</td>
+                                                                <td class="text-end fw-semibold figures">@line.Value.ToString("N0")</td>
+                                                            </tr>
+                                                        }
+                                                        <tr class="table-light">
+                                                            <td colspan="3" class="text-end small text-muted">@catGroup.Key subtotal</td>
+                                                            <td class="text-end small fw-semibold figures">@catGroup.Sum(l => l.Value).ToString("N0")</td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr class="table-light fw-bold">
+                                                        <td colspan="3" class="text-end">Section Total</td>
+                                                        <td class="text-end figures">@groupTotal.ToString("N0")</td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    <div class="d-flex justify-content-between fw-bold px-3 py-2 border-top bg-light">
+                        <span>Grand Total</span>
+                        <span class="figures">@Model.Lines.Sum(l => l.Value).ToString("N0")</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="p-4 text-center">
+                        <p class="text-muted mb-0"><i class="ti ti-inbox fs-3 d-block mb-2 text-secondary" style="opacity:.5;"></i>Nothing recorded yet.</p>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @if (canViewVariance)
+        {
+            <div class="card card-bordered shadow-sm mb-3">
+                <div class="card-header bg-white border-bottom no-after">
+                    <h6 class="card-title mb-0"><i class="ti ti-scale me-2 text-primary"></i>System Position &amp; Variance</h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3" id="positionHint">System position as recorded on @Model.CountDate.ToString("dd/MMM/yyyy") — frozen at the time of counting, not the current live ledger.</p>
+                    <div class="matrix-scroll" id="matrixContainer"></div>
+                </div>
+            </div>
+        }
+
+        <div class="card card-bordered shadow-sm mb-3">
+            <div class="card-header bg-white border-bottom no-after">
+                <h6 class="card-title mb-0"><i class="ti ti-message me-2 text-secondary"></i>Comments</h6>
+            </div>
+            <div class="card-body">
+                @if (Model.StatusHistory.Any())
+                {
+                    <div class="timeline">
+                        @foreach (var history in Model.StatusHistory.OrderBy(x => x.ChangedAt))
+                        {
+                            <div class="timeline-item mb-3">
+                                <div class="d-flex gap-2">
+                                    <div class="timeline-marker">
+                                        <i class="ti ti-circle-check text-success"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1 small">
+                                            <strong>@history.OldStatusName</strong>
+                                            <i class="ti ti-arrow-right text-muted"></i>
+                                            <strong>@history.NewStatusName</strong>
+                                        </h6>
+                                        <small class="text-muted d-block">By @history.ChangedBy &middot; @history.ChangedAt.ToString("dd/MMM/yyyy HH:mm")</small>
+                                        @if (!string.IsNullOrEmpty(history.Remarks))
+                                        {
+                                            <div class="mt-2 p-2 bg-white rounded border small">@history.Remarks</div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted text-center small mb-0"><i class="ti ti-inbox me-2"></i>No comments yet.</p>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card card-bordered shadow-sm mb-3">
+            <div class="card-header bg-white border-bottom no-after">
+                <h6 class="card-title mb-0"><i class="ti ti-info-circle me-2 text-secondary"></i>Details</h6>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0 small">
+                    <dt class="col-5 text-muted fw-normal">Branch</dt>
+                    <dd class="col-7 fw-semibold text-end mb-2">@Model.BranchName</dd>
+                    <dt class="col-5 text-muted fw-normal">Count Date</dt>
+                    <dd class="col-7 fw-semibold text-end mb-2">@Model.CountDate.ToString("dd/MMM/yyyy")</dd>
+                    <dt class="col-5 text-muted fw-normal">Counted By</dt>
+                    <dd class="col-7 fw-semibold text-end mb-2">@Model.CreatedBy</dd>
+                    <dt class="col-5 text-muted fw-normal">Created</dt>
+                    <dd class="col-7 fw-semibold text-end mb-0">@Model.CreatedDate.ToString("dd/MMM/yyyy HH:mm")</dd>
+                </dl>
+                @if (!string.IsNullOrEmpty(Model.Remarks))
+                {
+                    <hr class="my-2" />
+                    <small class="text-muted text-uppercase fw-semibold d-block mb-1">Remarks</small>
+                    <p class="mb-0 small">@Model.Remarks</p>
+                }
+            </div>
+        </div>
+
+        <div class="card card-bordered bg-light mb-3 shadow-sm">
+            <div class="card-header bg-white border-bottom no-after">
+                <h6 class="card-title mb-0"><i class="ti ti-checkbox me-2 text-primary"></i>Available Actions</h6>
+            </div>
+            <div class="card-body">
+                @if (Model.IsLocked)
+                {
+                    <div class="text-center py-4">
+                        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center mx-auto mb-3"
+                             style="width:3rem;height:3rem;">
+                            <i class="ti ti-lock text-muted fs-4"></i>
+                        </div>
+                        <p class="text-muted small mb-0">This record is locked and has no further actions available.</p>
+                    </div>
+                }
+                else if (Model.AvailableTransitions.Any())
+                {
+                    <form method="post" asp-action="ExecuteAction" asp-route-id="@Model.Id" id="workflowForm">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-3">
+                            <label class="form-label small">Action <span class="text-danger">*</span></label>
+                            <select id="actionSelect" name="actionName" class="form-select form-select-sm" required>
+                                <option value="">-- Select an action --</option>
+                                @foreach (var transition in Model.AvailableTransitions)
+                                {
+                                    <option value="@transition.ActionName"
+                                            data-requires-comments="@transition.RequiresComments.ToString().ToLower()"
+                                            data-button-class="@transition.ButtonClass"
+                                            data-display-label="@transition.DisplayLabel">
+                                        @transition.DisplayLabel
+                                    </option>
+                                }
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small">
+                                Comments <span id="commentRequired" class="text-danger" style="display:none;">*</span>
+                            </label>
+                            <textarea id="remarksTextarea" class="form-control form-control-sm" name="remarks" rows="3" placeholder="Enter your comments..."></textarea>
+                            <small id="commentHint" class="text-muted d-block mt-1"></small>
+                        </div>
+                        <button type="submit" id="submitBtn" class="text-white btn btn-primary btn-sm w-100" disabled>
+                            <i class="ti ti-check me-1"></i><span id="submitBtnLabel">Submit</span>
+                        </button>
+                    </form>
+                }
+                else
+                {
+                    <div class="text-center py-4">
+                        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center mx-auto mb-3"
+                             style="width:3rem;height:3rem;">
+                            <i class="ti ti-lock text-muted fs-4"></i>
+                        </div>
+                        <p class="text-muted small mb-0">No actions available for your role at this stage.</p>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="card card-bordered shadow-sm mb-3">
+            <div class="card-body">
+                <h6 class="fw-bold text-muted small text-uppercase mb-3">
+                    <i class="ti ti-info-circle me-1"></i>About this page
+                </h6>
+                <p class="small text-muted mb-3">
+                    This page shows the full details of a <strong>Stock Take</strong> record — a physical count of
+                    cash held in the vault, reconciled against the system's live stock ledger position.
+                </p>
+                <hr class="my-3" />
+                <div class="d-flex align-items-start gap-2 mb-2">
+                    <i class="ti ti-chart-bar text-secondary mt-1 flex-shrink-0"></i>
+                    <div class="small text-muted"><strong>Stat strip</strong> — the total value counted, number of entries, vault sections covered, and any mismatches found.</div>
+                </div>
+                <div class="d-flex align-items-start gap-2 mb-2">
+                    <i class="ti ti-grid-dots text-secondary mt-1 flex-shrink-0"></i>
+                    <div class="small text-muted"><strong>Physical Count</strong> — the amounts counted, grouped by vault section and broken down by category and denomination.</div>
+                </div>
+                <div class="d-flex align-items-start gap-2 mb-2">
+                    <i class="ti ti-scale text-secondary mt-1 flex-shrink-0"></i>
+                    <div class="small text-muted"><strong>System Position &amp; Variance</strong> — compares the physical count against the live stock ledger and flags any mismatches.</div>
+                </div>
+                <div class="d-flex align-items-start gap-2 mb-2">
+                    <i class="ti ti-history text-secondary mt-1 flex-shrink-0"></i>
+                    <div class="small text-muted"><strong>Comments</strong> — a full audit trail of every status change, who made it, when, and any remarks they added.</div>
+                </div>
+                <div class="d-flex align-items-start gap-2">
+                    <i class="ti ti-checkbox text-primary mt-1 flex-shrink-0"></i>
+                    <div class="small text-muted"><strong>Available Actions</strong> — if your role permits an action at the current stage, it will appear above. Select the action, add comments if required, and submit.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .figures { font-variant-numeric: tabular-nums; }
+    .card-bordered { border: 1px solid #dde3ea; }
+    .timeline-marker { width: 28px; height: 28px; border-radius: 50%; background-color: #f0f0f0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .no-after::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 0; background: unset; }
+
+    /* System Position & Variance matrix — one table per denomination group (Notes,
+       Coins, ...), category rows down the side, TRUE/FALSE per (category, denomination)
+       cell plus AND-reduced TOTAL row/column. */
+    .matrix-scroll { display: flex; flex-wrap: wrap; gap: 1.25rem; overflow-x: auto; }
+    .matrix-table { border-collapse: collapse; font-size: .78rem; }
+    .matrix-table th, .matrix-table td { border: 1px solid #dde3ea; padding: .35rem .6rem; white-space: nowrap; }
+    .matrix-grouphead { background-color: #343a40; color: #fff; text-align: center; font-weight: 700; letter-spacing: .04em; }
+    .matrix-table thead tr:nth-child(2) th { background-color: #e9ecef; font-weight: 700; text-align: center; }
+    .matrix-rowhead { background-color: #e9ecef; font-weight: 700; text-align: left; }
+    .matrix-cell { text-align: center; font-weight: 700; }
+    .matrix-true { background-color: #1e8a4c; color: #fff; }
+    .matrix-false { background-color: #c62828; color: #fff176; }
+    .matrix-table tbody tr:last-child .matrix-rowhead { background-color: #ced4da; }
+
+    .stat-tile {
+        display: flex; flex-direction: column; gap: .15rem;
+        background: #fff; border: 1px solid #e9ecef; border-radius: .5rem;
+        padding: .65rem .9rem;
+    }
+    .stat-tile .stat-label { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #6c757d; }
+    .stat-tile .stat-value { font-size: 1.15rem; font-weight: 700; }
+
+    /* Keep long tables scrolling inside their own box instead of the whole page,
+       with the header row pinned so column labels stay visible. */
+    .scroll-box { max-height: 380px; overflow-y: auto; }
+
+    .scroll-box thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background-color: #f8fafc;
+        box-shadow: inset 0 -2px 0 #e9ecef;
+    }
+    .scroll-box tfoot td {
+        position: sticky;
+        bottom: 0;
+        z-index: 2;
+        background-color: #f8f9fa;
+        box-shadow: inset 0 1px 0 #dee2e6;
+    }
+
+    /* The site theme (volt.css) redefines .accordion-button::after to render a Font
+       Awesome glyph, but Font Awesome isn't loaded in this app, so the chevron is
+       invisible everywhere. Restore Bootstrap's own SVG chevron for this accordion. */
+    #physicalCountAccordion .accordion-button::after {
+        content: "";
+        font-family: inherit;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23374151'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-size: 1.25rem;
+        width: 1.25rem;
+        height: 1.25rem;
+        transform: none;
+    }
+    #physicalCountAccordion .accordion-button:not(.collapsed)::after {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%231c2532'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+        transform: rotate(180deg);
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const actionSelect = document.getElementById('actionSelect');
+        const remarksTextarea = document.getElementById('remarksTextarea');
+        const commentRequired = document.getElementById('commentRequired');
+        const commentHint = document.getElementById('commentHint');
+        const submitBtn = document.getElementById('submitBtn');
+        const submitBtnLabel = document.getElementById('submitBtnLabel');
+
+        if (actionSelect) {
+            actionSelect.addEventListener('change', function () {
+                const selected = this.options[this.selectedIndex];
+                const requiresComments = selected.dataset.requiresComments === 'true';
+                const actionName = selected.value;
+
+                if (actionName) {
+                    commentRequired.style.display = requiresComments ? 'inline' : 'none';
+                    remarksTextarea.required = requiresComments;
+                    submitBtn.disabled = false;
+                    submitBtnLabel.textContent = selected.dataset.displayLabel;
+                    submitBtn.className = `text-white btn btn-sm w-100 ${selected.dataset.buttonClass}`;
+                } else {
+                    commentRequired.style.display = 'none';
+                    remarksTextarea.required = false;
+                    submitBtn.disabled = true;
+                    submitBtnLabel.textContent = 'Submit';
+                    submitBtn.className = 'text-white btn btn-primary btn-sm w-100';
+                }
+            });
+
+            document.getElementById('workflowForm').addEventListener('submit', function (e) {
+                const selected = actionSelect.options[actionSelect.selectedIndex];
+                if (selected.dataset.requiresComments === 'true' && !remarksTextarea.value.trim()) {
+                    e.preventDefault();
+                    alert('Comments are required for this action.');
+                    remarksTextarea.focus();
+                }
+            });
+        }
+    });
+
+    const STOCK_TAKE_ID = @Model.Id;
+    const POSITION_HINT = 'System position as recorded on @Model.CountDate.ToString("dd/MMM/yyyy") — frozen at the time of counting, not the current live ledger.';
+    const LINES = @Html.Raw(Json.Serialize(Model.Lines.Select(l => new {
+        categoryId = l.CategoryId,
+        denominationId = l.DenominationId,
+        value = l.Value
+    })));
+    const GROUP_LABELS = { Note: 'NOTES', Coin: 'COINS' };
+
+    async function loadSystemPosition() {
+        const hint = document.getElementById('positionHint');
+        const container = document.getElementById('matrixContainer');
+        hint.innerHTML = '<i class="ti ti-loader-2 me-1"></i>Loading system position…';
+        try {
+            const res = await fetch(`@Url.Action("GetSystemPosition")?stockTakeId=${STOCK_TAKE_ID}`);
+            const data = await res.json();
+
+            if (!data.length) {
+                container.innerHTML = '<p class="text-muted text-center py-3 mb-0">Nothing to compare yet.</p>';
+                hint.textContent = POSITION_HINT;
+                return;
+            }
+
+            // Every denomination entry carries the same set of categories, so the row
+            // list only needs pulling from the first one.
+            const categoryRows = data[0].categories.map(c => ({ categoryId: c.categoryId, categoryName: c.categoryName }));
+
+            // System value per exact (categoryId, denominationId) cell.
+            const sysByPair = {};
+            data.forEach(d => {
+                d.categories.forEach(c => { sysByPair[`${c.categoryId}:${d.denominationId}`] = c.value; });
+            });
+
+            // Physical value per (categoryId, denominationId), summed across vault sections —
+            // 0 for any pair that was never counted, which correctly shows as a mismatch
+            // whenever the system position for that pair is non-zero.
+            const physByPair = {};
+            LINES.forEach(l => {
+                const key = `${l.categoryId}:${l.denominationId}`;
+                physByPair[key] = (physByPair[key] || 0) + l.value;
+            });
+
+            const matches = (catId, denomId) => {
+                const key = `${catId}:${denomId}`;
+                return (physByPair[key] || 0) === (sysByPair[key] || 0);
+            };
+
+            // Group denomination columns into their Notes / Coins sections, preserving
+            // the order the server already sorted them in (by type, then value).
+            const groups = [];
+            data.forEach(d => {
+                let group = groups.find(g => g.name === d.denominationTypeName);
+                if (!group) {
+                    group = { name: d.denominationTypeName, denominations: [] };
+                    groups.push(group);
+                }
+                group.denominations.push({ id: d.denominationId, name: d.denominationName, value: d.denominationValue });
+            });
+
+            const cell = ok => `<td class="matrix-cell ${ok ? 'matrix-true' : 'matrix-false'}">${ok ? 'TRUE' : 'FALSE'}</td>`;
+            const fmtValue = n => Number(n || 0).toLocaleString('en-UG', { maximumFractionDigits: 0 });
+
+            container.innerHTML = groups.map(group => {
+                const headerCells = group.denominations.map(d => `<th title="${d.name}">${fmtValue(d.value)}/=</th>`).join('') + '<th>TOTAL</th>';
+
+                const bodyRows = categoryRows.map(cat => {
+                    const results = group.denominations.map(d => matches(cat.categoryId, d.id));
+                    return `<tr>
+                        <th class="matrix-rowhead">${cat.categoryName.toUpperCase()}</th>
+                        ${results.map(cell).join('')}
+                        ${cell(results.every(Boolean))}
+                    </tr>`;
+                }).join('');
+
+                const colTotals = group.denominations.map(d =>
+                    categoryRows.every(cat => matches(cat.categoryId, d.id)));
+                const totalRow = `<tr>
+                    <th class="matrix-rowhead">TOTAL</th>
+                    ${colTotals.map(cell).join('')}
+                    ${cell(colTotals.every(Boolean))}
+                </tr>`;
+
+                const label = GROUP_LABELS[group.name] || group.name.toUpperCase();
+                return `<table class="matrix-table">
+                    <thead>
+                        <tr><th></th><th colspan="${group.denominations.length + 1}" class="matrix-grouphead">${label}</th></tr>
+                        <tr><th></th>${headerCells}</tr>
+                    </thead>
+                    <tbody>${bodyRows}${totalRow}</tbody>
+                </table>`;
+            }).join('');
+
+            hint.textContent = POSITION_HINT;
+        } catch (e) {
+            hint.textContent = 'Could not load system position.';
+        }
+    }
+
+    // The Variance card (and its table) only renders for users with the ViewVariance
+    // permission — skip loading it entirely otherwise.
+    if (document.getElementById('matrixContainer')) {
+        loadSystemPosition();
+    }
+</script>

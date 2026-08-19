@@ -96,7 +96,10 @@ public class CbRequestsController(
             };
         }));
 
-        var depositRequests = await _duow.Requests.GetByCbAsync(cbId, ct);
+        // Legacy deposits are back-filled records, not requests the bank raised — they don't belong
+        // in Recent Requests. GetByCbAsync doesn't filter them, unlike the other deposit queries.
+        var depositRequests = (await _duow.Requests.GetByCbAsync(cbId, ct))
+            .Where(r => !r.IsLegacyDeposit);
 
         var depositRows = await Task.WhenAll(depositRequests.Select(async r =>
         {

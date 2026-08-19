@@ -47,6 +47,14 @@ namespace VMSService.Core.Repositories.BankingSurpluses
             return await Save();
         }
 
+        public async Task<int> CountForPeriodAndBranch(int branchId, int year, int month)
+        {
+            var start = new DateTime(year, month, 1);
+            var end   = start.AddMonths(1);
+            return await _db.BankingSurpluses
+                .CountAsync(s => s.BranchId == branchId && s.Period >= start && s.Period < end);
+        }
+
         public async Task<bool> Save()
         {
             return await _db.SaveChangesAsync() > 0;

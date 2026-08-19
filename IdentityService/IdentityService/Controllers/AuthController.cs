@@ -228,7 +228,7 @@ namespace IdentityService.Controllers
                     _logger.LogWarning("Second factor attempt for inactive user: {Username}", request.Username);
                     return Unauthorized(new { message = "User account is inactive. Please contact administrator." });
                 }
-               _logger.LogInformation("Processing RSA 2FA verification for user: {Username}", request.Username);
+                _logger.LogInformation("Processing RSA 2FA verification for user: {Username}", request.Username);
 
                 // Verify RSA SecurID passcode
                 //var rsaVerifyResponse = await _rsaService.VerifyAuthenticationAsync(
@@ -442,7 +442,7 @@ namespace IdentityService.Controllers
             claims.Add(new Claim("isStaff", dbUser.IsStaff.ToString().ToLower()));
             claims.Add(new Claim(ClaimTypes.Name, username));
             claims.Add(new Claim(ClaimTypes.NameIdentifier, dbUser.Id));
-            
+
             if (!dbUser.IsStaff)
             {
                 CommercialBankUser commercialBankUser = await _commercialBankUserRepo.FindByUserId(dbUser.Id);
@@ -624,7 +624,7 @@ namespace IdentityService.Controllers
             try
             {
                 var result = await _rsaService.CancelAuthenticationAsync(request.AuthnAttemptId, request.Reason);
-                
+
                 if (result)
                 {
                     return Ok(new { message = "RSA authentication cancelled successfully" });

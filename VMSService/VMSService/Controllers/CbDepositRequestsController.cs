@@ -9,7 +9,9 @@ using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.CbDepositRequest;
 using VMSService.Core.Models.CbDepositRequests;
 using VMSService.Core.Models.CbRequests;
+using VMSService.Core.Models.Penalties;
 using VMSService.Core.Repositories.AgentDetails;
+using VMSService.Core.Repositories.AppliedPenalties;
 using VMSService.Core.Repositories.Attachments;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.DenominationTypes;
@@ -50,6 +52,7 @@ namespace VMSService.Web.Controllers
         IIdentityService _identityService,
         IAttachmentRepository _attachmentRepository,
         IPublicHolidayRepository _publicHolidayRepository,
+        IAppliedPenaltyRepository _appliedPenaltyRepository,
         IWebHostEnvironment _environment) : BaseWithdrawController(authorizationService)
     {
         public async Task<IActionResult> Index(CancellationToken ct)
@@ -192,9 +195,9 @@ namespace VMSService.Web.Controllers
                 agentNames = agent.AgentNames,
                 nin = agent.NIN,
                 phoneNumber = agent.PhoneNumber,
-                passportPhoto = agent.PassportPhoto,
-                workIdScan = agent.WorkIdScan,
-                signatureScan = agent.SignatureScan,
+                passportPhoto = VMSService.Core.Static.FileUrlHelper.ToWebPath(agent.PassportPhoto),
+                workIdScan = VMSService.Core.Static.FileUrlHelper.ToWebPath(agent.WorkIdScan),
+                signatureScan = VMSService.Core.Static.FileUrlHelper.ToWebPath(agent.SignatureScan),
             });
         }
 
@@ -591,6 +594,26 @@ namespace VMSService.Web.Controllers
             bool canEdit = (request.StatusTypeId == draftStatus.Id || request.StatusTypeId == returnedStatus.Id)
                 && userRoles.Contains(SystemPolicy.Roles.CbMaker);
 
+            // Penalties applied by BOU against this request (read-only for CB — management happens on the BOU side).
+            var appliedPenaltyVms = new List<AppliedPenaltyViewModel>();
+            if (!string.IsNullOrEmpty(request.TransactionRefNumber))
+            {
+                var appliedPenalties = await _appliedPenaltyRepository.FindBySourceId(request.TransactionRefNumber);
+                appliedPenaltyVms = appliedPenalties.Select(a => new AppliedPenaltyViewModel
+                {
+                    Id = a.Id,
+                    PenaltyId = a.PenaltyId,
+                    PenaltyName = a.Penalty?.Name ?? string.Empty,
+                    ChargeValue = a.ChargeValue,
+                    Quantity = a.Quantity,
+                    IsSettledOnRtgs = a.IsSettledOnRtgs,
+                    RtgsCode = a.RtgsCode,
+                    RtgsSettlingMessage = a.RtgsSettlingMessage,
+                    AppliedBy = a.CreatedBy,
+                    AppliedAt = a.CreatedDate,
+                }).ToList();
+            }
+
             var vm = new DepositRequestDetailsViewModel
             {
                 Id = request.Id,
@@ -666,6 +689,7 @@ namespace VMSService.Web.Controllers
                 MinimumDepositPenaltyFee = penaltyFee,
                 TotalFees = processingFee + penaltyFee,
                 HasPenaltyViolations = penaltyFee > 0,
+                AppliedPenalties = appliedPenaltyVms,
                 CanEdit = canEdit,
                 AllAttachments = depositAttachments
             };
@@ -1076,7 +1100,7 @@ namespace VMSService.Web.Controllers
             var uploadedAttachmentIds = new List<long>();
 
             // Create uploads directory if it doesn't exist
-            var uploadsPath = Path.Combine(_environment.WebRootPath, "uploads", "deposits", entityId.ToString());
+            var uploadsPath = Path.Combine(FileStorageConstants.UploadsRoot, "deposits", entityId.ToString());
             Directory.CreateDirectory(uploadsPath);
 
             foreach (var requirement in requirements)

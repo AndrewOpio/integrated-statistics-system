@@ -65,7 +65,7 @@ namespace IdentityService.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Applications", (string)null);
+                    b.ToTable("Applications");
                 });
 
             modelBuilder.Entity("IdentityService.Data.Entities.ApplicationRole", b =>
@@ -103,7 +103,84 @@ namespace IdentityService.Data.Migrations
 
                     b.HasIndex("RoleId");
 
-                    b.ToTable("ApplicationRoles", (string)null);
+                    b.ToTable("ApplicationRoles");
+                });
+
+            modelBuilder.Entity("IdentityService.Data.Entities.ApplicationRoleBranch", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ApplicationRoleId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BranchId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApplicationRoleId");
+
+                    b.ToTable("ApplicationRoleBranches");
+                });
+
+            modelBuilder.Entity("IdentityService.Data.Entities.CommercialBankUser", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("CommercialBankBranchId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CommercialBankId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("CommercialBankUsers");
                 });
 
             modelBuilder.Entity("IdentityService.Data.Entities.Role", b =>
@@ -286,7 +363,7 @@ namespace IdentityService.Data.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserApplicationRoles", (string)null);
+                    b.ToTable("UserApplicationRoles");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -412,6 +489,28 @@ namespace IdentityService.Data.Migrations
                     b.Navigation("Application");
 
                     b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("IdentityService.Data.Entities.ApplicationRoleBranch", b =>
+                {
+                    b.HasOne("IdentityService.Data.Entities.ApplicationRole", "ApplicationRole")
+                        .WithMany()
+                        .HasForeignKey("ApplicationRoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ApplicationRole");
+                });
+
+            modelBuilder.Entity("IdentityService.Data.Entities.CommercialBankUser", b =>
+                {
+                    b.HasOne("IdentityService.Data.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("IdentityService.Data.Entities.UserApplicationRole", b =>

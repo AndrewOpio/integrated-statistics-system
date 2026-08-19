@@ -17,10 +17,17 @@ public class ApplicationDbContext : DbContext
     public DbSet<StockLedger> StockLedger { get; set; }
     public DbSet<StockLedgerDetail> StockLedgerDetails { get; set; }
     public DbSet<SubCategory> SubCategories { get; set; }
+    public DbSet<StockLedgerDetailReportItem> StockLedgerDetailReportItems { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<StockLedgerDetailReportItem>(b =>
+        {
+            b.HasNoKey();
+            b.ToView(null);
+        });
     }
 }
 

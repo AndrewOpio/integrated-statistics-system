@@ -348,6 +348,30 @@ namespace VMSService.Core.Services.Stocks
             }
         }
 
+        public async Task<ICollection<StockLedger>> GetStockLedgersByStoreId(int storeId)
+        {
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var response = await _httpClient.GetAsync($"{baseUrl}/api/stockledgers/get-by-store/{storeId}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var stockLedgers = await response.Content.ReadFromJsonAsync<ICollection<StockLedger>>();
+                    return stockLedgers ?? new List<StockLedger>();
+                }
+
+                _logger.LogError("Failed to retrieve stock ledgers for store {StoreId}. Status: {StatusCode}", storeId, response.StatusCode);
+                return new List<StockLedger>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving stock ledgers for store {StoreId} from API", storeId);
+                return new List<StockLedger>();
+            }
+        }
+
         public async Task<StockLedger> GetStockLedgerById(int id)
         {
             try
@@ -368,6 +392,37 @@ namespace VMSService.Core.Services.Stocks
             {
                 _logger.LogError(ex, "Error retrieving stock ledger {StockLedgerId} from API", id);
                 return null;
+            }
+        }
+
+        public async Task<ICollection<StockLedgerDetailReportItem>> GetStockLedgerDetailsByBranch(int? branchId = null)
+        {
+            try
+            {
+                await EnsureAuthorizationHeaderAsync();
+                var baseUrl = _stockAPISettings.BaseUrl;
+                var url = branchId.HasValue
+                    ? $"{baseUrl}/api/stockledgers/details-by-branch/{branchId.Value}"
+                    : $"{baseUrl}/api/stockledgers/details-by-branch";
+
+                var response = await _httpClient.GetAsync(url);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var details = await response.Content.ReadFromJsonAsync<ICollection<StockLedgerDetailReportItem>>();
+                    return details?
+                        .OrderByDescending(d => d.StockLedgerCreatedDate)
+                        .ToList() ?? new List<StockLedgerDetailReportItem>();
+                }
+
+                _logger.LogError("Failed to retrieve stock ledger details for branch {BranchId}. Status: {StatusCode}",
+                    branchId, response.StatusCode);
+                return new List<StockLedgerDetailReportItem>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving stock ledger details for branch {BranchId} from API", branchId);
+                return new List<StockLedgerDetailReportItem>();
             }
         }
 

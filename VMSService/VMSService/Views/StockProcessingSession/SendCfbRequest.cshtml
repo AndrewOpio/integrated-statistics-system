@@ -1,0 +1,216 @@
+@using VMSService.Core.Models.BoardSessionSurplusShortages
+@model CfbRequestViewModel
+
+@{
+    ViewData["Title"] = "Send CFB Request";
+}
+
+<style>
+    .cfb-choice-input { position: absolute; opacity: 0; pointer-events: none; }
+    .cfb-choice-label {
+        display: flex; align-items: center; gap: .6rem;
+        border: 1.5px solid #e9ecef; border-radius: .6rem;
+        padding: .85rem 1rem; cursor: pointer;
+        transition: border-color .15s, background .15s, box-shadow .15s;
+        width: 100%;
+    }
+    .cfb-choice-label:hover { border-color: #c7d2fe; background: #f8fafc; }
+    .cfb-choice-icon {
+        width: 38px; height: 38px; border-radius: .5rem;
+        display: inline-flex; align-items: center; justify-content: center;
+        flex-shrink: 0; font-size: 1.05rem;
+    }
+    .cfb-choice-input:checked + .cfb-choice-label.surplus {
+        border-color: #198754; background: #e8f5e9; box-shadow: 0 0 0 3px rgba(25,135,84,.12);
+    }
+    .cfb-choice-input:checked + .cfb-choice-label.shortage {
+        border-color: #dc3545; background: #fdecea; box-shadow: 0 0 0 3px rgba(220,53,69,.12);
+    }
+    .cfb-choice-label.surplus .cfb-choice-icon { background: rgba(25,135,84,.12); color: #198754; }
+    .cfb-choice-label.shortage .cfb-choice-icon { background: rgba(220,53,69,.12); color: #dc3545; }
+    .session-stat-card {
+        border: 1.5px solid #e9ecef;
+        border-radius: .75rem;
+        padding: 1rem 1.25rem;
+        background: #fff;
+        transition: box-shadow .15s;
+    }
+    .session-stat-card:hover { box-shadow: 0 2px 8px rgba(49,49,106,.08); }
+    .stat-label {
+        font-size: .68rem;
+        font-weight: 600;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+        color: #6c757d;
+        margin-bottom: .25rem;
+    }
+    .stat-value {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #31316A;
+    }
+    .stat-sub { font-size: .75rem; color: #6c757d; }
+</style>
+
+<div class="row">
+    <div class="col-12 col-lg-12 col-xl-12 mx-auto">
+
+        @* ── Session context (read-only) ─────────────────────────────── *@
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <div>
+                <p class="text-muted small mb-0">Send CFB Request</p>
+                <h4 class="fw-bold mb-0" style="color:#31316A;">@Model.SessionReferenceNumber</h4>
+            </div>
+        </div>
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3">
+                <div class="session-stat-card">
+                    <div class="stat-label">Branch</div>
+                    <div class="stat-value">@(Model.BranchName ?? "—")</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="session-stat-card">
+                    <div class="stat-label">Commercial Bank</div>
+                    <div class="stat-value">@(Model.CommercialBankName ?? "—")</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="session-stat-card">
+                    <div class="stat-label">Denomination</div>
+                    <div class="stat-value">@(Model.DenominationName ?? "—")</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="session-stat-card">
+                    <div class="stat-label">Total Issued Value</div>
+                    <div class="stat-value">UGX @Model.TotalIssuedValue.ToString("N0")</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow mb-4">
+            <div class="card-header bg-white">
+                <h6 class="fw-bold mb-0" style="color:#31316A;">
+                    <i class="ti ti-file-invoice me-2"></i>CFB Request Details
+                </h6>
+                <p class="text-muted small mb-0 mt-1">
+                    Report a surplus or shortage discovered while processing this session to the Currency Fund Balance (CFB) desk.
+                </p>
+            </div>
+            <div class="card-body">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+
+                <form asp-action="SendCfbRequest" asp-controller="StockProcessingSession" method="post" id="cfbRequestForm">
+                    @Html.AntiForgeryToken()
+
+                    @* Autopopulated / hidden fields *@
+                    <input type="hidden" asp-for="StockProcessingSessionId" />
+                    <input type="hidden" asp-for="CommercialBankId" />
+                    <input type="hidden" asp-for="BranchId" />
+                    <input type="hidden" asp-for="DenominationId" />
+                    <input type="hidden" asp-for="CfbBoxId" />
+                    <input type="hidden" asp-for="CurrentStatusId" />
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold small" style="color:#31316A;">
+                            Type <span class="text-danger">*</span>
+                        </label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <input type="radio" class="cfb-choice-input" name="IsSurplus" id="cfbSurplus" value="true" checked>
+                                <label class="cfb-choice-label surplus" for="cfbSurplus">
+                                    <span class="cfb-choice-icon"><i class="ti ti-trending-up"></i></span>
+                                    <span>
+                                        <span class="d-block fw-semibold">Surplus</span>
+                                        <span class="d-block text-muted" style="font-size:.72rem;">More cash than expected</span>
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="col-6">
+                                <input type="radio" class="cfb-choice-input" name="IsSurplus" id="cfbShortage" value="false">
+                                <label class="cfb-choice-label shortage" for="cfbShortage">
+                                    <span class="cfb-choice-icon"><i class="ti ti-trending-down"></i></span>
+                                    <span>
+                                        <span class="d-block fw-semibold">Shortage</span>
+                                        <span class="d-block text-muted" style="font-size:.72rem;">Less cash than expected</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold small" style="color:#31316A;" for="cfbAmount">
+                            Amount <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light" style="font-weight:600;">UGX</span>
+                            <input type="text" inputmode="numeric" class="form-control num-input" id="cfbAmount" name="Amount" required autocomplete="off" />
+                        </div>
+                        <span asp-validation-for="Amount" class="text-danger small d-block mt-1"></span>
+                    </div>
+
+                    @* <div class="mb-2">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" asp-for="IsDifferentDenomination" id="cfbDiffDenom">
+                            <label class="form-check-label fw-semibold small" style="color:#31316A;" for="cfbDiffDenom">
+                                A different denomination was found
+                            </label>
+                        </div>
+                        <div class="form-text">Enable this if the discrepancy involves notes/coins of a denomination other than @(Model.DenominationName ?? "the expected one").</div>
+                    </div> *@
+
+                    <div class="d-flex justify-content-end gap-2 pt-3 border-top mt-4">
+                        <a asp-action="Details" asp-route-id="@Model.StockProcessingSessionId" class="btn btn-secondary">
+                            <i class="ti ti-arrow-left me-1"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary fw-semibold">
+                            <i class="ti ti-send me-1"></i>Send CFB Request
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+    <script>
+        (function () {
+            var amountInput = document.getElementById('cfbAmount');
+
+            function applyFormat(input) {
+                var raw = input.value.replace(/[^0-9]/g, '');
+                if (raw === '') { input.value = ''; return; }
+                input.value = parseInt(raw, 10).toLocaleString('en-US');
+            }
+
+            amountInput.addEventListener('input', function () {
+                var selStart = this.selectionStart;
+                var rawBefore = this.value.substring(0, selStart).replace(/,/g, '').length;
+                applyFormat(this);
+                var digits = 0, newPos = 0;
+                for (var i = 0; i < this.value.length; i++) {
+                    if (this.value[i] !== ',') digits++;
+                    if (digits === rawBefore) { newPos = i + 1; break; }
+                }
+                this.setSelectionRange(newPos, newPos);
+            });
+            amountInput.addEventListener('keydown', function (e) {
+                var allowed = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Tab'];
+                if (allowed.includes(e.key) || e.ctrlKey || e.metaKey) return;
+                if (!/^[0-9]$/.test(e.key)) e.preventDefault();
+            });
+
+            document.getElementById('cfbRequestForm').addEventListener('submit', function () {
+                amountInput.value = amountInput.value.replace(/,/g, '');
+            });
+        })();
+    </script>
+}

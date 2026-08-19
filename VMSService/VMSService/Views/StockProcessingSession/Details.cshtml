@@ -76,6 +76,12 @@
         </div>
     </div>
     <div class="d-flex align-items-center gap-2 flex-wrap">
+        @if (Model.CurrentStatusName == StatusConstants.StockProcessingSession.Open && !Model.SurplusShortages.Any())
+        {
+            <a asp-action="SendCfbRequest" asp-route-sessionId="@Model.Id" class="btn btn-sm btn-outline-tertiary">
+                <i class="ti ti-send me-1"></i>New CFB Request
+            </a>
+        }
         <span class="badge bg-@statusColor px-3 py-2 rounded-pill fs-small">
             <i class="ti ti-circle-filled me-1"></i>@Model.CurrentStatusName
         </span>
@@ -179,7 +185,7 @@
 
 @* ── Assigned Bags ──────────────────────────────────────────────── *@
 <div class="card section-card mb-4">
-    <div class="card-header d-flex align-items-center gap-2 py-2">
+    <div class="p-4 d-flex align-items-center gap-2 py-2">
         <span class="section-icon"><i class="ti ti-packages" style="color:#31316A;font-size:.9rem;"></i></span>
         <div>
             <h6 class="fw-bold mb-0" style="color:#31316A;">Assigned Bags</h6>
@@ -220,7 +226,7 @@
                                 <td class="py-2">
                                     @if (!string.IsNullOrEmpty(bag.SubCategoryName))
                                     {
-                                        <span class="badge bg-light border text-secondary">@bag.SubCategoryName</span>
+                                        <span class="badge bg-purple border text-purple bg-opacity-10 border-purple">@bag.SubCategoryName</span>
                                     }
                                     else
                                     {
@@ -318,19 +324,10 @@
                     <thead style="background:#f8fafc;">
                         <tr>
                             <th class="ps-4 py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">#</th>
-                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">COUNT</th>
+                            @* <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">COUNT</th> *@
+                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">REISSUE VALUE</th>
+                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">CANCELED VALUE</th>
                             <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">MONEY WITH BOARD</th>
-                            @if (Model.IsManual)
-                            {
-                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">CANCELED VALUE</th>
-                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">REISSUE VALUE</th>
-                            }
-                            else
-                            {
-                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">FIT VALUE</th>
-                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">UNFIT/SHRED VALUE</th>
-                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">FIT/SHRED VALUE</th>
-                            }
                             <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">VERIFIED</th>
                             <th class="py-2 pe-4 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;width:60px;"></th>
                         </tr>
@@ -341,35 +338,32 @@
                         {
                             <tr>
                                 <td class="ps-4 py-2 text-muted">@rn</td>
-                                <td class="py-2 fw-semibold">@r.Count.ToString("N0")</td>
+                                @* <td class="py-2 fw-semibold">@r.Count.ToString("N0")</td> *@
+                                <td class="py-2">
+                                    @if (r.ReissueValue > 0) { <text>UGX @r.ReissueValue.ToString("N0")</text> } else { <span class="text-muted">—</span> }
+                                </td>
+                                <td class="py-2">
+                                    @if (r.CanceledValue > 0)
+                                    {
+                                        <text>UGX @r.CanceledValue.ToString("N0")</text>
+                                    }
+                                    else
+                                    {
+
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
                                 <td class="py-2">
                                     @if (r.UnProcessedValue > 0)
                                     {
                                         <span class="fw-semibold text-warning-emphasis">UGX @r.UnProcessedValue.ToString("N0")</span>
                                     }
-                                    else { <span class="text-muted">—</span> }
+                                    else
+                                    {
+
+                                        <span class="text-muted">—</span>
+                                    }
                                 </td>
-                                @if (Model.IsManual)
-                                {
-                                    <td class="py-2">
-                                        @if (r.CanceledValue > 0) { <text>UGX @r.CanceledValue.ToString("N0")</text> } else { <span class="text-muted">—</span> }
-                                    </td>
-                                    <td class="py-2">
-                                        @if (r.ReissueValue > 0) { <text>UGX @r.ReissueValue.ToString("N0")</text> } else { <span class="text-muted">—</span> }
-                                    </td>
-                                }
-                                else
-                                {
-                                    <td class="py-2">
-                                        @if (r.FitValue > 0) { <text>UGX @r.FitValue.ToString("N0")</text> } else { <span class="text-muted">—</span> }
-                                    </td>
-                                    <td class="py-2">
-                                        @if (r.UnfitShredValue > 0) { <text>UGX @r.UnfitShredValue.ToString("N0")</text> } else { <span class="text-muted">—</span> }
-                                    </td>
-                                    <td class="py-2">
-                                        @if (r.FitShredValue > 0) { <text>UGX @r.FitShredValue.ToString("N0")</text> } else { <span class="text-muted">—</span> }
-                                    </td>
-                                }
                                 <td class="py-2">
                                     @if (r.IsVerified)
                                     {
@@ -393,13 +387,11 @@
                                                 title="Edit result"
                                                 data-bs-toggle="modal" data-bs-target="#editResultModal"
                                                 data-id="@r.Id"
-                                                data-count="@r.Count"
-                                                data-unprocessed="@r.UnProcessedValue"
-                                                data-fit="@r.FitValue"
-                                                data-unfitshred="@r.UnfitShredValue"
-                                                data-fitshred="@r.FitShredValue"
-                                                data-canceled="@r.CanceledValue"
-                                                data-reissue="@r.ReissueValue">
+                                                data-fit="@r.FitValue.ToString("F0")"
+                                                data-unfitshred="@r.UnFitShredValue.ToString("F0")"
+                                                data-fitshred="@r.FitShredValue.ToString("F0")"
+                                                data-canceled="@r.CanceledValue.ToString("F0")"
+                                                data-reissue="@r.ReissueValue.ToString("F0")">
                                             <i class="ti ti-pencil"></i>
                                         </button>
                                     }
@@ -436,7 +428,7 @@
                 && Model.CurrentStatusName == StatusConstants.StockProcessingSession.Open)
         {
             <div class="p-4 @(Model.Results.Any() ? "border-top" : "")">
-                <div class="d-flex align-items-center gap-2 mb-3">
+                <div class="d-flex align-items-center gap-2 mb-3 border-top pt-3">
                     <i class="ti ti-plus-circle" style="color:#31316A;font-size:1.1rem;"></i>
                     <h6 class="fw-bold mb-0" style="color:#31316A;">Save New Result</h6>
                 </div>
@@ -446,85 +438,90 @@
                     <input type="hidden" name="SessionId" value="@Model.Id" />
 
                     <div class="row g-3">
-                        <div class="col-12 col-md-3">
-                            <label class="form-label fw-semibold small" style="color:#31316A;">
-                                Count <span class="text-danger">*</span>
-                            </label>
+                        @* <div class="col-12">
+                            <p class="small fw-semibold mb-0" style="color:#31316A;">
+                                <i class="ti ti-@(Model.IsManual ? "hand" : "cpu") me-1"></i>@(Model.IsManual ? "Manual" : "Machine") Processing Fields
+                                @if (!Model.IsManual && !string.IsNullOrEmpty(Model.MachineName))
+                                {
+                                    <span class="text-muted fw-normal">— @Model.MachineName</span>
+                                }
+                            </p>
+                        </div> *@
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold small" style="color:#31316A;">Reissue Value</label>
                             <div class="input-group input-group-sm">
-                                <span class="input-group-text bg-light"><i class="ti ti-hash"></i></span>
-                                <input type="text" inputmode="numeric" class="form-control num-input"
-                                       name="Count"
-                                       required autocomplete="off" />
+                                <span class="input-group-text bg-light" style="font-size:.72rem;font-weight:600;">UGX</span>
+                                <input type="text" inputmode="numeric" class="form-control num-input calc-source" data-role="reissue" name="ReissueValue" autocomplete="off" />
                             </div>
-                            <div class="form-text">Total note/coin count</div>
                         </div>
-
-                        <div class="col-12 col-md-3">
-                            <label class="form-label fw-semibold small" style="color:#31316A;">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold small" style="color:#31316A;">Cancelled Value</label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-light" style="font-size:.72rem;font-weight:600;">UGX</span>
+                                <input type="text" inputmode="numeric" class="form-control num-input calc-source" data-role="canceled" name="CanceledValue" autocomplete="off" />
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold small text-muted">
                                 Unprocessed Value
-                                <span class="badge bg-secondary-subtle text-secondary border ms-1" style="font-size:.6rem;">Money With Boards</span>
+                                <span class="badge bg-secondary-subtle text-secondary border ms-1" style="font-size:.6rem;">Money With Boards · Auto-calculated</span>
                             </label>
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text bg-light" style="font-size:.72rem;font-weight:600;">UGX</span>
-                                <input type="text" inputmode="numeric" class="form-control num-input" value="0"
-                                       name="UnProcessedValue"
-                                       autocomplete="off" />
+                                <input type="text" class="form-control bg-light" data-role="calc-unprocessed" readonly value="0" tabindex="-1" />
                             </div>
-                            <div class="form-text">Balance remaining with board</div>
+                            <div class="form-text text-danger d-none" data-role="negative-warning">
+                                <i class="ti ti-alert-triangle me-1"></i>Cannot exceed Total Issued Value — Unprocessed Value cannot be less than 0.
+                            </div>
                         </div>
 
-                        @if (Model.IsManual)
+                        @if (!Model.IsManual)
                         {
                             <div class="col-12">
                                 <hr class="my-1" />
-                                <p class="small fw-semibold mb-3" style="color:#31316A;"><i class="ti ti-hand me-1"></i>Manual Processing Fields</p>
                             </div>
+
+                            <p class="small fw-semibold mb-0" style="color:#31316A;">
+                                <i class="ti ti-@(Model.IsManual ? "hand" : "cpu") me-1"></i>Machine Processing Fields
+                                @if (!string.IsNullOrEmpty(Model.MachineName))
+                                {
+                                    <span class="text-muted fw-normal">— @Model.MachineName</span>
+                                }
+                            </p>
+
+                            @* Machine-only fields, four across one line *@
                             <div class="col-12 col-md-3">
-                                <label class="form-label fw-semibold small" style="color:#31316A;">Canceled Value</label>
+                                <label class="form-label fw-semibold small text-muted">
+                                    Count
+                                    <span class="badge bg-secondary-subtle text-secondary border ms-1" style="font-size:.6rem;">Auto</span>
+                                </label>
                                 <div class="input-group input-group-sm">
-                                    <span class="input-group-text bg-light" style="font-size:.72rem;font-weight:600;">UGX</span>
-                                    <input type="text" inputmode="numeric" class="form-control num-input" name="CanceledValue" autocomplete="off" />
+                                    <span class="input-group-text bg-light"><i class="ti ti-hash"></i></span>
+                                    <input type="text" class="form-control bg-light" data-role="calc-count" readonly value="0" tabindex="-1" />
                                 </div>
                             </div>
+
                             <div class="col-12 col-md-3">
-                                <label class="form-label fw-semibold small" style="color:#31316A;">Reissue Value</label>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text bg-light" style="font-size:.72rem;font-weight:600;">UGX</span>
-                                    <input type="text" inputmode="numeric" class="form-control num-input" name="ReissueValue" autocomplete="off" />
-                                </div>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="col-12">
-                                <hr class="my-1" />
-                                <p class="small fw-semibold mb-3" style="color:#31316A;">
-                                    <i class="ti ti-cpu me-1"></i>Machine Processing Fields
-                                    @if (!string.IsNullOrEmpty(Model.MachineName))
-                                    {
-                                        <span class="text-muted fw-normal">— @Model.MachineName</span>
-                                    }
-                                </p>
-                            </div>
-                            <div class="col-12 col-md-4">
                                 <label class="form-label fw-semibold small" style="color:#31316A;">Fit Value</label>
                                 <div class="input-group input-group-sm">
-                                    <span class="input-group-text" style="background:#e8f5e9;font-size:.72rem;font-weight:600;color:#2e7d32;">UGX</span>
-                                    <input type="text" inputmode="numeric" class="form-control num-input" name="FitValue" autocomplete="off" />
+                                    <span class="input-group-text" style="background:#e3f2fd;font-size:.72rem;font-weight:600;color:#1565c0;">UGX</span>
+                                    <input type="text" inputmode="numeric" class="form-control num-input calc-source" data-role="fit" name="FitValue" placeholder="0" value="0" autocomplete="off" />
                                 </div>
                             </div>
-                            <div class="col-12 col-md-4">
-                                <label class="form-label fw-semibold small" style="color:#31316A;">Unfit / Shred Value</label>
+
+                            <div class="col-12 col-md-3">
+                                <label class="form-label fw-semibold small" style="color:#31316A;">UnFit Shred Value</label>
                                 <div class="input-group input-group-sm">
-                                    <span class="input-group-text" style="background:#fff3e0;font-size:.72rem;font-weight:600;color:#e65100;">UGX</span>
-                                    <input type="text" inputmode="numeric" class="form-control num-input" name="UnfitShredValue" autocomplete="off" />
+                                    <span class="input-group-text" style="background:#e3f2fd;font-size:.72rem;font-weight:600;color:#1565c0;">UGX</span>
+                                    <input type="text" inputmode="numeric" class="form-control num-input calc-source" data-role="unfitshred" name="UnFitShredValue" placeholder="0" value="0" autocomplete="off" />
                                 </div>
                             </div>
-                            <div class="col-12 col-md-4">
+
+                            <div class="col-12 col-md-3">
                                 <label class="form-label fw-semibold small" style="color:#31316A;">Fit / Shred Value</label>
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text" style="background:#e3f2fd;font-size:.72rem;font-weight:600;color:#1565c0;">UGX</span>
-                                    <input type="text" inputmode="numeric" class="form-control num-input" name="FitShredValue" placeholder="0" value="0" autocomplete="off" />
+                                    <input type="text" inputmode="numeric" class="form-control num-input calc-source" data-role="fitshred" name="FitShredValue" placeholder="0" value="0" autocomplete="off" />
                                 </div>
                             </div>
                         }
@@ -543,11 +540,34 @@
                             <div id="saveDenomRows"></div>
                         </div>
 
+                        <div class="col-12">
+                            <hr class="my-2" />
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <p class="small fw-semibold mb-0" style="color:#31316A;">
+                                    <i class="ti ti-users me-1"></i>Note Examiners
+                                    <span class="text-danger">*</span>
+                                    <span class="text-muted fw-normal small ms-1">
+                                        @(Model.IsManual ? "who worked this board, and bundles each processed — required" : "who worked this board — required")
+                                    </span>
+                                </p>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="addSaveNoteExaminerRowBtn">
+                                    <i class="ti ti-plus me-1"></i>Add Examiner
+                                </button>
+                            </div>
+                            @if (!Model.AvailableNoteExaminers.Any())
+                            {
+                                <div class="alert alert-warning py-2 px-3 small mb-0">
+                                    <i class="ti ti-alert-triangle me-1"></i>No Note Examiners are configured for this branch. Contact an administrator.
+                                </div>
+                            }
+                            <div id="saveNoteExaminerRows"></div>
+                        </div>
+
                         <div class="col-12 d-flex justify-content-end gap-2 pt-1">
                             <button type="button" class="btn btn-sm btn-outline-secondary" id="resultResetBtn">
                                 <i class="ti ti-refresh me-1"></i>Reset
                             </button>
-                            <button type="submit" class="btn btn-sm btn-primary fw-semibold">
+                            <button type="submit" class="btn btn-sm btn-primary fw-semibold" data-role="submit-result">
                                 <i class="ti ti-send me-1"></i>Save Result
                             </button>
                         </div>
@@ -580,87 +600,88 @@
 
                 <div class="modal-body p-4">
                     <div class="row g-3">
-                        <div class="col-12 col-md-4">
-                            <label class="form-label fw-semibold small" style="color:#31316A;">
-                                Count <span class="text-danger">*</span>
-                            </label>
+                        <div class="col-12">
+                            <p class="small fw-semibold mb-0" style="color:#31316A;">
+                                <i class="ti ti-@(Model.IsManual ? "hand" : "cpu") me-1"></i>@(Model.IsManual ? "Manual" : "Machine") Processing Fields
+                                @if (!Model.IsManual && !string.IsNullOrEmpty(Model.MachineName))
+                                {
+                                    <span class="text-muted fw-normal">— @Model.MachineName</span>
+                                }
+                            </p>
+                        </div>
+                        <div class="col-12 col-md-@(Model.IsManual ? "4" : "4")">
+                            <label class="form-label fw-semibold small" style="color:#31316A;">Reissue Value</label>
                             <div class="input-group input-group-sm">
-                                <span class="input-group-text bg-light"><i class="ti ti-hash"></i></span>
-                                <input type="text" inputmode="numeric" class="form-control num-input-modal"
-                                       id="editCount" name="Count" placeholder="0"
-                                       required autocomplete="off" />
+                                <span class="input-group-text bg-light" style="font-size:.72rem;font-weight:600;">UGX</span>
+                                <input type="text" inputmode="numeric" class="form-control num-input-modal calc-source" data-role="reissue" id="editReissue" name="ReissueValue" placeholder="0" autocomplete="off" />
                             </div>
-                            <div class="form-text">Total note/coin count</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold small" style="color:#31316A;">Canceled Value</label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-light" style="font-size:.72rem;font-weight:600;">UGX</span>
+                                <input type="text" inputmode="numeric" class="form-control num-input-modal calc-source" data-role="canceled" id="editCanceled" name="CanceledValue" placeholder="0" autocomplete="off" />
+                            </div>
+                        </div>
+                        @if (!Model.IsManual)
+                        {
+                            @* Machine-only fields, four across one line *@
+                            <div class="col-12">
+                                <div class="row g-3">
+                                    <div class="col-12 col-md-3">
+                                        <label class="form-label fw-semibold small" style="color:#31316A;">Fit Value</label>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text" style="background:#e3f2fd;font-size:.72rem;font-weight:600;color:#1565c0;">UGX</span>
+                                            <input type="text" inputmode="numeric" class="form-control num-input-modal calc-source" data-role="fit" id="editFit" name="FitValue" placeholder="0" autocomplete="off" />
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-md-3">
+                                        <label class="form-label fw-semibold small" style="color:#31316A;">UnFit Shred Value</label>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text" style="background:#e3f2fd;font-size:.72rem;font-weight:600;color:#1565c0;">UGX</span>
+                                            <input type="text" inputmode="numeric" class="form-control num-input-modal calc-source" data-role="unfitshred" id="editUnFitShred" name="UnFitShredValue" placeholder="0" autocomplete="off" />
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-md-3">
+                                        <label class="form-label fw-semibold small" style="color:#31316A;">Fit / Shred Value</label>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text" style="background:#e3f2fd;font-size:.72rem;font-weight:600;color:#1565c0;">UGX</span>
+                                            <input type="text" inputmode="numeric" class="form-control num-input-modal calc-source" data-role="fitshred" id="editFitShred" name="FitShredValue" placeholder="0" autocomplete="off" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <div class="col-12">
+                            <hr class="my-1" />
                         </div>
 
                         <div class="col-12 col-md-4">
-                            <label class="form-label fw-semibold small" style="color:#31316A;">
+                            <label class="form-label fw-semibold small text-muted">
+                                Count
+                                <span class="badge bg-secondary-subtle text-secondary border ms-1" style="font-size:.6rem;">Auto-calculated</span>
+                            </label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-light"><i class="ti ti-hash"></i></span>
+                                <input type="text" class="form-control bg-light" data-role="calc-count" readonly value="0" tabindex="-1" />
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold small text-muted">
                                 Unprocessed Value
                                 <span class="badge bg-secondary-subtle text-secondary border ms-1" style="font-size:.6rem;">Money With Boards</span>
                             </label>
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text bg-light" style="font-size:.72rem;font-weight:600;">UGX</span>
-                                <input type="text" inputmode="numeric" class="form-control num-input-modal"
-                                       id="editUnprocessed" name="UnProcessedValue" placeholder="0"
-                                       autocomplete="off" />
+                                <input type="text" class="form-control bg-light" data-role="calc-unprocessed" readonly value="0" tabindex="-1" />
+                            </div>
+                            <div class="form-text text-danger d-none" data-role="negative-warning">
+                                <i class="ti ti-alert-triangle me-1"></i>Cannot exceed Total Issued Value — Unprocessed Value cannot be less than 0.
                             </div>
                         </div>
 
-                        @if (Model.IsManual)
-                        {
-                            <div class="col-12">
-                                <hr class="my-1" />
-                                <p class="small fw-semibold mb-0" style="color:#31316A;"><i class="ti ti-hand me-1"></i>Manual Processing Fields</p>
-                            </div>
-                            <div class="col-12 col-md-4">
-                                <label class="form-label fw-semibold small" style="color:#31316A;">Canceled Value</label>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text bg-light" style="font-size:.72rem;font-weight:600;">UGX</span>
-                                    <input type="text" inputmode="numeric" class="form-control num-input-modal" id="editCanceled" name="CanceledValue" placeholder="0" autocomplete="off" />
-                                </div>
-                            </div>
-                            <div class="col-12 col-md-4">
-                                <label class="form-label fw-semibold small" style="color:#31316A;">Reissue Value</label>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text bg-light" style="font-size:.72rem;font-weight:600;">UGX</span>
-                                    <input type="text" inputmode="numeric" class="form-control num-input-modal" id="editReissue" name="ReissueValue" placeholder="0" autocomplete="off" />
-                                </div>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="col-12">
-                                <hr class="my-1" />
-                                <p class="small fw-semibold mb-0" style="color:#31316A;">
-                                    <i class="ti ti-cpu me-1"></i>Machine Processing Fields
-                                    @if (!string.IsNullOrEmpty(Model.MachineName))
-                                    {
-                                        <span class="text-muted fw-normal">— @Model.MachineName</span>
-                                    }
-                                </p>
-                            </div>
-                            <div class="col-12 col-md-4">
-                                <label class="form-label fw-semibold small" style="color:#31316A;">Fit Value</label>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text" style="background:#e8f5e9;font-size:.72rem;font-weight:600;color:#2e7d32;">UGX</span>
-                                    <input type="text" inputmode="numeric" class="form-control num-input-modal" id="editFit" name="FitValue" placeholder="0" autocomplete="off" />
-                                </div>
-                            </div>
-                            <div class="col-12 col-md-4">
-                                <label class="form-label fw-semibold small" style="color:#31316A;">Unfit / Shred Value</label>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text" style="background:#fff3e0;font-size:.72rem;font-weight:600;color:#e65100;">UGX</span>
-                                    <input type="text" inputmode="numeric" class="form-control num-input-modal" id="editUnfitShred" name="UnfitShredValue" placeholder="0" autocomplete="off" />
-                                </div>
-                            </div>
-                            <div class="col-12 col-md-4">
-                                <label class="form-label fw-semibold small" style="color:#31316A;">Fit / Shred Value</label>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text" style="background:#e3f2fd;font-size:.72rem;font-weight:600;color:#1565c0;">UGX</span>
-                                    <input type="text" inputmode="numeric" class="form-control num-input-modal" id="editFitShred" name="FitShredValue" placeholder="0" autocomplete="off" />
-                                </div>
-                            </div>
-                        }
                         <div class="col-12">
                             <hr class="my-2" />
                             <div class="d-flex align-items-center justify-content-between mb-2">
@@ -674,6 +695,29 @@
                             </div>
                             <div id="editDenomRows"></div>
                         </div>
+
+                        <div class="col-12">
+                            <hr class="my-2" />
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <p class="small fw-semibold mb-0" style="color:#31316A;">
+                                    <i class="ti ti-users me-1"></i>Note Examiners
+                                    <span class="text-danger">*</span>
+                                    <span class="text-muted fw-normal small ms-1">
+                                        @(Model.IsManual ? "who worked this board, and bundles each processed — required" : "who worked this board — required")
+                                    </span>
+                                </p>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="addEditNoteExaminerRowBtn">
+                                    <i class="ti ti-plus me-1"></i>Add Examiner
+                                </button>
+                            </div>
+                            @if (!Model.AvailableNoteExaminers.Any())
+                            {
+                                <div class="alert alert-warning py-2 px-3 small mb-0">
+                                    <i class="ti ti-alert-triangle me-1"></i>No Note Examiners are configured for this branch. Contact an administrator.
+                                </div>
+                            }
+                            <div id="editNoteExaminerRows"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -681,7 +725,7 @@
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">
                         <i class="ti ti-x me-1"></i>Cancel
                     </button>
-                    <button type="submit" class="btn btn-sm btn-primary fw-semibold">
+                    <button type="submit" class="btn btn-sm btn-primary fw-semibold" data-role="submit-result">
                         <i class="ti ti-device-floppy me-1"></i>Save Changes
                     </button>
                 </div>
@@ -697,186 +741,272 @@
     var denomJson = System.Text.Json.JsonSerializer.Serialize(
         denominations.Select(d => new { d.Id, d.Name, d.Value }));
 }
-<div class="card section-card mb-4">
-    <div class="card-header d-flex align-items-center gap-2 py-2">
-        <span class="section-icon"><i class="ti ti-exchange" style="color:#31316A;font-size:.9rem;"></i></span>
-        <div class="flex-grow-1">
-            <h6 class="fw-bold mb-0" style="color:#31316A;">Different Denominations Found</h6>
-            <span class="small text-muted">Unexpected denominations discovered during processing</span>
+@if (Model.DifferentDenoms.Any())
+{
+    <div class="card section-card mb-4">
+        <div class="p-4 d-flex align-items-center gap-2 py-2">
+            <span class="section-icon"><i class="ti ti-exchange" style="color:#31316A;font-size:.9rem;"></i></span>
+            <div class="flex-grow-1">
+                <h6 class="fw-bold mb-0" style="color:#31316A;">Different Denominations Found</h6>
+                <span class="small text-muted">Unexpected denominations discovered during processing</span>
+            </div>
+        </div>
+
+        <div class="card-body p-0">
+            @if (TempData["DifferentDenomSuccess"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show mx-3 mt-3 mb-3" role="alert">
+                    <i class="ti ti-circle-check me-2"></i>@TempData["DifferentDenomSuccess"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+
+            @* ── Saved entries table ── *@
+            @if (Model.DifferentDenoms.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover small mb-0">
+                        <thead style="background:#f8fafc;">
+                            <tr>
+                                <th class="ps-4 py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">#</th>
+                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">DENOMINATION</th>
+                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">PIECES</th>
+                                <th class="py-2 pe-4 text-muted fw-semibold text-end" style="font-size:.7rem;letter-spacing:.05em;">TOTAL VALUE</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                int ddn = 1;
+                            }
+                            @foreach (var dd in Model.DifferentDenoms)
+                            {
+                                <tr>
+                                    <td class="ps-4 py-2 text-muted">@ddn</td>
+                                    <td class="py-2">
+                                        <span class="fw-semibold">@(dd.DenominationName ?? $"ID {dd.DenominationId}")</span>
+                                        @if (dd.DenominationValue > 0)
+                                        {
+                                            <span class="text-muted small ms-1">(UGX @dd.DenominationValue.ToString("N0"))</span>
+                                        }
+                                    </td>
+                                    <td class="py-2 fw-semibold">@dd.NumberOfPieces.ToString("N0")</td>
+                                    <td class="py-2 pe-4 text-end fw-semibold" style="color:#31316A;">
+                                        UGX @((dd.DenominationValue * dd.NumberOfPieces).ToString("N0"))
+                                    </td>
+                                </tr>
+                                ddn++;
+                            }
+                        </tbody>
+                        <tfoot style="background:#f8fafc;border-top:2px solid #dee2e6;">
+                            <tr>
+                                <td colspan="2" class="ps-4 py-2 fw-semibold text-muted" style="font-size:.8rem;">TOTAL</td>
+                                <td class="py-2 fw-bold" style="color:#31316A;">@Model.DifferentDenoms.Sum(d => d.NumberOfPieces).ToString("N0")</td>
+                                <td class="py-2 pe-4 text-end fw-bold" style="color:#31316A;">
+                                    UGX @Model.DifferentDenoms.Sum(d => d.DenominationValue * d.NumberOfPieces).ToString("N0")
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-4 text-muted">
+                    <i class="ti ti-exchange-off d-block mb-2" style="font-size:2rem;opacity:.3;"></i>
+                    <p class="small mb-0">No different denominations recorded for this session</p>
+                </div>
+            }
         </div>
     </div>
+}
 
-    <div class="card-body p-0">
-        @if (TempData["DifferentDenomSuccess"] != null)
-        {
-            <div class="alert alert-success alert-dismissible fade show mx-3 mt-3 mb-3" role="alert">
-                <i class="ti ti-circle-check me-2"></i>@TempData["DifferentDenomSuccess"]
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+@* ── Note Examiners ────────────────────────────────────────────── *@
+@if (Model.NoteExaminers.Any())
+{
+    <div class="card section-card mb-4">
+        <div class="p-4 d-flex align-items-center gap-2 py-2">
+            <span class="section-icon"><i class="ti ti-users" style="color:#31316A;font-size:.9rem;"></i></span>
+            <div class="flex-grow-1">
+                <h6 class="fw-bold mb-0" style="color:#31316A;">Note Examiners</h6>
+                <span class="small text-muted">Examiners who worked this board and the bundles each processed</span>
             </div>
-        }
+        </div>
 
-        @* ── Saved entries table ── *@
-        @if (Model.DifferentDenoms.Any())
-        {
+        <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover small mb-0">
                     <thead style="background:#f8fafc;">
                         <tr>
                             <th class="ps-4 py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">#</th>
-                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">DENOMINATION</th>
-                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">PIECES</th>
-                            <th class="py-2 pe-4 text-muted fw-semibold text-end" style="font-size:.7rem;letter-spacing:.05em;">TOTAL VALUE</th>
+                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">NOTE EXAMINER</th>
+                            @if (Model.IsManual)
+                            {
+                                <th class="py-2 pe-4 text-muted fw-semibold text-end" style="font-size:.7rem;letter-spacing:.05em;">BUNDLES</th>
+                            }
                         </tr>
                     </thead>
                     <tbody>
-                        @{ int ddn = 1; }
-                        @foreach (var dd in Model.DifferentDenoms)
+                        @{
+                            int nen = 1;
+                        }
+                        @foreach (var ne in Model.NoteExaminers)
                         {
                             <tr>
-                                <td class="ps-4 py-2 text-muted">@ddn</td>
-                                <td class="py-2">
-                                    <span class="fw-semibold">@(dd.DenominationName ?? $"ID {dd.DenominationId}")</span>
-                                    @if (dd.DenominationValue > 0)
-                                    {
-                                        <span class="text-muted small ms-1">(UGX @dd.DenominationValue.ToString("N0"))</span>
-                                    }
-                                </td>
-                                <td class="py-2 fw-semibold">@dd.NumberOfPieces.ToString("N0")</td>
-                                <td class="py-2 pe-4 text-end fw-semibold" style="color:#31316A;">
-                                    UGX @((dd.DenominationValue * dd.NumberOfPieces).ToString("N0"))
-                                </td>
+                                <td class="ps-4 py-2 text-muted">@nen</td>
+                                <td class="py-2 fw-semibold">@(ne.NoteExaminerName ?? $"Examiner {ne.NoteExaminerId}")</td>
+                                @if (Model.IsManual)
+                                {
+                                    <td class="py-2 pe-4 text-end fw-semibold" style="color:#31316A;">@ne.NumberOfBundles.ToString("N0")</td>
+                                }
                             </tr>
-                            ddn++;
+                            nen++;
                         }
                     </tbody>
                     <tfoot style="background:#f8fafc;border-top:2px solid #dee2e6;">
                         <tr>
                             <td colspan="2" class="ps-4 py-2 fw-semibold text-muted" style="font-size:.8rem;">TOTAL</td>
-                            <td class="py-2 fw-bold" style="color:#31316A;">@Model.DifferentDenoms.Sum(d => d.NumberOfPieces).ToString("N0")</td>
-                            <td class="py-2 pe-4 text-end fw-bold" style="color:#31316A;">
-                                UGX @Model.DifferentDenoms.Sum(d => d.DenominationValue * d.NumberOfPieces).ToString("N0")
-                            </td>
+                            <td class="py-2 pe-4 text-end fw-bold" style="color:#31316A;">@Model.NoteExaminers.Sum(n => n.NumberOfBundles).ToString("N0")</td>
                         </tr>
                     </tfoot>
                 </table>
             </div>
-        }
-        else
-        {
-            <div class="text-center py-4 text-muted">
-                <i class="ti ti-exchange-off d-block mb-2" style="font-size:2rem;opacity:.3;"></i>
-                <p class="small mb-0">No different denominations recorded for this session</p>
-            </div>
-        }
+        </div>
     </div>
-</div>
+}
 
 @* ── Surplus / Shortage ─────────────────────────────────────────── *@
-<div class="card section-card mb-4">
-    <div class="card-header d-flex align-items-center gap-2 py-2">
-        <span class="section-icon">
-            @if (Model.SurplusShortages.Any(s => s.IsSurplus))
+@if (Model.SurplusShortages.Any())
+{
+    <div class="card section-card mb-4">
+        <div class="p-4 d-flex align-items-center gap-2 py-2">
+            <span class="section-icon">
+                @if (Model.SurplusShortages.Any(s => s.IsSurplus))
+                {
+                    <i class="ti ti-trending-up" style="color:#31316A;font-size:.9rem;"></i>
+                }
+                else if (Model.SurplusShortages.Any(s => !s.IsSurplus))
+                {
+                    <i class="ti ti-trending-down" style="color:#31316A;font-size:.9rem;"></i>
+                }
+                else
+                {
+                    <i class="ti ti-scale" style="color:#31316A;font-size:.9rem;"></i>
+                }
+            </span>
+            <div class="flex-grow-1">
+                <h6 class="fw-bold mb-0" style="color:#31316A;">Surplus / Shortage</h6>
+                <span class="small text-muted">Discrepancies between processing results and issued value</span>
+            </div>
+            @if (Model.SurplusShortages.Any())
             {
-                <i class="ti ti-trending-up" style="color:#31316A;font-size:.9rem;"></i>
+                <span class="badge @(Model.SurplusShortages.Last().IsSurplus ? "bg-success" : "bg-danger") px-3 py-1 rounded-pill">
+                    @(Model.SurplusShortages.Last().IsSurplus ? "Surplus" : "Shortage")
+                </span>
             }
-            else if (Model.SurplusShortages.Any(s => !s.IsSurplus))
+        </div>
+
+        <div class="card-body p-0">
+            @if (!Model.SurplusShortages.Any())
             {
-                <i class="ti ti-trending-down" style="color:#31316A;font-size:.9rem;"></i>
+                <div class="text-center py-4 text-muted">
+                    <i class="ti ti-scale d-block mb-2" style="font-size:2rem;opacity:.3;"></i>
+                    <p class="small mb-0">No surplus or shortage recorded — results balance with issued value</p>
+                </div>
             }
             else
             {
-                <i class="ti ti-scale" style="color:#31316A;font-size:.9rem;"></i>
-            }
-        </span>
-        <div class="flex-grow-1">
-            <h6 class="fw-bold mb-0" style="color:#31316A;">Surplus / Shortage</h6>
-            <span class="small text-muted">Discrepancies between processing results and issued value</span>
-        </div>
-        @if (Model.SurplusShortages.Any())
-        {
-            <span class="badge @(Model.SurplusShortages.Last().IsSurplus ? "bg-success" : "bg-danger") px-3 py-1 rounded-pill">
-                @(Model.SurplusShortages.Last().IsSurplus ? "Surplus" : "Shortage")
-            </span>
-        }
-    </div>
-
-    <div class="card-body p-0">
-        @if (!Model.SurplusShortages.Any())
-        {
-            <div class="text-center py-4 text-muted">
-                <i class="ti ti-scale d-block mb-2" style="font-size:2rem;opacity:.3;"></i>
-                <p class="small mb-0">No surplus or shortage recorded — results balance with issued value</p>
-            </div>
-        }
-        else
-        {
-            <div class="table-responsive">
-                <table class="table table-hover small mb-0">
-                    <thead style="background:#f8fafc;">
-                        <tr>
-                            <th class="ps-4 py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">#</th>
-                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">TYPE</th>
-                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">DENOMINATION</th>
-                            <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">COMMERCIAL BANK</th>
-                            <th class="py-2 pe-4 text-muted fw-semibold text-end" style="font-size:.7rem;letter-spacing:.05em;">AMOUNT</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @{ int ssn = 1; }
-                        @foreach (var ss in Model.SurplusShortages)
+                <div class="table-responsive">
+                    <table class="table table-hover small mb-0">
+                        <thead style="background:#f8fafc;">
+                            <tr>
+                                <th class="ps-4 py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">#</th>
+                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">TYPE</th>
+                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">DENOMINATION</th>
+                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">COMMERCIAL BANK</th>
+                                <th class="py-2 text-muted fw-semibold" style="font-size:.7rem;letter-spacing:.05em;">STATUS</th>
+                                <th class="py-2 text-muted fw-semibold text-end" style="font-size:.7rem;letter-spacing:.05em;">AMOUNT</th>
+                                <th class="py-2 pe-4 text-muted fw-semibold text-center" style="font-size:.7rem;letter-spacing:.05em;width:60px;">ACTIONS</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                int ssn = 1;
+                            }
+                            @foreach (var ss in Model.SurplusShortages)
+                            {
+                                <tr>
+                                    <td class="ps-4 py-2 text-muted">@ssn</td>
+                                    <td class="py-2">
+                                        @if (ss.IsSurplus)
+                                        {
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size:.68rem;">
+                                                <i class="ti ti-trending-up me-1"></i>Surplus
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size:.68rem;">
+                                                <i class="ti ti-trending-down me-1"></i>Shortage
+                                            </span>
+                                        }
+                                    </td>
+                                    <td class="py-2">
+                                        <span class="fw-semibold">@(ss.DenominationName ?? $"ID {ss.DenominationId}")</span>
+                                        @if (ss.DenominationValue > 0)
+                                        {
+                                            <span class="text-muted small ms-1">(UGX @ss.DenominationValue.ToString("N0"))</span>
+                                        }
+                                    </td>
+                                    <td class="py-2">@(ss.CommercialBankName ?? $"Bank {ss.CommercialBankId}")</td>
+                                    <td class="py-2">
+                                        @if (!string.IsNullOrEmpty(ss.CurrentStatusName))
+                                        {
+                                            <span class="badge bg-info"><i class="ti ti-badge me-1"></i>@ss.CurrentStatusName</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
+                                    <td class="py-2 text-end fw-bold" style="color:@(ss.IsSurplus ? "#198754" : "#dc3545");">
+                                        UGX @ss.Amount.ToString("N0")
+                                    </td>
+                                    <td class="py-2 pe-4 text-center">
+                                        <a asp-controller="BoardSessionSurplusShortages" asp-action="Details" asp-route-id="@ss.Id"
+                                           class="btn btn-sm btn-outline-info" title="View CFB Request">
+                                            <i class="ti ti-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                ssn++;
+                            }
+                        </tbody>
+                        @if (Model.SurplusShortages.Count > 1)
                         {
-                            <tr>
-                                <td class="ps-4 py-2 text-muted">@ssn</td>
-                                <td class="py-2">
-                                    @if (ss.IsSurplus)
-                                    {
-                                        <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size:.68rem;">
-                                            <i class="ti ti-trending-up me-1"></i>Surplus
-                                        </span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size:.68rem;">
-                                            <i class="ti ti-trending-down me-1"></i>Shortage
-                                        </span>
-                                    }
-                                </td>
-                                <td class="py-2">
-                                    <span class="fw-semibold">@(ss.DenominationName ?? $"ID {ss.DenominationId}")</span>
-                                    @if (ss.DenominationValue > 0)
-                                    {
-                                        <span class="text-muted small ms-1">(UGX @ss.DenominationValue.ToString("N0"))</span>
-                                    }
-                                </td>
-                                <td class="py-2">@(ss.CommercialBankName ?? $"Bank {ss.CommercialBankId}")</td>
-                                <td class="py-2 pe-4 text-end fw-bold" style="color:@(ss.IsSurplus ? "#198754" : "#dc3545");">
-                                    UGX @ss.Amount.ToString("N0")
-                                </td>
-                            </tr>
-                            ssn++;
+                            <tfoot style="background:#f8fafc;border-top:2px solid #dee2e6;">
+                                <tr>
+                                    <td colspan="5" class="ps-4 py-2 fw-semibold text-muted" style="font-size:.8rem;">NET</td>
+                                    <td class="py-2 text-end fw-bold" style="color:#31316A;">
+                                        @{
+                                            var netSurplus = Model.SurplusShortages.Where(s => s.IsSurplus).Sum(s => s.Amount);
+                                            var netShortage = Model.SurplusShortages.Where(s => !s.IsSurplus).Sum(s => s.Amount);
+                                            var net = netSurplus - netShortage;
+                                        }
+                                        @(net >= 0 ? "+" : "")UGX @net.ToString("N0")
+                                    </td>
+                                    <td class="pe-4"></td>
+                                </tr>
+                            </tfoot>
                         }
-                    </tbody>
-                    @if (Model.SurplusShortages.Count > 1)
-                    {
-                        <tfoot style="background:#f8fafc;border-top:2px solid #dee2e6;">
-                            <tr>
-                                <td colspan="4" class="ps-4 py-2 fw-semibold text-muted" style="font-size:.8rem;">NET</td>
-                                <td class="py-2 pe-4 text-end fw-bold" style="color:#31316A;">
-                                    @{
-                                        var netSurplus  = Model.SurplusShortages.Where(s => s.IsSurplus).Sum(s => s.Amount);
-                                        var netShortage = Model.SurplusShortages.Where(s => !s.IsSurplus).Sum(s => s.Amount);
-                                        var net         = netSurplus - netShortage;
-                                    }
-                                    @(net >= 0 ? "+" : "")UGX @net.ToString("N0")
-                                </td>
-                            </tr>
-                        </tfoot>
-                    }
-                </table>
-            </div>
-        }
+                    </table>
+                </div>
+            }
+        </div>
     </div>
-</div>
+}
+
+@* ── Penalties ──────────────────────────────────────────────────── *@
+@await Html.PartialAsync("_PenaltiesSection", Model)
 
 @* ── Workflow Attachments ───────────────────────────────────────── *@
 @await Html.PartialAsync("_WorkflowAttachments", Model.AllAttachments)
@@ -905,9 +1035,14 @@
         IsValid = true
     };
 }
-@if (Model.BoardSupervisorUserId == userId)
+@if (Model.BoardSupervisorUserId == userId || userRoles.Contains(SystemPolicy.Roles.VerificationOfficer))
 {
-    @await Html.PartialAsync("_WorkflowActions", workflowActionsViewModel)
+    @await Html.PartialAsync("_WorkflowActionsWithDisclaimer", workflowActionsViewModel)
+}
+
+@if (Model.ApplicablePenalties.Any())
+{
+    @await Html.PartialAsync("_PenaltiesModal", Model)
 }
 
 @section Scripts {
@@ -945,10 +1080,60 @@
                 });
             }
 
+            // ── Auto-calculated Count / Unprocessed Value ─────────────────────
+            var SESSION_TOTAL_ISSUED = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.TotalIssuedValue));
+            var SESSION_DENOM_VALUE = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DenominationValue));
+            var SESSION_IS_MANUAL = @Html.Raw(Model.IsManual ? "true" : "false");
+            // Shortages count as processed (add); surpluses were over-counted in what was reported as processed (subtract).
+            // Only records the CFB has confirmed as balanced are counted.
+            var SESSION_SURPLUS_SHORTAGE_ADJUSTMENT = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                Model.SurplusShortages.Where(s => !s.IsSurplus && s.CurrentStatusName == StatusConstants.BoardSessionSurplusShortage.BalancedByCFB).Sum(s => s.Amount)
+                - Model.SurplusShortages.Where(s => s.IsSurplus && s.CurrentStatusName == StatusConstants.BoardSessionSurplusShortage.BalancedByCFB).Sum(s => s.Amount)));
+
+            function parseNum(el) {
+                if (!el) return 0;
+                var raw = (el.value || '').replace(/,/g, '');
+                var n = parseFloat(raw);
+                return isNaN(n) ? 0 : n;
+            }
+
+            function formatCalc(el, value) {
+                if (!el) return;
+                el.value = Math.round(value).toLocaleString('en-US');
+            }
+
+            function recalcResultFields(scope) {
+                var reissueEl     = scope.querySelector('[data-role="reissue"]');
+                var canceledEl    = scope.querySelector('[data-role="canceled"]');
+                var fitEl         = scope.querySelector('[data-role="fit"]');
+                var unFitShredEl  = scope.querySelector('[data-role="unfitshred"]');
+                var fitShredEl    = scope.querySelector('[data-role="fitshred"]');
+                var countEl       = scope.querySelector('[data-role="calc-count"]');
+                var unprocEl      = scope.querySelector('[data-role="calc-unprocessed"]');
+                var warningEl     = scope.querySelector('[data-role="negative-warning"]');
+                var submitEl      = scope.querySelector('[data-role="submit-result"]');
+
+                var processedTotal = parseNum(reissueEl) + parseNum(canceledEl) + parseNum(fitShredEl);
+                // Count is the machine's piece count: the fit/unfit-shred/fit-shred values over face value.
+                var countTotal = parseNum(fitEl) + parseNum(unFitShredEl) + parseNum(fitShredEl);
+                var count = SESSION_DENOM_VALUE > 0 ? countTotal / SESSION_DENOM_VALUE : 0;
+                var unprocessed = SESSION_TOTAL_ISSUED - processedTotal;
+                var isNegative = unprocessed < 0;
+
+                formatCalc(countEl, count);
+                formatCalc(unprocEl, unprocessed);
+
+                if (unprocEl) unprocEl.classList.toggle('text-danger', isNegative);
+                if (warningEl) warningEl.classList.toggle('d-none', !isNegative);
+                if (submitEl) submitEl.disabled = isNegative;
+            }
+
             // ── Shared denomination row helpers ──────────────────────────────
             var DENOMS = @Html.Raw(denomJson);
             var EXISTING_DENOMS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
                 Model.DifferentDenoms.Select(d => new { d.DenominationId, d.NumberOfPieces })));
+            var EXISTING_NOTE_EXAMINERS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                Model.NoteExaminers.Select(ne => new { ne.NoteExaminerId, ne.NumberOfBundles })));
 
             function buildDenomOptions(selectedId) {
                 return DENOMS.map(function (d) {
@@ -1033,10 +1218,129 @@
                 });
             }
 
+            // ── Note Examiner row helpers ─────────────────────────────────────
+            var NOTE_EXAMINERS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                Model.AvailableNoteExaminers.Select(ne => new { ne.Id, ne.Name })));
+
+            function buildNoteExaminerOptions(selectedId, excludeIds) {
+                return NOTE_EXAMINERS.map(function (ne) {
+                    if (excludeIds && excludeIds.indexOf(ne.Id) !== -1 && ne.Id !== selectedId) return '';
+                    var sel = selectedId && ne.Id === selectedId ? ' selected' : '';
+                    return '<option value="' + ne.Id + '"' + sel + '>' + ne.Name + '</option>';
+                }).join('');
+            }
+
+            function getSelectedNoteExaminerIds(container, exceptSelect) {
+                var ids = [];
+                container.querySelectorAll('.ne-examiner-select').forEach(function (sel) {
+                    if (sel === exceptSelect) return;
+                    var v = parseInt(sel.value, 10);
+                    if (v) ids.push(v);
+                });
+                return ids;
+            }
+
+            function refreshNoteExaminerOptions(container) {
+                container.querySelectorAll('.ne-examiner-select').forEach(function (sel) {
+                    var currentVal = sel.value ? parseInt(sel.value, 10) : null;
+                    var excludeIds = getSelectedNoteExaminerIds(container, sel);
+                    sel.innerHTML = '<option value="">— select examiner —</option>' +
+                        buildNoteExaminerOptions(currentVal, excludeIds);
+                });
+            }
+
+            function addNoteExaminerRow(container, namePrefix, rowIdx, preData) {
+                var div = document.createElement('div');
+                // align-items-end keeps the Remove button on the same baseline as the inputs, which
+                // sit below their labels — align-items-center would float it up the row instead.
+                div.className = 'row g-2 align-items-end mb-2';
+                var selectedId = preData ? preData.NoteExaminerId : null;
+                var excludeIds = getSelectedNoteExaminerIds(container, null);
+
+                if (SESSION_IS_MANUAL) {
+                    div.innerHTML =
+                        '<div class="col-12 col-md-7">' +
+                            '<label class="form-label fw-semibold small mb-1" style="color:#31316A;">Note Examiner</label>' +
+                            '<select name="' + namePrefix + '[' + rowIdx + '].NoteExaminerId" class="form-select form-select-sm ne-examiner-select" required>' +
+                                '<option value="">— select examiner —</option>' +
+                                buildNoteExaminerOptions(selectedId, excludeIds) +
+                            '</select>' +
+                        '</div>' +
+                        '<div class="col-8 col-md-3">' +
+                            '<label class="form-label fw-semibold small mb-1" style="color:#31316A;">Bundles</label>' +
+                            '<input type="text" inputmode="numeric" name="' + namePrefix + '[' + rowIdx + '].NumberOfBundles" ' +
+                                   'class="form-control form-control-sm ne-bundles-input" placeholder="0" required autocomplete="off" />' +
+                        '</div>' +
+                        '<div class="col-4 col-md-2 d-flex align-items-end mb-1">' +
+                            '<button type="button" class="btn btn-sm btn-outline-danger remove-row-btn" title="Remove row">' +
+                                '<i class="ti ti-trash"></i>' +
+                            '</button>' +
+                        '</div>';
+                } else {
+                    div.innerHTML =
+                        '<div class="col-10 col-md-10">' +
+                            '<label class="form-label fw-semibold small mb-1" style="color:#31316A;">Note Examiner</label>' +
+                            '<select name="' + namePrefix + '[' + rowIdx + '].NoteExaminerId" class="form-select form-select-sm ne-examiner-select" required>' +
+                                '<option value="">— select examiner —</option>' +
+                                buildNoteExaminerOptions(selectedId, excludeIds) +
+                            '</select>' +
+                        '</div>' +
+                        '<input type="hidden" name="' + namePrefix + '[' + rowIdx + '].NumberOfBundles" value="0" />' +
+                        '<div class="col-2 col-md-2 d-flex align-items-end mb-1">' +
+                            '<button type="button" class="btn btn-sm btn-outline-danger remove-row-btn" title="Remove row">' +
+                                '<i class="ti ti-trash"></i>' +
+                            '</button>' +
+                        '</div>';
+                }
+
+                container.appendChild(div);
+
+                var bundlesInput = div.querySelector('.ne-bundles-input');
+
+                if (bundlesInput) {
+                    if (preData && preData.NumberOfBundles) {
+                        bundlesInput.value = parseInt(preData.NumberOfBundles, 10).toLocaleString('en-US');
+                    }
+
+                    bundlesInput.addEventListener('input', function () {
+                        var raw = this.value.replace(/[^0-9]/g, '');
+                        var pos = this.selectionStart;
+                        var digBefore = this.value.substring(0, pos).replace(/,/g, '').length;
+                        this.value = raw ? parseInt(raw, 10).toLocaleString('en-US') : '';
+                        var digits = 0, newPos = 0;
+                        for (var i = 0; i < this.value.length; i++) {
+                            if (this.value[i] !== ',') digits++;
+                            if (digits === digBefore) { newPos = i + 1; break; }
+                        }
+                        this.setSelectionRange(newPos, newPos);
+                    });
+
+                    bundlesInput.addEventListener('keydown', function (e) {
+                        var nav = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Tab'];
+                        if (nav.includes(e.key) || e.ctrlKey || e.metaKey) return;
+                        if (!/^[0-9]$/.test(e.key)) e.preventDefault();
+                    });
+                }
+
+                var examinerSelect = div.querySelector('.ne-examiner-select');
+                examinerSelect.addEventListener('change', function () {
+                    refreshNoteExaminerOptions(container);
+                });
+
+                div.querySelector('.remove-row-btn').addEventListener('click', function () {
+                    container.removeChild(div);
+                    refreshNoteExaminerOptions(container);
+                });
+            }
+
             // ── Save form ────────────────────────────────────────────────────
             var resultForm = document.getElementById('resultForm');
             if (resultForm) {
                 resultForm.querySelectorAll('.num-input').forEach(wireNumInput);
+                resultForm.querySelectorAll('.calc-source').forEach(function (el) {
+                    el.addEventListener('input', function () { recalcResultFields(resultForm); });
+                });
+                recalcResultFields(resultForm);
 
                 var saveDenomContainer = document.getElementById('saveDenomRows');
                 var saveDenomRowIdx = 0;
@@ -1047,10 +1351,28 @@
                     });
                 }
 
-                resultForm.addEventListener('submit', function () {
+                var saveNoteExaminerContainer = document.getElementById('saveNoteExaminerRows');
+                var saveNoteExaminerRowIdx = 0;
+                var addSaveNoteExaminerBtn = document.getElementById('addSaveNoteExaminerRowBtn');
+                if (addSaveNoteExaminerBtn && saveNoteExaminerContainer) {
+                    addSaveNoteExaminerBtn.addEventListener('click', function () {
+                        addNoteExaminerRow(saveNoteExaminerContainer, 'NoteExaminerEntries', saveNoteExaminerRowIdx++, null);
+                    });
+                }
+
+                resultForm.addEventListener('submit', function (e) {
+                    if (saveNoteExaminerContainer && saveNoteExaminerContainer.children.length === 0) {
+                        e.preventDefault();
+                        alert('Please capture at least one Note Examiner and the bundles they processed before saving.');
+                        return;
+                    }
+
                     this.querySelectorAll('.num-input').forEach(stripCommas);
                     if (saveDenomContainer) {
                         saveDenomContainer.querySelectorAll('.pieces-input').forEach(stripCommas);
+                    }
+                    if (saveNoteExaminerContainer) {
+                        saveNoteExaminerContainer.querySelectorAll('.ne-bundles-input').forEach(stripCommas);
                     }
                 });
 
@@ -1063,6 +1385,9 @@
                         });
                         if (saveDenomContainer) saveDenomContainer.innerHTML = '';
                         saveDenomRowIdx = 0;
+                        if (saveNoteExaminerContainer) saveNoteExaminerContainer.innerHTML = '';
+                        saveNoteExaminerRowIdx = 0;
+                        recalcResultFields(resultForm);
                     });
                 }
             }
@@ -1073,6 +1398,9 @@
 
             if (editModal && editForm) {
                 editForm.querySelectorAll('.num-input-modal').forEach(wireNumInput);
+                editForm.querySelectorAll('.calc-source').forEach(function (el) {
+                    el.addEventListener('input', function () { recalcResultFields(editForm); });
+                });
 
                 var editDenomContainer = document.getElementById('editDenomRows');
                 var editDenomRowIdx = 0;
@@ -1080,6 +1408,15 @@
                 if (addEditDenomBtn && editDenomContainer) {
                     addEditDenomBtn.addEventListener('click', function () {
                         addDenomRow(editDenomContainer, 'DifferentDenomEntries', editDenomRowIdx++, null);
+                    });
+                }
+
+                var editNoteExaminerContainer = document.getElementById('editNoteExaminerRows');
+                var editNoteExaminerRowIdx = 0;
+                var addEditNoteExaminerBtn = document.getElementById('addEditNoteExaminerRowBtn');
+                if (addEditNoteExaminerBtn && editNoteExaminerContainer) {
+                    addEditNoteExaminerBtn.addEventListener('click', function () {
+                        addNoteExaminerRow(editNoteExaminerContainer, 'NoteExaminerEntries', editNoteExaminerRowIdx++, null);
                     });
                 }
 
@@ -1096,13 +1433,13 @@
                         applyFormat(el);
                     };
 
-                    setVal('editCount',      btn.dataset.count);
-                    setVal('editUnprocessed', btn.dataset.unprocessed);
                     setVal('editCanceled',   btn.dataset.canceled);
                     setVal('editReissue',    btn.dataset.reissue);
                     setVal('editFit',        btn.dataset.fit);
-                    setVal('editUnfitShred', btn.dataset.unfitshred);
+                    setVal('editUnFitShred', btn.dataset.unfitshred);
                     setVal('editFitShred',   btn.dataset.fitshred);
+
+                    recalcResultFields(editForm);
 
                     if (editDenomContainer) {
                         editDenomContainer.innerHTML = '';
@@ -1111,12 +1448,29 @@
                             addDenomRow(editDenomContainer, 'DifferentDenomEntries', editDenomRowIdx++, d);
                         });
                     }
+
+                    if (editNoteExaminerContainer) {
+                        editNoteExaminerContainer.innerHTML = '';
+                        editNoteExaminerRowIdx = 0;
+                        EXISTING_NOTE_EXAMINERS.forEach(function (ne) {
+                            addNoteExaminerRow(editNoteExaminerContainer, 'NoteExaminerEntries', editNoteExaminerRowIdx++, ne);
+                        });
+                    }
                 });
 
-                editForm.addEventListener('submit', function () {
+                editForm.addEventListener('submit', function (e) {
+                    if (editNoteExaminerContainer && editNoteExaminerContainer.children.length === 0) {
+                        e.preventDefault();
+                        alert('Please capture at least one Note Examiner and the bundles they processed before saving.');
+                        return;
+                    }
+
                     this.querySelectorAll('.num-input-modal').forEach(stripCommas);
                     if (editDenomContainer) {
                         editDenomContainer.querySelectorAll('.pieces-input').forEach(stripCommas);
+                    }
+                    if (editNoteExaminerContainer) {
+                        editNoteExaminerContainer.querySelectorAll('.ne-bundles-input').forEach(stripCommas);
                     }
                 });
             }

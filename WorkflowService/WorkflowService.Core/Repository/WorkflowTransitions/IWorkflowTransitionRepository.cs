@@ -24,5 +24,10 @@ namespace WorkflowService.Core.Repositories.WorkflowTransitions
         /// Get all available transitions for a specific entity type, current status and roleRequired
         /// </summary>
         Task<ICollection<WorkflowTransition>> FindByEntityTypeStatusAndRole(int entityTypeId, int currentStatusId, int requiredRole);
+
+        /// <summary>
+        /// Get a map of entity type name → distinct from-status IDs that any of the given roles can act on
+        /// </summary>
+        Task<Dictionary<string, List<int>>> FindFromStatusesByRoles(int applicationId, IEnumerable<int> roleIds);
     }
 }

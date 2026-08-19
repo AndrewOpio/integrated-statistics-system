@@ -25,5 +25,8 @@ namespace VMSService.Data.Entities
         public bool IsSettledOnRtgs { get; set; } = false;
         public string? RtgsCode { get; set; }
         public string? RtgsSettlingMessage { get; set; }
+        public bool toBeWaived { get; set; } = false;
+        public string Description { get; set; }
+        public bool IsDeleted { get; set; } = false;
     }
 }

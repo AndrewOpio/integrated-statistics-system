@@ -6,5 +6,6 @@ namespace VMSService.Core.Repositories.MonthlyShortages
     public interface IMonthlyShortageRepository : IRepositoryBase<MonthlyShortage, int>
     {
         Task<MonthlyShortage?> FindByPeriod(DateTime period);
+        Task<int> CountForPeriod(int year, int month);
     }
 }

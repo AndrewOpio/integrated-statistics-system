@@ -198,12 +198,12 @@ namespace VMSService.Web.Controllers
             {
                 agentDetailVm.AgentNames,
                 agentDetailVm.NIN,
-                agentDetailVm.WorkIdScan,
+                WorkIdScan = VMSService.Core.Static.FileUrlHelper.ToWebPath(agentDetailVm.WorkIdScan),
                 agentDetailVm.PhoneNumber,
                 agentDetailVm.CommercialBankBranchId,
                 agentDetailVm.BranchId,
-                agentDetailVm.PassportPhoto,
-                agentDetailVm.SignatureScan,
+                PassportPhoto = VMSService.Core.Static.FileUrlHelper.ToWebPath(agentDetailVm.PassportPhoto),
+                SignatureScan = VMSService.Core.Static.FileUrlHelper.ToWebPath(agentDetailVm.SignatureScan),
             });
         }
         [HttpPost]

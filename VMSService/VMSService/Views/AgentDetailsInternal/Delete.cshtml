@@ -16,7 +16,7 @@
                     <div class="d-flex align-items-center gap-3 mb-3">
                         @if (!string.IsNullOrEmpty(Model.PassportPhoto))
                         {
-                            <img src="@Model.PassportPhoto" alt="Passport Photo" class="rounded-circle" style="width: 60px; height: 60px; object-fit: cover;">
+                            <img src="@FileUrlHelper.ToWebPath(Model.PassportPhoto)" alt="Passport Photo" class="rounded-circle" style="width: 60px; height: 60px; object-fit: cover;">
                         }
                         else
                         {

@@ -11,6 +11,7 @@ using VMSService.Core.Repositories.MonthlySurpluses;
 using VMSService.Core.Repositories.MonthlySurplusStatusHistories;
 using VMSService.Core.Repositories.MonthlyShortages;
 using VMSService.Core.Repositories.MonthlyShortageStatusHistories;
+using VMSService.Core.Repositories.MonthlyShortageReimbursements;
 using VMSService.Core.Repositories.MonthlyCommercialBankSettlements;
 using VMSService.Core.Repositories.MonthlyCommercialBankSettlementStatusHistories;
 using VMSService.Core.Repositories.BankingSurpluses;
@@ -25,6 +26,8 @@ using VMSService.Core.Repositories.DepositUnitOfWorks;
 using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ExPrintMintStatusHistories;
 using VMSService.Core.Repositories.ReceivedStocks;
+using VMSService.Core.Repositories.StockTakes;
+using VMSService.Core.Repositories.StockTakeStatusHistories;
 using VMSService.Core.Repositories.StockProcessingPlans;
 using VMSService.Core.Repositories.StockProcessingPlanStatusHistories;
 using VMSService.Core.Repositories.StockProcessingSessions;
@@ -38,7 +41,13 @@ using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 using VMSService.Core.Repositories.CfbTopupRequests;
 using VMSService.Core.Repositories.CfbTopupStatusHistories;
 using VMSService.Core.Repositories.PublicHolidays;
+using VMSService.Core.Repositories.BoardSessionSurplusShortages;
+using VMSService.Core.Repositories.BoardSessionSurplusShortageStatusHistories;
+using VMSService.Core.Repositories.BagMovements;
+using VMSService.Core.Repositories.BagMovementStatusHistories;
+using VMSService.Core.Repositories.Bags;
 using VMSService.Core.Services.Identity;
+using VMSService.Core.Services.StockPositions;
 using VMSService.Core.Services.Submissions;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
@@ -89,7 +98,17 @@ namespace VMSService.Core.Services.Workflows
         IBankingShortageStatusHistoryRepository _bankingShortageStatusHistoryRepository,
         ITopupRequestRepository _topupRequestRepository,
         ITopupRequestStatusHistoryRepository _topupHistoryRepository,
-        IPublicHolidayRepository _publicHolidayRepository) : IWorkflowService
+        IPublicHolidayRepository _publicHolidayRepository,
+        IBoardSessionSurplusShortageRepository _boardSessionSurplusShortageRepository,
+        IBoardSessionSurplusShortageStatusHistoryRepository _boardSessionSurplusShortageStatusHistoryRepository,
+        IBagMovementRepository _bagMovementRepository,
+        IBagMovementStatusHistoryRepository _bagMovementStatusHistoryRepository,
+        IBagRepository _bagRepository,
+        IMonthlyShortageReimbursementRepository _reimbursementRepository,
+        IMonthlyShortageReimbursementStatusHistoryRepository _reimbursementStatusHistoryRepository,
+        IStockTakeRepository _stockTakeRepository,
+        IStockTakeStatusHistoryRepository _stockTakeStatusHistoryRepository,
+        IStockPositionService _stockPositionService) : IWorkflowService
     {
 
 
@@ -173,6 +192,18 @@ namespace VMSService.Core.Services.Workflows
 
                     case StatusConstants.Entity.BankingShortages:
                         return await HandleBankingShortageTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
+
+                    case StatusConstants.Entity.MonthlyShortageReimbursements:
+                        return await HandleMonthlyShortageReimbursementTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
+
+                    case StatusConstants.Entity.StockTake:
+                        return await HandleStockTakeTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
+
+                    case StatusConstants.Entity.BoardSessionSurplusShortage:
+                        return await HandleBoardSessionSurplusShortageTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
+
+                    case StatusConstants.Entity.BagMovement:
+                        return await HandleBagMovementTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
 
                     default:
                         _logger.LogWarning("Unknown entity type: {EntityType}", entityType);
@@ -435,6 +466,95 @@ namespace VMSService.Core.Services.Workflows
             return true;
         }
 
+        private async Task<bool> HandleStockTakeTransitions(int entityId, int currentStatusId, string actionName,
+            string userId, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
+        {
+            var stockTake = await _stockTakeRepository.FindById(entityId);
+            if (stockTake == null)
+            {
+                _logger.LogWarning("Stock Take {Id} not found", entityId);
+                return false;
+            }
+
+            // Verify current status matches
+            if (stockTake.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Stock Take {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, stockTake.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            // "Acknowledge Amendment" is a distinct action/role from the normal Acknowledge,
+            // so the role that acknowledged the original can't also acknowledge the amendment.
+            // The Details UI already only offers the correct one of the two, but this is checked
+            // again here since a role holder could otherwise call ExecuteAction directly with the
+            // wrong action name and bypass that UI-only filter.
+            if (transition.ToStatus.Name == StatusConstants.StockTake.Acknowledged)
+            {
+                bool isAmendmentRecord = stockTake.AmendsStockTakeId.HasValue;
+                bool isAmendmentAction = actionName == StatusConstants.StockTakeActions.AcknowledgeAmendment;
+                if (isAmendmentRecord != isAmendmentAction)
+                {
+                    _logger.LogWarning(
+                        "Stock Take {Id} rejected: action {Action} is not valid for {Kind} records",
+                        entityId, actionName, isAmendmentRecord ? "amendment" : "non-amendment");
+                    return false;
+                }
+            }
+
+            // Create status history record
+            var statusHistory = new StockTakeStatusHistory
+            {
+                StockTakeId = entityId,
+                OldStatusId = stockTake.CurrentStatusId,
+                OldStatusName = stockTake.CurrentStatusName,
+                NewStatusId = transition.ToStatusId,
+                NewStatusName = transition.ToStatus.Name,
+                ChangedBy = userId,
+                ChangedAt = DateTime.Now,
+                Remarks = remarks,
+                AttachmentIds = attachmentIds != null && attachmentIds.Any()
+                    ? string.Join(",", attachmentIds)
+                    : null,
+                IsDeleted = false
+            };
+
+            await _stockTakeStatusHistoryRepository.Create(statusHistory);
+
+            // Update stock take status
+            stockTake.CurrentStatusId = transition.ToStatusId;
+            stockTake.CurrentStatusName = transition.ToStatus.Name;
+            await _stockTakeRepository.Update(stockTake);
+
+            // If an amendment reaches Acknowledged, reconcile the stock ledger so the system
+            // position matches the corrected count going forward. Only amendments trigger this —
+            // an ordinary first-time count reaching Acknowledged does not touch the ledger.
+            if (stockTake.AmendsStockTakeId.HasValue && transition.ToStatus.Name == StatusConstants.StockTake.Acknowledged)
+            {
+                var reconciled = await _stockPositionService.ReconcileAmendmentLedgerAsync(stockTake);
+                if (!reconciled)
+                {
+                    _logger.LogWarning("Stock ledger reconciliation failed for amendment {Id} ({Ref})", entityId, stockTake.ReferenceNumber);
+                }
+            }
+
+            // Send notifications
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                $"Stock Take {stockTake.ReferenceNumber}",
+                transition,
+                statusHistory.NewStatusName,
+                userId,
+                remarks);
+            }
+
+            _logger.LogInformation("Stock Take {Id} transitioned from status {From} to {To} by user {UserId} with action {Action}. Attachments: {AttachmentCount}",
+                entityId, currentStatusId, transition.ToStatusId, userId, actionName, attachmentIds?.Count ?? 0);
+
+            return true;
+        }
+
         private async Task<bool> HandleStockMovementTransitions(int entityId, int currentStatusId, string actionName,
             string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
         {
@@ -611,7 +731,7 @@ namespace VMSService.Core.Services.Workflows
                 return false;
             }
 
-            // Verify current status matches � prevents race conditions
+            // Verify current status matches — prevents race conditions
             if (request.StatusTypeId != currentStatusId)
             {
                 _logger.LogWarning(
@@ -1268,6 +1388,57 @@ namespace VMSService.Core.Services.Workflows
             return true;
         }
 
+        private async Task<bool> HandleBoardSessionSurplusShortageTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
+        {
+            var record = await _boardSessionSurplusShortageRepository.FindById(entityId);
+            if (record == null)
+            {
+                _logger.LogWarning("BoardSessionSurplusShortage {Id} not found", entityId);
+                return false;
+            }
+
+            if (record.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("BoardSessionSurplusShortage {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, record.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new BoardSessionSurplusShortageStatusHistory
+            {
+                BoardSessionSurplusShortageId = entityId,
+                OldStatusId = record.CurrentStatusId,
+                NewStatusId = transition.ToStatusId,
+                ChangedBy = username,
+                ChangedAt = DateTime.Now,
+                Remarks = remarks,
+                AttachmentIds = attachmentIds != null && attachmentIds.Any()
+                    ? string.Join(",", attachmentIds)
+                    : null,
+                IsDeleted = false
+            };
+
+            await _boardSessionSurplusShortageStatusHistoryRepository.Create(statusHistory);
+
+            record.CurrentStatusId = transition.ToStatusId;
+            await _boardSessionSurplusShortageRepository.Update(record);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"CFB Request #{entityId} (UGX {record.Amount.ToString("N0")})",
+                    transition,
+                    transition.ToStatus.Name,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("BoardSessionSurplusShortage {Id} transitioned from status {From} to {To} by user {Username} with action {Action}. Attachments: {AttachmentCount}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName, attachmentIds?.Count ?? 0);
+
+            return true;
+        }
+
         private async Task<bool> HandleCfbTopupRequestTransitions(int entityId, int currentStatusId, string actionName,
             string username, string remarks, WorkflowTransitionDto transition)
         {
@@ -1315,6 +1486,101 @@ namespace VMSService.Core.Services.Workflows
 
             _logger.LogInformation("TopupRequest {Id} transitioned from {From} to {To} by {Username} via action {Action}",
                 entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
+        private async Task<bool> HandleBagMovementTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
+        {
+            var movement = await _bagMovementRepository.FindById(entityId);
+            if (movement == null)
+            {
+                _logger.LogWarning("BagMovement {Id} not found", entityId);
+                return false;
+            }
+
+            if (movement.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("BagMovement {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, movement.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            if (transition.ToStatus.Name == StatusConstants.BagMovement.Verified)
+            {
+                // Bags to move: child rows, falling back to the legacy single-bag pair.
+                var bagPairs = movement.BagMovementBags
+                    .Where(mb => !mb.IsDeleted)
+                    .Select(mb => (mb.BagId, mb.OldVaultSectionId))
+                    .ToList();
+
+                if (bagPairs.Count == 0 && movement.BagId.HasValue && movement.OldVaultSectionId.HasValue)
+                    bagPairs.Add((movement.BagId.Value, movement.OldVaultSectionId.Value));
+
+                if (bagPairs.Count == 0)
+                {
+                    _logger.LogWarning("BagMovement {Id} cannot be verified: it has no bags", entityId);
+                    return false;
+                }
+
+                var bags = new List<Bag>();
+                var failedBagRefs = new List<string>();
+                foreach (var (bagId, oldVaultSectionId) in bagPairs)
+                {
+                    var bag = await _bagRepository.FindById(bagId);
+                    if (bag == null || bag.IsDeleted || bag.VaultSectionId != oldVaultSectionId)
+                    {
+                        failedBagRefs.Add(bag?.ReferenceNumber ?? $"Bag {bagId}");
+                        continue;
+                    }
+                    bags.Add(bag);
+                }
+
+                // All-or-nothing: refuse verification if any bag is missing or was moved elsewhere.
+                if (failedBagRefs.Count > 0)
+                {
+                    _logger.LogWarning("BagMovement {Id} cannot be verified: bag(s) {FailedBags} are missing or no longer in their recorded vault sections",
+                        entityId, string.Join(", ", failedBagRefs));
+                    return false;
+                }
+
+                foreach (var bag in bags)
+                    bag.VaultSectionId = movement.NewVaultSectionId;
+
+                await _bagRepository.Save();
+            }
+
+            var statusHistory = new BagMovementStatusHistory
+            {
+                BagMovementId = entityId,
+                OldStatusId = movement.CurrentStatusId ?? currentStatusId,
+                NewStatusId = transition.ToStatusId,
+                ChangedBy = username,
+                ChangedAt = DateTime.Now,
+                Remarks = remarks,
+                AttachmentIds = attachmentIds != null && attachmentIds.Any()
+                    ? string.Join(",", attachmentIds)
+                    : null,
+                IsDeleted = false
+            };
+
+            await _bagMovementStatusHistoryRepository.Create(statusHistory);
+
+            movement.CurrentStatusId = transition.ToStatusId;
+            await _bagMovementRepository.Update(movement);
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"Bag Movement #{entityId}",
+                    transition,
+                    transition.ToStatus.Name,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("BagMovement {Id} transitioned from status {From} to {To} by user {Username} with action {Action}. Attachments: {AttachmentCount}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName, attachmentIds?.Count ?? 0);
 
             return true;
         }
@@ -1416,6 +1682,65 @@ namespace VMSService.Core.Services.Workflows
             }
 
             _logger.LogInformation("Destruction Authorization {Id} transitioned from status {From} to {To} by user {Username} with action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, username, actionName);
+
+            return true;
+        }
+
+        private async Task<bool> HandleMonthlyShortageReimbursementTransitions(int entityId, int currentStatusId, string actionName,
+            string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
+        {
+            var reimbursement = await _reimbursementRepository.FindById(entityId);
+            if (reimbursement == null)
+            {
+                _logger.LogWarning("Monthly Shortage Reimbursement {Id} not found", entityId);
+                return false;
+            }
+
+            if (reimbursement.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Monthly Shortage Reimbursement {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, reimbursement.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            var statusHistory = new MonthlyShortageReimbursementStatusHistory
+            {
+                MonthlyShortageReimbursementId = entityId,
+                OldStatusId   = reimbursement.CurrentStatusId,
+                OldStatusName = reimbursement.CurrentStatusName,
+                NewStatusId   = transition.ToStatusId,
+                NewStatusName = transition.ToStatus.Name,
+                ChangedBy     = username,
+                ChangedAt     = DateTime.Now,
+                Remarks       = remarks,
+                AttachmentIds = attachmentIds != null && attachmentIds.Count > 0
+                                    ? string.Join(",", attachmentIds)
+                                    : null,
+                IsDeleted     = false,
+            };
+
+            await _reimbursementStatusHistoryRepository.Create(statusHistory);
+
+            reimbursement.CurrentStatusId   = transition.ToStatusId;
+            reimbursement.CurrentStatusName = transition.ToStatus.Name;
+            await _reimbursementRepository.Update(reimbursement);
+
+            if (transition.ToStatus.Name == StatusConstants.MonthlyShortageReimbursement.Approved)
+            {
+                await _stockPositionService.CreateReimbursementLedgerAsync(reimbursement);
+            }
+
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"Shortage Reimbursement {reimbursement.ReferenceNumber}",
+                    transition,
+                    statusHistory.NewStatusName,
+                    username, remarks);
+            }
+
+            _logger.LogInformation("Shortage Reimbursement {Id} transitioned from {From} to {To} by {Username} via action {Action}",
                 entityId, currentStatusId, transition.ToStatusId, username, actionName);
 
             return true;

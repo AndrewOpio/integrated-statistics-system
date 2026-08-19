@@ -40,9 +40,16 @@
             public const string CommBankToBranch = "Commercial Bank To Branch";
             public const string BranchToCommBank = "BranchToCommercialBank";
             public const string PaidsToMWB = "Paids To Money With Boards";
+            // Reversal of PaidsToMWB, posted when a plan's results are cancelled.
+            public const string MWBToPaids = "Money With Boards To Paids";
+            // MI & Fit issued to boards alongside the Paids -> MWB move at IssueToBoards.
+            public const string MIToMWB = "MI To Money With Boards";
+            public const string FitToMWB = "Fit To Money With Boards";
             public const string MWBToReIssue = "Money With Boards To Re-Issue";
             public const string MWBToCancelled = "Money With Boards To Cancelled";
+            public const string MWBToShredded = "Money With Boards To Shredded";
             public const string BranchToCfb = "BranchToCfb";
+            public const string VendorToBranch = "VendorToBranch";
         }
 
         public static readonly (string Key, string Value)[] MovementTypes = new[]
@@ -64,6 +71,17 @@
             public const string Unfit = "Unfit";
             public const string NA = "N/A";
             public const string Mixed = "Mixed";
+        }
+
+        public static class StockCategories
+        {
+            public const string New     = "New";
+            public const string ReIssue = "Re-Issue";
+            public const string Paids   = "Paids";
+            public const string Cfb     = "CFB";
+            public const string Mi      = "MI";
+            public const string Fit     = "Fit";
+            public const string Mwb     = "MWB";
         }
     }
 }

@@ -14,6 +14,7 @@ namespace VMSService.Data.Entities
         public string? ContainerType { get; set; } // "Bag" or "Box" - derived from category (New = Box, others = Bag)
         public decimal SubTotalValue { get; set; }
         public string DenominationType { get; set; } = "Sent"; // "Sent" or "Received"
+        public ICollection<StockMovementDenominationBag> DenominationBags { get; set; } = new List<StockMovementDenominationBag>();
         public ICollection<StockMovementDenominationBoxNumberRange> BoxNumberRanges { get; set; }
         public int StockMovementId { get; set; }
         public StockMovement StockMovement { get; set; }

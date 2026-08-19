@@ -205,7 +205,7 @@
         // Pre-populate form state for edit mode
         depositFormState.depositDate = '@Model.DepositDate.ToString("yyyy-MM-dd")';
         depositFormState.bouBranchId = @Model.Branches.SelectedBouBranchId;
-        depositFormState.rtgsDate = '@(Model.RtgsDate?.ToString("yyyy-MM-dd") ?? "")';
+        depositFormState.rtgsDate = @(Model.RtgsDate.HasValue ? $"'{Model.RtgsDate.Value:yyyy-MM-dd}'" : "null");
         depositFormState.rtgsCode = '@(Model.RtgsCode ?? "")';
         depositFormState.requiresSpecialApproval = @Model.RequiresSpecialApproval.ToString().ToLower();
         depositFormState.specialApprovalReason = '@Html.Raw(Model.SpecialApprovalReason ?? "")';
@@ -227,7 +227,7 @@
             // Pre-select agents
             const selectedAgents = @Html.Raw(Json.Serialize(Model.Agents.SelectedAgentIds));
             selectedAgents.forEach((agentId, index) => {
-                const agentSelect = document.getElementById(`agentId-${index + 1}`);
+                const agentSelect = document.getElementById(`agentSelect${index + 1}`);
                 if (agentSelect) {
                     agentSelect.value = agentId;
                     agentSelect.dispatchEvent(new Event('change'));

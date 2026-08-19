@@ -21,5 +21,7 @@ namespace VMSService.Core.Repositories.Bags
         Task<List<NestedBagViewModel>> GetAvailableBagsForMergingAsync(int parentBagId);
         Task<bool> AddBagToBagAsync(AddBagToBagViewModel model, int? mixedSubCategoryId);
         Task<bool> RemoveBagFromBagAsync(int baggedBagId);
+        Task<List<Bag>> GetProcessedBagsByDenominationAndBranchAsync(int denominationId, int branchId, int? categoryId = null);
+        Task<List<Bag>> GetBagsByIdsAsync(List<int> bagIds);
     }
 }

@@ -17,7 +17,7 @@
                     </div>
                     <div class="col text-end">
                         <permission name="@SystemPermissions.BankingSurpluses.Create">
-                            <a asp-action="Generate" class="btn btn-sm btn-primary">
+                            <a asp-action="Create" class="btn btn-sm btn-primary">
                                 <i class="ti ti-plus me-1"></i>New Banking Surplus
                             </a>
                         </permission>
@@ -25,6 +25,20 @@
                 </div>
             </div>
             <div class="card-body">
+                @if (TempData["Success"] != null)
+                {
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="ti ti-circle-check me-1"></i>@TempData["Success"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                }
+                @if (TempData["Error"] != null)
+                {
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="ti ti-alert-circle me-1"></i>@TempData["Error"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                }
                 <div class="table-responsive">
                     <table class="table table-centered table-nowrap mb-0 rounded datatable">
                         <thead class="thead-light">
@@ -63,17 +77,17 @@
                                         <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
                                             <i class="ti ti-eye"></i>
                                         </a>
+                                        @if (item.CurrentStatusName == "Draft")
+                                        {
+                                            <permission name="@SystemPermissions.BankingSurpluses.Edit">
+                                                <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary ms-1" title="Edit">
+                                                    <i class="ti ti-pencil"></i>
+                                                </a>
+                                            </permission>
+                                        }
                                     </td>
                                 </tr>
                                 rowNumber++;
-                            }
-                            @if (!Model.Any())
-                            {
-                                <tr>
-                                    <td colspan="8" class="text-center text-muted py-4">
-                                        <i class="ti ti-inbox fs-4 d-block mb-2"></i>No banking surplus records yet.
-                                    </td>
-                                </tr>
                             }
                         </tbody>
                     </table>

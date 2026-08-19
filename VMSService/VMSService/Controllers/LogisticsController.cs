@@ -257,10 +257,12 @@ namespace VMSService.Web.Controllers
                 CurrentStatusId = existingLogistics.CurrentStatusId, // Ensure status is preserved
                 Categories = model.Categories.Select((cat, catIndex) => new LogisticsCategory
                 {
+                    Id = cat.Id,
                     Name = cat.Name,
                     SortOrder = catIndex,
                     Details = cat.Details.Select((det, detIndex) => new LogisticsDetail
                     {
+                        Id = det.Id,
                         ItemName = det.ItemName,
                         Description = det.Description,
                         UnitCost = det.UnitCost,
@@ -301,6 +303,7 @@ namespace VMSService.Web.Controllers
 
     public class LogisticsCategoryViewModel
     {
+        public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
         public List<LogisticsDetailViewModel> Details { get; set; } = new();
@@ -308,6 +311,7 @@ namespace VMSService.Web.Controllers
 
     public class LogisticsDetailViewModel
     {
+        public int Id { get; set; }
         public string ItemName { get; set; } = string.Empty;
         public string? Description { get; set; }
         public decimal UnitCost { get; set; }

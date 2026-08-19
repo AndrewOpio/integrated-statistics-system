@@ -148,6 +148,10 @@
             public const string ResultsPendingVerification = "Results Pending Verification";
             public const string ResultsPendingConfirmation = "Results Pending Confirmation";
             public const string Completed = "Completed";
+            public const string Cancelled = "Cancelled";
+
+            /// <summary>Statuses at which a plan is finished and no longer blocks a new plan for its branch.</summary>
+            public static readonly string[] TerminalStatuses = [Completed, Cancelled];
         }
 
         public static class StockProcessingSession
@@ -162,6 +166,17 @@
         {
             public const string PendingVerification = "Pending Verification";
             public const string Verified = "Verified";
+        }
+
+        public class BoardSessionSurplusShortage
+        {
+            public const string PendingCFBSupervisor = "Pending CFB Supervisor";
+            public const string BalancedByCFB = "Balanced By CFB";
+        }
+
+        public static class CommercialBank
+        {
+            public const string Banking = "Banking";
         }
 
         public static class Entity
@@ -187,12 +202,51 @@
             public const string MonthlyCommercialBankSettlements = "MonthlyCommercialBankSettlements";
             public const string BankingSurpluses                  = "BankingSurpluses";
             public const string BankingShortages                  = "BankingShortages";
+            public const string DestructionAuthorization = "DestructionAuthorization";
+            public const string CfbReport = "EndOfDayDiscrepancies";
+            public const string MonthlySurpluses = "MonthlySurpluses";
+            public const string MonthlyShortages = "MonthlyShortages";
+            public const string MonthlyCommercialBankSettlements = "MonthlyCommercialBankSettlements";
+            public const string DestructionAuthorization = "DestructionAuthorization";
+            public const string CfbReport = "EndOfDayDiscrepancies";
+            public const string MonthlySurpluses = "MonthlySurpluses";
+            public const string MonthlyShortages = "MonthlyShortages";
+            public const string MonthlyCommercialBankSettlements = "MonthlyCommercialBankSettlements";
             public const string CfbTopupRequest = "CfbTopupRequest";
+            public const string MonthlyShortageReimbursements = "MonthlyShortageReimbursements";
+            public const string StockTake = "StockTake";
         }
 
         public static class DenominationName { 
             public const string Note = "Note";
             public const string Coin = "Coin";
+            public const string MonthlyShortageReimbursements     = "MonthlyShortageReimbursements";
+            public const string StockTake                         = "StockTake";
+        }
+
+        public static class MonthlyShortageReimbursement
+        {
+            public const string Draft           = "Draft";
+            public const string PendingApproval = "Pending Approval";
+            public const string Approved        = "Approved";
+        }
+
+        public static class StockTake
+        {
+            public const string Draft                  = "Draft";
+            public const string PendingReview           = "Pending Review";
+            public const string PendingAcknowledgement  = "Pending Acknowledgement";
+            public const string Acknowledged            = "Acknowledged";
+            public const string Returned                = "Returned";
+            public const string RequiresAmendment       = "Requires Amendment";
+        }
+
+        public static class StockTakeActions
+        {
+            // The action name (not status name) configured in WorkflowService for the
+            // amendment-only Acknowledge transition — segregates who can acknowledge an
+            // amendment from whoever acknowledged the original.
+            public const string AcknowledgeAmendment = "Acknowledge Amendment";
         }
     }
 }
