@@ -430,7 +430,7 @@ namespace VMSService.Web.Controllers
                 }
             }
 
-            // Late submission: request first reached Pending Withdrawal Confirmation after 11am
+            // Late submission: request first reached Pending RTGS Confirmation after 11am
             var firstPwc = statusHistoryList
                 .Where(h => h.NewStatusName == WithdrawConstants.WithdrawalStatusNames.PendingWithdrawalConfirmation)
                 .OrderBy(h => h.ChangedAt)
@@ -561,7 +561,6 @@ namespace VMSService.Web.Controllers
                     "Pending_Recommendation" => !request.RequiresSpecialApproval,
                     "Verified" => !request.RequiresSpecialApproval && request.RtgsVerificationStatus is RtgsVerification.Confirmed or RtgsVerification.DateMismatch,
                     "Verified Exceptional" => request.RequiresSpecialApproval && request.RtgsVerificationStatus is RtgsVerification.Confirmed or RtgsVerification.DateMismatch,
-                    "Verification Failed" => request.RtgsVerificationStatus is RtgsVerification.AmountMismatch or RtgsVerification.NotFound,
                     "Reject Recall" => !request.RequiresSpecialApproval,
                     "Reject Recall Exceptional" => request.RequiresSpecialApproval,
                     _ => true
@@ -1113,7 +1112,7 @@ namespace VMSService.Web.Controllers
             if (request.StatusTypeName != WithdrawalStatusNames.PendingWithdrawalConfirmation
                 && request.StatusTypeName != WithdrawalStatusNames.RecallRequested)
             {
-                TempData["Error"] = "Verification can only be submitted when the request is Pending Withdrawal Confirmation or Recall Requested.";
+                TempData["Error"] = "Verification can only be submitted when the request is Pending RTGS Confirmation or Recall Requested.";
                 return RedirectToAction(nameof(Details), new { id });
             }
 

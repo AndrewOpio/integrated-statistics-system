@@ -13,11 +13,11 @@ namespace VMSService.Core.Static
             public const string Draft = "Internal Draft";
             public const string PendingInternalApproval = "Pending Internal Approval";
             public const string ReturnedForRevision = "Returned for Internal Revision";
-            public const string PendingRTGSVerification = "Pending RTGS Verification";
-            public const string VerificationFailed = "Verification Failed";
-            public const string PendingWithdrawalConfirmation = "Pending Withdrawal Confirmation";
+            public const string PendingRTGSVerification = "Pending RTGS Code";
+            public const string VerificationFailed = "RTGS Confirmation Failed";
+            public const string PendingWithdrawalConfirmation = "Pending RTGS Confirmation";
             public const string PendingExceptionalApproval = "Pending Exceptional Approval";
-            public const string RejectExceptionalApproval = "Reject Exceptional Approval";
+            public const string RejectExceptionalApproval = "Exceptional Approval Rejected";
             public const string PendingVerification = "Pending Verification";
             public const string PendingExceptionalVerification = "Pending Exceptional Verification";
             public const string PendingApproval = "Pending Approval";
@@ -41,8 +41,8 @@ namespace VMSService.Core.Static
             public const string SubmitForInternalApproval = "SubmitForInternalApproval";
             public const string ReturnForRevision = "ReturnForRevision";
             public const string ResubmitForApproval = "ResubmitForApproval";
-            public const string ApproveToRTGSVerification = "ApproveToRTGSVefification";
-            public const string ExceptionalWithdrawalRequest = "ExceptionalWithdrawaRequest";
+            public const string ApproveToRTGSVerification = "ApproveToRTGSCode";
+            public const string ExceptionalWithdrawalRequest = "ExceptionalWithdrawalRequest";
             public const string RequestRecall = "RequestRecall";
 
             // Back Office

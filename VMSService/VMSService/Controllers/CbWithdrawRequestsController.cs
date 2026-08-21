@@ -270,7 +270,7 @@ namespace VMSService.Web.Controllers
                 //    return Forbid();
 
                 // Submission date is derived from status history — the moment the request
-                // first entered "Pending RTGS Verification". The settlement-date rule only
+                // first entered "Pending RTGS Code". The settlement-date rule only
                 // applies once the request has actually been submitted; before that the
                 // settlement date simply mirrors the collection date.
                 var statusHistory = await _uow.StatusHistory.GetByRequestAsync(request.Id, ct);
@@ -533,16 +533,16 @@ namespace VMSService.Web.Controllers
 
             // Determine once whether the workflow exposes the exceptional CB-approval path.
             var hasExceptionalApprovalTransition = availableTransitions
-                .Any(t => t.ActionName == "ExceptionalWithdrawaRequest");
+                .Any(t => t.ActionName == WithdrawalStatusActionNames.ExceptionalWithdrawalRequest);
 
             availableTransitions = availableTransitions
                 .Where(t => t.ActionName switch
                 {
                     // Show the exceptional path only when the flag is set.
-                    "ExceptionalWithdrawaRequest" => request.RequiresSpecialApproval,
+                    var a when a == WithdrawalStatusActionNames.ExceptionalWithdrawalRequest => request.RequiresSpecialApproval,
                     // Show the normal approval on the normal path, OR as a fallback when
                     // RequiresSpecialApproval is true but no dedicated exceptional transition exists.
-                    "ApproveToRTGSVefification" => !request.RequiresSpecialApproval || !hasExceptionalApprovalTransition,
+                    var a when a == WithdrawalStatusActionNames.ApproveToRTGSVerification => !request.RequiresSpecialApproval || !hasExceptionalApprovalTransition,
                     _ => true,
                 })
                 .ToList();
@@ -553,7 +553,7 @@ namespace VMSService.Web.Controllers
                 t.DisplayLabel = t.ToStatus?.Name switch
                 {
                     WithdrawalStatusNames.PendingWithdrawalConfirmation => "Approve Exceptional Request",
-                    WithdrawalStatusNames.PendingRTGSVerification       => "Approve (Pending RTGS Verification)",
+                    WithdrawalStatusNames.PendingRTGSVerification       => "Approve (Pending RTGS Code)",
                     _ => t.DisplayLabel,
                 };
             }
@@ -690,7 +690,7 @@ namespace VMSService.Web.Controllers
 
                     // If the CB Approver sent the request to RTGS Verification but the RTGS code
                     // is already filled in, skip that step and advance directly to
-                    // Pending Withdrawal Confirmation.
+                    // Pending RTGS Confirmation.
                     if (updatedRequest is not null
                         && updatedRequest.StatusTypeName == WithdrawalStatusNames.PendingRTGSVerification
                         && !string.IsNullOrWhiteSpace(updatedRequest.RtgsCode))
@@ -709,7 +709,7 @@ namespace VMSService.Web.Controllers
                             oldStatusId, oldStatusName,
                             newStatusId, WithdrawalStatusNames.PendingWithdrawalConfirmation,
                             GetUserId(),
-                            "RTGS code already provided — automatically advanced to Pending Withdrawal Confirmation.",
+                            "RTGS code already provided — automatically advanced to Pending RTGS Confirmation.",
                             ct, changedBy: username);
 
                         await _uow.SaveAsync(ct);
@@ -867,7 +867,7 @@ namespace VMSService.Web.Controllers
                     oldStatusId, oldStatusName,
                     newStatusId, WithdrawalStatusNames.PendingWithdrawalConfirmation,
                     GetUserId(),
-                    "RTGS code entered — automatically advanced to Pending Withdrawal Confirmation.",
+                    "RTGS code entered — automatically advanced to Pending RTGS Confirmation.",
                     ct, changedBy: username);
 
                 autoTransitioned = true;
@@ -876,7 +876,7 @@ namespace VMSService.Web.Controllers
             await _uow.SaveAsync(ct);
 
             TempData["Success"] = autoTransitioned
-                ? "RTGS details saved. Request advanced to Pending Withdrawal Confirmation."
+                ? "RTGS details saved. Request advanced to Pending RTGS Confirmation."
                 : "RTGS details updated successfully.";
             return RedirectToAction(nameof(Details), new { id });
         }

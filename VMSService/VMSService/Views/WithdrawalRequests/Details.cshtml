@@ -265,7 +265,7 @@
                     </div>
                 }
 
-                @* Return RTGS Details (Cancel / Reject / Reject Exceptional Approval / Recall Approved) *@
+                @* Return RTGS Details (Cancel / Reject / Exceptional Approval Rejected / Recall Approved) *@
                 @{
                     var isReturnPending = !Model.ReturnRtgsDate.HasValue &&
                         (Model.StatusName == WithdrawalStatusNames.Cancelled ||
@@ -552,7 +552,7 @@
                             <i class="ti ti-clock-exclamation text-warning fs-5 flex-shrink-0 mt-1"></i>
                             <div>
                                 <p class="fw-bold mb-0 small">Late Submission</p>
-                                <p class="mb-0 small">This request first reached Pending Withdrawal Confirmation after 11:00 AM.</p>
+                                <p class="mb-0 small">This request first reached Pending RTGS Confirmation after 11:00 AM.</p>
                             </div>
                         </div>
                     }

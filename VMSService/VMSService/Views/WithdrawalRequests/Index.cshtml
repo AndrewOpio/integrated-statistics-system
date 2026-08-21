@@ -99,13 +99,13 @@
 @* ── Status Breakdown Pills ── *@
 <div class="d-flex flex-wrap gap-2 mb-4" id="statusPillGroup">
     <span class="badge rounded-pill bg-tertiary text-dark border px-3 py-2 status-pill" style="font-size:12px; cursor:pointer;"
-          role="button" data-status="Pending RTGS Verification" onclick="filterByStatus(this)">
+          role="button" data-status="Pending RTGS Code" onclick="filterByStatus(this)">
         <i class="ti ti-clock-bolt me-1 text-muted" style="font-size:11px;"></i>Pending RTGS Code
         <span class="fw-bold text-danger ms-1">@Model.PendingRtgsVerificationCount</span>
     </span>
     <span class="badge rounded-pill bg-tertiary text-dark border px-3 py-2 status-pill" style="font-size:12px; cursor:pointer;"
-          role="button" data-status="Pending Withdrawal Confirmation" onclick="filterByStatus(this)">
-        <i class="ti ti-file-check me-1 text-muted" style="font-size:11px;"></i>Pending Withdrawal Confirmation
+          role="button" data-status="Pending RTGS Confirmation" onclick="filterByStatus(this)">
+        <i class="ti ti-file-check me-1 text-muted" style="font-size:11px;"></i>Pending RTGS Confirmation
         <span class="fw-bold text-danger ms-1">@Model.PendingWithdrawalConfirmationCount</span>
     </span>
     <span class="badge rounded-pill bg-tertiary text-dark border px-3 py-2 status-pill" style="font-size:12px; cursor:pointer;"
