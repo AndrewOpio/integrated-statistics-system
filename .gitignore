@@ -70,3 +70,5 @@ VMSService/.claude/settings.json
 .agents/
 docs/
 skills-lock.json
+CLAUDE.md
+CONTEXT.md
