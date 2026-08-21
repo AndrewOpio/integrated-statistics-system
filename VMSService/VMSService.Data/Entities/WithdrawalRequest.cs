@@ -35,6 +35,7 @@ namespace VMSService.Data.Entities
         public DateOnly? RecallRtgsDate { get; set; }
         public string? ReturnRtgsCode { get; set; }
         public DateOnly? ReturnRtgsDate { get; set; }
+        public string? RtgsCodeAtLastReturn { get; set; }
 
         public bool IsDeleted { get; set; } = false;
         public ICollection<WithdrawalRequestAgent> WithdrawalRequestAgents { get; set; } = [];

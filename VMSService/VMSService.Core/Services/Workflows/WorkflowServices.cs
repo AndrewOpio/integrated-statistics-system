@@ -108,7 +108,8 @@ namespace VMSService.Core.Services.Workflows
         IMonthlyShortageReimbursementStatusHistoryRepository _reimbursementStatusHistoryRepository,
         IStockTakeRepository _stockTakeRepository,
         IStockTakeStatusHistoryRepository _stockTakeStatusHistoryRepository,
-        IStockPositionService _stockPositionService) : IWorkflowService
+        IStockPositionService _stockPositionService,
+        IWithdrawalStatusResolver _withdrawalStatusResolver) : IWorkflowService
     {
 
 
@@ -740,30 +741,83 @@ namespace VMSService.Core.Services.Workflows
                 return false;
             }
 
+            // ReturnForRevision and ResubmitForApproval both reuse a single shared status
+            // (Returned for Internal Revision) across three different origins — CB Approver's own
+            // return, the ABM's return (Pending Verification), and Back Office's return (RTGS
+            // Confirmation Failed). See ADR-0001. Resolve the effective destination/remarks here,
+            // defaulting to the WorkflowService-configured transition unless overridden below.
+            var effectiveToStatusId = transition.ToStatusId;
+            var effectiveToStatusName = transition.ToStatus.Name;
+            var effectiveRemarks = remarks;
+
+            if (actionName == WithdrawalStatusActionNames.ReturnForRevision)
+            {
+                // Snapshot before the request's own RtgsCode is touched by anything else, so
+                // ResubmitForApproval can later compare "the code at the moment of this return"
+                // against whatever the CB resubmits.
+                request.RtgsCodeAtLastReturn = request.RtgsCode;
+
+                // Back Office origin: the code itself failed confirmation — the remark is the audit
+                // trail for that, so it's generated here rather than left to a human to type.
+                if (request.StatusTypeName == WithdrawalStatusNames.VerificationFailed)
+                {
+                    effectiveRemarks =
+                        $"RTGS code {request.RtgsCode} failed confirmation: {request.RtgsVerificationStatus} — Penalty #7 applied";
+                }
+            }
+            else if (actionName == WithdrawalStatusActionNames.ResubmitForApproval)
+            {
+                var lastReturn = await _uow.StatusHistory.FindMostRecentByNewStatusNameAsync(
+                    entityId, WithdrawalStatusNames.ReturnedForRevision);
+
+                if (lastReturn?.OldStatusName == WithdrawalStatusNames.PendingVerification)
+                {
+                    if (request.RtgsCode == request.RtgsCodeAtLastReturn)
+                    {
+                        // ABM origin, code unchanged — money's already confirmed received, so skip
+                        // back to Pending Verification directly rather than making the CB wait
+                        // through another RTGS verification cycle (same direct-mutation pattern as
+                        // the existing RTGS auto-advance).
+                        effectiveToStatusId = await _withdrawalStatusResolver.GetStatusIdAsync(WithdrawalStatusNames.PendingVerification);
+                        effectiveToStatusName = WithdrawalStatusNames.PendingVerification;
+                    }
+                    else
+                    {
+                        // ABM origin, code changed — re-enters the standard RTGS cycle via the
+                        // normal configured transition; the prior verification no longer describes
+                        // the current code.
+                        request.RtgsVerificationStatus = RtgsVerification.Pending;
+                    }
+                }
+                // Pending Internal Approval origin (CB Approver's own return) and RTGS Confirmation
+                // Failed origin (Back Office — never skips ahead) both fall through to the normal
+                // WorkflowService-configured transition unchanged.
+            }
+
             // Create status history record
             var statusHistory = new WithdrawalRequestStatusHistory
             {
                 WithdrawalRequestId = entityId,
                 OldStatusId = request.StatusTypeId,
                 OldStatusName = request.StatusTypeName,
-                NewStatusId = transition.ToStatusId,
-                NewStatusName = transition.ToStatus.Name,
+                NewStatusId = effectiveToStatusId,
+                NewStatusName = effectiveToStatusName,
                 ChangedBy = username,
                 ChangedAt = DateTime.UtcNow,
-                Remarks = remarks,
+                Remarks = effectiveRemarks,
                 CreatedBy = username,
                 CreatedDate = DateTime.Now,
             };
             await _uow.StatusHistory.Create(statusHistory);
 
             // Update request status
-            request.StatusTypeId = transition.ToStatusId;
-            request.StatusTypeName = transition.ToStatus.Name;
+            request.StatusTypeId = effectiveToStatusId;
+            request.StatusTypeName = effectiveToStatusName;
             request.ModifiedBy = username;
             request.ModifiedDate = DateTime.Now;
 
             // CB approval is the submission event — classify same-day submissions here
-            if (transition.ToStatus.Name == WithdrawalStatusNames.PendingRTGSVerification)
+            if (effectiveToStatusName == WithdrawalStatusNames.PendingRTGSVerification)
             {
                 var dayBeforeHoliday = await _publicHolidayRepository.FindByDateAsync(request.CollectionDate.AddDays(-1));
                 var classification = SubmissionClassifier.Classify(

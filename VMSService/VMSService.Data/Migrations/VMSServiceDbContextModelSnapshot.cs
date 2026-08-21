@@ -5374,6 +5374,9 @@ namespace VMSService.Data.Migrations
                     b.Property<string>("RtgsCode")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("RtgsCodeAtLastReturn")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("RtgsVerificationStatus")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
