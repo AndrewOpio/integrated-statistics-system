@@ -71,6 +71,10 @@ namespace VMSService.Core.Models.CbWithdrawRequest
         /// (weekend or public holiday, before 11am EAT) — the reason to display, e.g. the
         /// holiday's name or "the previous day was a weekend".</summary>
         public string? GracePeriodReason { get; set; }
+
+        /// <summary>Section 10: still stuck pre-submission with a collection date that's already
+        /// passed. Flag/banner only — the hard-block-on-action behavior is separate, pending work.</summary>
+        public bool IsStalePreSubmission { get; set; }
         public IEnumerable<WithdrawalRequestStatusHistoryViewModel> StatusHistory { get; set; } = [];
         public IEnumerable<AttachmentViewModel> AllAttachments { get; set; } = [];
 

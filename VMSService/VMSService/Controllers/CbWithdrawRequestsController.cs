@@ -615,6 +615,7 @@ namespace VMSService.Web.Controllers
                     userRoleNames.Contains(RolePolicy.CbApprover) &&
                     request.StatusTypeName == WithdrawalStatusNames.PendingInternalApproval,
                 GracePeriodReason = gracePeriodReason,
+                IsStalePreSubmission = WithdrawalRequestRepository.IsStalePreSubmission(request.StatusTypeName, request.CollectionDate, DateOnly.FromDateTime(DateTime.Today)),
                 SubmissionDate = statusHistory
                     .Where(h => h.NewStatusName == WithdrawalStatusNames.PendingRTGSVerification
                              || h.NewStatusName == WithdrawalStatusNames.PendingWithdrawalConfirmation)

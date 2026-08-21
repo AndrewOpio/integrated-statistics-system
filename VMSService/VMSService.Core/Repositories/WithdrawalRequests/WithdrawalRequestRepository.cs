@@ -18,6 +18,13 @@ namespace VMSService.Core.Repositories.WithdrawalRequests
     public class WithdrawalRequestRepository(
         VMSServiceDbContext _db) : IWithdrawalRequestRepository
     {
+        /// <summary>Section 10's stale-pre-submission flag — a request still stuck before CB
+        /// Approver submission (Draft/Pending Internal Approval/Returned for Internal Revision)
+        /// whose collection date has already passed. Shared by the row list and Details page so
+        /// both agree on the same rule.</summary>
+        public static bool IsStalePreSubmission(string statusName, DateOnly collectionDate, DateOnly today)
+            => WithdrawalStatusNames.PreSubmissionStatuses.Contains(statusName) && collectionDate < today;
+
         public async Task<ICollection<WithdrawalRequest>> FindAll()
             => await _db.WithdrawalRequests.ToListAsync();
 
@@ -77,6 +84,48 @@ namespace VMSService.Core.Repositories.WithdrawalRequests
                     && r.CollectionDate <= asOfDate
                     && (r.RtgsCode == null || r.RtgsCode == string.Empty))
                 .ToListAsync(ct);
+
+        public async Task<IEnumerable<WithdrawalRequest>> GetActiveByCbAsync(int cbId, DateOnly today, CancellationToken ct = default)
+        => await _db.WithdrawalRequests
+            .Where(r => r.CbId == cbId
+                     && !r.IsDeleted
+                     && !(WithdrawalStatusNames.TerminalStatuses.Contains(r.StatusTypeName) && r.CollectionDate < today))
+            .OrderByDescending(r => r.CreatedDate)
+            .ToListAsync(ct);
+
+        public async Task<IEnumerable<WithdrawalRequest>> GetHistoryByCbAsync(int cbId, DateOnly today, DateOnly since, CancellationToken ct = default)
+        => await _db.WithdrawalRequests
+            .Where(r => r.CbId == cbId
+                     && !r.IsDeleted
+                     && WithdrawalStatusNames.TerminalStatuses.Contains(r.StatusTypeName)
+                     && r.CollectionDate < today
+                     && r.CollectionDate >= since)
+            .OrderByDescending(r => r.CollectionDate)
+            .ToListAsync(ct);
+
+        public async Task<IEnumerable<WithdrawalRequest>> GetActiveAsync(DateOnly today, string? bouBranchCode = null, CancellationToken ct = default)
+        => await _db.WithdrawalRequests
+            .Where(r => !r.IsDeleted
+                     && !(WithdrawalStatusNames.TerminalStatuses.Contains(r.StatusTypeName) && r.CollectionDate < today)
+                     && (string.IsNullOrEmpty(bouBranchCode) || r.BouBranchCode == bouBranchCode))
+            .ToListAsync(ct);
+
+        public async Task<IEnumerable<WithdrawalRequest>> GetHistoryAsync(DateOnly today, DateOnly since, string? bouBranchCode = null, CancellationToken ct = default)
+        => await _db.WithdrawalRequests
+            .Where(r => !r.IsDeleted
+                     && WithdrawalStatusNames.TerminalStatuses.Contains(r.StatusTypeName)
+                     && r.CollectionDate < today
+                     && r.CollectionDate >= since
+                     && (string.IsNullOrEmpty(bouBranchCode) || r.BouBranchCode == bouBranchCode))
+            .OrderByDescending(r => r.CollectionDate)
+            .ToListAsync(ct);
+
+        public async Task<decimal> SumApprovedAmountAsync(string? bouBranchCode = null, CancellationToken ct = default)
+        => await _db.WithdrawalRequests
+            .Where(r => !r.IsDeleted
+                     && r.StatusTypeName == WithdrawalStatusNames.Approved
+                     && (string.IsNullOrEmpty(bouBranchCode) || r.BouBranchCode == bouBranchCode))
+            .SumAsync(r => r.TotalAmount, ct);
 
         public async Task<bool> IsExists(Guid id)
         => await _db.WithdrawalRequests.AnyAsync(d => d.Id == id);

@@ -34,6 +34,29 @@ namespace VMSService.Core.Static
             public const string Cancelled = "Cancelled";
             public const string CancelComplete = "Cancel Complete";
             public const string RejectExceptionalApprovalComplete = "Reject Exceptional Approval Complete";
+
+            /// <summary>Genuinely final statuses — nobody owes this request any further action.
+            /// Deliberately excludes Rejected/RejectExceptionalApproval/RecallApproved, which still
+            /// owe a ReturnRtgsPending/RecallRtgsPending completion step (Complete Reject / Complete
+            /// Reject Exceptional / Complete Recall) — those stay visible on the main list until
+            /// actually completed.</summary>
+            public static readonly string[] TerminalStatuses =
+            [
+                Approved,
+                RejectComplete,
+                RejectExceptionalApprovalComplete,
+                RecallComplete,
+                Expired,
+            ];
+
+            /// <summary>Statuses that exist before the CB Approver has submitted onward to BOU —
+            /// the set Section 10's stale-request rule (collection date already passed) applies to.</summary>
+            public static readonly string[] PreSubmissionStatuses =
+            [
+                Draft,
+                PendingInternalApproval,
+                ReturnedForRevision,
+            ];
         }
         public static class WithdrawalStatusActionNames
         {

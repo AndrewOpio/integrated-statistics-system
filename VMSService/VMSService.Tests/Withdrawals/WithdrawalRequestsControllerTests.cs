@@ -1,0 +1,231 @@
+using System.Security.Claims;
+using ConfigurationsService.Client;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using Moq;
+using AutoMapper;
+using VMSService.Core.Models.WithdrawalRequests;
+using VMSService.Core.Repositories.AgentDetails;
+using VMSService.Core.Repositories.AppliedPenalties;
+using VMSService.Core.Repositories.Attachments;
+using VMSService.Core.Repositories.Categories;
+using VMSService.Core.Repositories.CounterPartyTypes;
+using VMSService.Core.Repositories.Denominations;
+using VMSService.Core.Repositories.PenaltyWaivers;
+using VMSService.Core.Repositories.Penalties;
+using VMSService.Core.Repositories.StockMovements;
+using VMSService.Core.Repositories.Stocks;
+using VMSService.Core.Repositories.WithdrawalRequestDenominations;
+using VMSService.Core.Repositories.WithdrawalRequests;
+using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
+using VMSService.Core.Services.Workflows;
+using VMSService.Data.Entities;
+using VMSService.Web.Controllers;
+using WorkflowService.Client;
+using Xunit;
+using static VMSService.Core.Static.SystemPolicy;
+using static VMSService.Core.Static.WithdrawConstants;
+
+namespace VMSService.Tests.Withdrawals;
+
+/// <summary>
+/// Controller-level coverage of the BOU landing page (Index + History): the terminal-and-past-date
+/// exclusion wired end-to-end, hero-card/status counts narrowed to the active set, the
+/// Total Processed lifetime-sum fix, and branch scoping propagated into the repository query.
+/// Complements the repository-level tests, which cover the raw query logic.
+/// </summary>
+public class WithdrawalRequestsControllerTests
+{
+    private static readonly DateOnly Today = DateOnly.FromDateTime(DateTime.Today);
+    private static readonly DateOnly LastWeek = Today.AddDays(-7);
+    private static readonly DateOnly ThirteenMonthsAgo = Today.AddMonths(-13);
+
+    private static WithdrawalRequest NewRequest(string statusName, DateOnly? collectionDate = null, string bouBranchCode = "KLA", decimal totalAmount = 10_000_000m)
+        => new()
+        {
+            Id = Guid.NewGuid(),
+            StatusTypeId = 1,
+            StatusTypeName = statusName,
+            CollectionDate = collectionDate ?? Today,
+            BouBranchCode = bouBranchCode,
+            TotalAmount = totalAmount,
+            CreatedDate = DateTime.Now,
+        };
+
+    private static WithdrawalRequestsController BuildController(List<WithdrawalRequest> allRequests)
+    {
+        var repo = new Mock<IWithdrawalRequestRepository>();
+
+        repo.Setup(r => r.GetActiveAsync(It.IsAny<DateOnly>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((DateOnly today, string? branch, CancellationToken _) =>
+                allRequests.Where(r => !(WithdrawalStatusNames.TerminalStatuses.Contains(r.StatusTypeName) && r.CollectionDate < today)
+                                     && (string.IsNullOrEmpty(branch) || r.BouBranchCode == branch)));
+
+        repo.Setup(r => r.GetHistoryAsync(It.IsAny<DateOnly>(), It.IsAny<DateOnly>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((DateOnly today, DateOnly since, string? branch, CancellationToken _) =>
+                allRequests.Where(r => WithdrawalStatusNames.TerminalStatuses.Contains(r.StatusTypeName)
+                                     && r.CollectionDate < today
+                                     && r.CollectionDate >= since
+                                     && (string.IsNullOrEmpty(branch) || r.BouBranchCode == branch)));
+
+        repo.Setup(r => r.SumApprovedAmountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string? branch, CancellationToken _) =>
+                allRequests.Where(r => r.StatusTypeName == WithdrawalStatusNames.Approved
+                                     && (string.IsNullOrEmpty(branch) || r.BouBranchCode == branch))
+                           .Sum(r => r.TotalAmount));
+
+        var configClient = new Mock<IConfigurationsServiceClient>();
+        configClient.Setup(c => c.GetAllCommercialBankAsync())
+            .ReturnsAsync([]);
+        configClient.Setup(c => c.GetAllBouBranchesAsync())
+            .ReturnsAsync([
+                new BranchDto { Id = 1, Name = "Kampala", BranchCode = "KLA" },
+                new BranchDto { Id = 2, Name = "Mbale", BranchCode = "MBL" },
+            ]);
+
+        var wrDenomRepo = new Mock<IWithdrawalRequestDenominationRepository>();
+        wrDenomRepo.Setup(r => r.GetRequestIdsWithBouOriginAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var controller = new WithdrawalRequestsController(
+            repo.Object,
+            Mock.Of<IWorkflowServiceClient>(),
+            Mock.Of<IWorkflowService>(),
+            Mock.Of<IAgentDetailRepository>(),
+            configClient.Object,
+            Mock.Of<IDenominationRepository>(),
+            wrDenomRepo.Object,
+            Mock.Of<IAttachmentRepository>(),
+            Mock.Of<IWithdrawalUnitOfWork>(),
+            Mock.Of<IWebHostEnvironment>(),
+            Mock.Of<IStockMovementRepository>(),
+            Mock.Of<IStockLedgerRepository>(),
+            Mock.Of<ICategoryRepository>(),
+            Mock.Of<ICounterPartyTypeRepository>(),
+            Mock.Of<IPenaltyRepository>(),
+            Mock.Of<IAppliedPenaltyRepository>(),
+            Mock.Of<IPenaltyWaiverRepository>(),
+            Mock.Of<ILogger<WithdrawalRequestsController>>(),
+            Mock.Of<IMapper>())
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    // Remittance Officer: canViewAllLocations = true, sidesteps the (separately
+                    // tracked, ticket 16) fragile substring branch/role matching entirely.
+                    User = new ClaimsPrincipal(new ClaimsIdentity(
+                        [new Claim(ClaimType.AppRole, $"{SystemSettings.AppAcronym}:{Roles.RemittancesOfficer}")])),
+                },
+            },
+        };
+
+        return controller;
+    }
+
+    [Fact]
+    public async Task Index_Excludes_Terminal_Request_With_Past_Collection_Date()
+    {
+        var controller = BuildController([NewRequest(WithdrawalStatusNames.RecallComplete, LastWeek)]);
+
+        var view = Assert.IsType<ViewResult>(await controller.Index());
+        var vm = Assert.IsType<BouWithdrawalRequestViewModel>(view.Model);
+
+        Assert.Empty(vm.Requests);
+    }
+
+    [Fact]
+    public async Task Index_Includes_Terminal_Request_With_Todays_Collection_Date()
+    {
+        var controller = BuildController([NewRequest(WithdrawalStatusNames.Approved, Today)]);
+
+        var view = Assert.IsType<ViewResult>(await controller.Index());
+        var vm = Assert.IsType<BouWithdrawalRequestViewModel>(view.Model);
+
+        Assert.Single(vm.Requests);
+    }
+
+    [Fact]
+    public async Task Index_Keeps_Rejected_Visible_Past_Date_Since_Return_RTGS_Is_Still_Owed()
+    {
+        var controller = BuildController([NewRequest(WithdrawalStatusNames.Rejected, LastWeek)]);
+
+        var view = Assert.IsType<ViewResult>(await controller.Index());
+        var vm = Assert.IsType<BouWithdrawalRequestViewModel>(view.Model);
+
+        var row = Assert.Single(vm.Requests);
+        Assert.True(row.ReturnRtgsPending);
+    }
+
+    [Fact]
+    public async Task Index_Hero_Card_Counts_Reflect_Only_The_Active_Set()
+    {
+        var controller = BuildController([
+            NewRequest(WithdrawalStatusNames.PendingInternalApproval),
+            NewRequest(WithdrawalStatusNames.PendingWithdrawalConfirmation),
+            NewRequest(WithdrawalStatusNames.RecallRequested),
+            NewRequest(WithdrawalStatusNames.RecallComplete, LastWeek), // excluded — terminal + past
+        ]);
+
+        var view = Assert.IsType<ViewResult>(await controller.Index());
+        var vm = Assert.IsType<BouWithdrawalRequestViewModel>(view.Model);
+
+        Assert.Equal(1, vm.PendingCbCount);
+        Assert.Equal(1, vm.UnderBouProcessing);
+        Assert.Equal(1, vm.RecallCount);
+        Assert.Equal(3, vm.Requests.Count());
+    }
+
+    [Fact]
+    public async Task Index_TotalProcessed_Is_A_Lifetime_Sum_Unaffected_By_The_Active_History_Split()
+    {
+        // Regression check for the pre-existing bug: this card was always UGX 0 because it summed
+        // a collection that had already excluded Approved rows.
+        var controller = BuildController([
+            NewRequest(WithdrawalStatusNames.Approved, ThirteenMonthsAgo, totalAmount: 15_000_000m),
+            NewRequest(WithdrawalStatusNames.Approved, Today, totalAmount: 25_000_000m),
+        ]);
+
+        var view = Assert.IsType<ViewResult>(await controller.Index());
+        var vm = Assert.IsType<BouWithdrawalRequestViewModel>(view.Model);
+
+        Assert.Equal(40_000_000m, vm.TotalProcessed);
+    }
+
+    [Fact]
+    public async Task Index_With_Explicit_BranchCode_Scopes_Rows_And_TotalProcessed_To_That_Branch()
+    {
+        var controller = BuildController([
+            NewRequest(WithdrawalStatusNames.PendingApproval, bouBranchCode: "KLA"),
+            NewRequest(WithdrawalStatusNames.PendingApproval, bouBranchCode: "MBL"),
+            NewRequest(WithdrawalStatusNames.Approved, ThirteenMonthsAgo, bouBranchCode: "KLA", totalAmount: 5_000_000m),
+            NewRequest(WithdrawalStatusNames.Approved, ThirteenMonthsAgo, bouBranchCode: "MBL", totalAmount: 9_000_000m),
+        ]);
+
+        var view = Assert.IsType<ViewResult>(await controller.Index(branchCode: "KLA"));
+        var vm = Assert.IsType<BouWithdrawalRequestViewModel>(view.Model);
+
+        var row = Assert.Single(vm.Requests);
+        Assert.Equal("KLA", row.BouBranchCode);
+        Assert.Equal(5_000_000m, vm.TotalProcessed);
+    }
+
+    [Fact]
+    public async Task History_Returns_Only_Terminal_Past_Requests_Within_The_Lookback_Window()
+    {
+        var controller = BuildController([
+            NewRequest(WithdrawalStatusNames.Approved, LastWeek),           // in history
+            NewRequest(WithdrawalStatusNames.Approved, Today),              // still active
+            NewRequest(WithdrawalStatusNames.Rejected, LastWeek),           // not terminal
+            NewRequest(WithdrawalStatusNames.Approved, ThirteenMonthsAgo),  // older than 12 months
+        ]);
+
+        var view = Assert.IsType<ViewResult>(await controller.History());
+        var vm = Assert.IsType<BouWithdrawalRequestViewModel>(view.Model);
+
+        var row = Assert.Single(vm.Requests);
+        Assert.Equal(LastWeek, row.CollectionDate);
+    }
+}

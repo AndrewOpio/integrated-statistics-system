@@ -58,59 +58,23 @@ namespace VMSService.Web.Controllers
         ILogger<WithdrawalRequestsController> _logger,
         IMapper _mapper) : Controller
     {
-        public async Task<IActionResult> Index(string? branchCode = null)
+        /// <summary>Resolves which BOU branches this user may see and which branch is currently
+        /// selected — shared by <see cref="Index"/> and <see cref="History"/> so both apply the
+        /// exact same visibility rule. (canViewAllLocations's Back-Office gap and the fragile
+        /// substring branch-matching are ticket 16's territory — unchanged here.)</summary>
+        private (bool CanViewAllLocations, List<BranchDto> UserBranches, string? BranchCode) ResolveBranchScope(
+            string? branchCode, IEnumerable<BranchDto> allBouBranches)
         {
-            //var all = (await _uow.Requests.FindAll()
-            //    ).Where(x => !x.IsDeleted);
-
-            ICollection<WithdrawalRequest> visibleRequests = Array.Empty<WithdrawalRequest>();
-
-            var allRequests = await _withdrawalRequestRepo.FindAll();
-
-            allRequests = allRequests.Where(x => !x.IsDeleted).ToList();
-
-            var allStatuses = await _workflowServiceClient.FindAllStatuses();
-
-            allStatuses = [.. allStatuses.Where(x => x.EntityType.Name == StatusConstants.Entity.WithdrawalRequest)];
-
-            var statusMap = allStatuses.ToDictionary(s => s.Id, s => s.Name);
-
-            var allCbs = await _configServiceClient.GetAllCommercialBankAsync();
-
-            var cbMap = allCbs.ToDictionary(s => s.Id, s => s.Name);
-
-            var now = DateTime.Now;
-            var startOfMonth = new DateTime(now.Year, now.Month, 1);
-
-            var allBouBranches = await _configServiceClient.GetAllBouBranchesAsync();
-
-            // Get user roles
             var userRoles = User.FindAll(ClaimType.AppRole)
                 .Where(c => c.Value.StartsWith($"{SystemSettings.AppAcronym}:"))
                 .Select(c => c.Value.Split(":")[1])
                 .ToList();
 
-            // Determine if user can view all locations
             bool canViewAllLocations = userRoles.Contains(Roles.RemittancesOfficer);
 
-            // Filter branches based on user roles
-            var userBranches = new List<BranchDto>();
-            var draftStatus = await GetStatusByNameAsync(DepositStatuses.DepositStatusNames.Draft);
-            var draftStatusSpecial = await GetStatusByNameExceptionalAsync(DepositStatuses.DepositStatusNames.Draft);
-
-            if (canViewAllLocations)
-            {
-                // Remittances Officer can see all branches
-                userBranches = allBouBranches.ToList();
-                visibleRequests = (await _uow.Requests.FindAll()).Where(r => r.StatusTypeId != draftStatus.Id && r.StatusTypeId != draftStatusSpecial.Id).ToList();
-            }
-            else
-            {
-                // Filter branches based on role names matching branch names
-                userBranches = allBouBranches
-                    .Where(branch => userRoles.Any(role => role.Contains(branch.Name)))
-                    .ToList();
-            }
+            var userBranches = canViewAllLocations
+                ? allBouBranches.ToList()
+                : allBouBranches.Where(branch => userRoles.Any(role => role.Contains(branch.Name))).ToList();
 
             // For non-RemittancesOfficer, lock to their branch
             if (!canViewAllLocations)
@@ -119,19 +83,49 @@ namespace VMSService.Web.Controllers
                     branchCode = userBranches.FirstOrDefault()?.BranchCode;
             }
 
-            // Apply branch filter
-            var filteredRequests = allRequests
-                .Where(r => r.StatusTypeName != WithdrawalStatusNames.Approved
-                         && r.StatusTypeName != WithdrawalStatusNames.RejectExceptionalApprovalComplete
-                         && r.StatusTypeName != WithdrawalStatusNames.RecallComplete)
-                .AsEnumerable();
+            return (canViewAllLocations, userBranches, branchCode);
+        }
 
-            if (!string.IsNullOrEmpty(branchCode))
-                filteredRequests = filteredRequests.Where(r => r.BouBranchCode == branchCode);
+        private static RecentRequestRowViewModel MapRow(
+            WithdrawalRequest r, Dictionary<int, string> cbMap, DateOnly today, HashSet<Guid> withBouOrigin)
+            => new()
+            {
+                Id = r.Id,
+                TransactionRefNumber = r.TransactionRefNumber ?? "Not Generated",
+                Amount = r.TotalAmount,
+                StatusTypeName = r.StatusTypeName,
+                CbName = cbMap.GetValueOrDefault(r.CbId, "No CB"),
+                CollectionDate = r.CollectionDate,
+                CreationDate = r.CreatedDate,
+                RequiresSpecialApproval = r.RequiresSpecialApproval,
+                RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "—" : r.RtgsCode,
+                BouBranchCode = r.BouBranchCode,
+                ReturnRtgsPending = r.ReturnRtgsDate == null &&
+                    (r.StatusTypeName == WithdrawalStatusNames.Cancelled ||
+                     r.StatusTypeName == WithdrawalStatusNames.Rejected ||
+                     r.StatusTypeName == WithdrawalStatusNames.RejectExceptionalApproval ||
+                     r.StatusTypeName == WithdrawalStatusNames.RecallApproved),
+                IsAbandoned = r.StatusTypeName == WithdrawalStatusNames.PendingVerification
+                    && r.CollectionDate < today
+                    && withBouOrigin.Contains(r.Id),
+            };
+
+        public async Task<IActionResult> Index(string? branchCode = null)
+        {
+            var today = DateOnly.FromDateTime(DateTime.Today);
+
+            var allCbs = await _configServiceClient.GetAllCommercialBankAsync();
+            var cbMap = allCbs.ToDictionary(s => s.Id, s => s.Name);
+
+            var allBouBranches = await _configServiceClient.GetAllBouBranchesAsync();
+            var (canViewAllLocations, userBranches, resolvedBranchCode) = ResolveBranchScope(branchCode, allBouBranches);
+            branchCode = resolvedBranchCode;
+
+            // Main list: excludes requests that are both terminal and past their collection date —
+            // those live in History instead (ticket 19). Branch scoping pushed to the query itself.
+            var active = (await _withdrawalRequestRepo.GetActiveAsync(today, branchCode)).ToList();
 
             // ── Individual status counts ─────────────────────────────────────────────
-            var active = filteredRequests.Where(r => !r.IsDeleted).ToList();
-
             var pendingInternalApproval = active.Count(r => r.StatusTypeName == WithdrawalStatusNames.PendingInternalApproval);
             var pendingWithdrawalConfirmation = active.Count(r => r.StatusTypeName == WithdrawalStatusNames.PendingWithdrawalConfirmation);
             var pendingExceptionalApproval = active.Count(r => r.StatusTypeName == WithdrawalStatusNames.PendingExceptionalApproval);
@@ -152,38 +146,20 @@ namespace VMSService.Web.Controllers
             var pendingCb = pendingInternalApproval;
             var underBankProcessing = pendingWithdrawalConfirmation + pendingExceptionalApproval + pendingRecommendation + pendingConfirmation;
             var recallCount = recallRequested + recalled;
-            var totalProcessed = active
-                .Where(r => r.StatusTypeName == WithdrawalStatusNames.Approved)
-                .Sum(r => r.TotalAmount);
+            // Deliberately a lifetime sum, independent of the active/history split — "Total
+            // Processed" is a running total, not a recent-activity count.
+            var totalProcessed = await _withdrawalRequestRepo.SumApprovedAmountAsync(branchCode);
 
             // ── Requests table ───────────────────────────────────────────────────────
-            var today = DateOnly.FromDateTime(DateTime.Today);
-            var pendingVerificationIds = filteredRequests
+            var pendingVerificationIds = active
                 .Where(r => r.StatusTypeName == WithdrawalStatusNames.PendingVerification && r.CollectionDate < today)
                 .Select(r => r.Id);
             var withBouOrigin = await _wrDenomRepo.GetRequestIdsWithBouOriginAsync(pendingVerificationIds);
 
-            var rows = filteredRequests.Select(r => new RecentRequestRowViewModel
-            {
-                Id = r.Id,
-                TransactionRefNumber = r.TransactionRefNumber ?? "Not Generated",
-                Amount = r.TotalAmount,
-                StatusTypeName = statusMap.GetValueOrDefault(r.StatusTypeId, "Unknown"),
-                CbName = cbMap.GetValueOrDefault(r.CbId, "No CB"),
-                CollectionDate = r.CollectionDate,
-                CreationDate = r.CreatedDate,
-                RequiresSpecialApproval = r.RequiresSpecialApproval,
-                RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "—" : r.RtgsCode,
-                BouBranchCode = r.BouBranchCode,
-                ReturnRtgsPending = r.ReturnRtgsDate == null &&
-                    (r.StatusTypeName == WithdrawalStatusNames.Cancelled ||
-                     r.StatusTypeName == WithdrawalStatusNames.Rejected ||
-                     r.StatusTypeName == WithdrawalStatusNames.RejectExceptionalApproval ||
-                     r.StatusTypeName == WithdrawalStatusNames.RecallApproved),
-                IsAbandoned = r.StatusTypeName == WithdrawalStatusNames.PendingVerification
-                    && r.CollectionDate < today
-                    && withBouOrigin.Contains(r.Id),
-            }).OrderBy(r => r.CollectionDate).ToList();
+            var rows = active
+                .Select(r => MapRow(r, cbMap, today, withBouOrigin))
+                .OrderBy(r => r.CollectionDate)
+                .ToList();
 
 
             var vm = new BouWithdrawalRequestViewModel
@@ -209,6 +185,36 @@ namespace VMSService.Web.Controllers
             };
 
             return View(vm);
+        }
+
+        /// <summary>Terminal, past-collection-date requests excluded from the main list — bounded
+        /// to the last 12 months back from today. Same branch-scoping rules as <see cref="Index"/>.</summary>
+        public async Task<IActionResult> History(string? branchCode = null)
+        {
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            var since = today.AddMonths(-12);
+
+            var allCbs = await _configServiceClient.GetAllCommercialBankAsync();
+            var cbMap = allCbs.ToDictionary(s => s.Id, s => s.Name);
+
+            var allBouBranches = await _configServiceClient.GetAllBouBranchesAsync();
+            var (canViewAllLocations, userBranches, resolvedBranchCode) = ResolveBranchScope(branchCode, allBouBranches);
+            branchCode = resolvedBranchCode;
+
+            var history = await _withdrawalRequestRepo.GetHistoryAsync(today, since, branchCode);
+
+            var rows = history
+                .Select(r => MapRow(r, cbMap, today, withBouOrigin: []))
+                .OrderByDescending(r => r.CollectionDate)
+                .ToList();
+
+            return View(new BouWithdrawalRequestViewModel
+            {
+                Requests = rows,
+                BouBranches = userBranches,
+                SelectedBranch = branchCode,
+                CanViewAllLocations = canViewAllLocations,
+            });
         }
 
         public async Task<IActionResult> Details(Guid id, CancellationToken ct)

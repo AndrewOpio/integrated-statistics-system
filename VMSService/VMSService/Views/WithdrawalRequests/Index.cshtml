@@ -5,9 +5,14 @@
 }
 
 @* ── Page Header ── *@
-<div class="mb-3">
-    <h5 class="fw-bold mb-0">Withdrawal Requests</h5>
-    <p class="text-muted small mb-0">Cash Operations · @DateTime.Now.ToString("dddd d MMMM yyyy")</p>
+<div class="mb-3 d-flex align-items-center justify-content-between">
+    <div>
+        <h5 class="fw-bold mb-0">Withdrawal Requests</h5>
+        <p class="text-muted small mb-0">Cash Operations · @DateTime.Now.ToString("dddd d MMMM yyyy")</p>
+    </div>
+    <a asp-action="History" asp-route-branchCode="@Model.SelectedBranch" class="text-primary small text-decoration-none">
+        History <i class="bi bi-arrow-right"></i>
+    </a>
 </div>
 
 @* ── Metric Cards ── *@

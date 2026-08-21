@@ -7,6 +7,7 @@ using VMSService.Core.Repositories.WithdrawalRequests;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
+using VMSService.Data.Entities;
 using WorkflowService.Client;
 using static VMSService.Core.Static.WithdrawConstants;
 
@@ -45,15 +46,15 @@ public class CbRequestsController(
     };
 
     // Ended without success — recalls are deliberately excluded, since a recall is CB pulling
-    // the request back, not a failure outcome.
+    // the request back, not a failure outcome. Cancelled/Cancel Complete removed from this set:
+    // there is no Cancel in this domain, Recall is the CB's only withdrawal mechanism (2026-08
+    // transitions rebuild) — these statuses can no longer occur for a withdrawal request.
     private static readonly HashSet<string> UnsuccessfulStatuses = new()
     {
         WithdrawalStatusNames.Rejected,
         WithdrawalStatusNames.RejectComplete,
         WithdrawalStatusNames.RejectExceptionalApproval,
         WithdrawalStatusNames.RejectExceptionalApprovalComplete,
-        WithdrawalStatusNames.Cancelled,
-        WithdrawalStatusNames.CancelComplete,
         WithdrawalStatusNames.Expired,
         DepositStatuses.DepositStatusNames.Rejected,
         DepositStatuses.DepositStatusNames.Cancelled,
@@ -70,31 +71,38 @@ public class CbRequestsController(
         _ => "",
     };
 
+    private async Task<RecentRequestRowViewModel> MapWithdrawalRow(WithdrawalRequest r, DateOnly today)
+    {
+        var statusName = (await _workflowServiceClient.FindStatusById(r.StatusTypeId)).Name;
+        return new RecentRequestRowViewModel
+        {
+            Id = r.Id,
+            Amount = r.TotalAmount,
+            StatusTypeName = statusName,
+            StatusBucket = ClassifyBucket(statusName),
+            CollectionDate = r.CollectionDate,
+            TransactionRefNumber = r.TransactionRefNumber ?? "Not Generated",
+            CreationDate = r.CreatedDate,
+            RequiresSpecialApproval = r.RequiresSpecialApproval,
+            // Always false for terminal (History) rows — Section 10's pre-submission set never
+            // overlaps with TerminalStatuses — so one shared mapping covers both Index and History.
+            IsStalePreSubmission = WithdrawalRequestRepository.IsStalePreSubmission(statusName, r.CollectionDate, today),
+            RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "—" : r.RtgsCode,
+        };
+    }
+
     public async Task<IActionResult> Index(CancellationToken ct)
     {
         var cbId = int.TryParse(User.Claims
             .FirstOrDefault(c => c.Type == "cbId")?.Value, out var id) ? id : 0;
 
-        var requests = await _uow.Requests.GetByCbAsync(cbId, ct);
+        var today = DateOnly.FromDateTime(DateTime.Today);
 
-        var rows = await Task.WhenAll(requests.Select(async r =>
-        {
-            var statusName = (await _workflowServiceClient.FindStatusById(r.StatusTypeId)).Name;
-            return new RecentRequestRowViewModel
-            {
-                Id = r.Id,
-                //Type = "Withdrawal",
-                Amount = r.TotalAmount,
-                StatusTypeName = statusName,
-                StatusBucket = ClassifyBucket(statusName),
-                CollectionDate = r.CollectionDate,
-                TransactionRefNumber = r.TransactionRefNumber ?? "Not Generated",
-                CreationDate = r.CreatedDate,
-                RequiresSpecialApproval = r.RequiresSpecialApproval,
+        // Main list: excludes requests that are both terminal and past their collection date —
+        // those live in History instead (ticket 19). Deposits are untouched — out of scope here.
+        var requests = await _uow.Requests.GetActiveByCbAsync(cbId, today, ct);
 
-                RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "—" : r.RtgsCode,
-            };
-        }));
+        var rows = await Task.WhenAll(requests.Select(r => MapWithdrawalRow(r, today)));
 
         // Legacy deposits are back-filled records, not requests the bank raised — they don't belong
         // in Recent Requests. GetByCbAsync doesn't filter them, unlike the other deposit queries.
@@ -130,5 +138,22 @@ public class CbRequestsController(
         });
 
         //return View();
+    }
+
+    /// <summary>Terminal, past-collection-date withdrawal requests excluded from the main list —
+    /// bounded to the last 12 months back from today; older than that, the CB asks BOU directly.</summary>
+    public async Task<IActionResult> History(CancellationToken ct)
+    {
+        var cbId = int.TryParse(User.Claims
+            .FirstOrDefault(c => c.Type == "cbId")?.Value, out var id) ? id : 0;
+
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var since = today.AddMonths(-12);
+
+        var requests = await _uow.Requests.GetHistoryByCbAsync(cbId, today, since, ct);
+
+        var rows = await Task.WhenAll(requests.Select(r => MapWithdrawalRow(r, today)));
+
+        return View(rows.OrderByDescending(r => r.CollectionDate).ToList());
     }
 }
