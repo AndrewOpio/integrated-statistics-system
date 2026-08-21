@@ -212,6 +212,26 @@ public class ReturnOriginTrackingTests
     }
 
     [Fact]
+    public async Task ReturnForRevision_From_CbApprovers_Own_Return_Leaves_RtgsCodeAtLastReturn_Untouched()
+    {
+        // Origin 1 (Pending Internal Approval) never has a confirmed/failed code to compare
+        // against — snapshotting here would clobber whatever an earlier ABM/Back-Office return
+        // already recorded for a later resubmit to compare against. See ADR-0001.
+        var request = NewRequest(
+            5, WithdrawalStatusNames.PendingInternalApproval,
+            rtgsCode: "UNRELATED-CODE", rtgsCodeAtLastReturn: "PRIOR-ABM-SNAPSHOT");
+        var transition = NewTransition(20, WithdrawalStatusNames.ReturnedForRevision);
+        var createdHistory = new List<WithdrawalRequestStatusHistory>();
+        var service = BuildService(request, transition, createdHistory);
+
+        var result = await ExecuteAsync(service, request, WithdrawalStatusActionNames.ReturnForRevision, "CB Approver's own return");
+
+        Assert.True(result);
+        Assert.Equal("PRIOR-ABM-SNAPSHOT", request.RtgsCodeAtLastReturn);
+        Assert.Equal("CB Approver's own return", Assert.Single(createdHistory).Remarks);
+    }
+
+    [Fact]
     public async Task ReturnForRevision_From_BackOffice_Snapshots_Code_And_AutoGenerates_Remark_Ignoring_Human_Input()
     {
         var request = NewRequest(

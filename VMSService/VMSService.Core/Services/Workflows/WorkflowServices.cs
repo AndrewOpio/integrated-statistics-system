@@ -752,10 +752,16 @@ namespace VMSService.Core.Services.Workflows
 
             if (actionName == WithdrawalStatusActionNames.ReturnForRevision)
             {
-                // Snapshot before the request's own RtgsCode is touched by anything else, so
-                // ResubmitForApproval can later compare "the code at the moment of this return"
-                // against whatever the CB resubmits.
-                request.RtgsCodeAtLastReturn = request.RtgsCode;
+                // Only the two RTGS-relevant origins (ABM's return from Pending Verification, Back
+                // Office's return from RTGS Confirmation Failed) have a code worth snapshotting — the
+                // CB Approver's own return, from Pending Internal Approval, never has a confirmed or
+                // failed code to compare against, so it's left untouched here rather than clobbering
+                // whatever an earlier RTGS-relevant return already recorded. See ADR-0001.
+                if (request.StatusTypeName == WithdrawalStatusNames.PendingVerification
+                    || request.StatusTypeName == WithdrawalStatusNames.VerificationFailed)
+                {
+                    request.RtgsCodeAtLastReturn = request.RtgsCode;
+                }
 
                 // Back Office origin: the code itself failed confirmation — the remark is the audit
                 // trail for that, so it's generated here rather than left to a human to type.
