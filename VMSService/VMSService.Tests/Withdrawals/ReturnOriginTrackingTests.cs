@@ -61,15 +61,17 @@ using static VMSService.Core.Static.WithdrawConstants;
 namespace VMSService.Tests.Withdrawals;
 
 /// <summary>
-/// Covers ticket 03: RtgsCodeAtLastReturn snapshotting on ReturnForRevision (including the
-/// Back-Office-origin auto-generated remark) and ResubmitForApproval's 3-origin routing, exercised
-/// directly against <see cref="WorkflowServices.HandleWithdrawalTransitions"/> via the public
-/// ExecuteTransition entry point. See ADR-0001 for the full routing rationale.
+/// Covers ticket 03's RtgsCodeAtLastReturn snapshotting on ReturnForRevision, including the
+/// Back-Office-origin auto-generated remark, exercised directly against
+/// <see cref="WorkflowServices.HandleWithdrawalTransitions"/> via the public ExecuteTransition
+/// entry point. The 3-origin ResubmitForApproval routing this ticket originally added here moved
+/// to <c>CbWithdrawRequestsController.ExecuteAction</c> (see CbWithdrawRequestsControllerTests) —
+/// ResubmitForApproval itself always follows the normal configured transition; the ABM-same-code
+/// skip-ahead only happens later, at the CB Approver's own approval action. See ADR-0001.
 /// </summary>
 public class ReturnOriginTrackingTests
 {
     private const int RequiredRole = 1;
-    private const int PendingVerificationStatusId = 42;
 
     private static WithdrawalRequest NewRequest(
         int statusTypeId, string statusName, string? rtgsCode = null,
@@ -124,11 +126,6 @@ public class ReturnOriginTrackingTests
             .Setup(c => c.FindByTransitionKey(It.IsAny<GetTransitionByKeyRequestDto>()))
             .ReturnsAsync(transition);
 
-        var statusResolver = new Mock<IWithdrawalStatusResolver>();
-        statusResolver
-            .Setup(r => r.GetStatusIdAsync(WithdrawalStatusNames.PendingVerification))
-            .ReturnsAsync(PendingVerificationStatusId);
-
         return new WorkflowServices(
             Mock.Of<IApprovedCurrencyProcurementRepository>(),
             Mock.Of<IApprovedCurrencyStatusHistoryRepository>(),
@@ -180,8 +177,7 @@ public class ReturnOriginTrackingTests
             Mock.Of<IMonthlyShortageReimbursementStatusHistoryRepository>(),
             Mock.Of<IStockTakeRepository>(),
             Mock.Of<IStockTakeStatusHistoryRepository>(),
-            Mock.Of<IStockPositionService>(),
-            statusResolver.Object);
+            Mock.Of<IStockPositionService>());
     }
 
     private static Task<bool> ExecuteAsync(WorkflowServices service, WithdrawalRequest request, string actionName, string remarks = "")
@@ -248,107 +244,6 @@ public class ReturnOriginTrackingTests
         Assert.Equal(
             "RTGS code RTGS-002 failed confirmation: AmountMismatch — Penalty #7 applied",
             Assert.Single(createdHistory).Remarks);
-    }
-
-    [Fact]
-    public async Task ResubmitForApproval_From_ABM_Origin_With_Same_Code_Skips_Straight_To_PendingVerification()
-    {
-        var request = NewRequest(
-            30, WithdrawalStatusNames.ReturnedForRevision,
-            rtgsCode: "SAME-CODE", rtgsCodeAtLastReturn: "SAME-CODE",
-            rtgsVerificationStatus: RtgsVerification.Confirmed);
-        var lastReturn = new WithdrawalRequestStatusHistory
-        {
-            OldStatusName = WithdrawalStatusNames.PendingVerification,
-            NewStatusName = WithdrawalStatusNames.ReturnedForRevision,
-            ChangedBy = "abm-user",
-            ChangedAt = DateTime.UtcNow,
-        };
-        // The WorkflowService-configured row always points at Pending Internal Approval — the
-        // same-code bypass must override this, not follow it.
-        var transition = NewTransition(99, WithdrawalStatusNames.PendingInternalApproval);
-        var createdHistory = new List<WithdrawalRequestStatusHistory>();
-        var service = BuildService(request, transition, createdHistory, lastReturn);
-
-        var result = await ExecuteAsync(service, request, WithdrawalStatusActionNames.ResubmitForApproval);
-
-        Assert.True(result);
-        Assert.Equal(PendingVerificationStatusId, request.StatusTypeId);
-        Assert.Equal(WithdrawalStatusNames.PendingVerification, request.StatusTypeName);
-        Assert.Equal(RtgsVerification.Confirmed, request.RtgsVerificationStatus);
-    }
-
-    [Fact]
-    public async Task ResubmitForApproval_From_ABM_Origin_With_Different_Code_Follows_Normal_Path_And_Resets_Verification()
-    {
-        var request = NewRequest(
-            30, WithdrawalStatusNames.ReturnedForRevision,
-            rtgsCode: "NEW-CODE", rtgsCodeAtLastReturn: "OLD-CODE",
-            rtgsVerificationStatus: RtgsVerification.Confirmed);
-        var lastReturn = new WithdrawalRequestStatusHistory
-        {
-            OldStatusName = WithdrawalStatusNames.PendingVerification,
-            NewStatusName = WithdrawalStatusNames.ReturnedForRevision,
-            ChangedBy = "abm-user",
-            ChangedAt = DateTime.UtcNow,
-        };
-        var transition = NewTransition(99, WithdrawalStatusNames.PendingInternalApproval);
-        var createdHistory = new List<WithdrawalRequestStatusHistory>();
-        var service = BuildService(request, transition, createdHistory, lastReturn);
-
-        var result = await ExecuteAsync(service, request, WithdrawalStatusActionNames.ResubmitForApproval);
-
-        Assert.True(result);
-        Assert.Equal(99, request.StatusTypeId);
-        Assert.Equal(WithdrawalStatusNames.PendingInternalApproval, request.StatusTypeName);
-        Assert.Equal(RtgsVerification.Pending, request.RtgsVerificationStatus);
-    }
-
-    [Fact]
-    public async Task ResubmitForApproval_From_BackOffice_Origin_Never_Skips_Ahead_Even_With_Identical_Code()
-    {
-        var request = NewRequest(
-            30, WithdrawalStatusNames.ReturnedForRevision,
-            rtgsCode: "BAD-CODE", rtgsCodeAtLastReturn: "BAD-CODE",
-            rtgsVerificationStatus: RtgsVerification.AmountMismatch);
-        var lastReturn = new WithdrawalRequestStatusHistory
-        {
-            OldStatusName = WithdrawalStatusNames.VerificationFailed,
-            NewStatusName = WithdrawalStatusNames.ReturnedForRevision,
-            ChangedBy = "back-office-user",
-            ChangedAt = DateTime.UtcNow,
-        };
-        var transition = NewTransition(99, WithdrawalStatusNames.PendingInternalApproval);
-        var createdHistory = new List<WithdrawalRequestStatusHistory>();
-        var service = BuildService(request, transition, createdHistory, lastReturn);
-
-        var result = await ExecuteAsync(service, request, WithdrawalStatusActionNames.ResubmitForApproval);
-
-        Assert.True(result);
-        Assert.Equal(99, request.StatusTypeId);
-        Assert.Equal(WithdrawalStatusNames.PendingInternalApproval, request.StatusTypeName);
-    }
-
-    [Fact]
-    public async Task ResubmitForApproval_From_CbApprovers_Own_Return_Behaves_As_Today()
-    {
-        var request = NewRequest(30, WithdrawalStatusNames.ReturnedForRevision, rtgsCode: null);
-        var lastReturn = new WithdrawalRequestStatusHistory
-        {
-            OldStatusName = WithdrawalStatusNames.PendingInternalApproval,
-            NewStatusName = WithdrawalStatusNames.ReturnedForRevision,
-            ChangedBy = "cb-approver",
-            ChangedAt = DateTime.UtcNow,
-        };
-        var transition = NewTransition(99, WithdrawalStatusNames.PendingInternalApproval);
-        var createdHistory = new List<WithdrawalRequestStatusHistory>();
-        var service = BuildService(request, transition, createdHistory, lastReturn);
-
-        var result = await ExecuteAsync(service, request, WithdrawalStatusActionNames.ResubmitForApproval);
-
-        Assert.True(result);
-        Assert.Equal(99, request.StatusTypeId);
-        Assert.Equal(WithdrawalStatusNames.PendingInternalApproval, request.StatusTypeName);
     }
 
     [Fact]

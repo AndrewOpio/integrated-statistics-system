@@ -691,26 +691,56 @@ namespace VMSService.Web.Controllers
 
                     // If the CB Approver sent the request to RTGS Verification but the RTGS code
                     // is already filled in, skip that step and advance directly to
-                    // Pending RTGS Confirmation.
+                    // Pending RTGS Confirmation — unless this approval follows an ABM return
+                    // (Pending Verification origin) with the RTGS code unchanged since that return,
+                    // in which case Back Office already verified this exact code and it skips
+                    // straight to Pending Verification instead. A changed code (or any other
+                    // origin) still goes through the normal RTGS Confirmation cycle. See ADR-0001.
                     if (updatedRequest is not null
                         && updatedRequest.StatusTypeName == WithdrawalStatusNames.PendingRTGSVerification
                         && !string.IsNullOrWhiteSpace(updatedRequest.RtgsCode))
                     {
                         var oldStatusId   = updatedRequest.StatusTypeId;
                         var oldStatusName = updatedRequest.StatusTypeName;
-                        var newStatusId   = await _statusResolver.GetStatusIdAsync(WithdrawalStatusNames.PendingWithdrawalConfirmation);
+
+                        var lastReturn = await _uow.StatusHistory.FindMostRecentByNewStatusNameAsync(
+                            id, WithdrawalStatusNames.ReturnedForRevision, ct);
+                        var isAbmOrigin = lastReturn?.OldStatusName == WithdrawalStatusNames.PendingVerification;
+                        var codeUnchangedSinceAbmReturn = isAbmOrigin && updatedRequest.RtgsCode == updatedRequest.RtgsCodeAtLastReturn;
+
+                        string newStatusName;
+                        string autoAdvanceRemark;
+                        if (codeUnchangedSinceAbmReturn)
+                        {
+                            newStatusName = WithdrawalStatusNames.PendingVerification;
+                            autoAdvanceRemark = $"RTGS code {updatedRequest.RtgsCode} unchanged since the ABM's return — already verified, skipped straight to Pending Verification.";
+                        }
+                        else
+                        {
+                            newStatusName = WithdrawalStatusNames.PendingWithdrawalConfirmation;
+                            autoAdvanceRemark = "RTGS code already provided — automatically advanced to Pending RTGS Confirmation.";
+
+                            if (isAbmOrigin)
+                            {
+                                // ABM origin, but the code changed since the return — the prior
+                                // verification no longer describes the current code.
+                                updatedRequest.RtgsVerificationStatus = RtgsVerification.Pending;
+                            }
+                        }
+
+                        var newStatusId = await _statusResolver.GetStatusIdAsync(newStatusName);
 
                         updatedRequest.StatusTypeId   = newStatusId;
-                        updatedRequest.StatusTypeName = WithdrawalStatusNames.PendingWithdrawalConfirmation;
+                        updatedRequest.StatusTypeName = newStatusName;
                         updatedRequest.ModifiedBy     = username;
                         updatedRequest.ModifiedDate   = DateTime.Now;
 
                         await AddStatusHistoryAsync(
                             updatedRequest.Id,
                             oldStatusId, oldStatusName,
-                            newStatusId, WithdrawalStatusNames.PendingWithdrawalConfirmation,
+                            newStatusId, newStatusName,
                             GetUserId(),
-                            "RTGS code already provided — automatically advanced to Pending RTGS Confirmation.",
+                            autoAdvanceRemark,
                             ct, changedBy: username);
 
                         await _uow.SaveAsync(ct);
@@ -868,7 +898,7 @@ namespace VMSService.Web.Controllers
                     oldStatusId, oldStatusName,
                     newStatusId, WithdrawalStatusNames.PendingWithdrawalConfirmation,
                     GetUserId(),
-                    "RTGS code entered — automatically advanced to Pending RTGS Confirmation.",
+                    $"RTGS code {rtgsCode} entered — automatically advanced to Pending RTGS Confirmation.",
                     ct, changedBy: username);
 
                 autoTransitioned = true;

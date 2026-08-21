@@ -108,8 +108,7 @@ namespace VMSService.Core.Services.Workflows
         IMonthlyShortageReimbursementStatusHistoryRepository _reimbursementStatusHistoryRepository,
         IStockTakeRepository _stockTakeRepository,
         IStockTakeStatusHistoryRepository _stockTakeStatusHistoryRepository,
-        IStockPositionService _stockPositionService,
-        IWithdrawalStatusResolver _withdrawalStatusResolver) : IWorkflowService
+        IStockPositionService _stockPositionService) : IWorkflowService
     {
 
 
@@ -741,11 +740,13 @@ namespace VMSService.Core.Services.Workflows
                 return false;
             }
 
-            // ReturnForRevision and ResubmitForApproval both reuse a single shared status
-            // (Returned for Internal Revision) across three different origins — CB Approver's own
-            // return, the ABM's return (Pending Verification), and Back Office's return (RTGS
-            // Confirmation Failed). See ADR-0001. Resolve the effective destination/remarks here,
-            // defaulting to the WorkflowService-configured transition unless overridden below.
+            // ReturnForRevision reuses a single shared status (Returned for Internal Revision)
+            // across three different origins — CB Approver's own return, the ABM's return (Pending
+            // Verification), and Back Office's return (RTGS Confirmation Failed). See ADR-0001.
+            // ResubmitForApproval (CB Maker) always follows the normal configured transition to
+            // Pending Internal Approval regardless of origin — the CB Approver always reviews it
+            // again; the ABM-same-code skip-ahead happens later, at the CB Approver's own approval
+            // action (CbWithdrawRequestsController.ExecuteAction), not here.
             var effectiveToStatusId = transition.ToStatusId;
             var effectiveToStatusName = transition.ToStatus.Name;
             var effectiveRemarks = remarks;
@@ -770,34 +771,6 @@ namespace VMSService.Core.Services.Workflows
                     effectiveRemarks =
                         $"RTGS code {request.RtgsCode} failed confirmation: {request.RtgsVerificationStatus} — Penalty #7 applied";
                 }
-            }
-            else if (actionName == WithdrawalStatusActionNames.ResubmitForApproval)
-            {
-                var lastReturn = await _uow.StatusHistory.FindMostRecentByNewStatusNameAsync(
-                    entityId, WithdrawalStatusNames.ReturnedForRevision);
-
-                if (lastReturn?.OldStatusName == WithdrawalStatusNames.PendingVerification)
-                {
-                    if (request.RtgsCode == request.RtgsCodeAtLastReturn)
-                    {
-                        // ABM origin, code unchanged — money's already confirmed received, so skip
-                        // back to Pending Verification directly rather than making the CB wait
-                        // through another RTGS verification cycle (same direct-mutation pattern as
-                        // the existing RTGS auto-advance).
-                        effectiveToStatusId = await _withdrawalStatusResolver.GetStatusIdAsync(WithdrawalStatusNames.PendingVerification);
-                        effectiveToStatusName = WithdrawalStatusNames.PendingVerification;
-                    }
-                    else
-                    {
-                        // ABM origin, code changed — re-enters the standard RTGS cycle via the
-                        // normal configured transition; the prior verification no longer describes
-                        // the current code.
-                        request.RtgsVerificationStatus = RtgsVerification.Pending;
-                    }
-                }
-                // Pending Internal Approval origin (CB Approver's own return) and RTGS Confirmation
-                // Failed origin (Back Office — never skips ahead) both fall through to the normal
-                // WorkflowService-configured transition unchanged.
             }
 
             // Create status history record
