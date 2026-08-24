@@ -778,13 +778,13 @@ namespace VMSService.Core.Services.Workflows
                 // ToStatus to configure — revert directly to wherever it actually came from. Single
                 // Currency-Approver action, no other actor's review to worry about skipping, so (unlike
                 // ResubmitForApproval) this is safe to resolve and apply in one step. See ADR-0001.
-                var lastRecallRequest = await _uow.StatusHistory.FindMostRecentByNewStatusNameAsync(
+                var lastRecallTransition = await _uow.StatusHistory.FindMostRecentByNewStatusNameAsync(
                     entityId, WithdrawalStatusNames.RecallRequested);
 
-                if (lastRecallRequest is not null)
+                if (lastRecallTransition is not null)
                 {
-                    effectiveToStatusId = lastRecallRequest.OldStatusId;
-                    effectiveToStatusName = lastRecallRequest.OldStatusName;
+                    effectiveToStatusId = lastRecallTransition.OldStatusId;
+                    effectiveToStatusName = lastRecallTransition.OldStatusName;
                 }
             }
 

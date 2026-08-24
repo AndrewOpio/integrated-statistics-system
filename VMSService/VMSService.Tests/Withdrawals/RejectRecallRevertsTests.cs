@@ -94,7 +94,7 @@ public class RejectRecallRevertsTests
         };
 
     private static (WorkflowServices Service, List<WithdrawalRequestStatusHistory> CreatedHistory) BuildService(
-        WithdrawalRequest request, WithdrawalRequestStatusHistory? lastRecallRequest)
+        WithdrawalRequest request, WithdrawalRequestStatusHistory? lastRecallTransition)
     {
         var requestRepo = new Mock<IWithdrawalRequestRepository>();
         requestRepo.Setup(r => r.FindById(request.Id)).ReturnsAsync(request);
@@ -109,7 +109,7 @@ public class RejectRecallRevertsTests
         historyRepo
             .Setup(r => r.FindMostRecentByNewStatusNameAsync(
                 request.Id, WithdrawalStatusNames.RecallRequested, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(lastRecallRequest);
+            .ReturnsAsync(lastRecallTransition);
 
         var uow = new Mock<IWithdrawalUnitOfWork>();
         uow.Setup(u => u.Requests).Returns(requestRepo.Object);
@@ -197,7 +197,7 @@ public class RejectRecallRevertsTests
     public async Task RejectRecall_Reverts_To_Exact_Originating_Status(int originStatusId, string originStatusName)
     {
         var request = NewRequest();
-        var lastRecallRequest = new WithdrawalRequestStatusHistory
+        var lastRecallTransition = new WithdrawalRequestStatusHistory
         {
             OldStatusId = originStatusId,
             OldStatusName = originStatusName,
@@ -206,7 +206,7 @@ public class RejectRecallRevertsTests
             ChangedBy = "cb-maker",
             ChangedAt = DateTime.UtcNow,
         };
-        var (service, _) = BuildService(request, lastRecallRequest);
+        var (service, _) = BuildService(request, lastRecallTransition);
 
         var result = await RejectAsync(service, request);
 
@@ -219,7 +219,7 @@ public class RejectRecallRevertsTests
     public async Task RejectRecall_Does_Not_Touch_RecallRtgsFields()
     {
         var request = NewRequest();
-        var lastRecallRequest = new WithdrawalRequestStatusHistory
+        var lastRecallTransition = new WithdrawalRequestStatusHistory
         {
             OldStatusId = 70,
             OldStatusName = WithdrawalStatusNames.PendingRTGSVerification,
@@ -228,7 +228,7 @@ public class RejectRecallRevertsTests
             ChangedBy = "cb-maker",
             ChangedAt = DateTime.UtcNow,
         };
-        var (service, _) = BuildService(request, lastRecallRequest);
+        var (service, _) = BuildService(request, lastRecallTransition);
 
         await RejectAsync(service, request);
 
@@ -241,7 +241,7 @@ public class RejectRecallRevertsTests
     public async Task RejectRecall_Writes_A_Single_History_Row_Straight_To_The_Origin_Status()
     {
         var request = NewRequest();
-        var lastRecallRequest = new WithdrawalRequestStatusHistory
+        var lastRecallTransition = new WithdrawalRequestStatusHistory
         {
             OldStatusId = 70,
             OldStatusName = WithdrawalStatusNames.PendingRTGSVerification,
@@ -250,7 +250,7 @@ public class RejectRecallRevertsTests
             ChangedBy = "cb-maker",
             ChangedAt = DateTime.UtcNow,
         };
-        var (service, createdHistory) = BuildService(request, lastRecallRequest);
+        var (service, createdHistory) = BuildService(request, lastRecallTransition);
 
         await RejectAsync(service, request);
 
@@ -270,7 +270,7 @@ public class RejectRecallRevertsTests
         // original collection date has passed during the recall cycle.
         var request = NewRequest();
         request.CollectionDate = DateOnly.FromDateTime(DateTime.Today.AddDays(-5));
-        var lastRecallRequest = new WithdrawalRequestStatusHistory
+        var lastRecallTransition = new WithdrawalRequestStatusHistory
         {
             OldStatusId = 70,
             OldStatusName = WithdrawalStatusNames.PendingRTGSVerification,
@@ -279,7 +279,7 @@ public class RejectRecallRevertsTests
             ChangedBy = "cb-maker",
             ChangedAt = DateTime.UtcNow,
         };
-        var (service, _) = BuildService(request, lastRecallRequest);
+        var (service, _) = BuildService(request, lastRecallTransition);
 
         var result = await RejectAsync(service, request);
 
