@@ -87,6 +87,7 @@ public class RejectRecallRevertsTests
     private static WorkflowTransitionDto NewTransition()
         => new()
         {
+            ActionName = WithdrawalStatusActionNames.RejectRecall,
             ToStatusId = RecallRejectedPlaceholderStatusId,
             ToStatus = new StatusTypeDto { Id = RecallRejectedPlaceholderStatusId, Name = "Recall Rejected" },
             RequiredRole = RequiredRole,
@@ -118,8 +119,9 @@ public class RejectRecallRevertsTests
 
         var workflowClient = new Mock<IWorkflowServiceClient>();
         workflowClient
-            .Setup(c => c.FindByTransitionKey(It.IsAny<GetTransitionByKeyRequestDto>()))
-            .ReturnsAsync(NewTransition());
+            .Setup(c => c.GetAvailableTransitionsAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>()))
+            .ReturnsAsync([NewTransition()]);
 
         var service = new WorkflowServices(
             Mock.Of<IApprovedCurrencyProcurementRepository>(),

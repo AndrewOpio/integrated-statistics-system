@@ -87,9 +87,10 @@ public class ReturnOriginTrackingTests
             TotalAmount = 10_000_000m,
         };
 
-    private static WorkflowTransitionDto NewTransition(int toStatusId, string toStatusName)
+    private static WorkflowTransitionDto NewTransition(int toStatusId, string toStatusName, string actionName)
         => new()
         {
+            ActionName = actionName,
             ToStatusId = toStatusId,
             ToStatus = new StatusTypeDto { Id = toStatusId, Name = toStatusName },
             RequiredRole = RequiredRole,
@@ -123,8 +124,9 @@ public class ReturnOriginTrackingTests
 
         var workflowClient = new Mock<IWorkflowServiceClient>();
         workflowClient
-            .Setup(c => c.FindByTransitionKey(It.IsAny<GetTransitionByKeyRequestDto>()))
-            .ReturnsAsync(transition);
+            .Setup(c => c.GetAvailableTransitionsAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>()))
+            .ReturnsAsync([transition]);
 
         return new WorkflowServices(
             Mock.Of<IApprovedCurrencyProcurementRepository>(),
@@ -195,7 +197,7 @@ public class ReturnOriginTrackingTests
     public async Task ReturnForRevision_From_ABM_Snapshots_RtgsCodeAtLastReturn_And_Keeps_Human_Remark()
     {
         var request = NewRequest(10, WithdrawalStatusNames.PendingVerification, rtgsCode: "RTGS-001");
-        var transition = NewTransition(20, WithdrawalStatusNames.ReturnedForRevision);
+        var transition = NewTransition(20, WithdrawalStatusNames.ReturnedForRevision, WithdrawalStatusActionNames.ReturnForRevision);
         var createdHistory = new List<WithdrawalRequestStatusHistory>();
         var service = BuildService(request, transition, createdHistory);
 
@@ -216,7 +218,7 @@ public class ReturnOriginTrackingTests
         var request = NewRequest(
             5, WithdrawalStatusNames.PendingInternalApproval,
             rtgsCode: "UNRELATED-CODE", rtgsCodeAtLastReturn: "PRIOR-ABM-SNAPSHOT");
-        var transition = NewTransition(20, WithdrawalStatusNames.ReturnedForRevision);
+        var transition = NewTransition(20, WithdrawalStatusNames.ReturnedForRevision, WithdrawalStatusActionNames.ReturnForRevision);
         var createdHistory = new List<WithdrawalRequestStatusHistory>();
         var service = BuildService(request, transition, createdHistory);
 
@@ -233,7 +235,7 @@ public class ReturnOriginTrackingTests
         var request = NewRequest(
             15, WithdrawalStatusNames.VerificationFailed,
             rtgsCode: "RTGS-002", rtgsVerificationStatus: RtgsVerification.AmountMismatch);
-        var transition = NewTransition(20, WithdrawalStatusNames.ReturnedForRevision);
+        var transition = NewTransition(20, WithdrawalStatusNames.ReturnedForRevision, WithdrawalStatusActionNames.ReturnForRevision);
         var createdHistory = new List<WithdrawalRequestStatusHistory>();
         var service = BuildService(request, transition, createdHistory);
 
@@ -250,7 +252,7 @@ public class ReturnOriginTrackingTests
     public async Task RtgsCodeAtLastReturn_Is_Overwritten_Not_Appended_Across_Two_Successive_Returns()
     {
         var request = NewRequest(10, WithdrawalStatusNames.PendingVerification, rtgsCode: "CODE-1");
-        var transition = NewTransition(20, WithdrawalStatusNames.ReturnedForRevision);
+        var transition = NewTransition(20, WithdrawalStatusNames.ReturnedForRevision, WithdrawalStatusActionNames.ReturnForRevision);
         var createdHistory = new List<WithdrawalRequestStatusHistory>();
         var service = BuildService(request, transition, createdHistory);
 

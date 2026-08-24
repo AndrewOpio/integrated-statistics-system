@@ -125,7 +125,12 @@ namespace VMSService.Core.Services.Workflows
             };
             try
             {
-                // Find the valid transition
+                // Find the valid transition. Unlike the Guid overload below, this stays a single
+                // FindByTransitionKey lookup (no per-role disambiguation) — none of the entity types
+                // routed through this overload are known to have WorkflowService rows sharing the same
+                // (EntityType, FromStatus, ActionName) key across more than one role the way
+                // WithdrawalRequest's RequestRecall does. If one turns up, apply the same fix as the
+                // Guid overload.
                 WorkflowTransitionDto transition = await _workflowServiceClient.FindByTransitionKey(requestData);
 
                 if (transition == null)
@@ -228,31 +233,28 @@ namespace VMSService.Core.Services.Workflows
             CancellationToken ct,
             List<long>? attachmentIds = null)
         {
-            var requestData = new GetTransitionByKeyRequestDto
-            {
-                EntityTypeName = entityType,
-                FromStatusId = currentStatusId,
-                ActionName = actionName,
-            };
-
             try
             {
-                WorkflowTransitionDto transition = await _workflowServiceClient
-                    .FindByTransitionKey(requestData);
+                // Some actions (e.g. WithdrawalRequest's RequestRecall) have more than one
+                // WorkflowTransitions row for the same (EntityType, FromStatus, ActionName) — one per
+                // eligible role, since RequiredRole is single-valued per row. A plain FindByTransitionKey
+                // lookup can't disambiguate between them, so look up transitions scoped to each of the
+                // caller's own roles instead — the same role-aware endpoint already used to build the
+                // UI's available-actions list — and take the one matching this action name.
+                WorkflowTransitionDto? transition = null;
+                foreach (var role in userRoles)
+                {
+                    var roleTransitions = await _workflowServiceClient.GetAvailableTransitionsAsync(
+                        SystemPolicy.SystemSettings.AppAcronym, entityType, currentStatusId, role);
+                    transition = roleTransitions.FirstOrDefault(t => t.ActionName == actionName);
+                    if (transition != null) break;
+                }
 
                 if (transition == null)
                 {
                     _logger.LogWarning(
                         "No valid transition found for {EntityType} {EntityId} action {Action} from status {Status}",
                         entityType, entityId, actionName, currentStatusId);
-                    return false;
-                }
-
-                if (!userRoles.Contains(transition.RequiredRole))
-                {
-                    _logger.LogWarning(
-                        "User {Username} with roles {Roles} attempted transition requiring role {RequiredRole}",
-                        username, userRoles, transition.RequiredRole);
                     return false;
                 }
 
