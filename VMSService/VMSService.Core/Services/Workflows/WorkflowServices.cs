@@ -772,6 +772,21 @@ namespace VMSService.Core.Services.Workflows
                         $"RTGS code {request.RtgsCode} failed confirmation: {request.RtgsVerificationStatus} — Penalty #7 applied";
                 }
             }
+            else if (actionName == WithdrawalStatusActionNames.RejectRecall)
+            {
+                // Recall can be requested from five different statuses, so there's no single fixed
+                // ToStatus to configure — revert directly to wherever it actually came from. Single
+                // Currency-Approver action, no other actor's review to worry about skipping, so (unlike
+                // ResubmitForApproval) this is safe to resolve and apply in one step. See ADR-0001.
+                var lastRecallRequest = await _uow.StatusHistory.FindMostRecentByNewStatusNameAsync(
+                    entityId, WithdrawalStatusNames.RecallRequested);
+
+                if (lastRecallRequest is not null)
+                {
+                    effectiveToStatusId = lastRecallRequest.OldStatusId;
+                    effectiveToStatusName = lastRecallRequest.OldStatusName;
+                }
+            }
 
             // Create status history record
             var statusHistory = new WithdrawalRequestStatusHistory
@@ -795,8 +810,14 @@ namespace VMSService.Core.Services.Workflows
             request.ModifiedBy = username;
             request.ModifiedDate = DateTime.Now;
 
-            // CB approval is the submission event — classify same-day submissions here
-            if (effectiveToStatusName == WithdrawalStatusNames.PendingRTGSVerification)
+            // CB approval is the submission event — classify same-day submissions here. Gated on the
+            // actual approval action, not just the destination status: RejectRecall (ticket 04) can
+            // also land a request on Pending RTGS Code when reverting a rejected recall, and that
+            // revert must never re-run submission classification (wrong semantics for the remarks,
+            // and could spuriously reject the revert itself as "late" against a collection date the
+            // recall cycle has since overtaken).
+            if (effectiveToStatusName == WithdrawalStatusNames.PendingRTGSVerification
+                && actionName == WithdrawalStatusActionNames.ApproveToRTGSVerification)
             {
                 var dayBeforeHoliday = await _publicHolidayRepository.FindByDateAsync(request.CollectionDate.AddDays(-1));
                 var classification = SubmissionClassifier.Classify(

@@ -90,6 +90,7 @@ namespace VMSService.Core.Static
             public const string ApproveExceptional = "ApproveExceptional";
             public const string RejectExceptional = "RejectExceptional";
             public const string ApproveRecall = "ApproveRecall";
+            public const string RejectRecall = "RejectRecall";
         }
 
         public static class AmountRules
