@@ -791,20 +791,21 @@ namespace VMSService.Core.Services.Workflows
             }
             else if (actionName == WithdrawalStatusActionNames.RejectExceptional)
             {
-                // Only owe a reverse RTGS if the CB's code was actually confirmed received before the
-                // reject (post ticket 33 — DateMismatch is dropped entirely, not folded into
-                // "verified"). Same confirmed-or-not shape RecallRtgsPending is documented to use for
-                // Recall (see CONTEXT.md's "Reject" entry) — RecallRtgsPending's own condition is
-                // currently dead/commented-out code (ApproveRecall, ~line 966), so this is a fresh
-                // implementation of the shape, not a call into shared logic.
+                // Structurally always true, same as Reject below: Pending RTGS Confirmation exists
+                // specifically to gate the Confirmed/Failed decision before a request can advance, and
+                // SubmitVerification unconditionally writes Confirmed before a request can reach Pending
+                // Exceptional Approval at all — a Failed code never gets this far. See ticket 34, which
+                // also closes the one theoretical gap (VerifyRtgs has no UI path and no status guard
+                // today). Kept as a live read of RtgsVerificationStatus rather than hardcoded, matching
+                // Reject's explicit-not-inferred style, purely for historical-data safety (ticket 33
+                // leaves old AmountMismatch/DateMismatch/NotFound values on existing rows untouched).
                 request.ReturnRtgsPending = request.RtgsVerificationStatus == RtgsVerification.Confirmed;
             }
             else if (actionName == WithdrawalStatusActionNames.Reject)
             {
                 // RTGS is always confirmed by the time a BM reject can happen (the request necessarily
-                // passed through Pending RTGS Confirmation to get here) — unconditionally true, but set
-                // explicitly (not hardcoded downstream) so it shares the same auto-complete conditional
-                // below as RejectExceptional, in case that assumption ever changes.
+                // passed through Pending RTGS Confirmation to get here) — unconditionally true, set
+                // explicitly rather than left implicit.
                 request.ReturnRtgsPending = true;
             }
 
@@ -829,55 +830,6 @@ namespace VMSService.Core.Services.Workflows
             request.StatusTypeName = effectiveToStatusName;
             request.ModifiedBy = username;
             request.ModifiedDate = DateTime.Now;
-
-            // RejectExceptional/Reject: when there's nothing to return (ReturnRtgsPending false), skip
-            // straight to the terminal Complete status instead of waiting on a human to call
-            // CompleteRejectExceptional/CompleteReject — the same "ask vs auto-complete" split documented
-            // for CompleteRecall/RecallRtgsPending (workflow-transitions.md), implemented here for real
-            // rather than left dead. A live conditional rather than hardcoded per-action so Reject's
-            // always-true case and RejectExceptional's real branch share the same code path. Reject never
-            // actually takes this path today (ReturnRtgsPending is unconditionally true there), but it's
-            // wired the same way in case that assumption changes. See ticket 05.
-            if (!request.ReturnRtgsPending &&
-                actionName is WithdrawalStatusActionNames.RejectExceptional or WithdrawalStatusActionNames.Reject)
-            {
-                var completeActionName = actionName == WithdrawalStatusActionNames.RejectExceptional
-                    ? WithdrawalStatusActionNames.CompleteRejectExceptional
-                    : WithdrawalStatusActionNames.CompleteReject;
-
-                var completeTransition = await _workflowServiceClient.FindByTransitionKey(new GetTransitionByKeyRequestDto
-                {
-                    EntityTypeName = StatusConstants.Entity.WithdrawalRequest,
-                    FromStatusId = request.StatusTypeId,
-                    ActionName = completeActionName,
-                });
-
-                if (completeTransition is not null)
-                {
-                    await _uow.StatusHistory.Create(new WithdrawalRequestStatusHistory
-                    {
-                        WithdrawalRequestId = entityId,
-                        OldStatusId = request.StatusTypeId,
-                        OldStatusName = request.StatusTypeName,
-                        NewStatusId = completeTransition.ToStatusId,
-                        NewStatusName = completeTransition.ToStatus.Name,
-                        ChangedBy = username,
-                        ChangedAt = DateTime.UtcNow,
-                        Remarks = "Auto-completed: RTGS was never confirmed, nothing to return.",
-                        CreatedBy = username,
-                        CreatedDate = DateTime.Now,
-                    });
-
-                    request.StatusTypeId = completeTransition.ToStatusId;
-                    request.StatusTypeName = completeTransition.ToStatus.Name;
-                }
-                else
-                {
-                    _logger.LogWarning(
-                        "WithdrawalRequest {Id}: no {Action} transition configured from status {Status}; leaving at intermediate status.",
-                        entityId, completeActionName, request.StatusTypeId);
-                }
-            }
 
             // CB approval is the submission event — classify same-day submissions here. Gated on the
             // actual approval action, not just the destination status: RejectRecall (ticket 04) can

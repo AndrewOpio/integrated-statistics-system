@@ -61,17 +61,17 @@ using static VMSService.Core.Static.WithdrawConstants;
 namespace VMSService.Tests.Withdrawals;
 
 /// <summary>
-/// Covers ticket 05: <c>ReturnRtgsPending</c> and the Reject family's auto-complete-vs-ask branch.
-/// <c>RejectExceptional</c> branches on whether RTGS was confirmed at reject time; <c>Reject</c> is
-/// unconditionally true (RTGS is always confirmed by the time a BM reject can happen) but wired
-/// through the same conditional for consistency. See CONTEXT.md's "Reject" entry.
+/// Covers ticket 05: the <c>ReturnRtgsPending</c> field on the Reject family. <c>RejectExceptional</c>
+/// reads it off <c>RtgsVerificationStatus</c>; <c>Reject</c> sets it unconditionally true (RTGS is
+/// always confirmed by the time either reject can happen — see CONTEXT.md's "Reject" entry and
+/// ticket 34). Both stop at their intermediate status regardless of the value; there's no
+/// auto-complete branch (removed after ticket 34's domain review found it structurally unreachable).
 /// </summary>
 public class ReturnRtgsPendingTests
 {
     private const int RequiredRole = 1;
     private const int PendingExceptionalApprovalStatusId = 40;
     private const int ExceptionalApprovalRejectedStatusId = 41;
-    private const int RejectExceptionalApprovalCompleteStatusId = 42;
     private const int PendingApprovalStatusId = 50;
     private const int RejectedStatusId = 51;
 
@@ -121,18 +121,8 @@ public class ReturnRtgsPendingTests
             SendNotification = false,
         };
 
-    private static WorkflowTransitionDto CompleteRejectExceptionalTransition()
-        => new()
-        {
-            ActionName = WithdrawalStatusActionNames.CompleteRejectExceptional,
-            ToStatusId = RejectExceptionalApprovalCompleteStatusId,
-            ToStatus = new StatusTypeDto { Id = RejectExceptionalApprovalCompleteStatusId, Name = WithdrawalStatusNames.RejectExceptionalApprovalComplete },
-            RequiredRole = RequiredRole,
-            SendNotification = false,
-        };
-
     private static (WorkflowServices Service, List<WithdrawalRequestStatusHistory> CreatedHistory, Mock<IWorkflowServiceClient> WorkflowClient) BuildService(
-        WithdrawalRequest request, WorkflowTransitionDto entryTransition, WorkflowTransitionDto? completeTransition)
+        WithdrawalRequest request, WorkflowTransitionDto entryTransition)
     {
         var requestRepo = new Mock<IWithdrawalRequestRepository>();
         requestRepo.Setup(r => r.FindById(request.Id)).ReturnsAsync(request);
@@ -155,14 +145,6 @@ public class ReturnRtgsPendingTests
             .Setup(c => c.GetAvailableTransitionsAsync(
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>()))
             .ReturnsAsync([entryTransition]);
-
-        if (completeTransition is not null)
-        {
-            workflowClient
-                .Setup(c => c.FindByTransitionKey(It.Is<GetTransitionByKeyRequestDto>(
-                    d => d.ActionName == completeTransition.ActionName)))
-                .ReturnsAsync(completeTransition);
-        }
 
         var service = new WorkflowServices(
             Mock.Of<IApprovedCurrencyProcurementRepository>(),
@@ -232,32 +214,10 @@ public class ReturnRtgsPendingTests
             CancellationToken.None);
 
     [Fact]
-    public async Task RejectExceptional_When_Never_Confirmed_AutoCompletes_With_No_Return_Code_Prompt()
-    {
-        var request = NewExceptionalRequest(RtgsVerification.Pending);
-        var (service, createdHistory, workflowClient) = BuildService(
-            request, RejectExceptionalTransition(), CompleteRejectExceptionalTransition());
-
-        var result = await ExecuteAsync(service, request, WithdrawalStatusActionNames.RejectExceptional);
-
-        Assert.True(result);
-        Assert.False(request.ReturnRtgsPending);
-        Assert.Equal(RejectExceptionalApprovalCompleteStatusId, request.StatusTypeId);
-        Assert.Equal(WithdrawalStatusNames.RejectExceptionalApprovalComplete, request.StatusTypeName);
-        Assert.Null(request.ReturnRtgsCode);
-        Assert.Null(request.ReturnRtgsDate);
-        Assert.Equal(2, createdHistory.Count);
-        Assert.Equal(WithdrawalStatusNames.RejectExceptionalApproval, createdHistory[0].NewStatusName);
-        Assert.Equal(WithdrawalStatusNames.RejectExceptionalApprovalComplete, createdHistory[1].NewStatusName);
-        workflowClient.Verify(c => c.FindByTransitionKey(It.IsAny<GetTransitionByKeyRequestDto>()), Times.Once);
-    }
-
-    [Fact]
-    public async Task RejectExceptional_When_Confirmed_Sets_Pending_And_Stops_At_Intermediate_Status()
+    public async Task RejectExceptional_When_Confirmed_Sets_Pending_True_And_Stops_At_Intermediate_Status()
     {
         var request = NewExceptionalRequest(RtgsVerification.Confirmed);
-        var (service, createdHistory, workflowClient) = BuildService(
-            request, RejectExceptionalTransition(), CompleteRejectExceptionalTransition());
+        var (service, createdHistory, workflowClient) = BuildService(request, RejectExceptionalTransition());
 
         var result = await ExecuteAsync(service, request, WithdrawalStatusActionNames.RejectExceptional);
 
@@ -273,11 +233,33 @@ public class ReturnRtgsPendingTests
     }
 
     [Fact]
+    public async Task RejectExceptional_When_Not_Confirmed_Still_Stops_At_Intermediate_Status_No_AutoComplete()
+    {
+        // Defensive/historical-data case only (ticket 33 leaves old non-Confirmed values on existing
+        // rows untouched) — a real request can't reach Pending Exceptional Approval this way (ticket 34).
+        // There's no auto-complete branch: ReturnRtgsPending is just false, and the request stops at
+        // the same intermediate status as the Confirmed case, same as Reject always does.
+        var request = NewExceptionalRequest(RtgsVerification.Pending);
+        var (service, createdHistory, workflowClient) = BuildService(request, RejectExceptionalTransition());
+
+        var result = await ExecuteAsync(service, request, WithdrawalStatusActionNames.RejectExceptional);
+
+        Assert.True(result);
+        Assert.False(request.ReturnRtgsPending);
+        Assert.Equal(ExceptionalApprovalRejectedStatusId, request.StatusTypeId);
+        Assert.Equal(WithdrawalStatusNames.RejectExceptionalApproval, request.StatusTypeName);
+        Assert.Null(request.ReturnRtgsCode);
+        Assert.Null(request.ReturnRtgsDate);
+        var row = Assert.Single(createdHistory);
+        Assert.Equal(WithdrawalStatusNames.RejectExceptionalApproval, row.NewStatusName);
+        workflowClient.Verify(c => c.FindByTransitionKey(It.IsAny<GetTransitionByKeyRequestDto>()), Times.Never);
+    }
+
+    [Fact]
     public async Task Reject_Always_Sets_Pending_True_And_Stops_At_Rejected()
     {
         var request = NewApprovalRequest();
-        var (service, createdHistory, workflowClient) = BuildService(
-            request, RejectTransition(), completeTransition: null);
+        var (service, createdHistory, workflowClient) = BuildService(request, RejectTransition());
 
         var result = await ExecuteAsync(service, request, WithdrawalStatusActionNames.Reject);
 
