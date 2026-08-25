@@ -238,6 +238,43 @@
                         </div>
                     </div>
                 }
+
+                @* Return RTGS (Reject / Exceptional Reject) — same completed-vs-pending badge as
+                   Recall RTGS above, keyed off ReturnRtgsDate the same way WithdrawalRequests'
+                   BOU-side Details.cshtml does, since this ViewModel doesn't carry ReturnRtgsPending
+                   itself. *@
+                @{
+                    var isReturnPending = !Model.ReturnRtgsDate.HasValue &&
+                        (Model.StatusName == WithdrawalStatusNames.Rejected ||
+                         Model.StatusName == WithdrawalStatusNames.RejectExceptionalApproval);
+                }
+                @if (Model.ReturnRtgsDate.HasValue)
+                {
+                    <div class="row g-3 mt-2 pt-2 border-top">
+                        <div class="col-md-12">
+                            <p class="text-uppercase text-muted fw-semibold mb-2" style="font-size:9px;">RETURN RTGS</p>
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="badge bg-success rounded-pill px-3 py-2">
+                                    <i class="ti ti-circle-check me-1"></i> Reverse RTGS Completed
+                                </span>
+                                <span class="small text-muted">
+                                    @Model.ReturnRtgsDate.Value.ToString("dd MMM yyyy") — @Model.ReturnRtgsCode
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                }
+                else if (isReturnPending)
+                {
+                    <div class="row g-3 mt-2 pt-2 border-top">
+                        <div class="col-md-12">
+                            <p class="text-uppercase text-muted fw-semibold mb-2" style="font-size:9px;">RETURN RTGS</p>
+                            <span class="badge bg-warning text-dark rounded-pill px-3 py-2">
+                                <i class="ti ti-clock me-1"></i> Reverse RTGS Pending
+                            </span>
+                        </div>
+                    </div>
+                }
             </div>
         </div>
 
