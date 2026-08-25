@@ -910,6 +910,10 @@ namespace VMSService.Web.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
+                // Captured before ExecuteTransition mutates the entity — ReturnForRevision shares
+                // one ToStatus across three origins (ADR-0001), so this is how the ABM's own return
+                // (from Pending Verification) is told apart from the CB Approver's/Back Office's.
+                var originalStatusName = request.StatusTypeName;
 
                 var username = User.GetUsernameOrSystem();
                 var userRoles = User.GetAppRoleIds();
@@ -1074,8 +1078,25 @@ namespace VMSService.Web.Controllers
                     {
                         // Dispatch was recorded at Pending Verification (boxes held, serials advanced)
                         // but the request was rejected before reaching Approved — nothing physically
-                        // left, so release the hold.
+                        // left, so release the hold and clear the now-stale BOU-origin denomination
+                        // rows. Row-clearing must run after the box-state reversal, since that
+                        // reversal reads these same rows to know what to reverse.
                         await ReverseBoxStateForRequestAsync(id, ct);
+                        await _uow.Denominations.DeleteBouRowsWithChildrenAsync(id, ct);
+                        await _uow.SaveAsync(ct);
+                        TempData["Success"] = "Action completed successfully.";
+                    }
+                    else if (updatedRequest?.StatusTypeName == WithdrawalStatusNames.ReturnedForRevision
+                        && originalStatusName == WithdrawalStatusNames.PendingVerification)
+                    {
+                        // ABM's own return (as opposed to the CB Approver's or Back Office's, which
+                        // land on this same shared status — see ADR-0001): dispatch data already
+                        // exists here, and the returned request might never come back to BOU the
+                        // same day (or at all), so release the held boxes the same way a Reject does
+                        // rather than leaving them reserved indefinitely.
+                        await ReverseBoxStateForRequestAsync(id, ct);
+                        await _uow.Denominations.DeleteBouRowsWithChildrenAsync(id, ct);
+                        await _uow.SaveAsync(ct);
                         TempData["Success"] = "Action completed successfully.";
                     }
                     else
@@ -1318,7 +1339,18 @@ namespace VMSService.Web.Controllers
                 ct: ct);
 
             if (isExecuted)
+            {
+                // Ends the dispatch the same way a Reject does — release any held boxes and clear
+                // the now-stale BOU-origin denomination rows. Unconfirmed as agreed (see ticket 06 /
+                // workflow-transitions.md open items) but implemented per the ticket's own fallback
+                // instruction, since leaving boxes held all the way to Recall Complete is the same
+                // dangling-boxes problem by omission; flag for confirmation in review. No-ops safely
+                // if the recall never reached a dispatch stage.
+                await ReverseBoxStateForRequestAsync(id, ct);
+                await _uow.Denominations.DeleteBouRowsWithChildrenAsync(id, ct);
+                await _uow.SaveAsync(ct);
                 TempData["Success"] = "Recall completed successfully. Reverse RTGS details recorded.";
+            }
             else
                 TempData["Error"] = "Failed to complete recall. You may not have permission for this action.";
 
