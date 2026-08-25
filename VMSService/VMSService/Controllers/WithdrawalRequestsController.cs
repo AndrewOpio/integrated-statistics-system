@@ -896,7 +896,18 @@ namespace VMSService.Web.Controllers
 
             await _uow.SaveAsync(ct);
         }
-        
+
+        /// <summary>Releases a request's held BOU-origin dispatch data — box-state reversal, then
+        /// the denomination rows themselves. Row-clearing must run second: the reversal reads those
+        /// rows to know what to reverse, so clearing first would leave it nothing to work from.
+        /// Safe to call unconditionally — both steps no-op if the request never reached dispatch.</summary>
+        private async Task ReleaseBouHoldAsync(Guid requestId, CancellationToken ct)
+        {
+            await ReverseBoxStateForRequestAsync(requestId, ct);
+            await _uow.Denominations.DeleteBouRowsWithChildrenAsync(requestId, ct);
+            await _uow.SaveAsync(ct);
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ExecuteAction(Guid id, string actionName, string remarks, CancellationToken ct)
@@ -1078,12 +1089,8 @@ namespace VMSService.Web.Controllers
                     {
                         // Dispatch was recorded at Pending Verification (boxes held, serials advanced)
                         // but the request was rejected before reaching Approved — nothing physically
-                        // left, so release the hold and clear the now-stale BOU-origin denomination
-                        // rows. Row-clearing must run after the box-state reversal, since that
-                        // reversal reads these same rows to know what to reverse.
-                        await ReverseBoxStateForRequestAsync(id, ct);
-                        await _uow.Denominations.DeleteBouRowsWithChildrenAsync(id, ct);
-                        await _uow.SaveAsync(ct);
+                        // left, so release the hold.
+                        await ReleaseBouHoldAsync(id, ct);
                         TempData["Success"] = "Action completed successfully.";
                     }
                     else if (updatedRequest?.StatusTypeName == WithdrawalStatusNames.ReturnedForRevision
@@ -1094,9 +1101,7 @@ namespace VMSService.Web.Controllers
                         // exists here, and the returned request might never come back to BOU the
                         // same day (or at all), so release the held boxes the same way a Reject does
                         // rather than leaving them reserved indefinitely.
-                        await ReverseBoxStateForRequestAsync(id, ct);
-                        await _uow.Denominations.DeleteBouRowsWithChildrenAsync(id, ct);
-                        await _uow.SaveAsync(ct);
+                        await ReleaseBouHoldAsync(id, ct);
                         TempData["Success"] = "Action completed successfully.";
                     }
                     else
@@ -1340,15 +1345,12 @@ namespace VMSService.Web.Controllers
 
             if (isExecuted)
             {
-                // Ends the dispatch the same way a Reject does — release any held boxes and clear
-                // the now-stale BOU-origin denomination rows. Unconfirmed as agreed (see ticket 06 /
-                // workflow-transitions.md open items) but implemented per the ticket's own fallback
-                // instruction, since leaving boxes held all the way to Recall Complete is the same
-                // dangling-boxes problem by omission; flag for confirmation in review. No-ops safely
-                // if the recall never reached a dispatch stage.
-                await ReverseBoxStateForRequestAsync(id, ct);
-                await _uow.Denominations.DeleteBouRowsWithChildrenAsync(id, ct);
-                await _uow.SaveAsync(ct);
+                // Ends the dispatch the same way a Reject does — release any held boxes. Unconfirmed
+                // as agreed (see ticket 06 / workflow-transitions.md open items) but implemented per
+                // the ticket's own fallback instruction, since leaving boxes held all the way to
+                // Recall Complete is the same dangling-boxes problem by omission; flag for
+                // confirmation in review.
+                await ReleaseBouHoldAsync(id, ct);
                 TempData["Success"] = "Recall completed successfully. Reverse RTGS details recorded.";
             }
             else
