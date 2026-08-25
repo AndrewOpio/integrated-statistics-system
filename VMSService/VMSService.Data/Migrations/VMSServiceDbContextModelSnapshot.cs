@@ -5371,6 +5371,9 @@ namespace VMSService.Data.Migrations
                     b.Property<DateOnly?>("ReturnRtgsDate")
                         .HasColumnType("date");
 
+                    b.Property<bool>("ReturnRtgsPending")
+                        .HasColumnType("bit");
+
                     b.Property<string>("RtgsCode")
                         .HasColumnType("nvarchar(max)");
 

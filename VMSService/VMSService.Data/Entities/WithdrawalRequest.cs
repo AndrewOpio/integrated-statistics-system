@@ -33,6 +33,7 @@ namespace VMSService.Data.Entities
         public bool RecallRtgsPending { get; set; } = false;
         public string? RecallRtgsCode { get; set; }
         public DateOnly? RecallRtgsDate { get; set; }
+        public bool ReturnRtgsPending { get; set; } = false;
         public string? ReturnRtgsCode { get; set; }
         public DateOnly? ReturnRtgsDate { get; set; }
         public string? RtgsCodeAtLastReturn { get; set; }
