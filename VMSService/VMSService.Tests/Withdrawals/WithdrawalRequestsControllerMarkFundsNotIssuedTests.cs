@@ -32,12 +32,15 @@ namespace VMSService.Tests.Withdrawals;
 
 /// <summary>
 /// Extends ticket 07 (hide Print when FundsNotIssued) per follow-up discussion: the ABM needs a
-/// dedicated, one-way way to declare "no funds issued" for a request, separate from the dispatch
-/// entry modal (<see cref="WithdrawalRequestsController.SaveBankDenominations"/>). The business
-/// rule: a request is either dispatched without penalty, dispatched with penalty, or not-issued
-/// with penalty — never not-issued with nothing at all — so at least one penalty must already be
-/// applied. Marking the flag also immediately releases any boxes already held, reusing the same
-/// <c>ReleaseBouHoldAsync</c> sequence ticket 06 built for Reject/Return.
+/// dedicated way to declare "no funds issued" for a request, separate from the dispatch entry modal
+/// (<see cref="WithdrawalRequestsController.SaveBankDenominations"/>). The business rule: a request
+/// is either dispatched without penalty, dispatched with penalty, or not-issued with penalty — never
+/// not-issued with nothing at all — so at least one penalty must already be applied. Marking the
+/// flag also immediately releases any boxes already held, reusing the same
+/// <c>ReleaseBouHoldAsync</c> sequence ticket 06 built for Reject/Return. Reversible via
+/// <see cref="WithdrawalRequestsController.UndoFundsNotIssued"/> — deliberately does not try to
+/// restore the released boxes (they may have been reassigned by then), it just re-opens dispatch
+/// editing so the ABM re-enters from scratch through the normal <c>SaveBankDenominations</c> flow.
 /// </summary>
 public class WithdrawalRequestsControllerMarkFundsNotIssuedTests
 {
@@ -169,5 +172,57 @@ public class WithdrawalRequestsControllerMarkFundsNotIssuedTests
 
         denomRepo.Verify(r => r.DeleteBouRowsWithChildrenAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
         denomRepo.Verify(r => r.Create(It.IsAny<WithdrawalRequestDenomination>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Undo_Clears_The_Flag_When_Marked_And_Still_Pending_Verification()
+    {
+        var request = NewRequest(WithdrawalStatusNames.PendingVerification);
+        request.FundsNotIssued = true;
+        var (controller, _, _) = BuildController(request, hasAppliedPenalty: true);
+
+        await controller.UndoFundsNotIssued(request.Id, CancellationToken.None);
+
+        Assert.False(request.FundsNotIssued);
+    }
+
+    [Fact]
+    public async Task Undo_Rejects_When_Not_Marked()
+    {
+        var request = NewRequest(WithdrawalStatusNames.PendingVerification);
+        var (controller, _, _) = BuildController(request, hasAppliedPenalty: true);
+
+        await controller.UndoFundsNotIssued(request.Id, CancellationToken.None);
+
+        Assert.False(request.FundsNotIssued);
+    }
+
+    [Fact]
+    public async Task Undo_Rejects_When_Not_Pending_Verification()
+    {
+        var request = NewRequest(WithdrawalStatusNames.PendingApproval);
+        request.FundsNotIssued = true;
+        var (controller, _, _) = BuildController(request, hasAppliedPenalty: true);
+
+        await controller.UndoFundsNotIssued(request.Id, CancellationToken.None);
+
+        Assert.True(request.FundsNotIssued);
+    }
+
+    [Fact]
+    public async Task Undo_Then_SaveBankDenominations_Allows_Dispatch_To_Be_Re_Entered()
+    {
+        // The whole point of Undo: it doesn't try to restore the released boxes, it just re-opens
+        // the door SaveBankDenominations closes once FundsNotIssued is set (see the rejection test
+        // above) — the ABM re-enters dispatch from scratch through the normal flow.
+        var request = NewRequest(WithdrawalStatusNames.PendingVerification);
+        request.FundsNotIssued = true;
+        var (controller, denomRepo, _) = BuildController(request, hasAppliedPenalty: true);
+
+        await controller.UndoFundsNotIssued(request.Id, CancellationToken.None);
+        await controller.SaveBankDenominations(request.Id, "[]", CancellationToken.None);
+
+        Assert.False(request.FundsNotIssued);
+        denomRepo.Verify(r => r.DeleteBouRowsWithChildrenAsync(request.Id, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

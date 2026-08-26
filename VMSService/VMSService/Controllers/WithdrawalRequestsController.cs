@@ -747,6 +747,42 @@ namespace VMSService.Web.Controllers
             return RedirectToAction(nameof(Details), new { id });
         }
 
+        /// <summary>Reverses <see cref="MarkFundsNotIssued"/> — the request becomes dispatch-editable
+        /// again via <see cref="SaveBankDenominations"/>. Deliberately does not try to restore the
+        /// boxes that were released: those may already have been reassigned to another request by
+        /// now, so the ABM just re-enters dispatch from scratch, picking whatever boxes are currently
+        /// available, the same as any other dispatch entry. Applied penalties are left untouched —
+        /// those were legitimately incurred and this doesn't relitigate them.</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UndoFundsNotIssued(Guid id, CancellationToken ct)
+        {
+            var request = await _uow.Requests.FindById(id);
+            if (request is null)
+            {
+                TempData["Error"] = "Withdrawal request not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (request.StatusTypeName != WithdrawalStatusNames.PendingVerification)
+            {
+                TempData["Error"] = "This request is not editable in its current status.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (!request.FundsNotIssued)
+            {
+                TempData["Error"] = "This request has not been marked as Funds Not Issued.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            request.FundsNotIssued = false;
+            await _uow.SaveAsync(ct);
+
+            TempData["Success"] = "Funds Not Issued undone. Dispatch can be re-entered.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         [HttpGet]
         public async Task<IActionResult> AvailableBoxes(int denominationId, Guid requestId, CancellationToken ct)
         {
