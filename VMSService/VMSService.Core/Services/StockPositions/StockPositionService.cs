@@ -582,6 +582,12 @@ namespace VMSService.Core.Services.StockPositions
                 // amendment actually counted — same matching the Details page variance panel uses.
                 var matrix = await GetStockMatrixAsync(amendment.BranchId, categoryIds, denominationIds);
 
+                // Needed to back-derive piece/box/bundle counts from the value diff below —
+                // the diff itself is only ever a currency amount.
+                var denominationsById = (await _stockService.GetAllDenominations())
+                    .Where(d => denominationIds.Contains(d.Id))
+                    .ToDictionary(d => d.Id);
+
                 var counterPartyTypes = await _stockService.GetAllCounterPartyTypes();
                 var branchCounterPartyType = counterPartyTypes?.FirstOrDefault(c =>
                     c.Name.Equals(StockConstants.StockCounterPartyType.Branch, StringComparison.OrdinalIgnoreCase));
@@ -598,14 +604,23 @@ namespace VMSService.Core.Services.StockPositions
                     var diff = amendedValue - systemValue;
                     if (diff == 0) continue;
 
+                    var absDiff = Math.Abs(diff);
+                    int pieces = 0, boxes = 0, bundles = 0;
+                    if (denominationsById.TryGetValue(group.Key.DenominationId, out var denomination) && denomination.Value > 0)
+                    {
+                        pieces = (int)(absDiff / denomination.Value);
+                        boxes = denomination.NumberOfPiecesInABox > 0 ? pieces / denomination.NumberOfPiecesInABox : 0;
+                        bundles = denomination.NumberOfPiecesInABundle > 0 ? pieces / denomination.NumberOfPiecesInABundle : 0;
+                    }
+
                     var detail = new StockLedgerDetail
                     {
                         DenominationId = group.Key.DenominationId,
                         CategoryId = group.Key.CategoryId,
-                        NumberOfPieces = 0,
-                        NumberOfBoxes = 0,
-                        NumberOfBundles = 0,
-                        Value = Math.Abs(diff),
+                        NumberOfPieces = pieces,
+                        NumberOfBoxes = boxes,
+                        NumberOfBundles = bundles,
+                        Value = absDiff,
                         SubCategoryId = 0,
                     };
 

@@ -37,8 +37,7 @@
                          || Model.MovementType == StockConstants.StockMovementTypes.BufferToOperational;
 
     var userRoles              = User.FindAll("appRole").Select(c => c.Value);
-    bool isAssistantBranchManager = userRoles.Contains($"{SystemPolicy.SystemSettings.AppAcronym}:Assistant BranchDto Manager");
-    bool isBranchManager       = userRoles.Contains("VMS:Branch Manager");
+    bool isAssistantBranchManager = userRoles.Contains($"{SystemPolicy.SystemSettings.AppAcronym}:Assistant Branch Manager");
 
     bool isDispatchedStatus   = Model.CurrentStatusName == "Dispatched";
     bool isApproved           = Model.CurrentStatusName == "Approved";
@@ -497,9 +496,12 @@
                     <h6 class="fw-bold mb-0"><i class="ti ti-checkbox me-2 text-primary"></i>Available Actions</h6>
                 </div>
                 <div class="card-body">
+                    @{
+                        bool showLogisticsDropdown = isAssistantBranchManager && isApproved && logisticsList != null && logisticsList.Any();
+                    }
                     <form method="post" asp-action="ExecuteAction" asp-route-id="@Model.Id" id="workflowForm">
                         <div class="row g-3">
-                            <div class="col-md-6">
+                            <div class="@(showLogisticsDropdown ? "col-md-6" : "col-12")">
                                 <label class="form-label fw-semibold">Action <span class="text-danger">*</span></label>
                                 <select id="actionSelect" name="actionName" class="form-select" required>
                                     <option value="">-- Select an action --</option>
@@ -509,7 +511,7 @@
                                     }
                                 </select>
                             </div>
-                            @if (isBranchManager && isApproved && logisticsList != null && logisticsList.Any())
+                            @if (showLogisticsDropdown)
                             {
                                 <div class="col-md-6" id="logisticsDropdownWrapper" style="display:none">
                                     <label class="form-label fw-semibold">Attach Logistics Form</label>

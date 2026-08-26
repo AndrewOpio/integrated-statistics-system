@@ -11,7 +11,7 @@ namespace VMSService.Data.Entities
         public int? DestructionLocationId { get; set; }
         public string ReferenceNumber { get; set; }
         public DateTime Date { get; set; }
-        public string VerificationOfficer { get; set; }
+        public string VerificationOfficerUserId { get; set; }
         public int CurrentStatusId { get; set; }
         public string CurrentStatusName { get; set; } = "Draft";
         public int BranchId { get; set; }

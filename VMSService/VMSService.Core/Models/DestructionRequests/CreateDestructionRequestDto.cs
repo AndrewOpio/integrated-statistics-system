@@ -9,7 +9,7 @@ namespace VMSService.Core.Models.DestructionRequests
         public int BranchId { get; set; }
         public string ReferenceNumber { get; set; } = null!;
         public DateTime Date { get; set; }
-        public string VerificationOfficer { get; set; } = null!;
+        public string VerificationOfficerUserId { get; set; } = null!;
         public List<DestructionDenominationDto> Denominations { get; set; } = new();
         public List<DestructionMemberDto> Members { get; set; } = new();
     }
@@ -22,7 +22,7 @@ namespace VMSService.Core.Models.DestructionRequests
         public int BranchId { get; set; }
         public string ReferenceNumber { get; set; } = null!;
         public DateTime Date { get; set; }
-        public string VerificationOfficer { get; set; } = null!;
+        public string VerificationOfficerUserId { get; set; } = null!;
         public List<DestructionDenominationDto> Denominations { get; set; } = new();
         public List<DestructionMemberDto> Members { get; set; } = new();
     }
@@ -39,7 +39,6 @@ namespace VMSService.Core.Models.DestructionRequests
     {
         public string IDNumber { get; set; } = null!;
         public string FullName { get; set; } = null!;
-        public bool IsWitness { get; set; }
     }
 
     public class RecordDestructionDto

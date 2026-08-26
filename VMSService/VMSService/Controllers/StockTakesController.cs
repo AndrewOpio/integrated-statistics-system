@@ -379,16 +379,23 @@ namespace VMSService.Web.Controllers
                 if (transitions != null) availableTransitions.AddRange(transitions);
             }
 
-            // "Acknowledge Amendment" is a separate action/role from the normal Acknowledge,
-            // so the person who signed off on the original can't be the one who signs off on
-            // the amendment. Both actions land on the same "Acknowledged" status, so without
-            // this filter WorkflowService would offer both side by side on every record.
+            // "Acknowledge Amendment" is a separate action/role from the normal Acknowledge, so
+            // the person who signed off on the original can't be the one who signs off on the
+            // amendment. Once an amendment reaches Pending Acknowledgement, it's been handed to
+            // Head of Back Office — the Reconciliation Officer's other actions at that stage
+            // (plain Acknowledge, Send Back For Amendment, ...) no longer apply, so amendments
+            // only ever offer Acknowledge Amendment there and nothing else.
             bool isAmendmentRecord = stockTake.AmendsStockTakeId.HasValue;
             availableTransitions = availableTransitions
-                .Where(t => t.ToStatus?.Name != StatusConstants.StockTake.Acknowledged
-                    || (isAmendmentRecord
-                        ? t.ActionName == StatusConstants.StockTakeActions.AcknowledgeAmendment
-                        : t.ActionName != StatusConstants.StockTakeActions.AcknowledgeAmendment))
+                .Where(t =>
+                {
+                    bool isFromPendingAcknowledgement = t.FromStatus?.Name == StatusConstants.StockTake.PendingAcknowledgement;
+                    if (isAmendmentRecord && isFromPendingAcknowledgement)
+                        return t.ActionName == StatusConstants.StockTakeActions.AcknowledgeAmendment;
+                    if (!isAmendmentRecord && t.ActionName == StatusConstants.StockTakeActions.AcknowledgeAmendment)
+                        return false;
+                    return true;
+                })
                 .ToList();
 
             var historyEntities = await _statusHistoryRepository.FindByStockTakeId(id);

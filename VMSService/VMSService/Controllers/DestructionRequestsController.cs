@@ -14,6 +14,7 @@ using VMSService.Core.Repositories.DestructionAuthorizations;
 using VMSService.Core.Repositories.DestructionLocations;
 using VMSService.Core.Repositories.DestructionRequests;
 using VMSService.Core.Repositories.Stocks;
+using VMSService.Core.Services.Identity;
 using VMSService.Core.Services.Stocks;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Workflows;
@@ -39,6 +40,7 @@ namespace VMSService.Web.Controllers
         private readonly IDestructionLocationRepository _locationRepository;
         private readonly IAttachmentRepository _attachmentRepository;
         private readonly IWebHostEnvironment _environment;
+        private readonly IIdentityService _identityService;
 
         public DestructionRequestsController(
             IDestructionRequestRepository destructionRequestRepository,
@@ -52,7 +54,8 @@ namespace VMSService.Web.Controllers
             IDestructionAuthorizationRepository authorizationRepository,
             IDestructionLocationRepository locationRepository,
             IAttachmentRepository attachmentRepository,
-            IWebHostEnvironment environment)
+            IWebHostEnvironment environment,
+            IIdentityService identityService)
         {
             _destructionRequestRepository = destructionRequestRepository;
             _statusHistoryRepository      = statusHistoryRepository;
@@ -66,12 +69,14 @@ namespace VMSService.Web.Controllers
             _locationRepository           = locationRepository;
             _attachmentRepository         = attachmentRepository;
             _environment                  = environment;
+            _identityService              = identityService;
         }
 
         [Breadcrumb("Destruction Requests", FromController = typeof(HomeController), FromAction = nameof(HomeController.Index))]
         public async Task<IActionResult> Index()
         {
             var requests = await _destructionRequestRepository.FindAll();
+            ViewBag.VerificationOfficerNames = await BuildVerificationOfficerNameMap();
             return View(requests);
         }
 
@@ -80,11 +85,14 @@ namespace VMSService.Web.Controllers
         public async Task<IActionResult> Create()
         {
             var branches = await _configServiceClient.GetAllBouBranchesAsync();
+            var authorizations = await _authorizationRepository.GetApprovedAuthorizations();
             ViewBag.DestructionTypes   = await _destructionRequestRepository.GetAllDestructionTypes();
             ViewBag.Denominations      = await _stockService.GetAllDenominations();
             ViewBag.Branches           = branches.ToList();
-            ViewBag.Authorizations     = await _authorizationRepository.GetApprovedAuthorizations();
+            ViewBag.Authorizations     = authorizations;
             ViewBag.Locations          = await _locationRepository.FindAll();
+            ViewBag.AuthorizationRemaining = await BuildAuthorizationRemainingMap(authorizations, excludeRequestId: null);
+            ViewBag.VerificationOfficers = await _identityService.GetUsersByRoleName(SystemPolicy.Roles.VerificationOfficer);
             return View();
         }
 
@@ -180,7 +188,7 @@ namespace VMSService.Web.Controllers
                 DestructionAuthorizationId    = request.DestructionAuthorizationId,
                 DestructionTypeName           = request.DestructionType?.Name ?? string.Empty,
                 Date                 = request.Date,
-                VerificationOfficer  = request.VerificationOfficer,
+                VerificationOfficer  = (await BuildVerificationOfficerNameMap()).GetValueOrDefault(request.VerificationOfficerUserId, request.VerificationOfficerUserId),
                 BranchName           = branchName,
                 LocationName         = request.DestructionLocation?.Name,
                 CurrentStatusId      = request.CurrentStatusId,
@@ -188,8 +196,7 @@ namespace VMSService.Web.Controllers
                 CreatedBy            = request.CreatedBy,
                 CreatedDate          = request.CreatedDate,
                 Denominations        = request.DestructionRequestDenominations ?? [],
-                Members              = request.DestructionRequestMembers?.Where(m => !m.IsWitness) ?? [],
-                Witnesses            = request.DestructionRequestMembers?.Where(m => m.IsWitness) ?? [],
+                CommitteeMembers     = request.DestructionRequestMembers ?? [],
                 AvailableTransitions = availableTransitions,
                 StatusHistory        = statusHistory,
                 AllAttachments       = allAttachments,
@@ -209,11 +216,25 @@ namespace VMSService.Web.Controllers
             if (request == null) return NotFound();
 
             var branches = await _configServiceClient.GetAllBouBranchesAsync();
+            var authorizations = (await _authorizationRepository.GetApprovedAuthorizations()).ToList();
+
+            // The request's own authorization might have fallen out of the "most recent 10 approved" window
+            // (or been fully drawn down since) — make sure it's still present so Edit can show it correctly.
+            if (request.DestructionAuthorizationId.HasValue &&
+                !authorizations.Any(a => a.Id == request.DestructionAuthorizationId.Value))
+            {
+                var currentAuthorization = await _authorizationRepository.FindById(request.DestructionAuthorizationId.Value);
+                if (currentAuthorization != null)
+                    authorizations.Add(currentAuthorization);
+            }
+
             ViewBag.DestructionTypes = await _destructionRequestRepository.GetAllDestructionTypes();
             ViewBag.Denominations    = await _stockService.GetAllDenominations();
             ViewBag.Branches         = branches.ToList();
-            ViewBag.Authorizations   = await _authorizationRepository.GetApprovedAuthorizations();
+            ViewBag.Authorizations   = authorizations;
             ViewBag.Locations        = await _locationRepository.FindAll();
+            ViewBag.AuthorizationRemaining = await BuildAuthorizationRemainingMap(authorizations, excludeRequestId: id.Value);
+            ViewBag.VerificationOfficers = await _identityService.GetUsersByRoleName(SystemPolicy.Roles.VerificationOfficer);
             return View(request);
         }
 
@@ -232,13 +253,33 @@ namespace VMSService.Web.Controllers
                 var editType     = editTypes.FirstOrDefault(t => t.Id == dto.DestructionTypeId);
                 bool editOnline  = editType?.Name == StockConstants.DestructionTypes.Online;
 
+                if (!editOnline)
+                {
+                    var remainingAmounts = await _authorizationRepository.GetRemainingAmounts(dto.DestructionAuthorizationId ?? 0, excludeRequestId: dto.Id);
+                    var remainingBags    = await _authorizationRepository.GetRemainingBags(dto.DestructionAuthorizationId ?? 0, excludeRequestId: dto.Id);
+                    var denominations    = await _stockService.GetAllDenominations();
+                    foreach (var denom in dto.Denominations)
+                    {
+                        var denomName = denominations.FirstOrDefault(d => d.Id == denom.DenominationId)?.Name ?? $"ID {denom.DenominationId}";
+
+                        var availableAmount = remainingAmounts.GetValueOrDefault(denom.DenominationId, 0m);
+                        if (denom.Amount > availableAmount)
+                            return BadRequest(new { message = $"Amount for {denomName} exceeds the remaining authorized amount of {availableAmount:N0}." });
+
+                        var requestedBags = int.TryParse(denom.NumberOfBags, out var bags) ? bags : 0;
+                        var availableBags  = remainingBags.GetValueOrDefault(denom.DenominationId, 0);
+                        if (requestedBags > availableBags)
+                            return BadRequest(new { message = $"Number of bags for {denomName} exceeds the remaining authorized bags of {availableBags:N0}." });
+                    }
+                }
+
                 request.DestructionAuthorizationId = editOnline ? null : dto.DestructionAuthorizationId;
                 request.DestructionTypeId          = dto.DestructionTypeId;
                 request.DestructionLocationId      = dto.DestructionLocationId;
                 request.BranchId                   = dto.BranchId;
                 request.ReferenceNumber            = dto.ReferenceNumber;
                 request.Date                       = dto.Date;
-                request.VerificationOfficer        = dto.VerificationOfficer;
+                request.VerificationOfficerUserId  = dto.VerificationOfficerUserId;
                 request.DestructionRequestDenominations = dto.Denominations.Select(d => new DestructionRequestDenomination
                 {
                     DestructionRequestId = dto.Id,
@@ -251,8 +292,7 @@ namespace VMSService.Web.Controllers
                 {
                     DestructionRequestId = dto.Id,
                     IDNumber             = m.IDNumber,
-                    FullName             = m.FullName,
-                    IsWitness            = m.IsWitness
+                    FullName             = m.FullName
                 }).ToList();
 
                 await _destructionRequestRepository.UpdateWithChildren(request);
@@ -298,16 +338,21 @@ namespace VMSService.Web.Controllers
 
                 if (!isOnline)
                 {
-                    var remaining     = await _authorizationRepository.GetRemainingAmounts(dto.DestructionAuthorizationId ?? 0);
-                    var denominations = await _stockService.GetAllDenominations();
+                    var remainingAmounts = await _authorizationRepository.GetRemainingAmounts(dto.DestructionAuthorizationId ?? 0);
+                    var remainingBags    = await _authorizationRepository.GetRemainingBags(dto.DestructionAuthorizationId ?? 0);
+                    var denominations    = await _stockService.GetAllDenominations();
                     foreach (var denom in dto.Denominations)
                     {
-                        var available = remaining.GetValueOrDefault(denom.DenominationId, 0m);
-                        if (denom.Amount > available)
-                        {
-                            var denomName = denominations.FirstOrDefault(d => d.Id == denom.DenominationId)?.Name ?? $"ID {denom.DenominationId}";
-                            return BadRequest(new { message = $"Amount for {denomName} exceeds the remaining authorized amount of {available:N0}." });
-                        }
+                        var denomName = denominations.FirstOrDefault(d => d.Id == denom.DenominationId)?.Name ?? $"ID {denom.DenominationId}";
+
+                        var availableAmount = remainingAmounts.GetValueOrDefault(denom.DenominationId, 0m);
+                        if (denom.Amount > availableAmount)
+                            return BadRequest(new { message = $"Amount for {denomName} exceeds the remaining authorized amount of {availableAmount:N0}." });
+
+                        var requestedBags = int.TryParse(denom.NumberOfBags, out var bags) ? bags : 0;
+                        var availableBags  = remainingBags.GetValueOrDefault(denom.DenominationId, 0);
+                        if (requestedBags > availableBags)
+                            return BadRequest(new { message = $"Number of bags for {denomName} exceeds the remaining authorized bags of {availableBags:N0}." });
                     }
                 }
 
@@ -319,7 +364,7 @@ namespace VMSService.Web.Controllers
                     BranchId                   = dto.BranchId,
                     ReferenceNumber            = dto.ReferenceNumber,
                     Date                       = dto.Date,
-                    VerificationOfficer        = dto.VerificationOfficer,
+                    VerificationOfficerUserId  = dto.VerificationOfficerUserId,
                     CurrentStatusId            = initialStatusId,
                     CurrentStatusName          = initialStatusName,
                     DestructionRequestDenominations = dto.Denominations.Select(d => new DestructionRequestDenomination
@@ -332,8 +377,7 @@ namespace VMSService.Web.Controllers
                     DestructionRequestMembers = dto.Members.Select(m => new DestructionRequestMember
                     {
                         IDNumber  = m.IDNumber,
-                        FullName  = m.FullName,
-                        IsWitness = m.IsWitness
+                        FullName  = m.FullName
                     }).ToList()
                 };
 
@@ -679,5 +723,35 @@ namespace VMSService.Web.Controllers
                 .Where(r => r.HasValue)
                 .Select(r => r!.Value)
                 .ToList();
+
+        // Per authorization, how many bags/how much value is still available per denomination —
+        // i.e. what's left after subtracting every other Destruction Request already drawn against it.
+        // excludeRequestId lets the Edit screen see its own remaining balance without double-counting itself.
+        private async Task<Dictionary<string, string>> BuildVerificationOfficerNameMap()
+        {
+            var officers = await _identityService.GetUsersByRoleName(SystemPolicy.Roles.VerificationOfficer);
+            return officers.ToDictionary(o => o.UserName, o => $"{o.FirstName} {o.LastName}");
+        }
+
+        private async Task<Dictionary<int, List<object>>> BuildAuthorizationRemainingMap(
+            IEnumerable<DestructionAuthorization> authorizations, int? excludeRequestId)
+        {
+            var map = new Dictionary<int, List<object>>();
+            foreach (var authorization in authorizations)
+            {
+                var remainingAmounts = await _authorizationRepository.GetRemainingAmounts(authorization.Id, excludeRequestId);
+                var remainingBags    = await _authorizationRepository.GetRemainingBags(authorization.Id, excludeRequestId);
+
+                map[authorization.Id] = (authorization.DestructionAuthorizationDenominations ?? [])
+                    .Select(d => (object)new
+                    {
+                        denominationId  = d.DenominationId,
+                        remainingBags   = remainingBags.GetValueOrDefault(d.DenominationId, 0),
+                        remainingAmount = remainingAmounts.GetValueOrDefault(d.DenominationId, 0m),
+                    })
+                    .ToList();
+            }
+            return map;
+        }
     }
 }

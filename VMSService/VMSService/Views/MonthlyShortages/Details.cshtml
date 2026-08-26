@@ -9,18 +9,18 @@
     {
         "Draft"                => "bg-secondary",
         "Pending Approval"     => "bg-warning text-dark",
-        "Pending Confirmation" => "bg-info text-dark",
-        "Confirmed"            => "bg-success",
+        "Pending Payment" => "bg-info text-dark",
+        "Paid"            => "bg-success",
         _                      => "bg-secondary"
     };
 
-    var stages = new[] { "Draft", "Pending Approval", "Pending Confirmation", "Confirmed" };
+    var stages = new[] { "Draft", "Pending Approval", "Pending Payment", "Paid" };
     int currentStageIndex = Model.CurrentStatusName switch
     {
         "Draft"                => 0,
         "Pending Approval"     => 1,
-        "Pending Confirmation" => 2,
-        "Confirmed"            => stages.Length,
+        "Pending Payment" => 2,
+        "Paid"            => stages.Length,
         _                      => 0
     };
 }
@@ -38,7 +38,7 @@
                         <span class="text-muted small">Monthly Shortages</span>
                         <h2 class="fs-3 fw-bold mb-1 mt-1">@Model.ReferenceNumber</h2>
                         <span class="text-muted">
-                            <i class="ti ti-calendar me-1"></i>@Model.Period.ToString("MMMM yyyy")
+                            <i class="ti ti-calendar me-1"></i>@Model.Period.ToString(format: "MMMM yyyy")
                         </span>
                     </div>
                     <div class="d-flex align-items-center gap-2">
@@ -229,7 +229,7 @@
                 <div class="card-body pb-1">
                     @foreach (var h in Model.StatusHistory.OrderBy(x => x.ChangedAt))
                     {
-                        string iconClass = h.NewStatusName == "Confirmed"          ? "text-success" :
+                        string iconClass = h.NewStatusName == "Paid"          ? "text-success" :
                                            h.NewStatusName == "Draft"              ? "text-warning" :
                                            h.NewStatusName.StartsWith("Pending")   ? "text-primary" : "text-secondary";
                         <div class="d-flex gap-3 mb-4">
@@ -293,7 +293,7 @@
                 <div class="card-body">
                     @if (Model.AvailableTransitions.Any())
                     {
-                        <form asp-action="ExecuteAction" method="post" enctype="multipart/form-data">
+                        <form asp-action="ExecuteAction" method="post" enctype="multipart/form-data" id="workflowForm">
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="id" value="@Model.Id" />
 
@@ -305,7 +305,10 @@
                                     {
                                         <option value="@t.ActionName"
                                                 data-requires-attachments="@t.RequiresAttachments.ToString().ToLower()"
-                                                data-requirements="@System.Text.Json.JsonSerializer.Serialize(t.AttachmentRequirements)">
+                                                data-requirements="@System.Text.Json.JsonSerializer.Serialize(t.AttachmentRequirements)"
+                                                data-requires-comments="@t.RequiresComments.ToString().ToLower()"
+                                                data-button-class="@t.ButtonClass"
+                                                data-display-label="@t.DisplayLabel">
                                             @t.DisplayLabel
                                         </option>
                                     }
@@ -315,13 +318,16 @@
                             <div id="attachmentFields"></div>
 
                             <div class="mb-3">
-                                <label class="form-label fw-semibold small">Remarks</label>
-                                <textarea class="form-control" name="remarks" rows="3"
+                                <label class="form-label fw-semibold small">
+                                    Remarks <span id="commentRequired" class="text-danger" style="display:none">*</span>
+                                </label>
+                                <textarea class="form-control" id="remarksTextarea" name="remarks" rows="3"
                                           placeholder="Add a comment..."></textarea>
+                                <small id="commentHint" class="text-muted mt-1 d-block"></small>
                             </div>
 
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="ti ti-check me-1"></i>Submit
+                            <button type="submit" id="submitBtn" class="btn btn-primary w-100" disabled>
+                                <i class="ti ti-check me-1"></i><span id="submitBtnLabel">Submit</span>
                             </button>
                         </form>
                     }
@@ -351,7 +357,7 @@
                     <hr class="my-3" />
                     <div class="d-flex align-items-start gap-2 mb-2">
                         <i class="ti ti-timeline text-primary mt-1 flex-shrink-0"></i>
-                        <div class="small text-muted"><strong>Workflow stepper</strong> — tracks where the record is in its approval lifecycle from Draft through to Confirmed.</div>
+                        <div class="small text-muted"><strong>Workflow stepper</strong> — tracks where the record is in its approval lifecycle from Draft through to Paid.</div>
                     </div>
                     <div class="d-flex align-items-start gap-2 mb-2">
                         <i class="ti ti-chart-bar text-secondary mt-1 flex-shrink-0"></i>
@@ -506,20 +512,63 @@
             const requiresAtt = option.dataset.requiresAttachments === 'true';
             const container   = document.getElementById('attachmentFields');
             container.innerHTML = '';
-            if (!requiresAtt) return;
-            let requirements = [];
-            try { requirements = JSON.parse(option.dataset.requirements || '[]'); } catch { return; }
-            requirements.forEach(req => {
-                const div = document.createElement('div');
-                div.className = 'mb-3';
-                div.innerHTML =
-                    '<label class="form-label fw-semibold small">' + req.AttachmentName +
-                    (req.IsRequired ? ' <span class="text-danger">*</span>' : '') + '</label>' +
-                    '<input type="file" class="form-control form-control-sm" name="attachments_' + req.Id +
-                    '" accept="' + (req.AllowedFormats || '.pdf,.jpg,.jpeg,.png') + '"' +
-                    (req.IsRequired ? ' required' : '') + ' />';
-                container.appendChild(div);
-            });
+            if (requiresAtt) {
+                let requirements = [];
+                try { requirements = JSON.parse(option.dataset.requirements || '[]'); } catch {}
+                requirements.forEach(req => {
+                    const div = document.createElement('div');
+                    div.className = 'mb-3';
+                    div.innerHTML =
+                        '<label class="form-label fw-semibold small">' + req.AttachmentName +
+                        (req.IsRequired ? ' <span class="text-danger">*</span>' : '') + '</label>' +
+                        '<input type="file" class="form-control form-control-sm" name="attachments_' + req.Id +
+                        '" accept="' + (req.AllowedFormats || '.pdf,.jpg,.jpeg,.png') + '"' +
+                        (req.IsRequired ? ' required' : '') + ' />';
+                    container.appendChild(div);
+                });
+            }
+
+            const requiresComments = option.getAttribute('data-requires-comments') === 'true';
+            const buttonClass      = option.getAttribute('data-button-class') || 'btn-primary';
+            const displayLabel     = option.getAttribute('data-display-label') || 'Submit';
+
+            const submitBtn   = document.getElementById('submitBtn');
+            const submitLabel = document.getElementById('submitBtnLabel');
+            const commentReq  = document.getElementById('commentRequired');
+            const hint        = document.getElementById('commentHint');
+            const textarea    = document.getElementById('remarksTextarea');
+
+            if (!select.value) {
+                submitBtn.disabled = true;
+                submitBtn.className = 'btn btn-primary w-100';
+                commentReq.style.display = 'none';
+                textarea.required = false;
+                hint.textContent = '';
+            } else {
+                submitBtn.disabled = false;
+                submitLabel.textContent = displayLabel;
+                submitBtn.className = `btn text-white w-100 ${buttonClass}`;
+                if (requiresComments) {
+                    commentReq.style.display = 'inline';
+                    textarea.required = true;
+                    hint.textContent = 'Comments are required for this action.';
+                } else {
+                    commentReq.style.display = 'none';
+                    textarea.required = false;
+                    hint.textContent = 'Comments are optional.';
+                }
+            }
         }
+
+        document.getElementById('workflowForm')?.addEventListener('submit', function (e) {
+            const sel = document.getElementById('actionSelect');
+            const req = sel.options[sel.selectedIndex]?.getAttribute('data-requires-comments') === 'true';
+            const txt = document.getElementById('remarksTextarea');
+            if (req && !txt.value.trim()) {
+                e.preventDefault();
+                alert('Comments are required for this action.');
+                txt.focus();
+            }
+        });
     </script>
 }

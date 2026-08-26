@@ -26,6 +26,8 @@ namespace VMSService.Data.Entities
         public bool IsDeleted { get; set; }
         // public int NumberOfBoxes { get; set; }
         public int BranchId { get; set; }
+        public int? LogisticsId { get; set; }
+        public Logistics? Logistics { get; set; }
         public ICollection<ReceivedStock> ReceivedStock { get; set; }
         public ICollection<ExPrintMintDetail> Details { get; set; } = new List<ExPrintMintDetail>();
     }

@@ -37,6 +37,7 @@ namespace VMSService.Core.Models.ExPrintMints
         // public int NumberOfBoxes { get; set; }
         public int BranchId { get; set; }
         public BranchViewModel? Branch { get; set; }
+        public int? LogisticsId { get; set; }
         public ICollection<ExPrintMintStatusHistoryViewModel>? StatusHistory { get; set; } = new List<ExPrintMintStatusHistoryViewModel>();
         public ICollection<WorkflowTransitionDto>? AvailableTransitions { get; set; } = new List<WorkflowTransitionDto>();
         public ICollection<ExPrintMintDetailViewModel>? Details { get; set; } = new List<ExPrintMintDetailViewModel>();

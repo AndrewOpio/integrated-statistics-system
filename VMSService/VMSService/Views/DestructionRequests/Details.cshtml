@@ -168,52 +168,26 @@
                     </table>
                 </div>
 
-                @* Members *@
-                @if (Model.Members.Any())
+                @* Destruction Committee *@
+                @if (Model.CommitteeMembers.Any())
                 {
                     <hr />
-                    <h5 class="fw-bold mb-3">Members</h5>
+                    <h5 class="fw-bold mb-3">Destruction Committee</h5>
                     <div class="table-responsive mb-4">
                         <table class="table table-bordered">
                             <thead class="thead-light">
                                 <tr><th>#</th><th>ID Number</th><th>Full Name</th></tr>
                             </thead>
                             <tbody>
-                                @{ int mRow = 1; }
-                                @foreach (var m in Model.Members)
+                                @{ int cRow = 1; }
+                                @foreach (var c in Model.CommitteeMembers)
                                 {
                                     <tr>
-                                        <td>@mRow</td>
-                                        <td>@m.IDNumber</td>
-                                        <td>@m.FullName</td>
+                                        <td>@cRow</td>
+                                        <td>@c.IDNumber</td>
+                                        <td>@c.FullName</td>
                                     </tr>
-                                    mRow++;
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                }
-
-                @* Witnesses *@
-                @if (Model.Witnesses.Any())
-                {
-                    <hr />
-                    <h5 class="fw-bold mb-3">Witnesses</h5>
-                    <div class="table-responsive mb-4">
-                        <table class="table table-bordered">
-                            <thead class="thead-light">
-                                <tr><th>#</th><th>ID Number</th><th>Full Name</th></tr>
-                            </thead>
-                            <tbody>
-                                @{ int wRow = 1; }
-                                @foreach (var w in Model.Witnesses)
-                                {
-                                    <tr>
-                                        <td>@wRow</td>
-                                        <td>@w.IDNumber</td>
-                                        <td>@w.FullName</td>
-                                    </tr>
-                                    wRow++;
+                                    cRow++;
                                 }
                             </tbody>
                         </table>
@@ -248,7 +222,8 @@
 
     @* ── Right column: action panel ────────────────────────────────── *@
     <div class="col-12 col-xl-4">
-        <div class="card border-0 shadow" style="position: sticky; top: 1.5rem;">
+        <div style="position: sticky; top: 1.5rem;">
+        <div class="card border-0 shadow mb-3">
             <div class="card-header">
                 <h5 class="fw-bold mb-0">Actions</h5>
             </div>
@@ -316,6 +291,37 @@
                 </a>
 
             </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h6 class="fw-bold text-muted small text-uppercase mb-3">
+                    <i class="ti ti-info-circle me-1"></i>About this page
+                </h6>
+                <p class="small text-muted mb-3">
+                    This page shows the full details of a <strong>Destruction Request</strong> — the physical
+                    destruction of a specific set of denominations, usually drawn against an approved
+                    Destruction Authorization.
+                </p>
+                <hr class="my-3" />
+                <div class="d-flex align-items-start gap-2 mb-2">
+                    <i class="ti ti-cash text-primary mt-1 flex-shrink-0"></i>
+                    <div class="small text-muted"><strong>Denomination Details</strong> — the original approved amount per denomination, and once destruction begins, how much has been Destroyed vs. what's Remaining.</div>
+                </div>
+                <div class="d-flex align-items-start gap-2 mb-2">
+                    <i class="ti ti-users text-secondary mt-1 flex-shrink-0"></i>
+                    <div class="small text-muted"><strong>Destruction Committee</strong> — the people present for the destruction, recorded for audit purposes.</div>
+                </div>
+                <div class="d-flex align-items-start gap-2 mb-2">
+                    <i class="ti ti-message text-secondary mt-1 flex-shrink-0"></i>
+                    <div class="small text-muted"><strong>Comments &amp; attachments</strong> — a full audit trail of every status change, plus any supporting documents uploaded along the way.</div>
+                </div>
+                <div class="d-flex align-items-start gap-2">
+                    <i class="ti ti-player-play text-primary mt-1 flex-shrink-0"></i>
+                    <div class="small text-muted"><strong>Actions panel</strong> — once Approved, this becomes a <strong>Record Destruction</strong> form: enter how much of each denomination was destroyed today, and any leftover balance is automatically credited back to storage.</div>
+                </div>
+            </div>
+        </div>
         </div>
     </div>
 

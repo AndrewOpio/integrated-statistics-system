@@ -16,6 +16,14 @@
         s == StatusConstants.DestructionAuthorization.Approved        ? "bg-success" :
         s == StatusConstants.DestructionAuthorization.Rejected        ? "bg-danger" :
         "bg-secondary";
+
+    var workflowActionsViewModel = new VMSService.Core.Models.Shared.WorkflowActionsViewModel
+    {
+        EntityId = Model.Id,
+        ControllerName = "DestructionAuthorizations",
+        AvailableTransitions = Model.AvailableTransitions,
+        IsValid = true
+    };
 }
 
 <div class="row g-4">
@@ -148,6 +156,9 @@
                     </div>
                 }
 
+                @* All Attachments *@
+                @await Html.PartialAsync("_WorkflowAttachments", Model.AllAttachments)
+
                 <hr />
 
                 @* Audit *@
@@ -168,57 +179,66 @@
 
     @* ── Right column: action panel ────────────────────────────────── *@
     <div class="col-12 col-xl-4">
-        <div class="card border-0 shadow" style="position: sticky; top: 1.5rem;">
-            <div class="card-header">
-                <h5 class="fw-bold mb-0">Actions</h5>
+        <div style="position: sticky; top: 1.5rem;">
+            <div class="card border-0 shadow mb-3">
+                <div class="card-header">
+                    <h5 class="fw-bold mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+
+                    @if (Model.AvailableTransitions.Any())
+                    {
+                        @await Html.PartialAsync("_WorkflowActions", workflowActionsViewModel)
+                        @await Html.PartialAsync("_WorkflowActionsScript")
+                    }
+                    else
+                    {
+                        <div class="text-center text-muted py-3">
+                            <i class="ti ti-lock fs-3 d-block mb-2"></i>
+                            No actions available for your role at this stage.
+                        </div>
+                    }
+
+                    @if (Model.CurrentStatusName == StatusConstants.DestructionAuthorization.Draft ||
+                         Model.CurrentStatusName == StatusConstants.DestructionAuthorization.AmendmentDraft)
+                    {
+                        <hr />
+                        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-primary w-100">
+                            <i class="ti ti-edit me-1"></i>Edit Authorization
+                        </a>
+                    }
+
+                </div>
             </div>
-            <div class="card-body">
 
-                @if (Model.AvailableTransitions.Any())
-                {
-                    <form asp-action="ExecuteAction" method="post">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="id" value="@Model.Id" />
-
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Select Action</label>
-                            <select class="form-select" name="actionName">
-                                <option value="">-- Choose action --</option>
-                                @foreach (var t in Model.AvailableTransitions)
-                                {
-                                    <option value="@t.ActionName">@t.DisplayLabel</option>
-                                }
-                            </select>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Remarks</label>
-                            <textarea class="form-control" name="remarks" rows="3"
-                                      placeholder="Add comments…"></textarea>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="ti ti-check me-1"></i>Submit
-                        </button>
-                    </form>
-                }
-                else
-                {
-                    <div class="text-center text-muted py-3">
-                        <i class="ti ti-lock fs-3 d-block mb-2"></i>
-                        No actions available for your role at this stage.
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="fw-bold text-muted small text-uppercase mb-3">
+                        <i class="ti ti-info-circle me-1"></i>About this page
+                    </h6>
+                    <p class="small text-muted mb-3">
+                        This page shows the full details of a <strong>Destruction Authorization</strong> — the
+                        approval to destroy a specific set of denominations and bag counts, which downstream
+                        Destruction Requests draw against.
+                    </p>
+                    <hr class="my-3" />
+                    <div class="d-flex align-items-start gap-2 mb-2">
+                        <i class="ti ti-cash text-primary mt-1 flex-shrink-0"></i>
+                        <div class="small text-muted"><strong>Denomination Details</strong> — the authorized bags and amount per denomination; this is the ceiling any linked Destruction Request is validated against.</div>
                     </div>
-                }
-
-                @if (Model.CurrentStatusName == StatusConstants.DestructionAuthorization.Draft ||
-                     Model.CurrentStatusName == StatusConstants.DestructionAuthorization.AmendmentDraft)
-                {
-                    <hr />
-                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-primary w-100">
-                        <i class="ti ti-edit me-1"></i>Edit Authorization
-                    </a>
-                }
-
+                    <div class="d-flex align-items-start gap-2 mb-2">
+                        <i class="ti ti-message text-secondary mt-1 flex-shrink-0"></i>
+                        <div class="small text-muted"><strong>Comments</strong> — a full audit trail of every status change, who made it, when, and any remarks they added.</div>
+                    </div>
+                    <div class="d-flex align-items-start gap-2 mb-2">
+                        <i class="ti ti-edit text-secondary mt-1 flex-shrink-0"></i>
+                        <div class="small text-muted"><strong>Amendments</strong> — an Approved authorization can be sent back for amendment, which routes through its own separate Draft → Verification → Approval cycle before returning to Approved.</div>
+                    </div>
+                    <div class="d-flex align-items-start gap-2">
+                        <i class="ti ti-player-play text-primary mt-1 flex-shrink-0"></i>
+                        <div class="small text-muted"><strong>Actions panel</strong> — if your role permits an action at the current stage, it will appear above. Select the action, add remarks, and submit.</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

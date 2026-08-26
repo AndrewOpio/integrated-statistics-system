@@ -30,6 +30,9 @@
         {
             public const string Online  = "Online";
             public const string Offsite = "Offsite";
+
+            /// <summary>Fixed capacity of a single bag of cancelled notes destined for destruction, regardless of denomination.</summary>
+            public const int NotesPerDestructionBag = 500000;
         }
 
         public static class StockMovementTypes
