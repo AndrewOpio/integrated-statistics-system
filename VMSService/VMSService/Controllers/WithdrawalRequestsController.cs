@@ -494,6 +494,7 @@ namespace VMSService.Web.Controllers
                 FundSettlementValueDate = request.FundSettlementValueDate,
                 RtgsCode = request.RtgsCode,
                 RequiresSpecialApproval = request.RequiresSpecialApproval,
+                FundsNotIssued = request.FundsNotIssued,
                 CbName = cb?.Name ?? "—",
                 CbCode = cb?.Code ?? "—",
                 BouBranchName = bankBranch?.Name ?? "—",

@@ -575,6 +575,7 @@ namespace VMSService.Web.Controllers
                 RtgsCode = request.RtgsCode,
                 RequiresSpecialApproval = request.RequiresSpecialApproval,
                 ExceptionalApprovalReason = request.SpecialApprovalReason,
+                FundsNotIssued = request.FundsNotIssued,
                 CbName = cb?.Name ?? "—",
                 CbCode = cb?.Code ?? "—",
                 BouBranchName = bankBranch?.Name ?? "—",

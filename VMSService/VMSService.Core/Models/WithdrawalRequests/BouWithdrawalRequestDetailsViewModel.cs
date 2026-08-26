@@ -28,6 +28,7 @@ namespace VMSService.Core.Models.WithdrawalRequests
         public string? SpecialApprovalReason { get; set; }
         public bool IsPostApprovalView { get; set; }
         public bool IsLateSubmission { get; set; }
+        public bool FundsNotIssued { get; set; }
 
         public string CbCode { get; init; } = string.Empty;
         public string CbName { get; init; } = string.Empty;

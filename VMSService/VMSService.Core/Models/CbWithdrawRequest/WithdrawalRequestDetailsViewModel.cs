@@ -26,6 +26,7 @@ namespace VMSService.Core.Models.CbWithdrawRequest
         public bool RequiresSpecialApproval { get; set; }
         public string? ExceptionalApprovalReason { get; set; }
         public bool IsPostApprovalView { get; set; }
+        public bool FundsNotIssued { get; set; }
         //public string InitiatorName { get; init; } = string.Empty;
 
         public string CbCode { get; init; } = string.Empty;

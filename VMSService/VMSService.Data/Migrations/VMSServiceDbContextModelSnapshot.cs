@@ -5340,6 +5340,9 @@ namespace VMSService.Data.Migrations
                     b.Property<DateOnly?>("FundSettlementValueDate")
                         .HasColumnType("date");
 
+                    b.Property<bool>("FundsNotIssued")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 

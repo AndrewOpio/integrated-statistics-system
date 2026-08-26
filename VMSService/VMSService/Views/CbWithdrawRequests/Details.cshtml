@@ -50,7 +50,7 @@
                         <i class="ti ti-trash me-1"></i> Delete
                     </button>
                 }
-                @if (Model.StatusName == WithdrawalStatusNames.PendingApproval || Model.StatusName == WithdrawalStatusNames.Approved)
+                @if ((Model.StatusName == WithdrawalStatusNames.PendingApproval || Model.StatusName == WithdrawalStatusNames.Approved) && !Model.FundsNotIssued)
                 {
                     <a asp-action="PrintRequest" asp-route-id="@Model.Id"
                        target="_blank" class="btn btn-sm btn-outline-dark">

@@ -38,6 +38,8 @@ namespace VMSService.Data.Entities
         public DateOnly? ReturnRtgsDate { get; set; }
         public string? RtgsCodeAtLastReturn { get; set; }
 
+        public bool FundsNotIssued { get; set; } = false;
+
         public bool IsDeleted { get; set; } = false;
         public ICollection<WithdrawalRequestAgent> WithdrawalRequestAgents { get; set; } = [];
         public ICollection<WithdrawalRequestDenomination> WithdrawalRequestDenominations { get; set; } = [];
