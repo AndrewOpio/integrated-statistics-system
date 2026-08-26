@@ -2,6 +2,8 @@
 using ConfigurationsService.Client;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using VMSService.Core.Authorization;
 using VMSService.Core.Extensions;
@@ -253,6 +255,16 @@ namespace VMSService.Web.Controllers
 
             var specialApprovalReasonToStore = requiresSpecialApproval ? vm.SpecialApprovalReason?.Trim() : null;
 
+            // Blank/whitespace means "not entered" — normalized to null throughout, since the
+            // database's uniqueness guarantee is a filtered index on RtgsCode IS NOT NULL.
+            var normalizedRtgsCode = NormalizeRtgsCode(vm.RtgsCode);
+
+            // Fast pre-check for a friendly message — the filtered unique index is the real
+            // guarantee and still applies at save time below in case of a concurrent submission.
+            if (normalizedRtgsCode is not null
+                && await _withdrawalRequestRepo.ExistsByRtgsCodeAsync(normalizedRtgsCode, excludeId: vm.Id, ct))
+                return BadRequest(new { errors = new[] { RtgsCodeConflictMessage(normalizedRtgsCode) } });
+
             // Guard: total amount (lump sum or itemized) must be a whole bundle and meet the
             // minimum withdrawal threshold.
             var totalAmount = vm.IsLumpSum ? vm.LumpSumAmount ?? 0 : vm.Denominations.Sum(d => d.Amount);
@@ -297,7 +309,7 @@ namespace VMSService.Web.Controllers
                 var collectionDateChanged = request.CollectionDate != vm.CollectionDate.Value;
                 request.CollectionDate = vm.CollectionDate.Value;
                 request.FundSettlementValueDate = vm.RtgsDate;
-                request.RtgsCode = vm.RtgsCode;
+                request.RtgsCode = normalizedRtgsCode;
                 request.RequiresSpecialApproval = requiresSpecialApproval;
                 request.SpecialApprovalReason = specialApprovalReasonToStore;
                 request.ModifiedDate = DateTime.Now;
@@ -342,7 +354,7 @@ namespace VMSService.Web.Controllers
                     BouBranchCode = vm.BouBranchCode,
                     CollectionDate = vm.CollectionDate ?? default,
                     FundSettlementValueDate = vm.RtgsDate,
-                    RtgsCode = vm.RtgsCode,
+                    RtgsCode = normalizedRtgsCode,
                     RequiresSpecialApproval = requiresSpecialApproval,
                     SpecialApprovalReason = specialApprovalReasonToStore,
                     StatusTypeId = await _statusResolver.GetStatusIdAsync(WithdrawalStatusNames.Draft),
@@ -383,8 +395,14 @@ namespace VMSService.Web.Controllers
                     userId, "Saved as draft", ct, changedBy: username);
             }
 
-            await _uow.SaveAsync(ct);
-
+            try
+            {
+                await _uow.SaveAsync(ct);
+            }
+            catch (DbUpdateException ex) when (IsRtgsCodeUniqueViolation(ex))
+            {
+                return BadRequest(new { errors = new[] { RtgsCodeConflictMessage(normalizedRtgsCode!) } });
+            }
 
             TempData["Success"] = vm.Id.HasValue
                 ? $"Withdrawal request {request.TransactionRefNumber} updated successfully."
@@ -392,6 +410,25 @@ namespace VMSService.Web.Controllers
 
             return Ok(Url.Action("Details", new { id = request.Id }));
         }
+
+        // Blank/whitespace means "not entered" — normalized to null throughout, since the
+        // database's uniqueness guarantee is a filtered index on RtgsCode IS NOT NULL.
+        private static string? NormalizeRtgsCode(string? raw)
+            => string.IsNullOrWhiteSpace(raw) ? null : raw.Trim();
+
+        private static string RtgsCodeConflictMessage(string rtgsCode)
+            => $"RTGS code '{rtgsCode}' is already in use by another request.";
+
+        // Race between ExistsByRtgsCodeAsync's pre-check and this save landing concurrently —
+        // the filtered unique index (UQ_WithdrawalRequest_RtgsCode_Live) is the real guarantee;
+        // this turns its violation into the same friendly message instead of a raw 500. Checked
+        // by SQL error number (2601/nonclustered, 2627/constraint) rather than message text alone,
+        // since SQL Server's message wording can vary by locale/version — the index name in the
+        // message narrows it to this specific index, not any other unique constraint.
+        private static bool IsRtgsCodeUniqueViolation(DbUpdateException ex)
+            => ex.InnerException is SqlException sqlEx
+            && (sqlEx.Number == 2601 || sqlEx.Number == 2627)
+            && sqlEx.Message.Contains("UQ_WithdrawalRequest_RtgsCode_Live", StringComparison.OrdinalIgnoreCase);
 
 
 
@@ -901,15 +938,28 @@ namespace VMSService.Web.Controllers
                 return RedirectToAction(nameof(Details), new { id });
             }
 
+            // Blank/whitespace means "not entered" — normalized to null throughout, since the
+            // database's uniqueness guarantee is a filtered index on RtgsCode IS NOT NULL.
+            var normalizedRtgsCode = NormalizeRtgsCode(rtgsCode);
+
+            // Fast pre-check for a friendly message — the filtered unique index is the real
+            // guarantee and still applies at save time below in case of a concurrent submission.
+            if (normalizedRtgsCode is not null
+                && await _uow.Requests.ExistsByRtgsCodeAsync(normalizedRtgsCode, excludeId: id, ct))
+            {
+                TempData["Error"] = RtgsCodeConflictMessage(normalizedRtgsCode);
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
             request.FundSettlementValueDate = rtgsDate;
-            request.RtgsCode = rtgsCode;
+            request.RtgsCode = normalizedRtgsCode;
             request.ModifiedBy = GetUserId();
             request.ModifiedDate = DateTime.Now;
 
             var autoTransitioned = false;
 
             if (request.StatusTypeName == WithdrawalStatusNames.PendingRTGSVerification
-                && !string.IsNullOrWhiteSpace(rtgsCode))
+                && !string.IsNullOrWhiteSpace(normalizedRtgsCode))
             {
                 var oldStatusId   = request.StatusTypeId;
                 var oldStatusName = request.StatusTypeName;
@@ -924,13 +974,21 @@ namespace VMSService.Web.Controllers
                     oldStatusId, oldStatusName,
                     newStatusId, WithdrawalStatusNames.PendingWithdrawalConfirmation,
                     GetUserId(),
-                    $"RTGS code {rtgsCode} entered — automatically advanced to Pending RTGS Confirmation.",
+                    $"RTGS code {normalizedRtgsCode} entered — automatically advanced to Pending RTGS Confirmation.",
                     ct, changedBy: username);
 
                 autoTransitioned = true;
             }
 
-            await _uow.SaveAsync(ct);
+            try
+            {
+                await _uow.SaveAsync(ct);
+            }
+            catch (DbUpdateException ex) when (IsRtgsCodeUniqueViolation(ex))
+            {
+                TempData["Error"] = RtgsCodeConflictMessage(normalizedRtgsCode!);
+                return RedirectToAction(nameof(Details), new { id });
+            }
 
             TempData["Success"] = autoTransitioned
                 ? "RTGS details saved. Request advanced to Pending RTGS Confirmation."

@@ -39,5 +39,11 @@ namespace VMSService.Core.Repositories.WithdrawalRequests
         /// active/history split, since "Total Processed" is a running total, not a recent-activity
         /// count. Optionally scoped to one BOU branch.</summary>
         Task<decimal> SumApprovedAmountAsync(string? bouBranchCode = null, CancellationToken ct = default);
+
+        /// <summary>Fast pre-check for RTGS code uniqueness — friendly-UX companion to the database's
+        /// filtered unique index (the real guarantee). Only live (non-deleted) requests count, so a
+        /// soft-deleted request's code is reported as available for reuse. <paramref name="excludeId"/>
+        /// lets an edit re-save its own unchanged code without tripping over itself.</summary>
+        Task<bool> ExistsByRtgsCodeAsync(string rtgsCode, Guid? excludeId = null, CancellationToken ct = default);
     }
 }

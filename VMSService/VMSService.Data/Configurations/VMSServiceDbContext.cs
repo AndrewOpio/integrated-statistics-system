@@ -201,6 +201,16 @@ namespace VMSService.Data.Configurations
                 .IsUnique()
                 .HasFilter("[TransactionRefNumber] IS NOT NULL");
 
+            // Two live (non-deleted) requests can't share an RTGS code — soft-deleted requests'
+            // codes don't count, so they become reusable immediately (see cb-withdrawal-process.md
+            // §8). This is the real guarantee; ExistsByRtgsCodeAsync is just a friendly pre-check
+            // on top of it.
+            modelBuilder.Entity<WithdrawalRequest>()
+                .HasIndex(r => r.RtgsCode)
+                .IsUnique()
+                .HasFilter("[RtgsCode] IS NOT NULL AND [IsDeleted] = 0")
+                .HasDatabaseName("UQ_WithdrawalRequest_RtgsCode_Live");
+
             modelBuilder.Entity<BoxState>()
                 .HasIndex(bs => new { bs.CaseNumber, bs.DenominationId, bs.BranchIsAtId })
                 .IsUnique()

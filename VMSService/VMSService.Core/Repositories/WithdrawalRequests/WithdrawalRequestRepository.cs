@@ -130,6 +130,12 @@ namespace VMSService.Core.Repositories.WithdrawalRequests
         public async Task<bool> IsExists(Guid id)
         => await _db.WithdrawalRequests.AnyAsync(d => d.Id == id);
 
+        public async Task<bool> ExistsByRtgsCodeAsync(string rtgsCode, Guid? excludeId = null, CancellationToken ct = default)
+        => await _db.WithdrawalRequests
+            .AnyAsync(r => !r.IsDeleted
+                        && r.RtgsCode == rtgsCode
+                        && (!excludeId.HasValue || r.Id != excludeId.Value), ct);
+
         public Task<bool> Save()
             => Task.FromResult(true);
 

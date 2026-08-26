@@ -346,6 +346,78 @@ public class WithdrawalRequestRepositoryLandingPageTests
         Assert.Equal(0m, total);
     }
 
+    // ── ExistsByRtgsCodeAsync ───────────────────────────────────────────────
+
+    [Fact]
+    public async Task ExistsByRtgsCodeAsync_True_When_A_Live_Request_Has_The_Code()
+    {
+        using var db = NewContext();
+        var withCode = NewRequest();
+        withCode.RtgsCode = "RTGS-001";
+        db.WithdrawalRequests.Add(withCode);
+        await db.SaveChangesAsync();
+
+        var repo = new WithdrawalRequestRepository(db);
+
+        Assert.True(await repo.ExistsByRtgsCodeAsync("RTGS-001"));
+    }
+
+    [Fact]
+    public async Task ExistsByRtgsCodeAsync_False_When_No_Request_Has_The_Code()
+    {
+        using var db = NewContext();
+        var repo = new WithdrawalRequestRepository(db);
+
+        Assert.False(await repo.ExistsByRtgsCodeAsync("NO-SUCH-CODE"));
+    }
+
+    [Fact]
+    public async Task ExistsByRtgsCodeAsync_False_When_Only_A_Soft_Deleted_Request_Has_The_Code()
+    {
+        // Section 8: a soft-deleted request's code becomes reusable immediately.
+        using var db = NewContext();
+        var deleted = NewRequest(isDeleted: true);
+        deleted.RtgsCode = "RTGS-002";
+        db.WithdrawalRequests.Add(deleted);
+        await db.SaveChangesAsync();
+
+        var repo = new WithdrawalRequestRepository(db);
+
+        Assert.False(await repo.ExistsByRtgsCodeAsync("RTGS-002"));
+    }
+
+    [Fact]
+    public async Task ExistsByRtgsCodeAsync_False_When_Excluding_The_Only_Request_That_Has_The_Code()
+    {
+        // Edit path: re-saving a request with its own unchanged code must not self-conflict.
+        using var db = NewContext();
+        var request = NewRequest();
+        request.RtgsCode = "RTGS-003";
+        db.WithdrawalRequests.Add(request);
+        await db.SaveChangesAsync();
+
+        var repo = new WithdrawalRequestRepository(db);
+
+        Assert.False(await repo.ExistsByRtgsCodeAsync("RTGS-003", excludeId: request.Id));
+    }
+
+    [Fact]
+    public async Task ExistsByRtgsCodeAsync_True_When_Another_Live_Request_Has_The_Code_Even_With_ExcludeId()
+    {
+        using var db = NewContext();
+        var owner = NewRequest();
+        owner.RtgsCode = "RTGS-004";
+        var other = NewRequest();
+        other.RtgsCode = "RTGS-004";
+        db.WithdrawalRequests.Add(owner);
+        db.WithdrawalRequests.Add(other);
+        await db.SaveChangesAsync();
+
+        var repo = new WithdrawalRequestRepository(db);
+
+        Assert.True(await repo.ExistsByRtgsCodeAsync("RTGS-004", excludeId: owner.Id));
+    }
+
     // ── IsStalePreSubmission ─────────────────────────────────────────────────
 
     [Theory]
