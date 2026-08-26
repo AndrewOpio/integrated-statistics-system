@@ -28,13 +28,13 @@ namespace VMSService.Core.Authorization
                 return Task.CompletedTask;
             }
 
-            // Company users can only access requests belonging to their company
+            // CB users can only access requests belonging to their own bank
             var cbIdClaim = context.User.Claims
                 .FirstOrDefault(c => c.Type == RolePolicy.CbIdClaim)?.Value;
 
             if (!string.IsNullOrEmpty(cbIdClaim)
-                && int.TryParse(cbIdClaim, out var claimCompanyId)
-                && resource.CbId == claimCompanyId)
+                && int.TryParse(cbIdClaim, out var claimCbId)
+                && resource.CbId == claimCbId)
             {
                 context.Succeed(requirement);
             }
