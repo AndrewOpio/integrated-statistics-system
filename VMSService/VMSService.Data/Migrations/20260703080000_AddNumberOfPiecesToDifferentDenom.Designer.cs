@@ -9,8 +9,11 @@ using VMSService.Data.Configurations;
 namespace VMSService.Data.Migrations
 {
     [DbContext(typeof(VMSServiceDbContext))]
-    [Migration("20260811130000_SyncLocalDbWithCurrentEntityModel")]
-    partial class SyncLocalDbWithCurrentEntityModel
+    [Migration("20260703080000_AddNumberOfPiecesToDifferentDenom")]
+    partial class AddNumberOfPiecesToDifferentDenom
     {
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        {
+        }
     }
 }

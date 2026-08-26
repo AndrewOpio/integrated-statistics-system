@@ -429,7 +429,9 @@ namespace VMSService.Data.Migrations
                     BranchId = table.Column<int>(type: "int", nullable: false),
                     Period = table.Column<DateTime>(type: "datetime2", nullable: false),
                     Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    EftDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    DepositDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    CommercialBankId = table.Column<int>(type: "int", nullable: true),
+                    AccountNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Remarks = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     CurrentStatusId = table.Column<int>(type: "int", nullable: false),
                     CurrentStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -1539,6 +1541,7 @@ namespace VMSService.Data.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
+                    ReferenceNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     ProcessingDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     BranchId = table.Column<int>(type: "int", nullable: false),
                     StockMovementId = table.Column<int>(type: "int", nullable: true),
@@ -1788,6 +1791,8 @@ namespace VMSService.Data.Migrations
                     IsManual = table.Column<bool>(type: "bit", nullable: false),
                     IsDeleted = table.Column<bool>(type: "bit", nullable: false),
                     DenominationId = table.Column<int>(type: "int", nullable: false),
+                    TotalIssuedValue = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    IsCompleted = table.Column<bool>(type: "bit", nullable: false),
                     CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -2071,6 +2076,7 @@ namespace VMSService.Data.Migrations
                     IsProcessedOnRtgs = table.Column<bool>(type: "bit", nullable: false),
                     RtgsCode = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     DepositRequestId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    StockProcessingSessionId = table.Column<int>(type: "int", nullable: false),
                     CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -2083,8 +2089,13 @@ namespace VMSService.Data.Migrations
                         name: "FK_BoardSessionSurplusShortages_DepositRequests_DepositRequestId",
                         column: x => x.DepositRequestId,
                         principalTable: "DepositRequests",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_BoardSessionSurplusShortages_StockProcessingSessions_StockProcessingSessionId",
+                        column: x => x.StockProcessingSessionId,
+                        principalTable: "StockProcessingSessions",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -2284,7 +2295,8 @@ namespace VMSService.Data.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     DenominationId = table.Column<int>(type: "int", nullable: false),
                     Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    BoardSessionSurplusShortageId = table.Column<int>(type: "int", nullable: false)
+                    StockProcessingSessionId = table.Column<int>(type: "int", nullable: false),
+                    BoardSessionSurplusShortageId = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -2294,6 +2306,12 @@ namespace VMSService.Data.Migrations
                         column: x => x.BoardSessionSurplusShortageId,
                         principalTable: "BoardSessionSurplusShortages",
                         principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_BoardSessionDifferentDenoms_StockProcessingSessions_StockProcessingSessionId",
+                        column: x => x.StockProcessingSessionId,
+                        principalTable: "StockProcessingSessions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -2454,115 +2472,6 @@ namespace VMSService.Data.Migrations
                         onDelete: ReferentialAction.Restrict);
                 });
 
-            migrationBuilder.CreateTable(
-                name: "MonthlyShortageReimbursements",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    ReferenceNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    MonthlyShortageId = table.Column<int>(type: "int", nullable: false),
-                    BranchId = table.Column<int>(type: "int", nullable: false),
-                    TotalAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    Remarks = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    CurrentStatusId = table.Column<int>(type: "int", nullable: false),
-                    CurrentStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_MonthlyShortageReimbursements", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_MonthlyShortageReimbursements_MonthlyShortages_MonthlyShortageId",
-                        column: x => x.MonthlyShortageId,
-                        principalTable: "MonthlyShortages",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "MonthlyShortageReimbursementDenominations",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    MonthlyShortageReimbursementId = table.Column<int>(type: "int", nullable: false),
-                    DenominationId = table.Column<int>(type: "int", nullable: false),
-                    DenominationName = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    DenominationValue = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    NumberOfPieces = table.Column<int>(type: "int", nullable: false),
-                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_MonthlyShortageReimbursementDenominations", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_MonthlyShortageReimbursementDenominations_MonthlyShortageReimbursements_MonthlyShortageReimbursementId",
-                        column: x => x.MonthlyShortageReimbursementId,
-                        principalTable: "MonthlyShortageReimbursements",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "MonthlyShortageReimbursementStatusHistories",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    MonthlyShortageReimbursementId = table.Column<int>(type: "int", nullable: false),
-                    OldStatusId = table.Column<int>(type: "int", nullable: false),
-                    OldStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    NewStatusId = table.Column<int>(type: "int", nullable: false),
-                    NewStatusName = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    ChangedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    ChangedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Remarks = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    AttachmentIds = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
-                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ModifiedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    ModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_MonthlyShortageReimbursementStatusHistories", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "StockMovementDenominationBags",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    StockMovementDenominationId = table.Column<int>(type: "int", nullable: false),
-                    BagId = table.Column<int>(type: "int", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_StockMovementDenominationBags", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_StockMovementDenominationBags_Bags_BagId",
-                        column: x => x.BagId,
-                        principalTable: "Bags",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_StockMovementDenominationBags_StockMovementDenominations_StockMovementDenominationId",
-                        column: x => x.StockMovementDenominationId,
-                        principalTable: "StockMovementDenominations",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
             migrationBuilder.CreateIndex(
                 name: "IX_AgentDetailStatusHistory_AgentDetailId",
                 table: "AgentDetailStatusHistory",
@@ -2644,9 +2553,19 @@ namespace VMSService.Data.Migrations
                 column: "BoardSessionSurplusShortageId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_BoardSessionDifferentDenoms_StockProcessingSessionId",
+                table: "BoardSessionDifferentDenoms",
+                column: "StockProcessingSessionId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_BoardSessionSurplusShortages_DepositRequestId",
                 table: "BoardSessionSurplusShortages",
                 column: "DepositRequestId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BoardSessionSurplusShortages_StockProcessingSessionId",
+                table: "BoardSessionSurplusShortages",
+                column: "StockProcessingSessionId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_BoxStates_PackingListDetailsId",
@@ -2911,26 +2830,6 @@ namespace VMSService.Data.Migrations
                 column: "StockMovementDenominationId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_MonthlyShortageReimbursementDenominations_MonthlyShortageReimbursementId",
-                table: "MonthlyShortageReimbursementDenominations",
-                column: "MonthlyShortageReimbursementId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_MonthlyShortageReimbursements_MonthlyShortageId",
-                table: "MonthlyShortageReimbursements",
-                column: "MonthlyShortageId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_StockMovementDenominationBags_BagId",
-                table: "StockMovementDenominationBags",
-                column: "BagId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_StockMovementDenominationBags_StockMovementDenominationId",
-                table: "StockMovementDenominationBags",
-                column: "StockMovementDenominationId");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_StockMovementDenominations_StockMovementId",
                 table: "StockMovementDenominations",
                 column: "StockMovementId");
@@ -3041,18 +2940,6 @@ namespace VMSService.Data.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "MonthlyShortageReimbursementDenominations");
-
-            migrationBuilder.DropTable(
-                name: "MonthlyShortageReimbursementStatusHistories");
-
-            migrationBuilder.DropTable(
-                name: "StockMovementDenominationBags");
-
-            migrationBuilder.DropTable(
-                name: "MonthlyShortageReimbursements");
-
             migrationBuilder.DropTable(
                 name: "AgentDetailStatusHistory");
 

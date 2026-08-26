@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace IdentityService.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260707082055_AddApplicationRoleBranches")]
-    partial class AddApplicationRoleBranches
+    [Migration("20260826122020_AddedApplicationRoleBranch")]
+    partial class AddedApplicationRoleBranch
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -369,6 +369,42 @@ namespace IdentityService.Data.Migrations
                     b.ToTable("UserApplicationRoles");
                 });
 
+            modelBuilder.Entity("IdentityService.Data.Entities.UserBranch", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BranchId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserBranches");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.Property<int>("Id")
@@ -531,6 +567,17 @@ namespace IdentityService.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("ApplicationRole");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("IdentityService.Data.Entities.UserBranch", b =>
+                {
+                    b.HasOne("IdentityService.Data.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });
