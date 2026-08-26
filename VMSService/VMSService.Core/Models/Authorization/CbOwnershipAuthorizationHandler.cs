@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using System.Security.Claims;
 using VMSService.Core.Models.CbRequests;
+using VMSService.Core.Static;
 
 namespace VMSService.Core.Authorization
 {
@@ -13,11 +13,16 @@ namespace VMSService.Core.Authorization
             CbOwnershipRequirement requirement,
             WithdrawalRequestAuthContext resource)
         {
-            var role = context.User.Claims
-                .FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value ?? string.Empty;
+            // Role claims arrive as "{AppAcronym}:{RoleName}" on the "appRole" claim type —
+            // matches the extraction pattern used everywhere else in the app (e.g.
+            // CbWithdrawRequestsController.Details). ClaimTypes.Role is never populated here.
+            var roleNames = context.User.Claims
+                .Where(c => c.Type == SystemPolicy.ClaimType.AppRole
+                    && c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
+                .Select(c => c.Value.Split(":")[1]);
 
             // Bank users can access any request
-            if (RolePolicy.BouRoles.Contains(role))
+            if (roleNames.Any(RolePolicy.BouRoles.Contains))
             {
                 context.Succeed(requirement);
                 return Task.CompletedTask;
@@ -28,7 +33,7 @@ namespace VMSService.Core.Authorization
                 .FirstOrDefault(c => c.Type == RolePolicy.CbIdClaim)?.Value;
 
             if (!string.IsNullOrEmpty(cbIdClaim)
-                && Guid.TryParse(cbIdClaim, out var claimCompanyId)
+                && int.TryParse(cbIdClaim, out var claimCompanyId)
                 && resource.CbId == claimCompanyId)
             {
                 context.Succeed(requirement);

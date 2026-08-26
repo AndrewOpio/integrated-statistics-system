@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using AutoMapper;
 using ConfigurationsService.Client;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
@@ -96,8 +97,15 @@ public class CbWithdrawRequestsControllerTests
             })
             .ReturnsAsync(true);
 
+        // Ownership check always succeeds here — these tests cover ExecuteAction's ABM
+        // skip-ahead routing, not cross-bank ownership (that's CbOwnershipAuthorizationHandlerTests).
+        var authorizationService = new Mock<IAuthorizationService>();
+        authorizationService
+            .Setup(s => s.AuthorizeAsync(It.IsAny<ClaimsPrincipal>(), It.IsAny<object>(), It.IsAny<IEnumerable<IAuthorizationRequirement>>()))
+            .ReturnsAsync(AuthorizationResult.Success());
+
         var controller = new CbWithdrawRequestsController(
-            Mock.Of<Microsoft.AspNetCore.Authorization.IAuthorizationService>(),
+            authorizationService.Object,
             Mock.Of<IAgentDetailRepository>(),
             Mock.Of<IConfigurationsServiceClient>(),
             Mock.Of<IDenominationRepository>(),

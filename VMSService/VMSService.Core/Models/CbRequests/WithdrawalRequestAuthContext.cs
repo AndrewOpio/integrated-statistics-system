@@ -8,6 +8,6 @@ namespace VMSService.Core.Models.CbRequests
 {
     public class WithdrawalRequestAuthContext
     {
-        public Guid CbId { get; init; }
+        public int CbId { get; init; }
     }
 }

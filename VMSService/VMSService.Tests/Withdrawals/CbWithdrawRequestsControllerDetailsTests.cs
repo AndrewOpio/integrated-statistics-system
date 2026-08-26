@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using AutoMapper;
 using ConfigurationsService.Client;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -60,8 +61,15 @@ public class CbWithdrawRequestsControllerDetailsTests
         publicHolidayRepository.Setup(r => r.FindByDateAsync(It.IsAny<DateOnly>()))
             .ReturnsAsync((PublicHoliday?)null);
 
+        // Ownership check always succeeds here — this file covers FundsNotIssued mapping onto
+        // the view model, not cross-bank ownership (that's CbOwnershipAuthorizationHandlerTests).
+        var authorizationService = new Mock<IAuthorizationService>();
+        authorizationService
+            .Setup(s => s.AuthorizeAsync(It.IsAny<ClaimsPrincipal>(), It.IsAny<object>(), It.IsAny<IEnumerable<IAuthorizationRequirement>>()))
+            .ReturnsAsync(AuthorizationResult.Success());
+
         var controller = new CbWithdrawRequestsController(
-            Mock.Of<Microsoft.AspNetCore.Authorization.IAuthorizationService>(),
+            authorizationService.Object,
             Mock.Of<IAgentDetailRepository>(),
             configServiceClient.Object,
             Mock.Of<IDenominationRepository>(),

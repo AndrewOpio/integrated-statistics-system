@@ -98,7 +98,7 @@ namespace VMSService.Web.Controllers
         {
             var request = await _uow.Requests.GetWithDetailsAsync(id, ct);
             if (request is null) return NotFound();
-            //if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
+            if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
 
             // Only allow editing in Draft or ReturnedForRevision
             if (request.StatusTypeName != WithdrawalStatusNames.Draft
@@ -265,9 +265,8 @@ namespace VMSService.Web.Controllers
 
                 if (request is null) return NotFound();
 
-                //TODO : make access secure.
-                //if (!await CanAccessRequestAsync(request.CbId))  // CbId not Id
-                //    return Forbid();
+                if (!await CanAccessRequestAsync(request.CbId))
+                    return Forbid();
 
                 // Submission date is derived from status history — the moment the request
                 // first entered "Pending RTGS Code". The settlement-date rule only
@@ -390,6 +389,7 @@ namespace VMSService.Web.Controllers
         {
             var request = await _uow.Requests.GetWithDetailsAsync(id, ct);
             if (request is null) return NotFound();
+            if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
 
             // ── Current status ────────────────────────────────────────────────────
             var currentStatus = await _workflowServiceClient.FindStatusById(request.StatusTypeId);
@@ -665,6 +665,8 @@ namespace VMSService.Web.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
+                if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
+
                 var username = User.FindFirst(ClaimTypes.Name)?.Value ?? "System";
                 var userRoles = User.FindAll("appRoleId")
                     .Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
@@ -807,6 +809,8 @@ namespace VMSService.Web.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
+
             request.RequiresSpecialApproval = true;
             request.SpecialApprovalReason   = reason.Trim();
             request.ModifiedDate            = DateTime.Now;
@@ -824,7 +828,7 @@ namespace VMSService.Web.Controllers
         {
             var request = await _uow.Requests.FindById(id);
             if (request is null) return NotFound();
-            //if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
+            if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
 
             // Only allow delete in Draft or ReturnedForRevision
             if (request.StatusTypeName != WithdrawalStatusNames.Draft
@@ -850,6 +854,7 @@ namespace VMSService.Web.Controllers
         {
             var request = await _uow.Requests.FindById(id);
             if (request is null) return NotFound();
+            if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
 
             var rtgsUpdateableStatuses = new[]
             {
@@ -918,6 +923,7 @@ namespace VMSService.Web.Controllers
         {
             var request = await _uow.Requests.GetWithDetailsAsync(id, ct);
             if (request is null) return NotFound();
+            if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
 
             if (request.StatusTypeName != WithdrawalStatusNames.Completed
                 && request.StatusTypeName != WithdrawalStatusNames.Approved
