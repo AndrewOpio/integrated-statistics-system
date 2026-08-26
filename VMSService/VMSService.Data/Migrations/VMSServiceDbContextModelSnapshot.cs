@@ -5378,7 +5378,7 @@ namespace VMSService.Data.Migrations
                         .HasColumnType("bit");
 
                     b.Property<string>("RtgsCode")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("RtgsCodeAtLastReturn")
                         .HasColumnType("nvarchar(max)");
@@ -5417,6 +5417,11 @@ namespace VMSService.Data.Migrations
                     b.HasIndex("CbId");
 
                     b.HasIndex("CollectionDate");
+
+                    b.HasIndex("RtgsCode")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_WithdrawalRequest_RtgsCode_Live")
+                        .HasFilter("[RtgsCode] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.HasIndex("StatusTypeId");
 
