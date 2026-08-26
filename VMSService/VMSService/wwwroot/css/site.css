@@ -955,3 +955,7 @@ input[type=number].form-control {
     white-space: nowrap;
     text-transform: uppercase;
 }
+
+.sidebar .nav .app-name-cash{
+    white-space: wrap;
+}
