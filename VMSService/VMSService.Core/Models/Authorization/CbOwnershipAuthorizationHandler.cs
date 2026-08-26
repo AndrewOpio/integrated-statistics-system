@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using VMSService.Core.Extensions;
 using VMSService.Core.Models.CbRequests;
-using VMSService.Core.Static;
 
 namespace VMSService.Core.Authorization
 {
@@ -13,16 +13,9 @@ namespace VMSService.Core.Authorization
             CbOwnershipRequirement requirement,
             WithdrawalRequestAuthContext resource)
         {
-            // Role claims arrive as "{AppAcronym}:{RoleName}" on the "appRole" claim type —
-            // matches the extraction pattern used everywhere else in the app (e.g.
-            // CbWithdrawRequestsController.Details). ClaimTypes.Role is never populated here.
-            var roleNames = context.User.Claims
-                .Where(c => c.Type == SystemPolicy.ClaimType.AppRole
-                    && c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:"))
-                .Select(c => c.Value.Split(":")[1]);
-
-            // Bank users can access any request
-            if (roleNames.Any(RolePolicy.BouRoles.Contains))
+            // Account-type check, not a role check — any BOU staff member can access any bank's
+            // request, regardless of which specific role they hold. See ticket 34.
+            if (context.User.IsBouStaff())
             {
                 context.Succeed(requirement);
                 return Task.CompletedTask;

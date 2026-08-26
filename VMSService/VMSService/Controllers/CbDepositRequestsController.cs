@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using VMSService.Core.Authorization;
+using VMSService.Core.Extensions;
 using VMSService.Core.Models.AgentDetails;
 using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.CbDepositRequest;
@@ -31,7 +32,6 @@ using WorkflowService.Client.Dto;
 
 namespace VMSService.Web.Controllers
 {
-    [Authorize(Policy = RolePolicy.CbOnly)]
     public class CbDepositRequestsController(
         IAuthorizationService authorizationService,
         IAgentDetailRepository _agentRepo,
@@ -56,6 +56,8 @@ namespace VMSService.Web.Controllers
     {
         public async Task<IActionResult> Index(CancellationToken ct)
         {
+            if (!User.IsCbUser()) return Forbid();
+
             try
             {
                 //var userRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? string.Empty;
@@ -117,6 +119,8 @@ namespace VMSService.Web.Controllers
         // Create
         public async Task<IActionResult> Create(CancellationToken ct)
         {
+            if (!User.IsCbUser()) return Forbid();
+
             var cbId = GetCbIdFromClaims();
             var agents = await _agentRepo.FindAll();
             var denoms = await _denomRepo.FindAll();
@@ -173,6 +177,8 @@ namespace VMSService.Web.Controllers
         // Branch details endpoint (AJAX)
         public async Task<IActionResult> BranchDetails(string type, int id)
         {
+            if (!User.IsCbUser()) return Forbid();
+
             if (type == "bou")
             {
                 var branch = await _configServiceClient.GetBouBranchByIdAsync(id);
@@ -186,6 +192,8 @@ namespace VMSService.Web.Controllers
         // Agent details endpoint (AJAX)
         public async Task<IActionResult> AgentDetails(int id)
         {
+            if (!User.IsCbUser()) return Forbid();
+
             var agent = await _agentRepo.FindById(id);
             if (agent == null) return NotFound();
 
@@ -204,6 +212,8 @@ namespace VMSService.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> CalculateProcessingFees([FromBody] CalculateFeesRequest request)
         {
+            if (!User.IsCbUser()) return Forbid();
+
             try
             {
                 var denominationTypes = await _denominationTypeRepo.FindAll();
@@ -275,6 +285,8 @@ namespace VMSService.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> CheckMinimumDepositStandards([FromBody] CheckMinimumStandardsRequest request)
         {
+            if (!User.IsCbUser()) return Forbid();
+
             try
             {
                 //if (request.BouBranchId == 0 || request.DenominationId == 0)
@@ -338,6 +350,8 @@ namespace VMSService.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> SaveDraft([FromBody] SaveDepositRequestViewModel vm, CancellationToken ct)
         {
+            if (!User.IsCbUser()) return Forbid();
+
             if (vm == null)
             {
                 return BadRequest(new { errors = new[] { "Invalid request data." } });
@@ -392,6 +406,8 @@ namespace VMSService.Web.Controllers
         // Details
         public async Task<IActionResult> Details(Guid id, CancellationToken ct)
         {
+            if (!User.IsCbUser()) return Forbid();
+
             var request = await _uow.Requests.GetWithDetailsAsync(id, ct);
             if (request == null) return NotFound();
 
@@ -727,6 +743,8 @@ namespace VMSService.Web.Controllers
         // GET: CbDepositRequests/Edit/5
         public async Task<IActionResult> Edit(Guid id, CancellationToken ct)
         {
+            if (!User.IsCbUser()) return Forbid();
+
             try
             {
                 var request = await _uow.Requests.GetWithDetailsAsync(id, ct);
@@ -845,6 +863,8 @@ namespace VMSService.Web.Controllers
         //[ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(Guid id, [FromBody] SaveDepositRequestViewModel vm, CancellationToken ct)
         {
+            if (!User.IsCbUser()) return Forbid();
+
             if (vm == null || id != vm.Id)
             {
                 return BadRequest(new { errors = new[] { "Invalid request data." } });
@@ -932,6 +952,8 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ExecuteAction(Guid id, string actionName, string remarks, CancellationToken ct)
         {
+            if (!User.IsCbUser()) return Forbid();
+
             var request = await _uow.Requests.GetWithDetailsAsync(id, ct);
             if (request == null) return NotFound();
 
@@ -1055,6 +1077,8 @@ namespace VMSService.Web.Controllers
         [HttpGet]
         public async Task<IActionResult> DownloadAttachment(int id)
         {
+            if (!User.IsCbUser()) return Forbid();
+
             try
             {
                 var attachment = await _attachmentRepository.FindById(id);
@@ -1579,6 +1603,8 @@ namespace VMSService.Web.Controllers
         // GET: CbDepositRequests/PrintRequest/5
         public async Task<IActionResult> PrintRequest(Guid id, CancellationToken ct)
         {
+            if (!User.IsCbUser()) return Forbid();
+
             try
             {
                 var request = await _uow.Requests.GetWithDetailsAsync(id, ct);

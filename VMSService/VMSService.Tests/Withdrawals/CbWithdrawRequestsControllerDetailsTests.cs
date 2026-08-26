@@ -93,12 +93,14 @@ public class CbWithdrawRequestsControllerDetailsTests
             {
                 HttpContext = new DefaultHttpContext
                 {
-                    // A bare CbMaker appRole claim — enough to pass Details()'s IsCbUser() gate
-                    // (ticket 09), while keeping every other role-driven branch (available
-                    // transitions, BOU visibility filtering) inert for this ViewModel-mapping check.
+                    // A cbId claim is enough to pass Details()'s IsCbUser() gate (ticket 34); the
+                    // CbMaker appRole claim keeps canEdit's role check truthy without pulling in
+                    // any other role-driven branch (available transitions, BOU visibility
+                    // filtering) for this ViewModel-mapping check.
                     User = new ClaimsPrincipal(new ClaimsIdentity(
                     [
                         new Claim("appRole", $"{SystemPolicy.SystemSettings.AppAcronym}:{RolePolicy.CbMaker}"),
+                        new Claim("cbId", "1"),
                     ])),
                 },
             },

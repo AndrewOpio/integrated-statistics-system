@@ -132,9 +132,10 @@ public class CbWithdrawRequestsControllerTests
                         new Claim(ClaimTypes.Name, "cb-approver"),
                         new Claim(ClaimTypes.NameIdentifier, "cb-approver-id"),
                         new Claim("appRoleId", $"{SystemSettings.AppAcronym}:{Roles.CbApprover}"),
-                        // ExecuteAction's IsCbUser() gate (ticket 09) reads "appRole" (role name),
-                        // not "appRoleId" (role id) — a real login issues both together.
                         new Claim("appRole", $"{SystemSettings.AppAcronym}:{Roles.CbApprover}"),
+                        // ExecuteAction's IsCbUser() gate (ticket 34) checks for a "cbId" claim —
+                        // present on every real company-user login.
+                        new Claim("cbId", "1"),
                     ])),
                 },
             },

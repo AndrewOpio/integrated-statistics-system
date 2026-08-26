@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using VMSService.Core.Authorization;
+using VMSService.Core.Extensions;
 using VMSService.Core.Models.AgentDetails;
 using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.CbRequests;
@@ -35,16 +36,11 @@ using static VMSService.Core.Static.WithdrawConstants;
 
 namespace VMSService.Web.Controllers
 {
-    // Ticket 09 left this controller without a class-level CbOnly, specifically because
-    // PrintRequest — linked directly from the BOU-side Details page — needed both sides to reach
-    // it, and CbOnly would have broken that. Ticket 23 moved PrintRequest out entirely (see
-    // WithdrawalPrintController), so that's no longer a concern: this controller is genuinely
-    // CB-only now. CbOnly is added here as a real HTTP-filter-level guard on top of the existing
-    // IsCbUser()/IsCbMaker() in-code checks — the latter stay, since they're what's actually
-    // covered by CbWithdrawRequestsControllerOwnershipTests/MakerCheckerTests (attribute-based
-    // authorization isn't exercised by a direct unit-test method call; see ticket 09's Comments).
+    // Ticket 34: dropped the CbOnly attribute-based policy entirely — attribute-based authorization
+    // isn't exercised by a direct unit-test method call, so it was never actually covered by
+    // anything. IsCbUser()/IsCbMaker() below are what CbWithdrawRequestsControllerOwnershipTests/
+    // MakerCheckerTests exercise, and are the sole enforcement now.
     [RequirePermission(SystemPermissions.CbWithdrawRequests.Details)]
-    [Authorize(Policy = RolePolicy.CbOnly)]
     public class CbWithdrawRequestsController(
     IAuthorizationService authorizationService,
     IAgentDetailRepository _agentRepo,
@@ -1043,10 +1039,9 @@ namespace VMSService.Web.Controllers
         // BOU role bypasses ownership" rule is blanket across every action that calls it, so
         // without this check a BOU user who knows a request's GUID could edit its RTGS code,
         // execute CB-side workflow transitions, view its internal review history, or set the CB
-        // Approver's exceptional-approval reason. Now redundant with the class-level CbOnly
-        // policy above for HTTP requests, but kept because it's what the unit tests actually
-        // exercise (attribute-based authorization isn't reachable via a direct method call).
-        private bool IsCbUser() => User.GetAppRoleNames().Any(RolePolicy.CbRoles.Contains);
+        // Approver's exceptional-approval reason. Account-type check (cbId claim presence), not a
+        // role check — see VMSService.Core.Extensions.ClaimsPrincipalExtensions.IsCbUser.
+        private bool IsCbUser() => User.IsCbUser();
 
         private static readonly TimeZoneInfo EatZone = TimeZoneInfo.FindSystemTimeZoneById("E. Africa Standard Time");
 

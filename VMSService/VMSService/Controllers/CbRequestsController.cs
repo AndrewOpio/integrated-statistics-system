@@ -1,8 +1,7 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using NotificationService.Client;
 using NotificationService.Client.Dtos;
-using VMSService.Core.Authorization;
+using VMSService.Core.Extensions;
 using VMSService.Core.Models.CbRequests;
 using VMSService.Core.Repositories.DepositUnitOfWorks;
 using VMSService.Core.Repositories.WithdrawalRequests;
@@ -15,7 +14,6 @@ using static VMSService.Core.Static.WithdrawConstants;
 
 namespace VMSService.Web.Controllers;
 
-[Authorize(Policy = RolePolicy.CbOnly)]
 public class CbRequestsController(
     IWorkflowServiceClient _workflowServiceClient,
     IWithdrawalUnitOfWork _uow,
@@ -97,6 +95,8 @@ public class CbRequestsController(
 
     public async Task<IActionResult> Index(CancellationToken ct)
     {
+        if (!User.IsCbUser()) return Forbid();
+
         var cbId = int.TryParse(User.Claims
             .FirstOrDefault(c => c.Type == "cbId")?.Value, out var id) ? id : 0;
 
@@ -148,6 +148,8 @@ public class CbRequestsController(
     /// bounded to the last 12 months back from today; older than that, the CB asks BOU directly.</summary>
     public async Task<IActionResult> History(CancellationToken ct)
     {
+        if (!User.IsCbUser()) return Forbid();
+
         var cbId = int.TryParse(User.Claims
             .FirstOrDefault(c => c.Type == "cbId")?.Value, out var id) ? id : 0;
 

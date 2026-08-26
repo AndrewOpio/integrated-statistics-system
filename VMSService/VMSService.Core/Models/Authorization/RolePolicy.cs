@@ -9,7 +9,7 @@
         // ── Role names ────────────────────────────────────────────
         public const string CbMaker = "CB Maker";
         public const string CbApprover = "CB Approver";
-        public const string BouChecker = "Bou Checker";
+        public const string BouChecker = "BOU Checker";
         public const string PanelA = "Panel A";
         public const string PanelB = "Panel B";
         public const string RemittanceOfficer = "Remittance Officer";
@@ -23,9 +23,11 @@
         public static readonly IReadOnlySet<string> BouRoles =
             new HashSet<string> { BouChecker, PanelA, PanelB, RemittanceOfficer, BackOffice, CurrencyApprover };
 
-        // ── Policy names (used in [Authorize] attributes) ─────────
-        public const string CbOnly = "CbOnly";
-        public const string BouOnly = "BouOnly";
+        // Withdrawal-workflow-specific — narrower than BouRoles (shared with deposits).
+        // BouChecker and Head of Back Office are deliberately excluded: confirmed by the user
+        // they don't do withdrawal work. See ticket 34.
+        public static readonly IReadOnlySet<string> WithdrawalBouRoles =
+            new HashSet<string> { BackOffice, RemittanceOfficer, CurrencyApprover, PanelB, PanelA };
 
         // ── Claims ────────────────────────────────────────────────
         public const string CbIdClaim = "cbId";  // present on company users only

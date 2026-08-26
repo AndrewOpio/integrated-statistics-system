@@ -40,6 +40,7 @@ public class WithdrawalPrintControllerTests
         new Claim(ClaimTypes.NameIdentifier, "cb-user-id"),
         new Claim(RolePolicy.CbIdClaim, cbId.ToString()),
         new Claim(SystemPolicy.ClaimType.AppRole, $"{SystemPolicy.SystemSettings.AppAcronym}:{RolePolicy.CbMaker}"),
+        new Claim("isStaff", "false"),
     ]));
 
     private static ClaimsPrincipal BouUser(string role) => new(new ClaimsIdentity(
@@ -47,6 +48,7 @@ public class WithdrawalPrintControllerTests
         new Claim(ClaimTypes.Name, "bou-user"),
         new Claim(ClaimTypes.NameIdentifier, "bou-user-id"),
         new Claim(SystemPolicy.ClaimType.AppRole, $"{SystemPolicy.SystemSettings.AppAcronym}:{role}"),
+        new Claim("isStaff", "true"),
     ]));
 
     private static (WithdrawalPrintController Controller, WithdrawalRequest Request) BuildController(

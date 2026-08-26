@@ -2,33 +2,28 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using VMSService.Core.Authorization;
 using VMSService.Core.Models.CbRequests;
-using VMSService.Core.Static;
 using Xunit;
 
 namespace VMSService.Tests.Withdrawals;
 
 /// <summary>
-/// Ticket 08: <c>CbOwnershipAuthorizationHandler</c> had two independent bugs that made it
-/// impossible to wire up anywhere: (1) <c>WithdrawalRequestAuthContext.CbId</c> was <c>Guid</c>
-/// while every actual <c>cbId</c> in the system (claim, entity column,
-/// <c>IConfigurationsServiceClient</c>) is <c>int</c> — a real cbId claim like "2" would fail
-/// <c>Guid.TryParse</c> and deny even a legitimate same-bank CB user; and (2) the BOU bypass read
-/// <c>ClaimTypes.Role</c>, a claim type this app never populates — real role claims arrive on
-/// "appRole" as "{AppAcronym}:{RoleName}" (see <c>CbWithdrawRequestsController.Details</c>), so no
-/// BOU user could ever have satisfied it. These tests exercise the handler directly against the
-/// same claim shapes the real JWT produces.
+/// Ticket 08 fixed the original Guid/int mismatch that made the CB same-bank check always fail.
+/// Ticket 34 replaced the BOU bypass's role-list check (fragile — see the "BOU Checker"/"Bou
+/// Checker" casing bug found auditing the real role catalog) with the "isStaff" claim: any BOU
+/// staff member bypasses ownership, regardless of which specific role they hold. These tests
+/// exercise the handler directly against the same claim shapes the real JWT produces.
 /// </summary>
 public class CbOwnershipAuthorizationHandlerTests
 {
-    private static ClaimsPrincipal CbUser(int cbId, string role = RolePolicy.CbMaker) => new(new ClaimsIdentity(
+    private static ClaimsPrincipal CbUser(int cbId) => new(new ClaimsIdentity(
     [
         new Claim(RolePolicy.CbIdClaim, cbId.ToString()),
-        new Claim(SystemPolicy.ClaimType.AppRole, $"{SystemPolicy.SystemSettings.AppAcronym}:{role}"),
+        new Claim("isStaff", "false"),
     ]));
 
-    private static ClaimsPrincipal BouUser(string role) => new(new ClaimsIdentity(
+    private static ClaimsPrincipal BouUser() => new(new ClaimsIdentity(
     [
-        new Claim(SystemPolicy.ClaimType.AppRole, $"{SystemPolicy.SystemSettings.AppAcronym}:{role}"),
+        new Claim("isStaff", "true"),
     ]));
 
     private static async Task<bool> SucceedsAsync(ClaimsPrincipal user, int resourceCbId)
@@ -56,22 +51,29 @@ public class CbOwnershipAuthorizationHandlerTests
         Assert.False(await SucceedsAsync(CbUser(cbId: 1), resourceCbId: 2));
     }
 
-    [Theory]
-    [InlineData(RolePolicy.BouChecker)]
-    [InlineData(RolePolicy.PanelA)]
-    [InlineData(RolePolicy.PanelB)]
-    [InlineData(RolePolicy.RemittanceOfficer)]
-    [InlineData(RolePolicy.BackOffice)]
-    [InlineData(RolePolicy.CurrencyApprover)]
-    public async Task BouUser_Of_Any_Role_Succeeds_Against_Any_Banks_Request(string bouRole)
+    [Fact]
+    public async Task BouStaff_Succeeds_Against_Any_Banks_Request_Regardless_Of_Role()
     {
-        // Regression case for the ClaimTypes.Role bug: none of these roles ever arrived on
-        // ClaimTypes.Role, so the "bank users bypass this" branch was previously dead code.
-        Assert.True(await SucceedsAsync(BouUser(bouRole), resourceCbId: 999));
+        // No role claim at all — proves the bypass is genuinely account-type-based (isStaff), not
+        // dependent on holding any particular role name.
+        Assert.True(await SucceedsAsync(BouUser(), resourceCbId: 999));
     }
 
     [Fact]
-    public async Task User_With_Neither_A_BouRole_Nor_A_CbId_Claim_Is_Denied()
+    public async Task Holding_A_Bou_Role_Name_Without_IsStaff_Is_Not_Enough()
+    {
+        // Regression guard for the switch away from role-list matching: a role name from
+        // RolePolicy.BouRoles alone (no "isStaff" claim) must not bypass ownership.
+        var user = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim("appRole", $"CAS:{RolePolicy.PanelA}"),
+        ]));
+
+        Assert.False(await SucceedsAsync(user, resourceCbId: 999));
+    }
+
+    [Fact]
+    public async Task User_With_Neither_IsStaff_Nor_A_CbId_Claim_Is_Denied()
     {
         var user = new ClaimsPrincipal(new ClaimsIdentity());
         Assert.False(await SucceedsAsync(user, resourceCbId: 1));

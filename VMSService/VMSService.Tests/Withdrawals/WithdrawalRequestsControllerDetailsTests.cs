@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
+using VMSService.Core.Authorization;
 using VMSService.Core.Models.WithdrawalRequests;
 using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.AppliedPenalties;
@@ -22,6 +23,7 @@ using VMSService.Core.Repositories.WithdrawalRequests;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Workflows;
+using VMSService.Core.Static;
 using VMSService.Data.Entities;
 using VMSService.Web.Controllers;
 using WorkflowService.Client;
@@ -97,9 +99,13 @@ public class WithdrawalRequestsControllerDetailsTests
             {
                 HttpContext = new DefaultHttpContext
                 {
-                    // No appRole claims — keeps every role-driven branch (dispatch editability,
-                    // available transitions) inert; irrelevant to the FundsNotIssued mapping.
-                    User = new ClaimsPrincipal(new ClaimsIdentity()),
+                    // RemittanceOfficer is enough to pass IsWithdrawalBouRole() (ticket 34) while
+                    // keeping every other role-driven branch (dispatch editability, available
+                    // transitions) inert; irrelevant to the FundsNotIssued mapping.
+                    User = new ClaimsPrincipal(new ClaimsIdentity(
+                    [
+                        new Claim(SystemPolicy.ClaimType.AppRole, $"{SystemPolicy.SystemSettings.AppAcronym}:{RolePolicy.RemittanceOfficer}"),
+                    ])),
                 },
             },
         };

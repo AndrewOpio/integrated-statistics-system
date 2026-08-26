@@ -1,6 +1,5 @@
 ﻿using AutoMapper;
 using ConfigurationsService.Client;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using System.Text.Json;
@@ -38,9 +37,6 @@ using static VMSService.Core.Static.WithdrawConstants;
 
 namespace VMSService.Web.Controllers
 {
-    // Had no authorization guard at all until now — any authenticated user, including CB, could
-    // reach every action here.
-    [Authorize(Policy = RolePolicy.BouOnly)]
     public class WithdrawalRequestsController(
         IWithdrawalRequestRepository _withdrawalRequestRepo,
         IWorkflowServiceClient _workflowServiceClient,
@@ -117,6 +113,8 @@ namespace VMSService.Web.Controllers
 
         public async Task<IActionResult> Index(string? branchCode = null)
         {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
             var today = DateOnly.FromDateTime(DateTime.Today);
 
             var allCbs = await _configServiceClient.GetAllCommercialBankAsync();
@@ -196,6 +194,8 @@ namespace VMSService.Web.Controllers
         /// to the last 12 months back from today. Same branch-scoping rules as <see cref="Index"/>.</summary>
         public async Task<IActionResult> History(string? branchCode = null)
         {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
             var today = DateOnly.FromDateTime(DateTime.Today);
             var since = today.AddMonths(-12);
 
@@ -224,6 +224,8 @@ namespace VMSService.Web.Controllers
 
         public async Task<IActionResult> Details(Guid id, CancellationToken ct)
         {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
 
 
             var request = await _uow.Requests.GetWithDetailsAsync(id, ct);
@@ -635,6 +637,8 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ApplyPenalties(Guid id, List<int>? penaltyIds)
         {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
             var request = await _uow.Requests.FindById(id);
             if (request is null)
             {
@@ -722,6 +726,8 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> MarkFundsNotIssued(Guid id, CancellationToken ct)
         {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
             var request = await _uow.Requests.FindById(id);
             if (request is null)
             {
@@ -761,6 +767,8 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UndoFundsNotIssued(Guid id, CancellationToken ct)
         {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
             var request = await _uow.Requests.FindById(id);
             if (request is null)
             {
@@ -790,6 +798,8 @@ namespace VMSService.Web.Controllers
         [HttpGet]
         public async Task<IActionResult> AvailableBoxes(int denominationId, Guid requestId, CancellationToken ct)
         {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
             var request = await _uow.Requests.FindById(requestId);
             if (request is null) return NotFound();
 
@@ -804,6 +814,8 @@ namespace VMSService.Web.Controllers
         public async Task<IActionResult> SaveBankDenominations(
             Guid id, string payload, CancellationToken ct)
         {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
             using var transaction = await _uow.BeginTransactionAsync(ct);
 
             try
@@ -1004,6 +1016,8 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ExecuteAction(Guid id, string actionName, string remarks, CancellationToken ct)
         {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
             try
             {
                 var request = await _uow.Requests.FindById(id);
@@ -1219,6 +1233,8 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SubmitVerification(Guid id, CancellationToken ct)
         {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
             var request = await _uow.Requests.FindById(id);
             if (request is null) return NotFound();
 
@@ -1300,6 +1316,8 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> VerifyRtgs(Guid id, string verificationStatus, DateOnly? rtgsVerifiedDate, CancellationToken ct)
         {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
             var request = await _uow.Requests.FindById(id);
             if (request is null) return NotFound();
 
@@ -1361,6 +1379,8 @@ namespace VMSService.Web.Controllers
             Guid id, string expectedStatus, string actionName,
             string codePrefix, string successMessage, CancellationToken ct)
         {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
             var request = await _uow.Requests.FindById(id);
             if (request is null) return NotFound();
 
@@ -1403,6 +1423,8 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CompleteRecall(Guid id, CancellationToken ct)
         {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
             var request = await _uow.Requests.FindById(id);
             if (request is null) return NotFound();
 
@@ -1576,5 +1598,10 @@ namespace VMSService.Web.Controllers
             };
         }
 
+        // Had no authorization guard at all until ticket 09's follow-up — any authenticated user,
+        // including CB, could reach every action here. RolePolicy.WithdrawalBouRoles is
+        // withdrawal-scoped, not the general BouRoles (shared with deposits) — Bou Checker and
+        // Head of Back Office are deliberately excluded, confirmed by the user. See ticket 34.
+        private bool IsWithdrawalBouRole() => User.GetAppRoleNames().Any(RolePolicy.WithdrawalBouRoles.Contains);
     }
 }

@@ -17,6 +17,7 @@ using VMSService.Core.Static;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Models;
 using ConfigurationsService.Client;
+using VMSService.Web.Extensions;
 
 namespace VMSService.Controllers
 {
@@ -62,7 +63,7 @@ namespace VMSService.Controllers
         public async Task<IActionResult> Index(int? branchId)
         {
             bool isCommercialBank = false;
-            var roles = User.FindAll("appRole").Where(c => c.Value.StartsWith($"{SystemPolicy.SystemSettings.AppAcronym}:")).Select(c => c.Value.Split(":")[1]).ToList();
+            var roles = User.GetAppRoleNames();
             foreach (string role in roles)
             {
                 if (RolePolicy.CbRoles.Contains(role))
