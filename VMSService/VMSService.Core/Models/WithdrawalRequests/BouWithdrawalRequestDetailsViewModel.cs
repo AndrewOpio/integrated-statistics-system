@@ -44,6 +44,10 @@ namespace VMSService.Core.Models.WithdrawalRequests
         public DateTime? ApprovalDate { get; set; }
         public bool CanEditDispatch { get; set; }
         public bool HasDispatchData { get; set; }
+        /// <summary>Dispatched total minus the requested total — 0 means matched, computed once
+        /// here so the "Matched/Over/Short" badge and the Submit-for-Approval readiness gate can't
+        /// drift apart by each recomputing it independently.</summary>
+        public decimal DispatchVariance { get; set; }
         public string RtgsVerificationStatus { get; init; } = "Pending";
         public DateOnly? RtgsVerifiedDate { get; init; }
         public bool CanVerifyRtgs { get; init; }

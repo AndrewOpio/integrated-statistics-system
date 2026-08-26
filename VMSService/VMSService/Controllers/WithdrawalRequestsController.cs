@@ -532,6 +532,10 @@ namespace VMSService.Web.Controllers
                 ReturnRtgsDate = request.ReturnRtgsDate,
                 CanEditDispatch = canEditDispatch,
                 HasDispatchData = bankRows.Count > 0,
+                DispatchVariance = dispatchedNewBanknotes.Sum(r => r.Amount)
+                    + dispatchedReissueBanknotes.Sum(r => r.Amount)
+                    + dispatchedCoins.Sum(r => r.Amount)
+                    - request.TotalAmount,
                 EditableBankRows = editableBankRows,
                 DispatchedNewBanknotes = dispatchedNewBanknotes,
                 DispatchedReissueBanknotes = dispatchedReissueBanknotes,

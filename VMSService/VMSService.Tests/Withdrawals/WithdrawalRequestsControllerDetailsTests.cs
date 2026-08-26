@@ -141,4 +141,74 @@ public class WithdrawalRequestsControllerDetailsTests
 
         Assert.False(vm.FundsNotIssued);
     }
+
+    private static WithdrawalRequestDenomination NewDenomRow(string origin, decimal amount, string bundleType = BundleTypes.Reissue) => new()
+    {
+        Origin = origin,
+        BundleType = bundleType,
+        Amount = amount,
+        DenominationValue = amount,
+    };
+
+    // ── DispatchVariance (follow-up to ticket 06): the Submit-for-Approval readiness gate in
+    // Details.cshtml needs to know not just whether dispatch rows exist, but whether they actually
+    // sum to the requested amount — HasDispatchData alone doesn't check that. Computed once here so
+    // the view's gate and the "Matched/Over/Short" badge can't disagree about what "matched" means.
+
+    [Fact]
+    public async Task Details_No_Dispatch_Rows_HasDispatchData_False_And_Variance_Is_Full_Shortfall()
+    {
+        var request = NewRequest(fundsNotIssued: false);
+        var controller = BuildController(request);
+
+        var view = Assert.IsType<ViewResult>(await controller.Details(request.Id, CancellationToken.None));
+        var vm = Assert.IsType<BouWithdrawalRequestDetailsViewModel>(view.Model);
+
+        Assert.False(vm.HasDispatchData);
+        Assert.Equal(-request.TotalAmount, vm.DispatchVariance);
+    }
+
+    [Fact]
+    public async Task Details_Dispatch_Matching_Requested_Amount_Has_Zero_Variance()
+    {
+        var request = NewRequest(fundsNotIssued: false);
+        request.WithdrawalRequestDenominations.Add(NewDenomRow(WithdrawalOrigin.Bou, request.TotalAmount));
+        var controller = BuildController(request);
+
+        var view = Assert.IsType<ViewResult>(await controller.Details(request.Id, CancellationToken.None));
+        var vm = Assert.IsType<BouWithdrawalRequestDetailsViewModel>(view.Model);
+
+        Assert.True(vm.HasDispatchData);
+        Assert.Equal(0m, vm.DispatchVariance);
+    }
+
+    [Fact]
+    public async Task Details_Dispatch_Short_Of_Requested_Amount_Has_Nonzero_Variance()
+    {
+        var request = NewRequest(fundsNotIssued: false);
+        request.WithdrawalRequestDenominations.Add(NewDenomRow(WithdrawalOrigin.Bou, request.TotalAmount - 4_000_000m));
+        var controller = BuildController(request);
+
+        var view = Assert.IsType<ViewResult>(await controller.Details(request.Id, CancellationToken.None));
+        var vm = Assert.IsType<BouWithdrawalRequestDetailsViewModel>(view.Model);
+
+        Assert.True(vm.HasDispatchData);
+        Assert.Equal(-4_000_000m, vm.DispatchVariance);
+    }
+
+    [Fact]
+    public async Task Details_Cb_Origin_Rows_Excluded_From_DispatchVariance()
+    {
+        // Only what the bank actually dispatched counts — the CB's own wishlist rows must not be
+        // mistaken for dispatch, or a request with no dispatch at all would look "matched".
+        var request = NewRequest(fundsNotIssued: false);
+        request.WithdrawalRequestDenominations.Add(NewDenomRow(WithdrawalOrigin.Cb, request.TotalAmount));
+        var controller = BuildController(request);
+
+        var view = Assert.IsType<ViewResult>(await controller.Details(request.Id, CancellationToken.None));
+        var vm = Assert.IsType<BouWithdrawalRequestDetailsViewModel>(view.Model);
+
+        Assert.False(vm.HasDispatchData);
+        Assert.Equal(-request.TotalAmount, vm.DispatchVariance);
+    }
 }

@@ -134,8 +134,7 @@
             var dispatchNewTotal = Model.DispatchedNewBanknotes?.Sum(r => r.Amount) ?? 0m;
             var dispatchReissueTotal = Model.DispatchedReissueBanknotes?.Sum(r => r.Amount) ?? 0m;
             var dispatchCoinsTotal = Model.DispatchedCoins?.Sum(r => r.Amount) ?? 0m;
-            var dispatchGrandTotal = dispatchNewTotal + dispatchReissueTotal + dispatchCoinsTotal;
-            var dispatchVariance = dispatchGrandTotal - Model.TotalAmount;
+            var dispatchVariance = Model.DispatchVariance;
         }
 
         <div>

@@ -612,6 +612,25 @@
                 else if (Model.AvailableTransitions.Any())
                 {
                     <div class="card-body border-top pt-3">
+                        @{
+                            // Submit for Approval needs a matching, fully-entered dispatch; Return for
+                            // Revision does not — it's the ABM's own escape hatch for exactly the case
+                            // where dispatch can't be completed as-is, and already clears any partial
+                            // BOU-origin rows as a side effect (see ticket 06's follow-up). So when
+                            // dispatch isn't ready, only Return for Revision (if offered) stays
+                            // available — everything else stays hidden until dispatch is ready.
+                            var dispatchNotReady = !Model.FundsNotIssued
+                                && (!Model.HasDispatchData || Model.DispatchVariance != 0)
+                                && Model.StatusName == WithdrawConstants.WithdrawalStatusNames.PendingVerification;
+                            var offeredTransitions = dispatchNotReady
+                                ? Model.AvailableTransitions
+                                    .Where(t => t.ActionName == WithdrawConstants.WithdrawalStatusActionNames.ReturnForRevision)
+                                    .ToList()
+                                : Model.AvailableTransitions.ToList();
+                            var dispatchNotReadyMessage = !Model.HasDispatchData
+                                ? "Dispatch details must be entered before Submit for Approval is available."
+                                : "Dispatch total does not match the requested amount. Submit for Approval is unavailable until it does.";
+                        }
                         @if (string.IsNullOrEmpty(Model.RtgsCode))
                         {
                             <div class="alert alert-warning d-flex gap-2 py-2 mb-0 small">
@@ -626,16 +645,23 @@
                                 RTGS details must be verified before proceeding. Verify above or wait for automatic verification.
                             </div>
                         }
-                        else if (!Model.HasDispatchData
-                                 && Model.StatusName == WithdrawConstants.WithdrawalStatusNames.PendingVerification)
+                        else if (dispatchNotReady && !offeredTransitions.Any())
                         {
                             <div class="alert alert-info d-flex gap-2 py-2 mb-0 small">
                                 <i class="ti ti-packages flex-shrink-0 mt-1"></i>
-                                Dispatch details must be entered before proceeding.
+                                @dispatchNotReadyMessage
                             </div>
                         }
                         else
                         {
+                            @if (dispatchNotReady)
+                            {
+                                <div class="alert alert-info d-flex gap-2 py-2 mb-3 small">
+                                    <i class="ti ti-packages flex-shrink-0 mt-1"></i>
+                                    @dispatchNotReadyMessage You may still return this request for revision.
+                                </div>
+                            }
+
                             @* Your decision context box *@
                             @*  <div class="rounded-3 p-3 bg-body-secondary mb-3">
                                 <p class="text-uppercase text-muted mb-1" style="font-size:9px;letter-spacing:.06em;">Your Decision</p>
@@ -676,9 +702,9 @@
                                     </div>
                                 </div>
 
-                                @if (Model.AvailableTransitions.Count == 1)
+                                @if (offeredTransitions.Count == 1)
                                 {
-                                    var t = Model.AvailableTransitions.First();
+                                    var t = offeredTransitions.First();
                                     <input name="actionName" id="soloActionName" value="@t.ActionName"
                                            data-requires-comments="@t.RequiresComments.ToString().ToLower()"
                                            data-requires-attachments="@t.RequiresAttachments.ToString().ToLower()"
@@ -699,7 +725,7 @@
                                     </label>
                                     <select id="actionSelect" name="actionName" class="form-select form-select-sm mb-3" required>
                                         <option value="">— Choose an action —</option>
-                                        @foreach (var transition in Model.AvailableTransitions)
+                                        @foreach (var transition in offeredTransitions)
                                         {
                                             <option value="@transition.ActionName"
                                                     data-requires-comments="@transition.RequiresComments.ToString().ToLower()"
