@@ -702,6 +702,46 @@ namespace VMSService.Web.Controllers
             return RedirectToAction(nameof(Details), new { id });
         }
 
+        /// <summary>The ABM's one-way declaration that no funds will be dispatched for this
+        /// request. Deliberately separate from <see cref="SaveBankDenominations"/> — it's not a
+        /// dispatch edit, so it doesn't belong behind that modal. Requires a penalty to already be
+        /// applied (a "no funds issued" outcome always carries a reason/charge, per the business
+        /// rule: dispatch without penalty, dispatch with penalty, or no funds issued with penalty —
+        /// never no funds issued with nothing at all) and immediately releases any boxes already
+        /// held via the same sequence Reject/Return use.</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> MarkFundsNotIssued(Guid id, CancellationToken ct)
+        {
+            var request = await _uow.Requests.FindById(id);
+            if (request is null)
+            {
+                TempData["Error"] = "Withdrawal request not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (request.StatusTypeName != WithdrawalStatusNames.PendingVerification)
+            {
+                TempData["Error"] = "This request is not editable in its current status.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            var appliedPenalties = string.IsNullOrEmpty(request.TransactionRefNumber)
+                ? []
+                : await _appliedPenaltyRepository.FindBySourceId(request.TransactionRefNumber);
+            if (appliedPenalties.Count == 0)
+            {
+                TempData["Error"] = "Apply at least one penalty before marking this request as Funds Not Issued.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            request.FundsNotIssued = true;
+            await ReleaseBouHoldAsync(id, ct);
+
+            TempData["Success"] = "Request marked as Funds Not Issued.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         [HttpGet]
         public async Task<IActionResult> AvailableBoxes(int denominationId, Guid requestId, CancellationToken ct)
         {
@@ -734,6 +774,12 @@ namespace VMSService.Web.Controllers
                 if (request.StatusTypeName != WithdrawalStatusNames.PendingVerification)
                 {
                     TempData["Error"] = "This request is not editable in its current status.";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
+
+                if (request.FundsNotIssued)
+                {
+                    TempData["Error"] = "This request has been marked as Funds Not Issued and can no longer be edited.";
                     return RedirectToAction(nameof(Details), new { id });
                 }
 

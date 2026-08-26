@@ -385,6 +385,19 @@
                     <hr />
                 </div>
 
+                @if (Model.FundsNotIssued)
+                {
+                    <div class="border border-danger rounded-3 p-3 bg-danger bg-opacity-10">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="ti ti-ban text-danger"></i>
+                            <span class="fw-bold text-danger text-uppercase small">Funds Not Issued</span>
+                        </div>
+                        <p class="text-muted small mb-0 mt-1">
+                            The bank has confirmed that no funds were dispatched for this request.
+                        </p>
+                    </div>
+                }
+
                 @if (Model.IsLumpSum)
                 {
                     @* ── Lump Sum Display ── *@

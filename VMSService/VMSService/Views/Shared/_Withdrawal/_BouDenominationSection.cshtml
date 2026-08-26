@@ -162,12 +162,20 @@
                             </span>
                         }
                     }
-                    @if (Model.CanEditDispatch)
+                    @if (Model.CanEditDispatch && !Model.FundsNotIssued)
                     {
                         <button type="button" class="btn btn-sm btn-outline-success"
                                 data-bs-toggle="modal" data-bs-target="#editDispatchModal">
                             <i class="ti ti-edit me-1"></i>Edit Dispatch
                         </button>
+                        <form asp-controller="WithdrawalRequests" asp-action="MarkFundsNotIssued" asp-route-id="@Model.Id"
+                              method="post" class="d-inline"
+                              onsubmit="return confirm('Mark this request as Funds Not Issued? This cannot be undone, and will release any boxes already held for it.');">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-outline-warning">
+                                <i class="ti ti-ban me-1"></i>Funds Not Issued
+                            </button>
+                        </form>
                     }
                 </div>
             </div>
@@ -176,13 +184,26 @@
 
             @if (!hasDispatch)
             {
-                <div class="border rounded-3 p-4 text-center bg-body-tertiary">
-                    <i class="ti ti-package-off fs-3 text-muted d-block mb-2"></i>
-                    <div class="fw-bold text-muted">Nothing dispatched yet</div>
-                    <div class="small text-muted">
-                        The bank has not recorded a dispatch for this request.
+                @if (Model.FundsNotIssued)
+                {
+                    <div class="border border-warning rounded-3 p-4 text-center bg-warning bg-opacity-10">
+                        <i class="ti ti-ban fs-3 text-warning d-block mb-2"></i>
+                        <div class="fw-bold text-warning">Funds Not Issued</div>
+                        <div class="small text-muted">
+                            The bank has confirmed that no funds will be dispatched for this request.
+                        </div>
                     </div>
-                </div>
+                }
+                else
+                {
+                    <div class="border rounded-3 p-4 text-center bg-body-tertiary">
+                        <i class="ti ti-package-off fs-3 text-muted d-block mb-2"></i>
+                        <div class="fw-bold text-muted">Nothing dispatched yet</div>
+                        <div class="small text-muted">
+                            The bank has not recorded a dispatch for this request.
+                        </div>
+                    </div>
+                }
             }
             else
             {
