@@ -14,6 +14,7 @@ using System.Reflection;
 using System.Text;
 using VMSService.Core.Authorization;
 using VMSService.Core.Static;
+using VMSService.Web.Authorization;
 using VMSService.Core.Mappings;
 using VMSService.Core.Models.Authentication;
 using VMSService.Core.Repositories.Attachments;
@@ -190,13 +191,11 @@ var authenticationSettings = builder.Configuration.GetSection("Authentication").
 
 
 
+// BouOnly's role list widened from 3 to the full RolePolicy.BouRoles set (6) it had drifted out
+// of sync with — every other "is this a BOU user" check in the codebase already treats all 6 as
+// equivalent. See CbBouAuthorizationPolicies for the RequireRole/ClaimTypes.Role fix (ticket 09).
 builder.Services.AddAuthorizationBuilder()
-    .AddPolicy(RolePolicy.CbOnly, policy =>
-        policy.RequireAuthenticatedUser()
-              .RequireRole(RolePolicy.CbMaker, RolePolicy.CbApprover))
-    .AddPolicy(RolePolicy.BouOnly, policy =>
-        policy.RequireAuthenticatedUser()
-              .RequireRole(RolePolicy.BouChecker, RolePolicy.PanelA, RolePolicy.PanelB));
+    .AddCbBouPolicies();
 
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

@@ -31,8 +31,7 @@ using WorkflowService.Client.Dto;
 
 namespace VMSService.Web.Controllers
 {
-    [Authorize]
-    //[Authorize(Policy = RolePolicy.CbOnly)]
+    [Authorize(Policy = RolePolicy.CbOnly)]
     public class CbDepositRequestsController(
         IAuthorizationService authorizationService,
         IAgentDetailRepository _agentRepo,

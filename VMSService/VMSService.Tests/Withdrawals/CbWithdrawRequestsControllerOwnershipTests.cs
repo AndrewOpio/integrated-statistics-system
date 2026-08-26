@@ -22,6 +22,7 @@ using VMSService.Core.Repositories.WithdrawalRequestStatusHistories;
 using VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 using VMSService.Core.Services.Identity;
+using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
@@ -54,14 +55,17 @@ public class CbWithdrawRequestsControllerOwnershipTests
         new Claim(SystemPolicy.ClaimType.AppRole, $"{SystemPolicy.SystemSettings.AppAcronym}:{RolePolicy.CbMaker}"),
     ]));
 
-    private static ClaimsPrincipal BouUser(string role) => new(new ClaimsIdentity(
+    internal static ClaimsPrincipal BouUser(string role) => new(new ClaimsIdentity(
     [
         new Claim(ClaimTypes.Name, "bou-user"),
         new Claim(ClaimTypes.NameIdentifier, "bou-user-id"),
         new Claim(SystemPolicy.ClaimType.AppRole, $"{SystemPolicy.SystemSettings.AppAcronym}:{role}"),
     ]));
 
-    private static (CbWithdrawRequestsController Controller, WithdrawalRequest Request) BuildController(
+    // internal, not private — reused by CbWithdrawRequestsControllerMakerCheckerTests (ticket 09),
+    // which needs the same fully-mocked controller to exercise a different guard on the same
+    // action set.
+    internal static (CbWithdrawRequestsController Controller, WithdrawalRequest Request) BuildController(
         int requestCbId, string statusName, ClaimsPrincipal user)
     {
         var request = new WithdrawalRequest
@@ -103,12 +107,22 @@ public class CbWithdrawRequestsControllerOwnershipTests
             .ReturnsAsync(new CommercialBankDto { Id = requestCbId, Name = "Test Bank", Code = "TB" });
         configServiceClient.Setup(c => c.GetBouBranchByIdAsync(It.IsAny<int>()))
             .ReturnsAsync(new BranchDto { Id = 1, Name = "Head Office", BranchCode = "HO" });
+        configServiceClient.Setup(c => c.GetAllBouBranchesAsync())
+            .ReturnsAsync(new List<BranchDto>());
+
+        // Create() also needs these — the other 7 actions never reach them.
+        var agentRepo = new Mock<IAgentDetailRepository>();
+        agentRepo.Setup(r => r.FindAll()).ReturnsAsync(new List<AgentDetail>());
+
+        var denomRepo = new Mock<IDenominationRepository>();
+        denomRepo.Setup(r => r.FindAll()).ReturnsAsync(new List<Denomination>());
 
         var attachmentRepository = new Mock<IAttachmentRepository>();
         attachmentRepository.Setup(r => r.FindByEntityId(It.IsAny<string>())).ReturnsAsync(new List<Attachment>());
 
         var publicHolidayRepository = new Mock<IPublicHolidayRepository>();
         publicHolidayRepository.Setup(r => r.FindByDateAsync(It.IsAny<DateOnly>())).ReturnsAsync((PublicHoliday?)null);
+        publicHolidayRepository.Setup(r => r.FindByActive(It.IsAny<bool>())).ReturnsAsync(new List<PublicHoliday>());
 
         var txnRefGenerator = new Mock<IWithdrawalTransactionRefNumberGenerator>();
         txnRefGenerator
@@ -127,9 +141,9 @@ public class CbWithdrawRequestsControllerOwnershipTests
 
         var controller = new CbWithdrawRequestsController(
             authorizationService,
-            Mock.Of<IAgentDetailRepository>(),
+            agentRepo.Object,
             configServiceClient.Object,
-            Mock.Of<IDenominationRepository>(),
+            denomRepo.Object,
             txnRefGenerator.Object,
             uow.Object,
             withdrawalRequestRepo.Object,
@@ -156,7 +170,7 @@ public class CbWithdrawRequestsControllerOwnershipTests
         return (controller, request);
     }
 
-    private static SaveWithdrawalRequestViewModel BuildValidSaveDraftVm(WithdrawalRequest request) => new()
+    internal static SaveWithdrawalRequestViewModel BuildValidSaveDraftVm(WithdrawalRequest request) => new()
     {
         Id = request.Id,
         CbCode = request.CbCode,

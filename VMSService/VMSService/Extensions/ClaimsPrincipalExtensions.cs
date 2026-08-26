@@ -18,5 +18,14 @@ namespace VMSService.Web.Extensions
 
         public static string GetUsernameOrSystem(this ClaimsPrincipal user)
             => user.FindFirst(ClaimTypes.Name)?.Value ?? "System";
+
+        public static List<string> GetAppRoleNames(this ClaimsPrincipal user)
+        {
+            var prefix = $"{SystemPolicy.SystemSettings.AppAcronym}:";
+            return user.FindAll(SystemPolicy.ClaimType.AppRole)
+                .Where(c => c.Value.StartsWith(prefix))
+                .Select(c => c.Value[prefix.Length..])
+                .ToList();
+        }
     }
 }

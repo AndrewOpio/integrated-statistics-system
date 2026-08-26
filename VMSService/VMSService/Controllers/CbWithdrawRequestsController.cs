@@ -28,6 +28,7 @@ using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
 using VMSService.Web.Authorization;
+using VMSService.Web.Extensions;
 using VMSService.Web.Helpers;
 using WorkflowService.Client;
 using WorkflowService.Client.Dto;
@@ -35,6 +36,12 @@ using static VMSService.Core.Static.WithdrawConstants;
 
 namespace VMSService.Web.Controllers
 {
+    // Deliberately NOT [Authorize(Policy = RolePolicy.CbOnly)] — unlike CbRequestsController and
+    // CbDepositRequestsController, this controller is dual-facing: PrintRequest is linked directly
+    // from the BOU-side Details page (no separate BOU print action exists), and ticket 08's
+    // CbOwnershipAuthorizationHandler fix deliberately lets any BOU role reach every action here.
+    // A class-level CbOnly policy would silently break that BOU passthrough at the ASP.NET Core
+    // authorization-filter level, before any action code runs. See ticket 09's Comments.
     [RequirePermission(SystemPermissions.CbWithdrawRequests.Details)]
     public class CbWithdrawRequestsController(
     IAuthorizationService authorizationService,
@@ -59,6 +66,8 @@ namespace VMSService.Web.Controllers
         // ── Create ───────────────────────────────
         public async Task<IActionResult> Create(CancellationToken ct)
         {
+            if (IsCbApprover()) return Forbid();
+
             var cbId = GetCbIdFromClaims();
 
             var bouBranches = await _configServiceClient.GetAllBouBranchesAsync();
@@ -96,6 +105,8 @@ namespace VMSService.Web.Controllers
         [HttpGet]
         public async Task<IActionResult> Edit(Guid id, CancellationToken ct)
         {
+            if (IsCbApprover()) return Forbid();
+
             var request = await _uow.Requests.GetWithDetailsAsync(id, ct);
             if (request is null) return NotFound();
             if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
@@ -210,6 +221,8 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryTokenFromHeader]
         public async Task<IActionResult> SaveDraft([FromBody] SaveWithdrawalRequestViewModel vm, CancellationToken ct)
         {
+            if (IsCbApprover()) return Forbid();
+
             if (vm is null)
                 return BadRequest(new { errors = new[] { "Request body is missing or invalid." } });
 
@@ -826,6 +839,8 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
         {
+            if (IsCbApprover()) return Forbid();
+
             var request = await _uow.Requests.FindById(id);
             if (request is null) return NotFound();
             if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
@@ -1173,6 +1188,15 @@ namespace VMSService.Web.Controllers
 
         private string GetUserId()
             => User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+
+        // Create/Edit/SaveDraft/Delete mutate request data — a CB Approver must not be able to
+        // bypass their own downstream review by editing/deleting the draft directly (mirrors the
+        // Details page's canEdit flag, which already hides these buttons from CB Approver;
+        // RequirePermission alone can't enforce this server-side, since the whole controller
+        // shares one "Details" permission covering both CB roles). Deliberately checks for the
+        // CbApprover role specifically rather than allowlisting CbMaker — an allowlist would also
+        // block every BOU role, breaking ticket 08's deliberate BOU passthrough on this controller.
+        private bool IsCbApprover() => User.GetAppRoleNames().Contains(RolePolicy.CbApprover);
 
         private static readonly TimeZoneInfo EatZone = TimeZoneInfo.FindSystemTimeZoneById("E. Africa Standard Time");
 
