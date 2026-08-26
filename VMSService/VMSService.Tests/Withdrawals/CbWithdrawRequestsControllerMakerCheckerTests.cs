@@ -17,10 +17,9 @@ namespace VMSService.Tests.Withdrawals;
 /// <see cref="CbWithdrawRequestsControllerOwnershipTests"/> (ticket 08) since it already mocks
 /// everything these same four actions need — only the role on the claims principal changes here.
 ///
-/// Deliberately verifies the guard checks for CbApprover specifically rather than allowlisting
-/// CbMaker: an allowlist would also reject every BOU role, which ticket 08 went out of its way to
-/// keep passing through this controller (PrintRequest is linked directly from the BOU-side Details
-/// page). The BOU-role cases here are a regression guard for exactly that mistake.
+/// The guard (<c>IsCbMaker</c>) allowlists CbMaker specifically, which also rejects CbApprover and
+/// every BOU role. BOU access to these four actions was never a deliberate design choice — see
+/// <c>IsCbUser</c>/<c>IsCbMaker</c> on the controller and <see cref="CbWithdrawRequestsControllerOwnershipTests.NonPrintActionCases"/>.
 /// </summary>
 public class CbWithdrawRequestsControllerMakerCheckerTests
 {
@@ -80,9 +79,16 @@ public class CbWithdrawRequestsControllerMakerCheckerTests
         Assert.IsNotType<ForbidResult>(result);
     }
 
+    // Corrected from an earlier "unaffected" version of this test: BOU access to
+    // Create/Edit/SaveDraft/Delete was never actually a deliberate design choice — it was a side
+    // effect of CbOwnershipAuthorizationHandler's blanket "any BOU role bypasses ownership" rule,
+    // which ticket 08 wired onto every action on this controller without checking whether each
+    // one specifically needed it. Only PrintRequest does (linked from the BOU-side Details page).
+    // BOU editing/deleting a CB's draft, or updating its RTGS code, is exactly the kind of gap an
+    // audit would (rightly) flag. See IsCbUser() on the controller.
     [Theory]
     [MemberData(nameof(ActionCases))]
-    public async Task Bou_Role_Is_Unaffected_On_Every_Mutating_Action(
+    public async Task Bou_Role_Is_Denied_On_Every_Mutating_Action(
         string actionName, string status, Func<CbWithdrawRequestsController, WithdrawalRequest, Task<IActionResult>> invoke)
     {
         var (controller, request) = CbWithdrawRequestsControllerOwnershipTests.BuildController(
@@ -90,6 +96,6 @@ public class CbWithdrawRequestsControllerMakerCheckerTests
 
         var result = await invoke(controller, request);
 
-        Assert.IsNotType<ForbidResult>(result);
+        Assert.IsType<ForbidResult>(result);
     }
 }

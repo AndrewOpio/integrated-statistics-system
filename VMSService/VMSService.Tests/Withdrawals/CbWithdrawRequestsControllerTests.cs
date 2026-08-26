@@ -118,7 +118,6 @@ public class CbWithdrawRequestsControllerTests
             workflowService.Object,
             statusResolver.Object,
             Mock.Of<IAttachmentRepository>(),
-            Mock.Of<IIdentityService>(),
             Mock.Of<IPublicHolidayRepository>(),
             Mock.Of<IAppliedPenaltyRepository>(),
             Mock.Of<ILogger<CbWithdrawRequestsController>>(),
@@ -133,6 +132,9 @@ public class CbWithdrawRequestsControllerTests
                         new Claim(ClaimTypes.Name, "cb-approver"),
                         new Claim(ClaimTypes.NameIdentifier, "cb-approver-id"),
                         new Claim("appRoleId", $"{SystemSettings.AppAcronym}:{Roles.CbApprover}"),
+                        // ExecuteAction's IsCbUser() gate (ticket 09) reads "appRole" (role name),
+                        // not "appRoleId" (role id) — a real login issues both together.
+                        new Claim("appRole", $"{SystemSettings.AppAcronym}:{Roles.CbApprover}"),
                     ])),
                 },
             },

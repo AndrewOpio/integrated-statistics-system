@@ -35,12 +35,15 @@ using static VMSService.Core.Static.WithdrawConstants;
 namespace VMSService.Tests.Withdrawals;
 
 /// <summary>
-/// Ticket 08: every CB-facing action on a withdrawal request must deny a CB user who isn't from
-/// the request's own bank, while leaving same-bank CB users and every BOU role unaffected. This
-/// wires the controller up with the *real* authorization pipeline (<see cref="CbOwnershipAuthorizationHandler"/>
-/// behind a real <see cref="IAuthorizationService"/>), not a mock that always says yes — a mocked
+/// Ticket 08: every action on a withdrawal request must deny a CB user who isn't from the
+/// request's own bank, while leaving same-bank CB users unaffected. This wires the controller up
+/// with the *real* authorization pipeline (<see cref="CbOwnershipAuthorizationHandler"/> behind a
+/// real <see cref="IAuthorizationService"/>), not a mock that always says yes — a mocked
 /// authorization service is exactly the kind of test that would have hidden the original
 /// Guid/int claim-parsing bug described in the ticket.
+///
+/// Ticket 09 correction: every BOU role is also denied on every action here — the controller is
+/// CB-only now that ticket 23 moved the one deliberate exception, PrintRequest, out entirely.
 /// </summary>
 public class CbWithdrawRequestsControllerOwnershipTests
 {
@@ -153,7 +156,6 @@ public class CbWithdrawRequestsControllerOwnershipTests
             Mock.Of<IWorkflowService>(),
             Mock.Of<IWithdrawalStatusResolver>(),
             attachmentRepository.Object,
-            Mock.Of<IIdentityService>(),
             publicHolidayRepository.Object,
             Mock.Of<IAppliedPenaltyRepository>(),
             Mock.Of<ILogger<CbWithdrawRequestsController>>(),
@@ -214,10 +216,6 @@ public class CbWithdrawRequestsControllerOwnershipTests
         yield return new object[] { "SetSameDayReason", WithdrawalStatusNames.PendingInternalApproval,
             (Func<CbWithdrawRequestsController, WithdrawalRequest, Task<IActionResult>>)
                 ((c, r) => c.SetSameDayReason(r.Id, new string('a', ReasonRules.MinLength), CancellationToken.None)) };
-
-        yield return new object[] { "PrintRequest", WithdrawalStatusNames.Draft,
-            (Func<CbWithdrawRequestsController, WithdrawalRequest, Task<IActionResult>>)
-                ((c, r) => c.PrintRequest(r.Id, CancellationToken.None)) };
     }
 
     [Theory]
@@ -244,15 +242,22 @@ public class CbWithdrawRequestsControllerOwnershipTests
         Assert.IsNotType<ForbidResult>(result);
     }
 
+    // Ticket 09 (IsCbUser() fix): CbOwnershipAuthorizationHandler's "any BOU role bypasses
+    // ownership" rule is blanket across every action that calls it, so without IsCbUser() a BOU
+    // user who knew a request's GUID could edit its RTGS code, execute CB-side workflow
+    // transitions, view its internal review history, or set the CB Approver's
+    // exceptional-approval reason. PrintRequest was the one deliberate exception to this — ticket
+    // 23 moved it out into WithdrawalPrintController entirely, so every action left on this
+    // controller is CB-only; see WithdrawalPrintControllerTests for PrintRequest's own coverage.
     [Theory]
     [MemberData(nameof(ActionCases))]
-    public async Task Any_Bou_Role_Is_Unaffected_On_Any_Banks_Request(
+    public async Task Any_Bou_Role_Is_Denied_On_Every_Action(
         string actionName, string status, Func<CbWithdrawRequestsController, WithdrawalRequest, Task<IActionResult>> invoke)
     {
         var (controller, request) = BuildController(OtherBankId, status, BouUser(RolePolicy.PanelA));
 
         var result = await invoke(controller, request);
 
-        Assert.IsNotType<ForbidResult>(result);
+        Assert.IsType<ForbidResult>(result);
     }
 }

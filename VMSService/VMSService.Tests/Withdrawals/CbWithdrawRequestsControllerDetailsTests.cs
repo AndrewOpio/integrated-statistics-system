@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
+using VMSService.Core.Authorization;
 using VMSService.Core.Models.CbWithdrawRequest;
 using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.AppliedPenalties;
@@ -19,6 +20,7 @@ using VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 using VMSService.Core.Services.Identity;
 using VMSService.Core.Services.Workflows;
+using VMSService.Core.Static;
 using VMSService.Data.Entities;
 using VMSService.Web.Controllers;
 using WorkflowService.Client;
@@ -82,7 +84,6 @@ public class CbWithdrawRequestsControllerDetailsTests
             Mock.Of<IWorkflowService>(),
             Mock.Of<IWithdrawalStatusResolver>(),
             attachmentRepository.Object,
-            Mock.Of<IIdentityService>(),
             publicHolidayRepository.Object,
             Mock.Of<IAppliedPenaltyRepository>(),
             Mock.Of<ILogger<CbWithdrawRequestsController>>(),
@@ -92,10 +93,13 @@ public class CbWithdrawRequestsControllerDetailsTests
             {
                 HttpContext = new DefaultHttpContext
                 {
-                    // No appRole/appRoleId claims — matches an unauthenticated-for-roles CB
-                    // viewer closely enough for this ViewModel-mapping check, and keeps every
-                    // role-driven branch (available transitions, BOU visibility filtering) inert.
-                    User = new ClaimsPrincipal(new ClaimsIdentity()),
+                    // A bare CbMaker appRole claim — enough to pass Details()'s IsCbUser() gate
+                    // (ticket 09), while keeping every other role-driven branch (available
+                    // transitions, BOU visibility filtering) inert for this ViewModel-mapping check.
+                    User = new ClaimsPrincipal(new ClaimsIdentity(
+                    [
+                        new Claim("appRole", $"{SystemPolicy.SystemSettings.AppAcronym}:{RolePolicy.CbMaker}"),
+                    ])),
                 },
             },
         };

@@ -22,7 +22,6 @@ using VMSService.Core.Repositories.WithdrawalRequestStatusHistories;
 using VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 using VMSService.Core.Repositories.PublicHolidays;
-using VMSService.Core.Services.Identity;
 using VMSService.Core.Services.Submissions;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
@@ -36,13 +35,16 @@ using static VMSService.Core.Static.WithdrawConstants;
 
 namespace VMSService.Web.Controllers
 {
-    // Deliberately NOT [Authorize(Policy = RolePolicy.CbOnly)] — unlike CbRequestsController and
-    // CbDepositRequestsController, this controller is dual-facing: PrintRequest is linked directly
-    // from the BOU-side Details page (no separate BOU print action exists), and ticket 08's
-    // CbOwnershipAuthorizationHandler fix deliberately lets any BOU role reach every action here.
-    // A class-level CbOnly policy would silently break that BOU passthrough at the ASP.NET Core
-    // authorization-filter level, before any action code runs. See ticket 09's Comments.
+    // Ticket 09 left this controller without a class-level CbOnly, specifically because
+    // PrintRequest — linked directly from the BOU-side Details page — needed both sides to reach
+    // it, and CbOnly would have broken that. Ticket 23 moved PrintRequest out entirely (see
+    // WithdrawalPrintController), so that's no longer a concern: this controller is genuinely
+    // CB-only now. CbOnly is added here as a real HTTP-filter-level guard on top of the existing
+    // IsCbUser()/IsCbMaker() in-code checks — the latter stay, since they're what's actually
+    // covered by CbWithdrawRequestsControllerOwnershipTests/MakerCheckerTests (attribute-based
+    // authorization isn't exercised by a direct unit-test method call; see ticket 09's Comments).
     [RequirePermission(SystemPermissions.CbWithdrawRequests.Details)]
+    [Authorize(Policy = RolePolicy.CbOnly)]
     public class CbWithdrawRequestsController(
     IAuthorizationService authorizationService,
     IAgentDetailRepository _agentRepo,
@@ -57,7 +59,6 @@ namespace VMSService.Web.Controllers
     IWorkflowService _workflowService,
     IWithdrawalStatusResolver _statusResolver,
     IAttachmentRepository _attachmentRepository,
-    IIdentityService _identityService,
     IPublicHolidayRepository _publicHolidayRepository,
     IAppliedPenaltyRepository _appliedPenaltyRepository,
     ILogger<CbWithdrawRequestsController> _logger,
@@ -66,7 +67,7 @@ namespace VMSService.Web.Controllers
         // ── Create ───────────────────────────────
         public async Task<IActionResult> Create(CancellationToken ct)
         {
-            if (IsCbApprover()) return Forbid();
+            if (!IsCbMaker()) return Forbid();
 
             var cbId = GetCbIdFromClaims();
 
@@ -105,7 +106,7 @@ namespace VMSService.Web.Controllers
         [HttpGet]
         public async Task<IActionResult> Edit(Guid id, CancellationToken ct)
         {
-            if (IsCbApprover()) return Forbid();
+            if (!IsCbMaker()) return Forbid();
 
             var request = await _uow.Requests.GetWithDetailsAsync(id, ct);
             if (request is null) return NotFound();
@@ -221,7 +222,7 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryTokenFromHeader]
         public async Task<IActionResult> SaveDraft([FromBody] SaveWithdrawalRequestViewModel vm, CancellationToken ct)
         {
-            if (IsCbApprover()) return Forbid();
+            if (!IsCbMaker()) return Forbid();
 
             if (vm is null)
                 return BadRequest(new { errors = new[] { "Request body is missing or invalid." } });
@@ -400,6 +401,8 @@ namespace VMSService.Web.Controllers
 
         public async Task<IActionResult> Details(Guid id, CancellationToken ct)
         {
+            if (!IsCbUser()) return Forbid();
+
             var request = await _uow.Requests.GetWithDetailsAsync(id, ct);
             if (request is null) return NotFound();
             if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
@@ -669,6 +672,8 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ExecuteAction(Guid id, string actionName, string remarks, CancellationToken ct)
         {
+            if (!IsCbUser()) return Forbid();
+
             try
             {
                 var request = await _withdrawalRequestRepo.FindById(id);
@@ -803,6 +808,8 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SetSameDayReason(Guid id, string reason, CancellationToken ct)
         {
+            if (!IsCbUser()) return Forbid();
+
             if (string.IsNullOrWhiteSpace(reason))
             {
                 TempData["Error"] = "A reason is required for same-day exceptional approval.";
@@ -839,7 +846,7 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
         {
-            if (IsCbApprover()) return Forbid();
+            if (!IsCbMaker()) return Forbid();
 
             var request = await _uow.Requests.FindById(id);
             if (request is null) return NotFound();
@@ -867,6 +874,8 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateRtgs(Guid id, DateOnly? rtgsDate, string? rtgsCode, CancellationToken ct)
         {
+            if (!IsCbUser()) return Forbid();
+
             var request = await _uow.Requests.FindById(id);
             if (request is null) return NotFound();
             if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
@@ -931,172 +940,6 @@ namespace VMSService.Web.Controllers
                 ? "RTGS details saved. Request advanced to Pending RTGS Confirmation."
                 : "RTGS details updated successfully.";
             return RedirectToAction(nameof(Details), new { id });
-        }
-
-        // ── Print Slip ────────────────────────────
-        public async Task<IActionResult> PrintRequest(Guid id, CancellationToken ct)
-        {
-            var request = await _uow.Requests.GetWithDetailsAsync(id, ct);
-            if (request is null) return NotFound();
-            if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
-
-            if (request.StatusTypeName != WithdrawalStatusNames.Completed
-                && request.StatusTypeName != WithdrawalStatusNames.Approved
-                && request.StatusTypeName != WithdrawalStatusNames.PendingApproval)
-                return RedirectToAction(nameof(Details), new { id });
-
-            var cb = await _configServiceClient.GetCbIdAsync(request.CbId);
-            var bouBranch = await _configServiceClient.GetBouBranchByIdAsync(request.BouBranchId);
-
-            // Agents
-            var agentIds = request.WithdrawalRequestAgents
-                .Where(a => a.EnteredBy == WithdrawalEnteredBy.Cb)
-                .Select(a => a.AgentId)
-                .ToList();
-
-            var agents = new List<AgentDetailViewModel>();
-            foreach (var agentId in agentIds)
-            {
-                var agent = await _agentRepo.FindById(agentId);
-                if (agent is not null)
-                    agents.Add(_mapper.Map<AgentDetailViewModel>(agent));
-            }
-
-            // BOU dispatch denominations
-            var bankRows = request.WithdrawalRequestDenominations
-                .Where(d => d.Origin == WithdrawalOrigin.Bou)
-                .ToList();
-
-            var newBanknotes = new List<BouDispatchCardViewModel>();
-            var reissueNotes = new List<BouDispatchSimpleViewModel>();
-            var coins = new List<BouDispatchSimpleViewModel>();
-
-            foreach (var row in bankRows)
-            {
-                if (string.Equals(row.BundleType, BundleTypes.New, StringComparison.OrdinalIgnoreCase))
-                {
-                    var details = row.DispatchedBoxes?
-                        .OrderBy(b => int.TryParse(b.CaseNumber, out var n) ? n : int.MaxValue)
-                        .ToList() ?? [];
-
-                    if (!details.Any()) continue;
-
-                    var bundlesTotal = row.Bundles ?? 0;
-                    var isFull = bundlesTotal == details.Count * 50;
-                    var firstBox = int.TryParse(details.First().CaseNumber, out var fn) ? fn : 0;
-                    var lastBox = int.TryParse(details.Last().CaseNumber, out var ln) ? ln : 0;
-
-                    newBanknotes.Add(new BouDispatchCardViewModel
-                    {
-                        Id = row.Id,
-                        DenominationId = row.DenominationId,
-                        Denomination = row.DenominationValue,
-                        StartBox = firstBox,
-                        EndBox = lastBox,
-                        IsFull = isFull,
-                        Bundles = bundlesTotal,
-                        SerialStart = details.First().SerialStartTaken,
-                        SerialEnd = details.Last().SerialEndTaken,
-                        SerialPrefix = details.First().SerialPrefix,
-                        Amount = row.Amount,
-                    });
-                }
-                else if (string.Equals(row.BundleType, BundleTypes.Reissue, StringComparison.OrdinalIgnoreCase))
-                {
-                    reissueNotes.Add(new BouDispatchSimpleViewModel
-                    {
-                        Id = row.Id,
-                        DenominationId = row.DenominationId,
-                        Denomination = row.DenominationValue,
-                        Quantity = row.Bundles ?? 0,
-                        Amount = row.Amount,
-                    });
-                }
-                else if (string.Equals(row.BundleType, BundleTypes.Coin, StringComparison.OrdinalIgnoreCase))
-                {
-                    coins.Add(new BouDispatchSimpleViewModel
-                    {
-                        Id = row.Id,
-                        DenominationId = row.DenominationId,
-                        Denomination = row.DenominationValue,
-                        Quantity = row.Boxes ?? 0,
-                        Amount = row.Amount,
-                    });
-                }
-                else
-                {
-                    // BundleType = "NA" — copied from CB before Panel A entered dispatch.
-                    // Fall back: notes have Bundles, coins have Boxes.
-                    if (row.Bundles.HasValue && row.Bundles > 0)
-                        reissueNotes.Add(new BouDispatchSimpleViewModel
-                        {
-                            Id = row.Id,
-                            DenominationId = row.DenominationId,
-                            Denomination = row.DenominationValue,
-                            Quantity = row.Bundles.Value,
-                            Amount = row.Amount,
-                        });
-                    else if (row.Boxes.HasValue && row.Boxes > 0)
-                        coins.Add(new BouDispatchSimpleViewModel
-                        {
-                            Id = row.Id,
-                            DenominationId = row.DenominationId,
-                            Denomination = row.DenominationValue,
-                            Quantity = row.Boxes.Value,
-                            Amount = row.Amount,
-                        });
-                }
-            }
-
-            // Panel names from status history
-            var history = request.WithdrawalRequestStatusHistory.Where(h => !h.IsDeleted).ToList();
-
-            var panelAStatusId = await _statusResolver.GetStatusIdAsync(WithdrawalStatusNames.PendingApproval);
-            var panelBStatusId = await _statusResolver.GetStatusIdAsync(WithdrawalStatusNames.Approved);
-
-            string panelAName = string.Empty;
-            string panelBName = string.Empty;
-
-            var panelAEntry = history.FirstOrDefault(h => h.NewStatusId == panelAStatusId);
-            if (panelAEntry is not null)
-            {
-                var user = await _identityService.GetUserByUsername(panelAEntry.ChangedBy);
-                if (user is not null)
-                    panelAName = System.Text.RegularExpressions.Regex.Replace(
-                        $"{user.FirstName} {user.MiddleName} {user.LastName}".Trim(), @"\s+", " ");
-            }
-
-            var panelBEntry = history.FirstOrDefault(h => h.NewStatusId == panelBStatusId);
-            if (panelBEntry is not null)
-            {
-                var user = await _identityService.GetUserByUsername(panelBEntry.ChangedBy);
-                if (user is not null)
-                    panelBName = System.Text.RegularExpressions.Regex.Replace(
-                        $"{user.FirstName} {user.MiddleName} {user.LastName}".Trim(), @"\s+", " ");
-            }
-
-            var vm = new WithdrawalPrintViewModel
-            {
-                TransactionRefNumber = request.TransactionRefNumber,
-                CollectionDate = request.CollectionDate,
-                RtgsDate = request.FundSettlementValueDate,
-                RtgsCode = request.RtgsCode,
-                CbName = cb?.Name ?? "—",
-                BouBranchName = bouBranch?.Name ?? "—",
-                BouBranchCode = request.BouBranchCode,
-                TotalAmount = request.TotalAmount,
-                TotalNotesAmount = request.TotalNotesAmount,
-                TotalCoinsAmount = request.TotalCoinsAmount,
-                Agents = agents,
-                NewBanknotes = newBanknotes.OrderBy(n => n.Denomination).ThenBy(n => n.StartBox).ToList(),
-                ReissueBanknotes = reissueNotes.OrderBy(n => n.Denomination).ToList(),
-                Coins = coins.OrderBy(c => c.Denomination).ToList(),
-                PanelAName = panelAName,
-                PanelBName = panelBName,
-                RequiresSpecialApproval = request.RequiresSpecialApproval,
-            };
-
-            return View(vm);
         }
 
         // ── Helpers ───────────────────────────────
@@ -1193,10 +1036,17 @@ namespace VMSService.Web.Controllers
         // bypass their own downstream review by editing/deleting the draft directly (mirrors the
         // Details page's canEdit flag, which already hides these buttons from CB Approver;
         // RequirePermission alone can't enforce this server-side, since the whole controller
-        // shares one "Details" permission covering both CB roles). Deliberately checks for the
-        // CbApprover role specifically rather than allowlisting CbMaker — an allowlist would also
-        // block every BOU role, breaking ticket 08's deliberate BOU passthrough on this controller.
-        private bool IsCbApprover() => User.GetAppRoleNames().Contains(RolePolicy.CbApprover);
+        // shares one "Details" permission covering both CB roles).
+        private bool IsCbMaker() => User.GetAppRoleNames().Contains(RolePolicy.CbMaker);
+
+        // Every action left on this controller is CB-only: CbOwnershipAuthorizationHandler's "any
+        // BOU role bypasses ownership" rule is blanket across every action that calls it, so
+        // without this check a BOU user who knows a request's GUID could edit its RTGS code,
+        // execute CB-side workflow transitions, view its internal review history, or set the CB
+        // Approver's exceptional-approval reason. Now redundant with the class-level CbOnly
+        // policy above for HTTP requests, but kept because it's what the unit tests actually
+        // exercise (attribute-based authorization isn't reachable via a direct method call).
+        private bool IsCbUser() => User.GetAppRoleNames().Any(RolePolicy.CbRoles.Contains);
 
         private static readonly TimeZoneInfo EatZone = TimeZoneInfo.FindSystemTimeZoneById("E. Africa Standard Time");
 
