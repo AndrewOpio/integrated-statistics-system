@@ -1,5 +1,6 @@
 @model VMSService.Data.Entities.DestructionAuthorization
 
+@using ConfigurationsService.Client
 @{
     ViewData["Title"] = "Edit Destruction Authorization";
 }
@@ -26,11 +27,22 @@
                     <input type="hidden" id="authorizationId" value="@Model.Id" />
 
                     <div class="row mb-3">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Branch <span class="text-danger">*</span></label>
+                            <select class="form-select" id="branchId">
+                                <option value="">-- Select Branch --</option>
+                                @foreach (var b in (ViewBag.Branches as List<BranchDto> ?? new()))
+                                {
+                                    <option value="@b.Id" selected="@(b.Id == Model.BranchId ? "selected" : null)">@b.Name</option>
+                                }
+                            </select>
+                            <div class="form-text text-muted" id="branchHint"></div>
+                        </div>
+                        <div class="col-md-4 mb-3">
                             <label class="form-label">Reference Number <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="referenceNumber" value="@Model.ReferenceNumber" />
                         </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label class="form-label">Date <span class="text-danger">*</span></label>
                             <input type="date" class="form-control" id="authorizationDate" value="@Model.Date.ToString("yyyy-MM-dd")" />
                         </div>
@@ -104,6 +116,35 @@ $(document).ready(function () {
         denominationRows = [{ denominationId: '', numberOfBags: '', amount: '' }];
     }
 
+    // Bags available per denomination in the Cancelled category for the currently selected branch.
+    let availableBagsByDenom = {};
+
+    function availableBagsFor(denominationId) {
+        if (!denominationId || availableBagsByDenom[denominationId] === undefined) return null;
+        return availableBagsByDenom[denominationId];
+    }
+
+    function loadAvailableBags(branchId, thenRender) {
+        availableBagsByDenom = {};
+        $('#branchHint').text('');
+        if (!branchId) { if (thenRender) renderDenominationTable(); return; }
+
+        $('#branchHint').text('Loading available Cancelled-category stock…');
+        $.get('@Url.Action("GetAvailableCancelledBags", "DestructionAuthorizations")', { branchId: branchId })
+            .done(function (resp) {
+                availableBagsByDenom = (resp && resp.bags) || {};
+                $('#branchHint').text(resp && resp.error ? resp.error : '');
+                if (thenRender) renderDenominationTable();
+            })
+            .fail(function () {
+                $('#branchHint').text('Could not load available stock for this branch.');
+            });
+    }
+
+    $('#branchId').on('change', function () {
+        loadAvailableBags(parseInt($(this).val()) || 0, true);
+    });
+
     function buildDenomOptions(selectedId) {
         let html = '<option value="">-- Select Denomination --</option>';
         denominationOptions.forEach(d => {
@@ -123,12 +164,33 @@ $(document).ready(function () {
         $('#grandTotalAmount').val(formatAmount(grand));
     }
 
+    function updateBagsAvailabilityUI(idx) {
+        const row  = denominationRows[idx];
+        const $row = $(`#denominationTable tbody tr[data-idx="${idx}"]`);
+        if (!$row.length) return;
+
+        const available = availableBagsFor(row.denominationId);
+        const bagsQty   = parseInt(row.numberOfBags) || 0;
+        const isOver    = available !== null && bagsQty > available;
+
+        $row.find('.denom-bags').toggleClass('is-invalid', isOver);
+        const $hint = $row.find('.form-text');
+        if (available !== null) {
+            $hint.text(`Available: ${Number(available).toLocaleString()} bag(s) in Cancelled`)
+                 .toggleClass('text-danger', isOver)
+                 .toggleClass('text-muted', !isOver);
+        }
+    }
+
     function calculateDenomRow(idx) {
         const row  = denominationRows[idx];
         const $row = $(`#denominationTable tbody tr[data-idx="${idx}"]`);
         if (!$row.length) return;
         const denom = denominationOptions.find(d => String(d.id) === String(row.denominationId));
         const bags  = parseInt(row.numberOfBags) || 0;
+
+        updateBagsAvailabilityUI(idx);
+
         if (!denom || bags === 0) {
             denominationRows[idx].amount = '';
             $row.find('.denom-amount').val('');
@@ -143,10 +205,16 @@ $(document).ready(function () {
         const $tbody = $('#denominationTable tbody');
         $tbody.empty();
         denominationRows.forEach((row, idx) => {
+            const available = availableBagsFor(row.denominationId);
+            const bagsQty   = parseInt(row.numberOfBags) || 0;
+            const isOver    = available !== null && bagsQty > available;
             $tbody.append(`
                 <tr data-idx="${idx}">
                     <td><select class="form-select denom-id">${buildDenomOptions(row.denominationId)}</select></td>
-                    <td><input type="text" class="form-control denom-bags" value="${row.numberOfBags}" placeholder="e.g. 5" /></td>
+                    <td>
+                        <input type="text" class="form-control denom-bags ${isOver ? 'is-invalid' : ''}" value="${row.numberOfBags}" placeholder="e.g. 5" />
+                        ${available !== null ? `<div class="form-text ${isOver ? 'text-danger' : 'text-muted'}">Available: ${Number(available).toLocaleString()} bag(s) in Cancelled</div>` : ''}
+                    </td>
                     <td><input type="text" class="form-control text-end denom-amount" value="${formatAmount(row.amount)}" placeholder="0" readonly /></td>
                     <td class="text-center align-middle">
                         <button type="button" class="btn btn-danger btn-sm remove-denom-row"><i class="ti ti-trash"></i></button>
@@ -161,7 +229,7 @@ $(document).ready(function () {
         const idx = $(this).closest('tr').data('idx');
         denominationRows[idx].denominationId = $(this).val();
         calculateDenomRow(idx);
-        recalculateGrandTotal();
+        renderDenominationTable();
     });
 
     $('#denominationTable').on('input', '.denom-bags', function () {
@@ -185,12 +253,34 @@ $(document).ready(function () {
         e.preventDefault();
         const $btn = $('#submitBtn');
 
+        const branchId = parseInt($('#branchId').val()) || 0;
+        const validDenoms = denominationRows.filter(r => r.denominationId !== '');
+
+        const errors = [];
+        if (!branchId) errors.push('Please select a Branch.');
+        for (const row of validDenoms) {
+            const available = availableBagsFor(row.denominationId);
+            if (available !== null && (parseInt(row.numberOfBags) || 0) > available) {
+                errors.push(`Number of bags for a denomination exceeds the ${available.toLocaleString()} bag(s) available in the Cancelled category for this branch.`);
+                break;
+            }
+        }
+
+        if (errors.length) {
+            $('#formAlerts').html(
+                '<div class="alert alert-danger alert-dismissible fade show"><ul class="mb-0">' +
+                errors.map(e => `<li>${e}</li>`).join('') +
+                '</ul><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>'
+            );
+            return;
+        }
+
         const payload = {
             Id:              parseInt($('#authorizationId').val()),
+            BranchId:        branchId,
             ReferenceNumber: $('#referenceNumber').val().trim(),
             Date:            $('#authorizationDate').val(),
-            Denominations:   denominationRows
-                .filter(r => r.denominationId !== '')
+            Denominations:   validDenoms
                 .map(r => ({
                     DenominationId: parseInt(r.denominationId) || 0,
                     NumberOfBags:   r.numberOfBags || null,
@@ -227,7 +317,12 @@ $(document).ready(function () {
         });
     });
 
-    renderDenominationTable();
+    const initialBranchId = parseInt($('#branchId').val()) || 0;
+    if (initialBranchId) {
+        loadAvailableBags(initialBranchId, true);
+    } else {
+        renderDenominationTable();
+    }
 });
 </script>
     @{

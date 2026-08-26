@@ -10,6 +10,7 @@
     var branches         = ViewBag.Branches as List<BranchDto>;
     var authorizations   = ViewBag.Authorizations as List<DestructionAuthorization> ?? new();
     var locations        = ViewBag.Locations as List<DestructionLocation> ?? new();
+    var verificationOfficers = ViewBag.VerificationOfficers as ICollection<VMSService.Core.Services.Identity.IdentityEntities.UserDto> ?? new List<VMSService.Core.Services.Identity.IdentityEntities.UserDto>();
 }
 
 <div class="row">
@@ -85,7 +86,20 @@
                     <div class="row mb-3">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Verification Officer <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="verificationOfficer" value="@Model.VerificationOfficer" />
+                            <select class="form-select" id="verificationOfficer">
+                                <option value="">-- Select Verification Officer --</option>
+                                @foreach (var officer in verificationOfficers)
+                                {
+                                    if (officer.UserName == Model.VerificationOfficerUserId)
+                                    {
+                                        <option value="@officer.UserName" selected>@officer.FirstName @officer.LastName</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@officer.UserName">@officer.FirstName @officer.LastName</option>
+                                    }
+                                }
+                            </select>
                         </div>
                     </div>
 
@@ -136,24 +150,20 @@
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label fw-bold">Members &amp; Witnesses</label>
+                        <label class="form-label fw-bold">Destruction Committee</label>
                         <table class="table table-bordered" id="membersTable">
                             <thead>
                                 <tr>
                                     <th>ID Number</th>
                                     <th>Full Name</th>
-                                    <th>Role</th>
                                     <th></th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
                         </table>
-                        <div class="d-flex justify-content-end gap-2 mt-3">
+                        <div class="d-flex justify-content-end mt-3">
                             <button type="button" class="btn btn-outline-primary btn-sm" id="addMemberRow">
-                                <i class="ti ti-user-plus me-1"></i> Add Member
-                            </button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" id="addWitnessRow">
-                                <i class="ti ti-eye me-1"></i> Add Witness
+                                <i class="ti ti-user-plus me-1"></i> Add Committee Member
                             </button>
                         </div>
                     </div>
@@ -184,6 +194,27 @@ $(document).ready(function () {
             : Enumerable.Empty<object>()
     ));
 
+    // Authorization denomination data keyed by authorizationId (used when switching authorizations)
+    const authorizationData = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(
+        authorizations.ToDictionary(
+            a => a.Id,
+            a => (a.DestructionAuthorizationDenominations ?? new List<VMSService.Data.Entities.DestructionAuthorizationDenomination>())
+                .Select(d => new { denominationId = d.DenominationId, numberOfBags = d.NumberOfBags, amount = d.Amount })
+        )
+    ));
+
+    // What's actually still available per denomination — the authorized amount minus whatever
+    // other Destruction Requests (other than this one) have already drawn against this authorization.
+    const authorizationRemaining = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.AuthorizationRemaining));
+
+    function remainingFor(authId, denominationId) {
+        const rows = authorizationRemaining && authorizationRemaining[authId];
+        if (!rows) return null;
+        return rows.find(r => String(r.denominationId) === String(denominationId)) ?? null;
+    }
+
+    const currentAuthorizationId = @(Model.DestructionAuthorizationId ?? 0);
+
     // Pre-populate from existing data
     let denominationRows = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(
         Model.DestructionRequestDenominations != null
@@ -199,18 +230,26 @@ $(document).ready(function () {
         denominationRows = [{ denominationId: '', numberOfBags: '', amount: '' }];
     }
 
+    // Attach the current remaining ceiling to each pre-populated row.
+    denominationRows.forEach(row => {
+        const remaining = remainingFor(currentAuthorizationId, row.denominationId);
+        if (remaining) {
+            row.maxBags   = remaining.remainingBags;
+            row.maxAmount = remaining.remainingAmount;
+        }
+    });
+
     let memberRows = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(
         Model.DestructionRequestMembers != null
             ? Model.DestructionRequestMembers.Select(m => new {
                 idNumber  = m.IDNumber,
-                fullName  = m.FullName,
-                isWitness = m.IsWitness
+                fullName  = m.FullName
               })
             : Enumerable.Empty<object>()
     ));
 
     if (!memberRows.length) {
-        memberRows = [{ idNumber: '', fullName: '', isWitness: false }];
+        memberRows = [{ idNumber: '', fullName: '' }];
     }
 
     // ─── Option builders ──────────────────────────────────────────────────────
@@ -229,10 +268,16 @@ $(document).ready(function () {
         const $tbody = $('#denominationTable tbody');
         $tbody.empty();
         denominationRows.forEach((row, idx) => {
+            const hasMax  = row.maxBags !== undefined && row.maxBags !== null;
+            const bagsQty = parseInt(row.numberOfBags) || 0;
+            const isOver  = hasMax && bagsQty > row.maxBags;
             $tbody.append(`
                 <tr data-idx="${idx}">
                     <td><select class="form-select denom-id">${buildDenomOptions(row.denominationId)}</select></td>
-                    <td><input type="text" class="form-control denom-bags" value="${row.numberOfBags}" placeholder="e.g. 5" /></td>
+                    <td>
+                        <input type="text" class="form-control denom-bags ${isOver ? 'is-invalid' : ''}" value="${row.numberOfBags}" placeholder="e.g. 5" />
+                        ${hasMax ? `<div class="form-text ${isOver ? 'text-danger' : 'text-muted'}">Available: ${Number(row.maxBags).toLocaleString()} bag(s)</div>` : ''}
+                    </td>
                     <td><input type="text" class="form-control text-end denom-amount" value="${formatAmount(row.amount)}" placeholder="0" readonly /></td>
                     <td class="text-center align-middle">
                         <button type="button" class="btn btn-danger btn-sm remove-denom-row"><i class="ti ti-trash"></i></button>
@@ -249,14 +294,10 @@ $(document).ready(function () {
         const $tbody = $('#membersTable tbody');
         $tbody.empty();
         memberRows.forEach((row, idx) => {
-            const roleBadge = row.isWitness
-                ? '<span class="badge bg-secondary">Witness</span>'
-                : '<span class="badge bg-primary">Member</span>';
             $tbody.append(`
                 <tr data-idx="${idx}">
                     <td><input type="text" class="form-control member-id-number" value="${row.idNumber}" placeholder="National ID / Passport" /></td>
                     <td><input type="text" class="form-control member-full-name" value="${row.fullName}" placeholder="Full name" /></td>
-                    <td class="align-middle">${roleBadge}</td>
                     <td class="text-center align-middle">
                         <button type="button" class="btn btn-danger btn-sm remove-member-row"><i class="ti ti-trash"></i></button>
                     </td>
@@ -278,12 +319,33 @@ $(document).ready(function () {
         $('#grandTotalAmount').val(formatAmount(grand));
     }
 
+    function updateBagsAvailabilityUI(idx) {
+        const row  = denominationRows[idx];
+        const $row = $(`#denominationTable tbody tr[data-idx="${idx}"]`);
+        if (!$row.length) return;
+
+        const hasMax  = row.maxBags !== undefined && row.maxBags !== null;
+        const bagsQty = parseInt(row.numberOfBags) || 0;
+        const isOver  = hasMax && bagsQty > row.maxBags;
+
+        $row.find('.denom-bags').toggleClass('is-invalid', isOver);
+        const $hint = $row.find('.form-text');
+        if (hasMax) {
+            $hint.text(`Available: ${Number(row.maxBags).toLocaleString()} bag(s)`)
+                 .toggleClass('text-danger', isOver)
+                 .toggleClass('text-muted', !isOver);
+        }
+    }
+
     function calculateDenomRow(idx) {
         const row  = denominationRows[idx];
         const $row = $(`#denominationTable tbody tr[data-idx="${idx}"]`);
         if (!$row.length) return;
         const denom = denominationOptions.find(d => String(d.id) === String(row.denominationId));
         const bags  = parseInt(row.numberOfBags) || 0;
+
+        updateBagsAvailabilityUI(idx);
+
         if (!denom || bags === 0) {
             denominationRows[idx].amount = '';
             $row.find('.denom-amount').val('');
@@ -310,6 +372,24 @@ $(document).ready(function () {
         recalculateGrandTotal();
     });
 
+    $('#destructionAuthorizationId').on('change', function () {
+        const authId = parseInt($(this).val());
+        if (!authId || !authorizationData[authId]) return;
+
+        const authDenoms = authorizationData[authId];
+        denominationRows = authDenoms.map(d => {
+            const remaining = remainingFor(authId, d.denominationId);
+            return {
+                denominationId: String(d.denominationId),
+                numberOfBags:   '',
+                amount:         '',
+                maxBags:        remaining ? remaining.remainingBags : (d.numberOfBags ?? 0),
+                maxAmount:      remaining ? remaining.remainingAmount : d.amount
+            };
+        });
+        renderDenominationTable();
+    });
+
     $('#addDenominationRow').on('click', function () {
         denominationRows.push({ denominationId: '', numberOfBags: '', amount: '' });
         renderDenominationTable();
@@ -323,12 +403,7 @@ $(document).ready(function () {
     // ─── Member events ────────────────────────────────────────────────────────
 
     $('#addMemberRow').on('click', function () {
-        memberRows.push({ idNumber: '', fullName: '', isWitness: false });
-        renderMembersTable();
-    });
-
-    $('#addWitnessRow').on('click', function () {
-        memberRows.push({ idNumber: '', fullName: '', isWitness: true });
+        memberRows.push({ idNumber: '', fullName: '' });
         renderMembersTable();
     });
 
@@ -346,6 +421,11 @@ $(document).ready(function () {
     });
 
     const OFFSITE_TYPE_NAME_EDIT = '@VMSService.Core.Static.StockConstants.DestructionTypes.Offsite';
+    const ONLINE_TYPE_NAME_EDIT  = '@VMSService.Core.Static.StockConstants.DestructionTypes.Online';
+
+    function isOnlineTypeEdit() {
+        return $('#destructionTypeId option:selected').text().trim() === ONLINE_TYPE_NAME_EDIT;
+    }
 
     $('#destructionTypeId').on('change', function () {
         if ($('#destructionTypeId option:selected').text().trim() === OFFSITE_TYPE_NAME_EDIT) {
@@ -361,6 +441,46 @@ $(document).ready(function () {
         e.preventDefault();
         const $btn = $('#submitBtn');
 
+        const authId = parseInt($('#destructionAuthorizationId').val()) || 0;
+        const errors = [];
+
+        if (!isOnlineTypeEdit()) {
+            for (const row of denominationRows.filter(r => r.denominationId !== '')) {
+                const remaining = remainingFor(authId, row.denominationId);
+                if (!remaining) continue;
+
+                const bagsQty = parseInt(row.numberOfBags) || 0;
+                if (bagsQty > remaining.remainingBags) {
+                    errors.push(`Number of bags for a denomination exceeds the remaining available bags of ${remaining.remainingBags.toLocaleString()}.`);
+                    break;
+                }
+                if (parseFloat(row.amount) > remaining.remainingAmount) {
+                    errors.push(`Amount for a denomination exceeds the remaining authorized amount of ${remaining.remainingAmount.toLocaleString()}.`);
+                    break;
+                }
+            }
+        }
+
+        // Destruction Committee — each added row must be fully filled, and at least 2 members are required
+        let completeMemberCount = 0;
+        memberRows.forEach((r, i) => {
+            const hasId   = r.idNumber.trim() !== '';
+            const hasName = r.fullName.trim() !== '';
+            if (hasId && !hasName)  errors.push(`Committee member row ${i + 1}: Full Name is required.`);
+            if (!hasId && hasName)  errors.push(`Committee member row ${i + 1}: ID Number is required.`);
+            if (hasId && hasName)   completeMemberCount++;
+        });
+        if (completeMemberCount < 2) errors.push('At least 2 Destruction Committee members are required.');
+
+        if (errors.length) {
+            $('#formAlerts').html(
+                '<div class="alert alert-danger alert-dismissible fade show"><ul class="mb-0">' +
+                errors.map(e => `<li>${e}</li>`).join('') +
+                '</ul><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>'
+            );
+            return;
+        }
+
         const payload = {
             Id:                         parseInt($('#requestId').val()),
             DestructionAuthorizationId: parseInt($('#destructionAuthorizationId').val()) || null,
@@ -369,7 +489,7 @@ $(document).ready(function () {
             BranchId:             parseInt($('#branchId').val()) || 0,
             ReferenceNumber:      $('#referenceNumber').val().trim(),
             Date:                 $('#requestDate').val(),
-            VerificationOfficer:  $('#verificationOfficer').val().trim(),
+            VerificationOfficerUserId: $('#verificationOfficer').val().trim(),
             Denominations: denominationRows
                 .filter(r => r.denominationId !== '')
                 .map(r => ({
@@ -381,8 +501,7 @@ $(document).ready(function () {
                 .filter(r => r.idNumber !== '' || r.fullName !== '')
                 .map(r => ({
                     IDNumber:  r.idNumber,
-                    FullName:  r.fullName,
-                    IsWitness: r.isWitness
+                    FullName:  r.fullName
                 }))
         };
 

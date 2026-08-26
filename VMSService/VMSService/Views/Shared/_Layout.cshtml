@@ -31,7 +31,7 @@
     bool isHeadOfBackOffice = userRoles.Contains(SystemPolicy.Roles.HeadBackOffice);
     bool isBackOffice = userRoles.Contains(SystemPolicy.Roles.BackOffice);
     bool isBranchManager = userRoles.Contains(SystemPolicy.Roles.StockApprover);
-    bool isAssistantBranchManager = userRoles.Contains(SystemPolicy.Roles.StockVerifier);
+    bool isAssistantBranchManager = userRoles.Contains(SystemPolicy.Roles.StockVerifier) || userRoles.Contains(SystemPolicy.Roles.AssistantBranchManager);
     bool isPanelA = userRoles.Contains(SystemPolicy.Roles.PanelA);
     bool isPanelB = userRoles.Contains(SystemPolicy.Roles.PanelB);
     bool isVO = userRoles.Contains(SystemPolicy.Roles.VerificationOfficer);
@@ -185,7 +185,7 @@
                 }
 
 
-                @if (isRemittancesOfficer || isCurrencyApprover || isBranchManager || isAssistantBranchManager || isHeadOfBackOffice || isPanelA || isPanelB || isBackOffice)
+                @if (isRemittancesOfficer || isCurrencyApprover || isBranchManager || isAssistantBranchManager || isHeadOfBackOffice || isPanelA || isPanelB || isBackOffice || isVerificationOfficer)
                 {
                     <li class="nav-item">
                         <a asp-controller="StockMovement" asp-action="Index" class="nav-link d-flex align-items-center">
@@ -493,7 +493,7 @@
                                 <li class="nav-item">
                                     <permission name="@SystemPermissions.MonthlyShortages.View">
                                         <a asp-controller="MonthlyShortages" asp-action="Index" class="nav-link">
-                                            <span class="sidebar-text">Monthly Shortage</span>
+                                            <span class="sidebar-text">Monthly Discrepancies</span>
                                         </a>
                                     </permission>
                                 </li>

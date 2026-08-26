@@ -91,6 +91,9 @@
             public const string Rejected          = "Rejected";
             public const string AmendmentDraft    = "Amendment Draft";
             public const string AmendmentApproved = "Amendment Approved";
+
+            /// <summary>Statuses at which a branch's authorization is resolved and no longer blocks a new one for that branch.</summary>
+            public static readonly string[] TerminalStatuses = [Approved, Rejected, AmendmentApproved];
         }
 
         public static class CfbReport

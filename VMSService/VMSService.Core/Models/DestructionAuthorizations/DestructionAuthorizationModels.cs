@@ -1,3 +1,4 @@
+using VMSService.Core.Models.Attachments;
 using VMSService.Data.Entities;
 using WorkflowService.Client.Dto;
 
@@ -7,6 +8,7 @@ namespace VMSService.Core.Models.DestructionAuthorizations
     {
         public int Id { get; set; }
         public string ReferenceNumber { get; set; } = null!;
+        public int BranchId { get; set; }
         public DateTime Date { get; set; }
         public List<DestructionAuthorizationDenominationDto> Denominations { get; set; } = new();
     }
@@ -14,6 +16,7 @@ namespace VMSService.Core.Models.DestructionAuthorizations
     public class CreateDestructionAuthorizationDto
     {
         public string ReferenceNumber { get; set; } = null!;
+        public int BranchId { get; set; }
         public DateTime Date { get; set; }
         public List<DestructionAuthorizationDenominationDto> Denominations { get; set; } = new();
     }
@@ -29,6 +32,8 @@ namespace VMSService.Core.Models.DestructionAuthorizations
     {
         public int Id { get; set; }
         public string ReferenceNumber { get; set; } = string.Empty;
+        public int BranchId { get; set; }
+        public string BranchName { get; set; } = string.Empty;
         public DateTime Date { get; set; }
         public int CurrentStatusId { get; set; }
         public string CurrentStatusName { get; set; } = string.Empty;
@@ -38,6 +43,7 @@ namespace VMSService.Core.Models.DestructionAuthorizations
         public IEnumerable<DestructionAuthorizationDenomination> Denominations { get; set; } = [];
         public ICollection<WorkflowTransitionDto> AvailableTransitions { get; set; } = new List<WorkflowTransitionDto>();
         public IEnumerable<DestructionAuthorizationStatusHistoryViewModel> StatusHistory { get; set; } = [];
+        public IEnumerable<AttachmentViewModel> AllAttachments { get; set; } = [];
     }
 
     public class DestructionAuthorizationStatusHistoryViewModel
