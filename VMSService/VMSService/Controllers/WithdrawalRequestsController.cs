@@ -1345,11 +1345,12 @@ namespace VMSService.Web.Controllers
 
             if (isExecuted)
             {
-                // Ends the dispatch the same way a Reject does — release any held boxes. Unconfirmed
-                // as agreed (see ticket 06 / workflow-transitions.md open items) but implemented per
-                // the ticket's own fallback instruction, since leaving boxes held all the way to
-                // Recall Complete is the same dangling-boxes problem by omission; flag for
-                // confirmation in review.
+                // Ends the dispatch the same way a Reject does — release any held boxes. Confirmed
+                // (ticket 06): Recall can be requested from Pending Approval, where dispatch is
+                // guaranteed to have happened, and from Pending Verification, where it may already
+                // have — so leaving boxes held all the way to Recall Complete is a real, not just
+                // hypothetical, instance of the same dangling-boxes problem Reject and the ABM's
+                // ReturnForRevision fix.
                 await ReleaseBouHoldAsync(id, ct);
                 TempData["Success"] = "Recall completed successfully. Reverse RTGS details recorded.";
             }

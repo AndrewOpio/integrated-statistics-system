@@ -38,8 +38,9 @@ namespace VMSService.Tests.Withdrawals;
 /// those same rows to know what to reverse — clearing first would leave it nothing to work from).
 /// The CB Approver's and Back Office's returns share the same ActionName/ToStatus (ADR-0001) but
 /// must NOT trigger this — no dispatch data exists yet at their origins. CompleteRecall's approved
-/// path is wired the same way, pending the open confirmation noted in ticket 06 /
-/// workflow-transitions.md.
+/// path is wired the same way — confirmed: Recall can be requested from Pending Approval (dispatch
+/// guaranteed) or Pending Verification (dispatch may already exist), so the same dangling-boxes
+/// problem applies there too.
 /// </summary>
 public class WithdrawalRequestsControllerReleaseOnRejectReturnTests
 {
