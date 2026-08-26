@@ -6,6 +6,7 @@ namespace VMSService.Data.Entities
     {
         public int Id { get; set; }
         public string ReferenceNumber { get; set; } = null!;
+        public int BranchId { get; set; }
         public DateTime Date { get; set; }
         public int CurrentStatusId { get; set; }
         public string CurrentStatusName { get; set; } = "Draft";

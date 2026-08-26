@@ -22,8 +22,7 @@ namespace VMSService.Core.Models.DestructionRequests
         public DateTime CreatedDate { get; set; }
 
         public IEnumerable<DestructionRequestDenomination> Denominations { get; set; } = [];
-        public IEnumerable<DestructionRequestMember> Members { get; set; } = [];
-        public IEnumerable<DestructionRequestMember> Witnesses { get; set; } = [];
+        public IEnumerable<DestructionRequestMember> CommitteeMembers { get; set; } = [];
 
         public ICollection<WorkflowTransitionDto> AvailableTransitions { get; set; } = new List<WorkflowTransitionDto>();
         public IEnumerable<StatusHistoryViewModel> StatusHistory { get; set; } = [];

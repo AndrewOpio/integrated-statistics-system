@@ -214,7 +214,8 @@ namespace VMSService.Web.Controllers
                 if (oldDenomination.Name == model.Name &&
                     oldDenomination.Value == model.Value &&
                     oldDenomination.DenominationTypeId == model.DenominationTypeId &&
-                    oldDenomination.NumberOfPiecesInABox == model.NumberOfPiecesInABox)
+                    oldDenomination.NumberOfPiecesInABox == model.NumberOfPiecesInABox &&
+                    oldDenomination.NumberOfPiecesInABundle == model.NumberOfPiecesInABundle)
                 {
                     var denominationTypes = await _denominationTypeRepository.FindAll();
                     ViewBag.DenominationTypes = denominationTypes.Where(dt => !dt.IsDeleted).ToList();

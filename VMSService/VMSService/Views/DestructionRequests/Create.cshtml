@@ -11,6 +11,7 @@
     var branches           = ViewBag.Branches as List<BranchDto>;
     var authorizations     = ViewBag.Authorizations as List<VMSService.Data.Entities.DestructionAuthorization> ?? new();
     var locations          = ViewBag.Locations as List<VMSService.Data.Entities.DestructionLocation> ?? new();
+    var verificationOfficers = ViewBag.VerificationOfficers as ICollection<VMSService.Core.Services.Identity.IdentityEntities.UserDto> ?? new List<VMSService.Core.Services.Identity.IdentityEntities.UserDto>();
     var onlineTypeName     = StockConstants.DestructionTypes.Online;
     var offsiteTypeName    = StockConstants.DestructionTypes.Offsite;
 }
@@ -79,7 +80,13 @@
                         </div>
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Verification Officer <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="verificationOfficer" placeholder="Full name" />
+                            <select class="form-select" id="verificationOfficer">
+                                <option value="">-- Select Verification Officer --</option>
+                                @foreach (var officer in verificationOfficers)
+                                {
+                                    <option value="@officer.UserName">@officer.FirstName @officer.LastName</option>
+                                }
+                            </select>
                         </div>
                     </div>
 
@@ -126,24 +133,20 @@
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label fw-bold">Members &amp; Witnesses</label>
+                        <label class="form-label fw-bold">Destruction Committee</label>
                         <table class="table table-bordered" id="membersTable">
                             <thead>
                                 <tr>
                                     <th>ID Number</th>
                                     <th>Full Name</th>
-                                    <th>Role</th>
                                     <th></th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
                         </table>
-                        <div class="d-flex justify-content-end gap-2 mt-3">
+                        <div class="d-flex justify-content-end mt-3">
                             <button type="button" class="btn btn-outline-primary btn-sm" id="addMemberRow">
-                                <i class="ti ti-user-plus me-1"></i> Add Member
-                            </button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" id="addWitnessRow">
-                                <i class="ti ti-eye me-1"></i> Add Witness
+                                <i class="ti ti-user-plus me-1"></i> Add Committee Member
                             </button>
                         </div>
                     </div>
@@ -156,7 +159,6 @@
                             <i class="ti ti-arrow-left me-1"></i>Cancel
                         </a>
                     </div>
-
                 </form>
             </div>
         </div>
@@ -219,6 +221,16 @@ $(document).ready(function () {
         )
     ));
 
+    // What's actually still available per denomination — the authorized amount minus whatever
+    // other Destruction Requests have already drawn against this same authorization.
+    const authorizationRemaining = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.AuthorizationRemaining));
+
+    function remainingFor(authId, denominationId) {
+        const rows = authorizationRemaining && authorizationRemaining[authId];
+        if (!rows) return null;
+        return rows.find(r => String(r.denominationId) === String(denominationId)) ?? null;
+    }
+
     // ─── State ────────────────────────────────────────────────────────────────
 
     let denominationRows = [
@@ -226,7 +238,7 @@ $(document).ready(function () {
     ];
 
     let memberRows = [
-        { idNumber: '', fullName: '', isWitness: false }
+        { idNumber: '', fullName: '' }
     ];
 
     // ─── Authorization selection ──────────────────────────────────────
@@ -236,12 +248,16 @@ $(document).ready(function () {
         if (!authId || !authorizationData[authId]) return;
 
         const authDenoms = authorizationData[authId];
-        denominationRows = authDenoms.map(d => ({
-            denominationId: String(d.denominationId),
-            numberOfBags:   d.numberOfBags ?? '',
-            amount:         d.amount,
-            maxAmount:      d.amount
-        }));
+        denominationRows = authDenoms.map(d => {
+            const remaining = remainingFor(authId, d.denominationId);
+            return {
+                denominationId: String(d.denominationId),
+                numberOfBags:   '',
+                amount:         '',
+                maxBags:        remaining ? remaining.remainingBags : (d.numberOfBags ?? 0),
+                maxAmount:      remaining ? remaining.remainingAmount : d.amount
+            };
+        });
         renderDenominationTable();
         $('#authorizationHint').text(`${authDenoms.length} denomination(s) loaded from authorization.`);
     });
@@ -263,13 +279,17 @@ $(document).ready(function () {
         $tbody.empty();
 
         denominationRows.forEach((row, idx) => {
+            const hasMax  = !isOnlineType() && row.maxBags !== undefined && row.maxBags !== null;
+            const bagsQty = parseInt(row.numberOfBags) || 0;
+            const isOver  = hasMax && bagsQty > row.maxBags;
             $tbody.append(`
                 <tr data-idx="${idx}">
                     <td>
                         <select class="form-select denom-id">${buildDenomOptions(row.denominationId)}</select>
                     </td>
                     <td>
-                        <input type="text" class="form-control denom-bags" value="${row.numberOfBags}" placeholder="${isOnlineType() ? 'e.g. 1000' : 'e.g. 5'}" />
+                        <input type="text" class="form-control denom-bags ${isOver ? 'is-invalid' : ''}" value="${row.numberOfBags}" placeholder="${isOnlineType() ? 'e.g. 1000' : 'e.g. 5'}" />
+                        ${hasMax ? `<div class="form-text ${isOver ? 'text-danger' : 'text-muted'}">Available: ${Number(row.maxBags).toLocaleString()} bag(s)</div>` : ''}
                     </td>
                     <td>
                         <input type="text" class="form-control text-end denom-amount" value="${formatAmount(row.amount)}" placeholder="0" readonly />
@@ -293,10 +313,6 @@ $(document).ready(function () {
         $tbody.empty();
 
         memberRows.forEach((row, idx) => {
-            const roleBadge = row.isWitness
-                ? '<span class="badge bg-secondary">Witness</span>'
-                : '<span class="badge bg-primary">Member</span>';
-
             $tbody.append(`
                 <tr data-idx="${idx}">
                     <td>
@@ -305,7 +321,6 @@ $(document).ready(function () {
                     <td>
                         <input type="text" class="form-control member-full-name" value="${row.fullName}" placeholder="Full name" />
                     </td>
-                    <td class="align-middle">${roleBadge}</td>
                     <td class="text-center align-middle">
                         <button type="button" class="btn btn-danger btn-sm remove-member-row">
                             <i class="ti ti-trash"></i>
@@ -340,6 +355,24 @@ $(document).ready(function () {
         recalculateGrandTotal();
     });
 
+    function updateBagsAvailabilityUI(idx) {
+        const row  = denominationRows[idx];
+        const $row = $(`#denominationTable tbody tr[data-idx="${idx}"]`);
+        if (!$row.length) return;
+
+        const hasMax  = !isOnlineType() && row.maxBags !== undefined && row.maxBags !== null;
+        const bagsQty = parseInt(row.numberOfBags) || 0;
+        const isOver  = hasMax && bagsQty > row.maxBags;
+
+        $row.find('.denom-bags').toggleClass('is-invalid', isOver);
+        const $hint = $row.find('.form-text');
+        if (hasMax) {
+            $hint.text(`Available: ${Number(row.maxBags).toLocaleString()} bag(s)`)
+                 .toggleClass('text-danger', isOver)
+                 .toggleClass('text-muted', !isOver);
+        }
+    }
+
     function calculateDenomRow(idx) {
         const row  = denominationRows[idx];
         const $row = $(`#denominationTable tbody tr[data-idx="${idx}"]`);
@@ -347,6 +380,8 @@ $(document).ready(function () {
 
         const denom = denominationOptions.find(d => String(d.id) === String(row.denominationId));
         const qty   = parseInt(row.numberOfBags) || 0;
+
+        updateBagsAvailabilityUI(idx);
 
         if (!denom || qty === 0) {
             denominationRows[idx].amount = '';
@@ -384,12 +419,7 @@ $(document).ready(function () {
     // ─── Member events ────────────────────────────────────────────────────────
 
     $('#addMemberRow').on('click', function () {
-        memberRows.push({ idNumber: '', fullName: '', isWitness: false });
-        renderMembersTable();
-    });
-
-    $('#addWitnessRow').on('click', function () {
-        memberRows.push({ idNumber: '', fullName: '', isWitness: true });
+        memberRows.push({ idNumber: '', fullName: '' });
         renderMembersTable();
     });
 
@@ -438,33 +468,32 @@ $(document).ready(function () {
         if (isOffsiteType() && !(parseInt($('#destructionLocationId').val()) || 0))
                                          errors.push('Location is required for Offsite destruction.');
 
-        // Members — each added row must be fully filled
-        memberRows.filter(r => !r.isWitness).forEach((r, i) => {
+        // Destruction Committee — each added row must be fully filled, and at least 2 members are required
+        let completeMemberCount = 0;
+        memberRows.forEach((r, i) => {
             const hasId   = r.idNumber.trim() !== '';
             const hasName = r.fullName.trim() !== '';
-            if (hasId && !hasName)  errors.push(`Member row ${i + 1}: Full Name is required.`);
-            if (!hasId && hasName)  errors.push(`Member row ${i + 1}: ID Number is required.`);
+            if (hasId && !hasName)  errors.push(`Committee member row ${i + 1}: Full Name is required.`);
+            if (!hasId && hasName)  errors.push(`Committee member row ${i + 1}: ID Number is required.`);
+            if (hasId && hasName)   completeMemberCount++;
         });
+        if (completeMemberCount < 2) errors.push('At least 2 Destruction Committee members are required.');
 
-        // Witnesses — at least 2 required, each must be fully filled
-        const witnessRows = memberRows.filter(r => r.isWitness);
-        const validWitnesses = witnessRows.filter(r => r.idNumber.trim() !== '' && r.fullName.trim() !== '');
-        if (validWitnesses.length < 2)
-            errors.push('At least 2 witnesses are required.');
-        witnessRows.forEach((r, i) => {
-            const hasId   = r.idNumber.trim() !== '';
-            const hasName = r.fullName.trim() !== '';
-            if (hasId && !hasName)  errors.push(`Witness row ${i + 1}: Full Name is required.`);
-            if (!hasId && hasName)  errors.push(`Witness row ${i + 1}: ID Number is required.`);
-        });
+        // Bags/amount validation against what's actually still remaining on the authorization (skip for Online)
+        if (!isOnlineType()) {
+            for (const row of validDenoms) {
+                const remaining = remainingFor(authId, row.denominationId);
+                if (!remaining) continue;
 
-        // Amount validation against authorization (skip for Online)
-        const authDenoms = (!isOnlineType() && authorizationData[authId]) ? authorizationData[authId] : [];
-        for (const row of validDenoms) {
-            const auth = authDenoms.find(d => String(d.denominationId) === String(row.denominationId));
-            if (auth && parseFloat(row.amount) > auth.amount) {
-                errors.push(`Amount for a denomination exceeds the authorized limit of ${auth.amount.toLocaleString()}.`);
-                break;
+                const bagsQty = parseInt(row.numberOfBags) || 0;
+                if (bagsQty > remaining.remainingBags) {
+                    errors.push(`Number of bags for a denomination exceeds the remaining available bags of ${remaining.remainingBags.toLocaleString()}.`);
+                    break;
+                }
+                if (parseFloat(row.amount) > remaining.remainingAmount) {
+                    errors.push(`Amount for a denomination exceeds the remaining authorized amount of ${remaining.remainingAmount.toLocaleString()}.`);
+                    break;
+                }
             }
         }
 
@@ -485,7 +514,7 @@ $(document).ready(function () {
             BranchId:                   branch,
             ReferenceNumber:            refNumber,
             Date:                       date,
-            VerificationOfficer:        officer,
+            VerificationOfficerUserId:  officer,
             Denominations: denominationRows
                 .filter(r => r.denominationId !== '')
                 .map(r => ({
@@ -498,8 +527,7 @@ $(document).ready(function () {
                 .filter(r => r.idNumber !== '' || r.fullName !== '')
                 .map(r => ({
                     IDNumber:  r.idNumber,
-                    FullName:  r.fullName,
-                    IsWitness: r.isWitness
+                    FullName:  r.fullName
                 }))
         };
 
@@ -524,7 +552,7 @@ $(document).ready(function () {
                     );
                     // Reset state
                     denominationRows = [{ denominationId: '', numberOfBags: '', amount: '' }];
-                    memberRows       = [{ idNumber: '', fullName: '', isWitness: false }];
+                    memberRows       = [{ idNumber: '', fullName: '' }];
                     $('#destructionTypeId').val('');
                     $('#referenceNumber').val('');
                     $('#requestDate').val('');

@@ -15,9 +15,11 @@
                         <h2 class="fs-5 fw-bold mb-0">Monthly Shortages</h2>
                     </div>
                     <div class="col text-end">
-                        <a asp-controller="MonthlySurpluses" asp-action="CheckPosition" class="btn btn-sm btn-outline-primary">
-                            <i class="ti ti-calculator me-1"></i>Check Net Position
-                        </a>
+                        <permission name="@SystemPermissions.MonthlyShortages.Generate">
+                            <a asp-action="Generate" class="btn btn-sm btn-primary">
+                                <i class="ti ti-refresh me-1"></i>Generate Report
+                            </a>
+                        </permission>
                     </div>
                 </div>
             </div>
@@ -44,8 +46,8 @@
                                 {
                                     "Draft"                => "bg-secondary",
                                     "Pending Approval"     => "bg-warning text-dark",
-                                    "Pending Confirmation" => "bg-info text-dark",
-                                    "Confirmed"            => "bg-success",
+                                    "Pending Payment" => "bg-info text-dark",
+                                    "Paid"            => "bg-success",
                                     _                      => "bg-secondary"
                                 };
                                 <tr>
