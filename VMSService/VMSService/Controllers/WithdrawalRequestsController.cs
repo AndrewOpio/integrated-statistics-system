@@ -1,8 +1,10 @@
 ﻿using AutoMapper;
 using ConfigurationsService.Client;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using System.Text.Json;
+using VMSService.Core.Authorization;
 using VMSService.Core.Models.AgentDetails;
 using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.CbDepositRequests;
@@ -36,6 +38,9 @@ using static VMSService.Core.Static.WithdrawConstants;
 
 namespace VMSService.Web.Controllers
 {
+    // Had no authorization guard at all until now — any authenticated user, including CB, could
+    // reach every action here.
+    [Authorize(Policy = RolePolicy.BouOnly)]
     public class WithdrawalRequestsController(
         IWithdrawalRequestRepository _withdrawalRequestRepo,
         IWorkflowServiceClient _workflowServiceClient,
