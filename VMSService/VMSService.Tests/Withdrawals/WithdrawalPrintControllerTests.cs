@@ -139,4 +139,66 @@ public class WithdrawalPrintControllerTests
 
         Assert.IsType<ViewResult>(result);
     }
+
+    // ── DispatchVariance (ticket 18): the receipt showed the requested total unconditionally,
+    // even when the BOU-origin dispatch rows above it summed to something else. Same formula as
+    // BouWithdrawalRequestDetailsViewModel.DispatchVariance (WithdrawalRequestsControllerDetailsTests),
+    // kept in sync deliberately so the two pages can't disagree about what "matched" means.
+
+    private static WithdrawalRequestDenomination NewDenomRow(string origin, decimal amount) => new()
+    {
+        Origin = origin,
+        BundleType = BundleTypes.Reissue,
+        Amount = amount,
+        DenominationValue = amount,
+    };
+
+    [Fact]
+    public async Task No_Dispatch_Rows_Variance_Is_Full_Shortfall()
+    {
+        var (controller, request) = BuildController(OwnBankId, CbUser(OwnBankId));
+
+        var view = Assert.IsType<ViewResult>(await controller.PrintRequest(request.Id, CancellationToken.None));
+        var vm = Assert.IsType<VMSService.Core.Models.CbWithdrawRequest.WithdrawalPrintViewModel>(view.Model);
+
+        Assert.Equal(-request.TotalAmount, vm.DispatchVariance);
+    }
+
+    [Fact]
+    public async Task Dispatch_Matching_Requested_Amount_Has_Zero_Variance()
+    {
+        var (controller, request) = BuildController(OwnBankId, CbUser(OwnBankId));
+        request.WithdrawalRequestDenominations.Add(NewDenomRow(WithdrawalOrigin.Bou, request.TotalAmount));
+
+        var view = Assert.IsType<ViewResult>(await controller.PrintRequest(request.Id, CancellationToken.None));
+        var vm = Assert.IsType<VMSService.Core.Models.CbWithdrawRequest.WithdrawalPrintViewModel>(view.Model);
+
+        Assert.Equal(0m, vm.DispatchVariance);
+    }
+
+    [Fact]
+    public async Task Dispatch_Short_Of_Requested_Amount_Has_Nonzero_Variance()
+    {
+        var (controller, request) = BuildController(OwnBankId, CbUser(OwnBankId));
+        request.WithdrawalRequestDenominations.Add(NewDenomRow(WithdrawalOrigin.Bou, request.TotalAmount - 4_000_000m));
+
+        var view = Assert.IsType<ViewResult>(await controller.PrintRequest(request.Id, CancellationToken.None));
+        var vm = Assert.IsType<VMSService.Core.Models.CbWithdrawRequest.WithdrawalPrintViewModel>(view.Model);
+
+        Assert.Equal(-4_000_000m, vm.DispatchVariance);
+    }
+
+    [Fact]
+    public async Task Cb_Origin_Rows_Excluded_From_DispatchVariance()
+    {
+        // Only what the bank actually dispatched counts — the CB's own wishlist rows must not be
+        // mistaken for dispatch, or a request with no dispatch at all would look "matched".
+        var (controller, request) = BuildController(OwnBankId, CbUser(OwnBankId));
+        request.WithdrawalRequestDenominations.Add(NewDenomRow(WithdrawalOrigin.Cb, request.TotalAmount));
+
+        var view = Assert.IsType<ViewResult>(await controller.PrintRequest(request.Id, CancellationToken.None));
+        var vm = Assert.IsType<VMSService.Core.Models.CbWithdrawRequest.WithdrawalPrintViewModel>(view.Model);
+
+        Assert.Equal(-request.TotalAmount, vm.DispatchVariance);
+    }
 }

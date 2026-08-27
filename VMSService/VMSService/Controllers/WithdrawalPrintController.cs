@@ -191,6 +191,10 @@ namespace VMSService.Web.Controllers
                 PanelAName = panelAName,
                 PanelBName = panelBName,
                 RequiresSpecialApproval = request.RequiresSpecialApproval,
+                DispatchVariance = newBanknotes.Sum(r => r.Amount)
+                    + reissueNotes.Sum(r => r.Amount)
+                    + coins.Sum(r => r.Amount)
+                    - request.TotalAmount,
             };
 
             return View(vm);
