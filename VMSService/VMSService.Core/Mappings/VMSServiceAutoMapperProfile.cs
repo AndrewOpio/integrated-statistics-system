@@ -98,6 +98,7 @@ namespace VMSService.Core.Mappings
             CreateMap<DepositRequest, DepositRequestDetailsViewModel>().ReverseMap();
             CreateMap<DepositRequestStatusHistory, DepositRequestStatusHistoryViewModel>().ReverseMap();
             CreateMap<WithdrawalRequestStatusHistory, WithdrawalRequestStatusHistoryViewModel>().ReverseMap();
+            CreateMap<WithdrawalRequest, WithdrawalRequestEditViewModel>();
             CreateMap<MinDepositStandard, MinDepositStandardViewModel>().ReverseMap();
             CreateMap<DepositProcessingFee, DepositProcessingFeeViewModel>().ReverseMap();
             CreateMap<DepositFee, DepositFeeViewModel>().ReverseMap();

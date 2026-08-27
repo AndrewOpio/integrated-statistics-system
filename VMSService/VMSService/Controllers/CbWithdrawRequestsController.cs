@@ -158,7 +158,7 @@ namespace VMSService.Web.Controllers
 
             return View(new EditWithdrawViewModel
             {
-                Request = request,
+                Request = _mapper.Map<WithdrawalRequestEditViewModel>(request),
                 Steps = BuildStepViewModel(request.StatusTypeName, false, request.RequiresSpecialApproval),
                 Branches = branchVm,
                 Agents = agentVm,
