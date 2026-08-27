@@ -1084,6 +1084,31 @@ namespace VMSService.Web.Controllers
                         id,
                         StatusConstants.Entity.WithdrawalRequest,
                         username);
+
+                    // Reject server-side if a required attachment was never actually uploaded —
+                    // the client-side check in Details.cshtml can be bypassed (JS disabled, direct
+                    // POST), and HandleAttachmentUploadsAsync itself just skips missing files rather
+                    // than failing, so this is the only real enforcement of "can't approve without
+                    // attaching the receipt".
+                    var requiredAttachments = transition.AttachmentRequirements.Where(r => r.IsRequired).ToList();
+                    if (requiredAttachments.Any())
+                    {
+                        var uploadedRequirementIds = uploadedAttachmentIds
+                            .Select(aid => transition.AttachmentRequirements
+                                .FirstOrDefault(r => Request.Form.Files[$"attachments_{r.Id}"]?.Length > 0)?.Id ?? 0)
+                            .Where(reqId => reqId > 0)
+                            .ToList();
+
+                        var missingRequirements = requiredAttachments
+                            .Where(r => !uploadedRequirementIds.Contains(r.Id))
+                            .ToList();
+
+                        if (missingRequirements.Any())
+                        {
+                            TempData["Error"] = $"Missing required attachments: {string.Join(", ", missingRequirements.Select(r => r.AttachmentName))}";
+                            return RedirectToAction(nameof(Details), new { id });
+                        }
+                    }
                 }
 
                 bool isExecuted = await _workflowService.ExecuteTransition(

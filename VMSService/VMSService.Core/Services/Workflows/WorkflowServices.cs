@@ -263,7 +263,7 @@ namespace VMSService.Core.Services.Workflows
                     StatusConstants.Entity.WithdrawalRequest =>
                         await HandleWithdrawalTransitions(
                             entityId, currentStatusId, actionName,
-                            username, remarks, transition),
+                            username, remarks, transition, attachmentIds),
 
                     StatusConstants.Entity.DepositRequest =>
                             await HandleDepositTransitions(
@@ -724,7 +724,7 @@ namespace VMSService.Core.Services.Workflows
             }
         }
 
-        private async Task<bool> HandleWithdrawalTransitions(Guid entityId, int currentStatusId, string actionName, string username, string remarks, WorkflowTransitionDto transition)
+        private async Task<bool> HandleWithdrawalTransitions(Guid entityId, int currentStatusId, string actionName, string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
         {
             var request = await _uow.Requests.FindById(entityId);
             if (request is null)
@@ -820,6 +820,9 @@ namespace VMSService.Core.Services.Workflows
                 ChangedBy = username,
                 ChangedAt = DateTime.UtcNow,
                 Remarks = effectiveRemarks,
+                AttachmentIds = attachmentIds != null && attachmentIds.Any()
+                    ? string.Join(",", attachmentIds)
+                    : null,
                 CreatedBy = username,
                 CreatedDate = DateTime.Now,
             };

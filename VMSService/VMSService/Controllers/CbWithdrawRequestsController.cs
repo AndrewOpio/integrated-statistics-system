@@ -525,8 +525,40 @@ namespace VMSService.Web.Controllers
                     ChangedBy = h.ChangedBy,
                     ChangedAt = h.ChangedAt,
                     Remarks = h.Remarks,
+                    AttachmentIds = h.AttachmentIds,
                 })
                 .ToList();
+
+            // Load attachments for each status history entry — same lookup as the BOU Details
+            // action, so a receipt attached on Approve shows on both sides, not just BOU's.
+            foreach (var history in statusHistory)
+            {
+                if (string.IsNullOrEmpty(history.AttachmentIds)) continue;
+
+                var attachmentIds = history.AttachmentIds.Split(',')
+                    .Where(aid => int.TryParse(aid.Trim(), out _))
+                    .Select(aid => int.Parse(aid.Trim()))
+                    .ToList();
+
+                var attachments = new List<AttachmentViewModel>();
+                foreach (var attachmentId in attachmentIds)
+                {
+                    var attachment = await _attachmentRepository.FindById(attachmentId);
+                    if (attachment != null && !attachment.IsDeleted)
+                    {
+                        attachments.Add(new AttachmentViewModel
+                        {
+                            Id = attachment.Id,
+                            FileName = attachment.FileName,
+                            FilePath = attachment.FilePath,
+                            FileType = attachment.FileType,
+                            FileSize = attachment.FileSize,
+                            UploadedDate = attachment.CreatedDate
+                        });
+                    }
+                }
+                history.Attachments = attachments;
+            }
 
             // CB users see their own side of the workflow (up through RTGS verification)
             // and whichever terminal outcome the request lands on. The BOU-internal

@@ -20,6 +20,7 @@ namespace VMSService.Data.Entities
         public string ChangedBy { get; set; }
         public DateTime ChangedAt { get; set; }
         public string? Remarks { get; set; }
+        public string? AttachmentIds { get; set; }
         public bool IsDeleted { get; set; } = false;
     }
 }

@@ -5596,6 +5596,9 @@ namespace VMSService.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("AttachmentIds")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("ChangedAt")
                         .HasColumnType("datetime2");
 
