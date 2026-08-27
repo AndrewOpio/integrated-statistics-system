@@ -62,7 +62,7 @@ namespace VMSService.Web.Controllers
         /// <summary>Resolves which BOU branches this user may see and which branch is currently
         /// selected — shared by <see cref="Index"/> and <see cref="History"/> so both apply the
         /// exact same visibility rule.</summary>
-        private (bool CanViewAllLocations, List<BranchDto> UserBranches, string? BranchCode) ResolveBranchScope(
+        private (bool CanViewAllLocations, List<BranchDto> UserBranches, string? BranchCode, bool NotAttachedToBranch) ResolveBranchScope(
             string? branchCode, IEnumerable<BranchDto> allBouBranches)
         {
             var userRoles = User.GetAppRoleNames();
@@ -86,7 +86,12 @@ namespace VMSService.Web.Controllers
                     branchCode = userBranches.FirstOrDefault()?.BranchCode;
             }
 
-            return (canViewAllLocations, userBranches, branchCode);
+            // A branch-scoped user with no resolvable branch would otherwise hit the repo with a
+            // null branchCode below, which reads as "no filter" and returns every branch's rows —
+            // the opposite of what a misconfigured user should see.
+            bool notAttachedToBranch = !canViewAllLocations && userBranches.Count == 0;
+
+            return (canViewAllLocations, userBranches, branchCode, notAttachedToBranch);
         }
 
         private static RecentRequestRowViewModel MapRow(
@@ -123,8 +128,11 @@ namespace VMSService.Web.Controllers
             var cbMap = allCbs.ToDictionary(s => s.Id, s => s.Name);
 
             var allBouBranches = await _configServiceClient.GetAllBouBranchesAsync();
-            var (canViewAllLocations, userBranches, resolvedBranchCode) = ResolveBranchScope(branchCode, allBouBranches);
+            var (canViewAllLocations, userBranches, resolvedBranchCode, notAttachedToBranch) = ResolveBranchScope(branchCode, allBouBranches);
             branchCode = resolvedBranchCode;
+
+            if (notAttachedToBranch)
+                return View(new BouWithdrawalRequestViewModel { NotAttachedToBranch = true });
 
             // Main list: excludes requests that are both terminal and past their collection date —
             // those live in History instead (ticket 19). Branch scoping pushed to the query itself.
@@ -205,8 +213,11 @@ namespace VMSService.Web.Controllers
             var cbMap = allCbs.ToDictionary(s => s.Id, s => s.Name);
 
             var allBouBranches = await _configServiceClient.GetAllBouBranchesAsync();
-            var (canViewAllLocations, userBranches, resolvedBranchCode) = ResolveBranchScope(branchCode, allBouBranches);
+            var (canViewAllLocations, userBranches, resolvedBranchCode, notAttachedToBranch) = ResolveBranchScope(branchCode, allBouBranches);
             branchCode = resolvedBranchCode;
+
+            if (notAttachedToBranch)
+                return View(new BouWithdrawalRequestViewModel { NotAttachedToBranch = true });
 
             var history = await _withdrawalRequestRepo.GetHistoryAsync(today, since, branchCode);
 

@@ -245,6 +245,39 @@ public class WithdrawalRequestsControllerTests
     }
 
     [Fact]
+    public async Task Index_Panel_A_User_With_No_Matching_Branch_Role_Sees_Nothing_Not_Everything()
+    {
+        // A Panel A/B user with a missing or misspelled branch role must not fall through to the
+        // "no branch filter = show every branch" behavior GetActiveAsync/GetHistoryAsync apply
+        // when branchCode is null/empty.
+        var controller = BuildController([
+            NewRequest(WithdrawalStatusNames.PendingApproval, bouBranchCode: "KLA"),
+            NewRequest(WithdrawalStatusNames.PendingApproval, bouBranchCode: "MBL"),
+        ], Roles.PanelA);
+
+        var view = Assert.IsType<ViewResult>(await controller.Index());
+        var vm = Assert.IsType<BouWithdrawalRequestViewModel>(view.Model);
+
+        Assert.True(vm.NotAttachedToBranch);
+        Assert.Empty(vm.Requests);
+    }
+
+    [Fact]
+    public async Task History_Panel_A_User_With_No_Matching_Branch_Role_Sees_Nothing_Not_Everything()
+    {
+        var controller = BuildController([
+            NewRequest(WithdrawalStatusNames.Approved, LastWeek, bouBranchCode: "KLA"),
+            NewRequest(WithdrawalStatusNames.Approved, LastWeek, bouBranchCode: "MBL"),
+        ], Roles.PanelA);
+
+        var view = Assert.IsType<ViewResult>(await controller.History());
+        var vm = Assert.IsType<BouWithdrawalRequestViewModel>(view.Model);
+
+        Assert.True(vm.NotAttachedToBranch);
+        Assert.Empty(vm.Requests);
+    }
+
+    [Fact]
     public async Task History_Returns_Only_Terminal_Past_Requests_Within_The_Lookback_Window()
     {
         var controller = BuildController([

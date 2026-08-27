@@ -14,6 +14,12 @@
     </a>
 </div>
 
+@if (Model.NotAttachedToBranch)
+{
+    @await Html.PartialAsync("~/Views/Shared/_Withdrawal/_NotAttachedToBranch.cshtml", "withdrawal request history")
+    return;
+}
+
 @* ── Location Filter Pills ── *@
 <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
     @if (Model.CanViewAllLocations)

@@ -32,6 +32,9 @@ namespace VMSService.Core.Models.WithdrawalRequests
 
         public string? SelectedBranch { get; set; }
         public bool CanViewAllLocations { get; set; } = false;
+        // True for a branch-scoped BOU user (e.g. Panel A/B) whose role carries no resolvable
+        // branch assignment — a misconfiguration, not "no requests today".
+        public bool NotAttachedToBranch { get; set; } = false;
         public BranchViewModel UserBranch { get; set; } = new();
         public IEnumerable<BranchDto> BouBranches { get; set; } = new List<BranchDto>();
 
