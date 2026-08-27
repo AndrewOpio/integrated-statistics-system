@@ -110,9 +110,12 @@ namespace VMSService.Web.Controllers
             if (request is null) return NotFound();
             if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
 
-            // Only allow editing in Draft or ReturnedForRevision
+            // Only allow editing in Draft or ReturnedForRevision — or, stuck stale pre-submission
+            // (any of the three statuses), so the Maker has a way to fix the collection date even
+            // from Pending Internal Approval, where editing is otherwise not allowed.
             if (request.StatusTypeName != WithdrawalStatusNames.Draft
-                && request.StatusTypeName != WithdrawalStatusNames.ReturnedForRevision)
+                && request.StatusTypeName != WithdrawalStatusNames.ReturnedForRevision
+                && !IsStalePreSubmission(request))
                 return RedirectToAction("Details", new { id });
 
             var branchVm = new FromToSelectionViewModel
@@ -496,9 +499,15 @@ namespace VMSService.Web.Controllers
                     Amount = d.Amount,
                 });
 
-            // ── canEdit requires Draft/Returned status AND CB Maker role ──────────
+            var isStalePreSubmission = IsStalePreSubmission(request);
+
+            // ── canEdit requires Draft/Returned status AND CB Maker role — also true while
+            // stuck stale pre-submission (any of the three statuses), so the Maker has a way to
+            // fix the collection date even from Pending Internal Approval, where editing is
+            // otherwise not allowed. Drives the Edit *and* Delete button visibility together.
             var canEdit = (request.StatusTypeName == WithdrawalStatusNames.Draft
-                || request.StatusTypeName == WithdrawalStatusNames.ReturnedForRevision)
+                || request.StatusTypeName == WithdrawalStatusNames.ReturnedForRevision
+                || isStalePreSubmission)
                 && userRoleNames.Contains(RolePolicy.CbMaker);
 
             var rtgsEditableStatuses = new[]
@@ -509,7 +518,8 @@ namespace VMSService.Web.Controllers
                 WithdrawalStatusNames.PendingRTGSVerification,
             };
             var canEditRtgs = rtgsEditableStatuses.Contains(request.StatusTypeName)
-                && (userRoleNames.Contains(RolePolicy.CbApprover) || userRoleNames.Contains(RolePolicy.CbMaker));
+                && (userRoleNames.Contains(RolePolicy.CbApprover) || userRoleNames.Contains(RolePolicy.CbMaker))
+                && !isStalePreSubmission;
 
             // ── Status history ────────────────────────────────────────────────────
             var statusHistory = request.WithdrawalRequestStatusHistory
@@ -628,6 +638,11 @@ namespace VMSService.Web.Controllers
                 })
                 .ToList();
 
+            // Hard block: nothing but Edit/Delete while stuck stale pre-submission — RTGS entry
+            // is gated separately (canEditRtgs above), workflow transitions are cleared here.
+            if (isStalePreSubmission)
+                availableTransitions.Clear();
+
             // Override display labels based on the destination status.
             foreach (var t in availableTransitions)
             {
@@ -697,7 +712,7 @@ namespace VMSService.Web.Controllers
                     userRoleNames.Contains(RolePolicy.CbApprover) &&
                     request.StatusTypeName == WithdrawalStatusNames.PendingInternalApproval,
                 GracePeriodReason = gracePeriodReason,
-                IsStalePreSubmission = WithdrawalRequestRepository.IsStalePreSubmission(request.StatusTypeName, request.CollectionDate, DateOnly.FromDateTime(DateTime.Today)),
+                IsStalePreSubmission = isStalePreSubmission,
                 SubmissionDate = statusHistory
                     .Where(h => h.NewStatusName == WithdrawalStatusNames.PendingRTGSVerification
                              || h.NewStatusName == WithdrawalStatusNames.PendingWithdrawalConfirmation)
@@ -749,6 +764,12 @@ namespace VMSService.Web.Controllers
                 }
 
                 if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
+
+                if (IsStalePreSubmission(request))
+                {
+                    TempData["Error"] = "This request's collection date has passed. Update the collection date via Edit before taking any other action.";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
 
                 var username = User.FindFirst(ClaimTypes.Name)?.Value ?? "System";
                 var userRoles = User.FindAll("appRoleId")
@@ -896,6 +917,12 @@ namespace VMSService.Web.Controllers
 
             if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
 
+            if (IsStalePreSubmission(request))
+            {
+                TempData["Error"] = "This request's collection date has passed. Update the collection date via Edit before taking any other action.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
             request.RequiresSpecialApproval = true;
             request.SpecialApprovalReason   = reason.Trim();
             request.ModifiedDate            = DateTime.Now;
@@ -917,9 +944,11 @@ namespace VMSService.Web.Controllers
             if (request is null) return NotFound();
             if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
 
-            // Only allow delete in Draft or ReturnedForRevision
+            // Only allow delete in Draft or ReturnedForRevision — or, stuck stale pre-submission,
+            // same exception as Edit above.
             if (request.StatusTypeName != WithdrawalStatusNames.Draft
-                && request.StatusTypeName != WithdrawalStatusNames.ReturnedForRevision)
+                && request.StatusTypeName != WithdrawalStatusNames.ReturnedForRevision
+                && !IsStalePreSubmission(request))
             {
                 TempData["Error"] = "Only draft requests can be deleted.";
                 return RedirectToAction(nameof(Details), new { id });
@@ -944,6 +973,12 @@ namespace VMSService.Web.Controllers
             var request = await _uow.Requests.FindById(id);
             if (request is null) return NotFound();
             if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
+
+            if (IsStalePreSubmission(request))
+            {
+                TempData["Error"] = "This request's collection date has passed. Update the collection date via Edit before taking any other action.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
 
             var rtgsUpdateableStatuses = new[]
             {
@@ -1132,6 +1167,14 @@ namespace VMSService.Web.Controllers
         // Approver's exceptional-approval reason. Account-type check (cbId claim presence), not a
         // role check — see VMSService.Core.Extensions.ClaimsPrincipalExtensions.IsCbUser.
         private bool IsCbUser() => User.IsCbUser();
+
+        // Stuck pre-submission (Draft/Pending Internal Approval/Returned for Internal Revision)
+        // with a collection date that's already passed. A hard block, not an auto-expiry: the
+        // record just sits inert until the CB Maker fixes the date via Edit — every other action,
+        // for both CB Maker and CB Approver, is rejected while this is true.
+        private static bool IsStalePreSubmission(WithdrawalRequest request)
+            => WithdrawalRequestRepository.IsStalePreSubmission(
+                request.StatusTypeName, request.CollectionDate, DateOnly.FromDateTime(DateTime.Today));
 
         private static readonly TimeZoneInfo EatZone = TimeZoneInfo.FindSystemTimeZoneById("E. Africa Standard Time");
 

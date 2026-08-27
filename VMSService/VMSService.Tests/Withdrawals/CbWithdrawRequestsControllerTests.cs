@@ -51,6 +51,10 @@ public class CbWithdrawRequestsControllerTests
             RtgsVerificationStatus = rtgsVerificationStatus,
             IsLumpSum = true, // sidesteps the unrelated denomination-copy branch entirely
             TotalAmount = 10_000_000m,
+            // A future date — irrelevant to what this file tests, but the request is otherwise a
+            // stale pre-submission request (PendingInternalApproval + default/past CollectionDate),
+            // which ExecuteAction now hard-blocks unconditionally.
+            CollectionDate = DateOnly.FromDateTime(DateTime.Today.AddDays(5)),
         };
 
     private static (CbWithdrawRequestsController Controller, WithdrawalRequest Request, List<WithdrawalRequestStatusHistory> History) BuildController(
