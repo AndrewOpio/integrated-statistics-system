@@ -54,8 +54,10 @@ public class WithdrawalRequestsControllerTests
             CreatedDate = DateTime.Now,
         };
 
-    private static WithdrawalRequestsController BuildController(List<WithdrawalRequest> allRequests)
+    private static WithdrawalRequestsController BuildController(List<WithdrawalRequest> allRequests, params string[] roles)
     {
+        if (roles.Length == 0) roles = [Roles.RemittancesOfficer];
+
         var repo = new Mock<IWithdrawalRequestRepository>();
 
         repo.Setup(r => r.GetActiveAsync(It.IsAny<DateOnly>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -114,10 +116,8 @@ public class WithdrawalRequestsControllerTests
             {
                 HttpContext = new DefaultHttpContext
                 {
-                    // Remittance Officer: canViewAllLocations = true, sidesteps the (separately
-                    // tracked, ticket 16) fragile substring branch/role matching entirely.
                     User = new ClaimsPrincipal(new ClaimsIdentity(
-                        [new Claim(ClaimType.AppRole, $"{SystemSettings.AppAcronym}:{Roles.RemittancesOfficer}")])),
+                        roles.Select(r => new Claim(ClaimType.AppRole, $"{SystemSettings.AppAcronym}:{r}")))),
                 },
             },
         };
@@ -210,6 +210,38 @@ public class WithdrawalRequestsControllerTests
         var row = Assert.Single(vm.Requests);
         Assert.Equal("KLA", row.BouBranchCode);
         Assert.Equal(5_000_000m, vm.TotalProcessed);
+    }
+
+    [Fact]
+    public async Task Index_Back_Office_Sees_All_Branches_Via_CanViewAllLocations()
+    {
+        var controller = BuildController([
+            NewRequest(WithdrawalStatusNames.PendingApproval, bouBranchCode: "KLA"),
+            NewRequest(WithdrawalStatusNames.PendingApproval, bouBranchCode: "MBL"),
+        ], Roles.BackOffice);
+
+        var view = Assert.IsType<ViewResult>(await controller.Index());
+        var vm = Assert.IsType<BouWithdrawalRequestViewModel>(view.Model);
+
+        Assert.Equal(2, vm.Requests.Count());
+    }
+
+    [Fact]
+    public async Task Index_Panel_A_User_Is_Scoped_To_Their_Own_Branch_Role()
+    {
+        // BM/ABM users carry a branch-named role (e.g. "Kampala Branch") alongside their panel
+        // role — confirmed against IdentityDB (ticket 16) — rather than a substring collision
+        // between the role name and the branch name.
+        var controller = BuildController([
+            NewRequest(WithdrawalStatusNames.PendingApproval, bouBranchCode: "KLA"),
+            NewRequest(WithdrawalStatusNames.PendingApproval, bouBranchCode: "MBL"),
+        ], Roles.PanelA, "Kampala Branch");
+
+        var view = Assert.IsType<ViewResult>(await controller.Index());
+        var vm = Assert.IsType<BouWithdrawalRequestViewModel>(view.Model);
+
+        var row = Assert.Single(vm.Requests);
+        Assert.Equal("KLA", row.BouBranchCode);
     }
 
     [Fact]

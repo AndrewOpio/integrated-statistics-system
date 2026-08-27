@@ -61,23 +61,25 @@ namespace VMSService.Web.Controllers
     {
         /// <summary>Resolves which BOU branches this user may see and which branch is currently
         /// selected — shared by <see cref="Index"/> and <see cref="History"/> so both apply the
-        /// exact same visibility rule. (canViewAllLocations's Back-Office gap and the fragile
-        /// substring branch-matching are ticket 16's territory — unchanged here.)</summary>
+        /// exact same visibility rule.</summary>
         private (bool CanViewAllLocations, List<BranchDto> UserBranches, string? BranchCode) ResolveBranchScope(
             string? branchCode, IEnumerable<BranchDto> allBouBranches)
         {
-            var userRoles = User.FindAll(ClaimType.AppRole)
-                .Where(c => c.Value.StartsWith($"{SystemSettings.AppAcronym}:"))
-                .Select(c => c.Value.Split(":")[1])
-                .ToList();
+            var userRoles = User.GetAppRoleNames();
 
-            bool canViewAllLocations = userRoles.Contains(Roles.RemittancesOfficer);
+            bool canViewAllLocations = userRoles.Contains(Roles.RemittancesOfficer) || userRoles.Contains(Roles.BackOffice);
 
+            // A Panel A/Panel B (BM/ABM) user is separately assigned a role named after their
+            // branch — e.g. "Kampala Branch" — alongside their panel role. Confirmed directly
+            // against IdentityDB (ticket 16): every Panel A/B user holds exactly one such role,
+            // and its name is always "{branch.Name} Branch". This isn't in RolePolicy's catalog
+            // (ticket 34 flagged these as unaccounted-for roles) since it's a per-branch variant,
+            // not a fixed role name.
             var userBranches = canViewAllLocations
                 ? allBouBranches.ToList()
-                : allBouBranches.Where(branch => userRoles.Any(role => role.Contains(branch.Name))).ToList();
+                : allBouBranches.Where(branch => userRoles.Contains($"{branch.Name} Branch")).ToList();
 
-            // For non-RemittancesOfficer, lock to their branch
+            // For users without full cross-branch visibility, lock to their own branch
             if (!canViewAllLocations)
             {
                 if (string.IsNullOrEmpty(branchCode) || !userBranches.Any(b => b.BranchCode == branchCode))
