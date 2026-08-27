@@ -38,6 +38,10 @@ namespace VMSService.Core.Models.WithdrawalRequests
         public BranchViewModel UserBranch { get; set; } = new();
         public IEnumerable<BranchDto> BouBranches { get; set; } = new List<BranchDto>();
 
+        // History's date-range filter — set only on History, unused on Index. No floor: BOU is
+        // the authoritative side and can pull any period (unlike the CB-facing equivalent).
+        public DateRangeFilterViewModel? DateRange { get; set; }
+
         public IEnumerable<RecentRequestRowViewModel> Requests { get; set; } = [];
     }
 }

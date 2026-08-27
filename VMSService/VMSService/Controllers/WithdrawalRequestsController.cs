@@ -200,14 +200,16 @@ namespace VMSService.Web.Controllers
             return View(vm);
         }
 
-        /// <summary>Terminal, past-collection-date requests excluded from the main list — bounded
-        /// to the last 12 months back from today. Same branch-scoping rules as <see cref="Index"/>.</summary>
-        public async Task<IActionResult> History(string? branchCode = null)
+        /// <summary>Terminal, past-collection-date requests excluded from the main list —
+        /// caller-selected date range, defaulting to the last 7 days. Unlike the CB-facing
+        /// equivalent, BOU is the authoritative side and the range carries no floor: BOU can pull
+        /// any period. Same branch-scoping rules as <see cref="Index"/>.</summary>
+        public async Task<IActionResult> History(string? branchCode = null, DateOnly? from = null, DateOnly? to = null)
         {
             if (!IsWithdrawalBouRole()) return Forbid();
 
             var today = DateOnly.FromDateTime(DateTime.Today);
-            var since = today.AddMonths(-12);
+            var range = DateRangeFilterViewModel.Resolve(today, from, to);
 
             var allCbs = await _configServiceClient.GetAllCommercialBankAsync();
             var cbMap = allCbs.ToDictionary(s => s.Id, s => s.Name);
@@ -219,7 +221,7 @@ namespace VMSService.Web.Controllers
             if (notAttachedToBranch)
                 return View(new BouWithdrawalRequestViewModel { NotAttachedToBranch = true });
 
-            var history = await _withdrawalRequestRepo.GetHistoryAsync(today, since, branchCode);
+            var history = await _withdrawalRequestRepo.GetHistoryAsync(today, range.From, range.To, branchCode);
 
             var rows = history
                 .Select(r => MapRow(r, cbMap, today, withBouOrigin: []))
@@ -232,6 +234,7 @@ namespace VMSService.Web.Controllers
                 BouBranches = userBranches,
                 SelectedBranch = branchCode,
                 CanViewAllLocations = canViewAllLocations,
+                DateRange = range,
             });
         }
 

@@ -7,7 +7,7 @@
 <div class="mb-3 d-flex align-items-center justify-content-between">
     <div>
         <h5 class="fw-bold mb-0">Withdrawal Request History</h5>
-        <p class="text-muted small mb-0">Closed-out requests from the last 12 months. Older than that? Ask the CB directly.</p>
+        <p class="text-muted small mb-0">Closed-out requests for the selected period.</p>
     </div>
     <a asp-action="Index" class="text-primary small text-decoration-none">
         <i class="bi bi-arrow-left"></i> Back to Requests
@@ -25,7 +25,7 @@
     @if (Model.CanViewAllLocations)
     {
         <div class="position-relative pill-wrap">
-            <a href="@Url.Action("History")"
+            <a href="@Url.Action("History", new { from = Model.DateRange?.From, to = Model.DateRange?.To })"
                class="location-pill @(Model.SelectedBranch == null ? "active" : "")"
                title="All locations">
                 ALL
@@ -37,7 +37,7 @@
     @foreach (var branch in Model.BouBranches)
     {
         <div class="position-relative pill-wrap">
-            <a href="@Url.Action("History", new { branchCode = branch.BranchCode })"
+            <a href="@Url.Action("History", new { branchCode = branch.BranchCode, from = Model.DateRange?.From, to = Model.DateRange?.To })"
                class="location-pill @(Model.SelectedBranch == branch.BranchCode ? "active" : "")"
                title="@branch.Name">
                 @branch.BranchCode
@@ -46,6 +46,12 @@
         </div>
     }
 </div>
+
+@* ── Date Range Filter ── *@
+<form asp-action="History" method="get" class="d-flex align-items-end gap-2 flex-wrap mb-3">
+    <input type="hidden" name="branchCode" value="@Model.SelectedBranch" />
+    @await Html.PartialAsync("~/Views/Shared/_Withdrawal/_DateRangeFilter.cshtml", Model.DateRange)
+</form>
 
 @* ── History Table ── *@
 <div class="card border-0 shadow-sm">
@@ -58,7 +64,7 @@
         @if (!Model.Requests.Any())
         {
             <div class="text-muted small">
-                <i class="ti ti-inbox me-1"></i>No closed-out requests in the last 12 months.
+                <i class="ti ti-inbox me-1"></i>No closed-out requests in the selected period.
             </div>
         }
         else

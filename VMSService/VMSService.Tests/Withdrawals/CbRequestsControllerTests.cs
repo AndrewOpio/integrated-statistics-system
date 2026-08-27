@@ -53,12 +53,13 @@ public class CbRequestsControllerTests
                     && !(WithdrawalStatusNames.TerminalStatuses.Contains(r.StatusTypeName) && r.CollectionDate < today)));
 
         withdrawalRepo
-            .Setup(r => r.GetHistoryByCbAsync(It.IsAny<int>(), It.IsAny<DateOnly>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((int cbId, DateOnly today, DateOnly since, CancellationToken _) =>
+            .Setup(r => r.GetHistoryByCbAsync(It.IsAny<int>(), It.IsAny<DateOnly>(), It.IsAny<DateOnly>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int cbId, DateOnly today, DateOnly from, DateOnly to, CancellationToken _) =>
                 withdrawalRequests.Where(r => r.CbId == cbId
                     && WithdrawalStatusNames.TerminalStatuses.Contains(r.StatusTypeName)
                     && r.CollectionDate < today
-                    && r.CollectionDate >= since));
+                    && r.CollectionDate >= from
+                    && r.CollectionDate <= to));
 
         uow.Setup(u => u.Requests).Returns(withdrawalRepo.Object);
 
@@ -241,9 +242,45 @@ public class CbRequestsControllerTests
         };
         var controller = BuildController(requests, statusNamesById: statusNames);
 
-        var view = Assert.IsType<ViewResult>(await controller.History(CancellationToken.None));
-        var rows = Assert.IsType<List<RecentRequestRowViewModel>>(view.Model);
+        var view = Assert.IsType<ViewResult>(await controller.History(ct: CancellationToken.None));
+        var vm = Assert.IsType<CbRequestHistoryViewModel>(view.Model);
 
-        Assert.Single(rows);
+        Assert.Single(vm.Rows);
+    }
+
+    [Fact]
+    public async Task History_Defaults_To_The_Last_Week_When_No_Range_Given()
+    {
+        var requests = new List<WithdrawalRequest>
+        {
+            NewRequest(1, WithdrawalStatusNames.Approved, LastWeek),           // within default range
+            NewRequest(2, WithdrawalStatusNames.Approved, Today.AddDays(-10)), // outside default range
+        };
+        var statusNames = new Dictionary<int, string>
+        {
+            [1] = WithdrawalStatusNames.Approved,
+            [2] = WithdrawalStatusNames.Approved,
+        };
+        var controller = BuildController(requests, statusNamesById: statusNames);
+
+        var view = Assert.IsType<ViewResult>(await controller.History(ct: CancellationToken.None));
+        var vm = Assert.IsType<CbRequestHistoryViewModel>(view.Model);
+
+        var row = Assert.Single(vm.Rows);
+        Assert.Equal(LastWeek, row.CollectionDate);
+        Assert.Equal(Today.AddDays(-7), vm.DateRange.From);
+        Assert.Equal(Today, vm.DateRange.To);
+    }
+
+    [Fact]
+    public async Task History_Clamps_An_Explicit_From_Date_To_One_Year_Back()
+    {
+        var requests = new List<WithdrawalRequest>();
+        var controller = BuildController(requests);
+
+        var view = Assert.IsType<ViewResult>(await controller.History(from: Today.AddYears(-5), ct: CancellationToken.None));
+        var vm = Assert.IsType<CbRequestHistoryViewModel>(view.Model);
+
+        Assert.Equal(Today.AddYears(-1), vm.DateRange.From);
     }
 }

@@ -93,13 +93,14 @@ namespace VMSService.Core.Repositories.WithdrawalRequests
             .OrderByDescending(r => r.CreatedDate)
             .ToListAsync(ct);
 
-        public async Task<IEnumerable<WithdrawalRequest>> GetHistoryByCbAsync(int cbId, DateOnly today, DateOnly since, CancellationToken ct = default)
+        public async Task<IEnumerable<WithdrawalRequest>> GetHistoryByCbAsync(int cbId, DateOnly today, DateOnly from, DateOnly to, CancellationToken ct = default)
         => await _db.WithdrawalRequests
             .Where(r => r.CbId == cbId
                      && !r.IsDeleted
                      && WithdrawalStatusNames.TerminalStatuses.Contains(r.StatusTypeName)
                      && r.CollectionDate < today
-                     && r.CollectionDate >= since)
+                     && r.CollectionDate >= from
+                     && r.CollectionDate <= to)
             .OrderByDescending(r => r.CollectionDate)
             .ToListAsync(ct);
 
@@ -110,12 +111,13 @@ namespace VMSService.Core.Repositories.WithdrawalRequests
                      && (string.IsNullOrEmpty(bouBranchCode) || r.BouBranchCode == bouBranchCode))
             .ToListAsync(ct);
 
-        public async Task<IEnumerable<WithdrawalRequest>> GetHistoryAsync(DateOnly today, DateOnly since, string? bouBranchCode = null, CancellationToken ct = default)
+        public async Task<IEnumerable<WithdrawalRequest>> GetHistoryAsync(DateOnly today, DateOnly from, DateOnly to, string? bouBranchCode = null, CancellationToken ct = default)
         => await _db.WithdrawalRequests
             .Where(r => !r.IsDeleted
                      && WithdrawalStatusNames.TerminalStatuses.Contains(r.StatusTypeName)
                      && r.CollectionDate < today
-                     && r.CollectionDate >= since
+                     && r.CollectionDate >= from
+                     && r.CollectionDate <= to
                      && (string.IsNullOrEmpty(bouBranchCode) || r.BouBranchCode == bouBranchCode))
             .OrderByDescending(r => r.CollectionDate)
             .ToListAsync(ct);

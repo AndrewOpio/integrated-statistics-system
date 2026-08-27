@@ -3,6 +3,7 @@ using NotificationService.Client;
 using NotificationService.Client.Dtos;
 using VMSService.Core.Extensions;
 using VMSService.Core.Models.CbRequests;
+using VMSService.Core.Models.WithdrawalRequests;
 using VMSService.Core.Repositories.DepositUnitOfWorks;
 using VMSService.Core.Repositories.WithdrawalRequests;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
@@ -145,8 +146,10 @@ public class CbRequestsController(
     }
 
     /// <summary>Terminal, past-collection-date withdrawal requests excluded from the main list —
-    /// bounded to the last 12 months back from today; older than that, the CB asks BOU directly.</summary>
-    public async Task<IActionResult> History(CancellationToken ct)
+    /// caller-selected date range, defaulting to the last 7 days. Unlike BOU, the CB side's
+    /// range is floored to 1 year back — older than that, the CB asks BOU directly, since only
+    /// BOU has unbounded history.</summary>
+    public async Task<IActionResult> History(DateOnly? from = null, DateOnly? to = null, CancellationToken ct = default)
     {
         if (!User.IsCbUser()) return Forbid();
 
@@ -154,12 +157,16 @@ public class CbRequestsController(
             .FirstOrDefault(c => c.Type == "cbId")?.Value, out var id) ? id : 0;
 
         var today = DateOnly.FromDateTime(DateTime.Today);
-        var since = today.AddMonths(-12);
+        var range = DateRangeFilterViewModel.Resolve(today, from, to, minFrom: today.AddYears(-1));
 
-        var requests = await _uow.Requests.GetHistoryByCbAsync(cbId, today, since, ct);
+        var requests = await _uow.Requests.GetHistoryByCbAsync(cbId, today, range.From, range.To, ct);
 
         var rows = await Task.WhenAll(requests.Select(r => MapWithdrawalRow(r, today)));
 
-        return View(rows.OrderByDescending(r => r.CollectionDate).ToList());
+        return View(new CbRequestHistoryViewModel
+        {
+            Rows = [.. rows.OrderByDescending(r => r.CollectionDate)],
+            DateRange = range,
+        });
     }
 }

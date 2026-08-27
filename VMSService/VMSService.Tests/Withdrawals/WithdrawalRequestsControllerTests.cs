@@ -65,11 +65,12 @@ public class WithdrawalRequestsControllerTests
                 allRequests.Where(r => !(WithdrawalStatusNames.TerminalStatuses.Contains(r.StatusTypeName) && r.CollectionDate < today)
                                      && (string.IsNullOrEmpty(branch) || r.BouBranchCode == branch)));
 
-        repo.Setup(r => r.GetHistoryAsync(It.IsAny<DateOnly>(), It.IsAny<DateOnly>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((DateOnly today, DateOnly since, string? branch, CancellationToken _) =>
+        repo.Setup(r => r.GetHistoryAsync(It.IsAny<DateOnly>(), It.IsAny<DateOnly>(), It.IsAny<DateOnly>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((DateOnly today, DateOnly from, DateOnly to, string? branch, CancellationToken _) =>
                 allRequests.Where(r => WithdrawalStatusNames.TerminalStatuses.Contains(r.StatusTypeName)
                                      && r.CollectionDate < today
-                                     && r.CollectionDate >= since
+                                     && r.CollectionDate >= from
+                                     && r.CollectionDate <= to
                                      && (string.IsNullOrEmpty(branch) || r.BouBranchCode == branch)));
 
         repo.Setup(r => r.SumApprovedAmountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -278,13 +279,13 @@ public class WithdrawalRequestsControllerTests
     }
 
     [Fact]
-    public async Task History_Returns_Only_Terminal_Past_Requests_Within_The_Lookback_Window()
+    public async Task History_Defaults_To_The_Last_Week_When_No_Range_Given()
     {
         var controller = BuildController([
-            NewRequest(WithdrawalStatusNames.Approved, LastWeek),           // in history
+            NewRequest(WithdrawalStatusNames.Approved, LastWeek),           // in the default range
             NewRequest(WithdrawalStatusNames.Approved, Today),              // still active
             NewRequest(WithdrawalStatusNames.Rejected, LastWeek),           // not terminal
-            NewRequest(WithdrawalStatusNames.Approved, ThirteenMonthsAgo),  // older than 12 months
+            NewRequest(WithdrawalStatusNames.Approved, ThirteenMonthsAgo),  // outside the default 1-week range
         ]);
 
         var view = Assert.IsType<ViewResult>(await controller.History());
@@ -292,5 +293,42 @@ public class WithdrawalRequestsControllerTests
 
         var row = Assert.Single(vm.Requests);
         Assert.Equal(LastWeek, row.CollectionDate);
+        Assert.NotNull(vm.DateRange);
+        Assert.Equal(Today.AddDays(-7), vm.DateRange.From);
+        Assert.Equal(Today, vm.DateRange.To);
+    }
+
+    [Fact]
+    public async Task History_Has_No_Floor_On_From_Unlike_The_CB_Side()
+    {
+        // BOU is the authoritative side — an explicit range reaching further back than a year
+        // (which the CB side would clamp) must be honored as-is.
+        var controller = BuildController([
+            NewRequest(WithdrawalStatusNames.Approved, ThirteenMonthsAgo),
+        ]);
+
+        var view = Assert.IsType<ViewResult>(await controller.History(from: ThirteenMonthsAgo, to: Today));
+        var vm = Assert.IsType<BouWithdrawalRequestViewModel>(view.Model);
+
+        Assert.Single(vm.Requests);
+        Assert.NotNull(vm.DateRange);
+        Assert.Equal(ThirteenMonthsAgo, vm.DateRange.From);
+    }
+
+    [Fact]
+    public async Task History_Date_Range_Composes_With_Branch_Scoping()
+    {
+        // A Panel A user narrowing the date range must still only see their own branch's rows —
+        // the date filter and branch scoping are independent dimensions.
+        var controller = BuildController([
+            NewRequest(WithdrawalStatusNames.Approved, LastWeek, bouBranchCode: "KLA"),
+            NewRequest(WithdrawalStatusNames.Approved, LastWeek, bouBranchCode: "MBL"),
+        ], Roles.PanelA, "Kampala Branch");
+
+        var view = Assert.IsType<ViewResult>(await controller.History(from: LastWeek, to: Today));
+        var vm = Assert.IsType<BouWithdrawalRequestViewModel>(view.Model);
+
+        var row = Assert.Single(vm.Requests);
+        Assert.Equal("KLA", row.BouBranchCode);
     }
 }

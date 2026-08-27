@@ -1,5 +1,5 @@
 @using System.Security.Claims
-@model List<VMSService.Core.Models.CbRequests.RecentRequestRowViewModel>
+@model VMSService.Core.Models.CbRequests.CbRequestHistoryViewModel
 
 @{
     Layout = "_CbLayout";
@@ -33,7 +33,7 @@
     <div>
         <h5 class="mb-1">Request History</h5>
         <p class="text-muted small mb-0">
-            Closed-out withdrawal requests from the last 12 months. Older than that? Ask BOU directly.
+            Closed-out withdrawal requests for the selected period, up to 1 year back. Older than that? Ask BOU directly.
         </p>
     </div>
     <a asp-controller="CbRequests" asp-action="Index" class="text-primary small text-decoration-none">
@@ -41,10 +41,14 @@
     </a>
 </div>
 
-@if (!Model.Any())
+<form asp-action="History" method="get" class="d-flex align-items-end gap-2 flex-wrap mb-3">
+    @await Html.PartialAsync("~/Views/Shared/_Withdrawal/_DateRangeFilter.cshtml", Model.DateRange)
+</form>
+
+@if (!Model.Rows.Any())
 {
     <div class="text-muted small">
-        <i class="ti ti-inbox me-1"></i>No closed-out requests in the last 12 months.
+        <i class="ti ti-inbox me-1"></i>No closed-out requests in the selected period.
     </div>
 }
 else
@@ -63,7 +67,7 @@ else
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var r in Model)
+                        @foreach (var r in Model.Rows)
                         {
                             <tr>
                                 <td>@(string.IsNullOrEmpty(r.TransactionRefNumber) ? "-" : r.TransactionRefNumber)</td>

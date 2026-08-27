@@ -163,7 +163,7 @@ public class WithdrawalRequestRepositoryLandingPageTests
         await db.SaveChangesAsync();
 
         var repo = new WithdrawalRequestRepository(db);
-        var result = await repo.GetHistoryByCbAsync(cbId: 1, today: Today, since: TwelveMonthsAgo);
+        var result = await repo.GetHistoryByCbAsync(cbId: 1, today: Today, from: TwelveMonthsAgo, to: Today);
 
         Assert.Single(result);
     }
@@ -177,7 +177,7 @@ public class WithdrawalRequestRepositoryLandingPageTests
         await db.SaveChangesAsync();
 
         var repo = new WithdrawalRequestRepository(db);
-        var result = await repo.GetHistoryByCbAsync(cbId: 1, today: Today, since: TwelveMonthsAgo);
+        var result = await repo.GetHistoryByCbAsync(cbId: 1, today: Today, from: TwelveMonthsAgo, to: Today);
 
         Assert.Empty(result);
     }
@@ -190,7 +190,7 @@ public class WithdrawalRequestRepositoryLandingPageTests
         await db.SaveChangesAsync();
 
         var repo = new WithdrawalRequestRepository(db);
-        var result = await repo.GetHistoryByCbAsync(cbId: 1, today: Today, since: TwelveMonthsAgo);
+        var result = await repo.GetHistoryByCbAsync(cbId: 1, today: Today, from: TwelveMonthsAgo, to: Today);
 
         Assert.Empty(result);
     }
@@ -204,7 +204,7 @@ public class WithdrawalRequestRepositoryLandingPageTests
         await db.SaveChangesAsync();
 
         var repo = new WithdrawalRequestRepository(db);
-        var result = await repo.GetHistoryByCbAsync(cbId: 1, today: Today, since: TwelveMonthsAgo);
+        var result = await repo.GetHistoryByCbAsync(cbId: 1, today: Today, from: TwelveMonthsAgo, to: Today);
 
         Assert.Empty(result);
     }
@@ -218,7 +218,22 @@ public class WithdrawalRequestRepositoryLandingPageTests
         await db.SaveChangesAsync();
 
         var repo = new WithdrawalRequestRepository(db);
-        var result = await repo.GetHistoryByCbAsync(cbId: 1, today: Today, since: TwelveMonthsAgo);
+        var result = await repo.GetHistoryByCbAsync(cbId: 1, today: Today, from: TwelveMonthsAgo, to: Today);
+
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task GetHistoryByCbAsync_Excludes_Requests_After_The_Selected_To_Date()
+    {
+        // Two-sided date-range filter (BOU/CB History redesign) — a request inside the "from"
+        // floor but after the caller's chosen "to" ceiling must still be excluded.
+        using var db = NewContext();
+        db.WithdrawalRequests.Add(NewRequest(statusName: WithdrawalStatusNames.Approved, collectionDate: LastWeek));
+        await db.SaveChangesAsync();
+
+        var repo = new WithdrawalRequestRepository(db);
+        var result = await repo.GetHistoryByCbAsync(cbId: 1, today: Today, from: TwelveMonthsAgo, to: LastWeek.AddDays(-1));
 
         Assert.Empty(result);
     }
@@ -279,11 +294,39 @@ public class WithdrawalRequestRepositoryLandingPageTests
         await db.SaveChangesAsync();
 
         var repo = new WithdrawalRequestRepository(db);
-        var result = await repo.GetHistoryAsync(today: Today, since: TwelveMonthsAgo, bouBranchCode: "KLA");
+        var result = await repo.GetHistoryAsync(today: Today, from: TwelveMonthsAgo, to: Today, bouBranchCode: "KLA");
 
         var r = Assert.Single(result);
         Assert.Equal("KLA", r.BouBranchCode);
         Assert.Equal(LastWeek, r.CollectionDate);
+    }
+
+    [Fact]
+    public async Task GetHistoryAsync_Has_No_Floor_On_From_Unlike_The_CB_Side()
+    {
+        // BOU is the authoritative side — its History query itself imposes no lower bound;
+        // any floor (e.g. the CB side's 1-year clamp) is the controller's decision, not the repo's.
+        using var db = NewContext();
+        db.WithdrawalRequests.Add(NewRequest(statusName: WithdrawalStatusNames.Approved, collectionDate: ThirteenMonthsAgo));
+        await db.SaveChangesAsync();
+
+        var repo = new WithdrawalRequestRepository(db);
+        var result = await repo.GetHistoryAsync(today: Today, from: ThirteenMonthsAgo, to: Today);
+
+        Assert.Single(result);
+    }
+
+    [Fact]
+    public async Task GetHistoryAsync_Excludes_Requests_After_The_Selected_To_Date()
+    {
+        using var db = NewContext();
+        db.WithdrawalRequests.Add(NewRequest(statusName: WithdrawalStatusNames.Approved, collectionDate: LastWeek));
+        await db.SaveChangesAsync();
+
+        var repo = new WithdrawalRequestRepository(db);
+        var result = await repo.GetHistoryAsync(today: Today, from: TwelveMonthsAgo, to: LastWeek.AddDays(-1));
+
+        Assert.Empty(result);
     }
 
     // ── SumApprovedAmountAsync ───────────────────────────────────────────────

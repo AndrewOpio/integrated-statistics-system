@@ -24,16 +24,19 @@ namespace VMSService.Core.Repositories.WithdrawalRequests
         Task<IEnumerable<WithdrawalRequest>> GetActiveByCbAsync(int cbId, DateOnly today, CancellationToken ct = default);
 
         /// <summary>CB History view: this CB's non-deleted requests that are both terminal and past
-        /// their collection date, bounded to <paramref name="since"/> (12 months back from today) —
-        /// older than that, the CB asks BOU directly.</summary>
-        Task<IEnumerable<WithdrawalRequest>> GetHistoryByCbAsync(int cbId, DateOnly today, DateOnly since, CancellationToken ct = default);
+        /// their collection date, within the caller-selected <paramref name="from"/>/<paramref name="to"/>
+        /// range. The controller clamps <paramref name="from"/> to no earlier than 1 year back —
+        /// older than that, the CB asks BOU directly, since only BOU has unbounded history.</summary>
+        Task<IEnumerable<WithdrawalRequest>> GetHistoryByCbAsync(int cbId, DateOnly today, DateOnly from, DateOnly to, CancellationToken ct = default);
 
         /// <summary>BOU landing-page main list — same terminal-and-past exclusion as the CB side,
         /// optionally scoped to one BOU branch (null/empty means every branch).</summary>
         Task<IEnumerable<WithdrawalRequest>> GetActiveAsync(DateOnly today, string? bouBranchCode = null, CancellationToken ct = default);
 
-        /// <summary>BOU History view — mirrors <see cref="GetHistoryByCbAsync"/>, optionally branch-scoped.</summary>
-        Task<IEnumerable<WithdrawalRequest>> GetHistoryAsync(DateOnly today, DateOnly since, string? bouBranchCode = null, CancellationToken ct = default);
+        /// <summary>BOU History view — mirrors <see cref="GetHistoryByCbAsync"/>, optionally
+        /// branch-scoped. Unlike the CB side, BOU's <paramref name="from"/> carries no floor —
+        /// BOU is the authoritative side and can pull any period.</summary>
+        Task<IEnumerable<WithdrawalRequest>> GetHistoryAsync(DateOnly today, DateOnly from, DateOnly to, string? bouBranchCode = null, CancellationToken ct = default);
 
         /// <summary>Lifetime sum of Approved requests' TotalAmount — deliberately unaffected by the
         /// active/history split, since "Total Processed" is a running total, not a recent-activity
