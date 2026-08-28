@@ -109,15 +109,19 @@ public class CbWithdrawRequestsControllerDetailsTests
         return controller;
     }
 
-    private static WithdrawalRequest NewRequest(bool fundsNotIssued) => new()
+    private static WithdrawalRequest NewRequest(
+        bool fundsNotIssued = false,
+        bool requiresSpecialApproval = false,
+        DateOnly? collectionDate = null) => new()
     {
         Id = Guid.NewGuid(),
         StatusTypeId = 5,
         StatusTypeName = WithdrawalStatusNames.Approved,
-        CollectionDate = DateOnly.FromDateTime(DateTime.Today),
+        CollectionDate = collectionDate ?? DateOnly.FromDateTime(DateTime.Today),
         TransactionRefNumber = null, // skips the applied-penalties branch, irrelevant here
         TotalAmount = 10_000_000m,
         FundsNotIssued = fundsNotIssued,
+        RequiresSpecialApproval = requiresSpecialApproval,
     };
 
     [Fact]
@@ -142,5 +146,50 @@ public class CbWithdrawRequestsControllerDetailsTests
         var vm = Assert.IsType<WithdrawalRequestDetailsViewModel>(view.Model);
 
         Assert.False(vm.FundsNotIssued);
+    }
+
+    // The CB Details view's static "Exceptional Approval Required" badge (Details.cshtml) reads
+    // Model.RequiresSpecialApproval directly and unconditionally — these lock down that the flag
+    // flows unchanged from the entity into the view model, and that it's independent of the live
+    // grace-period indicator (GracePeriodReason), which is computed separately from
+    // CollectionDate/day-before-holiday and only ever applies on same-day collection. A collection
+    // date a week out guarantees no grace period is active, isolating the static flag from the
+    // live one.
+    private static readonly DateOnly CollectionDateOutsideGracePeriod = DateOnly.FromDateTime(DateTime.Today).AddDays(7);
+
+    [Fact]
+    public async Task Details_Exceptional_Request_Has_RequiresSpecialApproval_True_On_ViewModel()
+    {
+        var request = NewRequest(requiresSpecialApproval: true, collectionDate: CollectionDateOutsideGracePeriod);
+        var controller = BuildController(request);
+
+        var view = Assert.IsType<ViewResult>(await controller.Details(request.Id, CancellationToken.None));
+        var vm = Assert.IsType<WithdrawalRequestDetailsViewModel>(view.Model);
+
+        Assert.True(vm.RequiresSpecialApproval);
+    }
+
+    [Fact]
+    public async Task Details_Standard_Request_Has_RequiresSpecialApproval_False_On_ViewModel()
+    {
+        var request = NewRequest(requiresSpecialApproval: false, collectionDate: CollectionDateOutsideGracePeriod);
+        var controller = BuildController(request);
+
+        var view = Assert.IsType<ViewResult>(await controller.Details(request.Id, CancellationToken.None));
+        var vm = Assert.IsType<WithdrawalRequestDetailsViewModel>(view.Model);
+
+        Assert.False(vm.RequiresSpecialApproval);
+    }
+
+    [Fact]
+    public async Task Details_Exceptional_Request_Does_Not_Set_GracePeriodReason()
+    {
+        var request = NewRequest(requiresSpecialApproval: true, collectionDate: CollectionDateOutsideGracePeriod);
+        var controller = BuildController(request);
+
+        var view = Assert.IsType<ViewResult>(await controller.Details(request.Id, CancellationToken.None));
+        var vm = Assert.IsType<WithdrawalRequestDetailsViewModel>(view.Model);
+
+        Assert.Null(vm.GracePeriodReason);
     }
 }
