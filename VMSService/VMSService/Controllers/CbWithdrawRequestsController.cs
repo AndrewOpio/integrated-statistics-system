@@ -613,6 +613,19 @@ namespace VMSService.Web.Controllers
                 })
                 .ToList();
 
+            // ── Same-day/exceptional grace-window inputs — computed early so both the
+            // transitions filter below and ShowSameDayMakerWarning can share one classification
+            // instead of re-deriving it (and re-fetching the same holiday) twice.
+            var dayBeforeHoliday = await _publicHolidayRepository.FindByDateAsync(request.CollectionDate.AddDays(-1));
+            var isDayBeforeHoliday = dayBeforeHoliday is not null;
+            var gracePeriodReason = GetGracePeriodReason(request.CollectionDate, dayBeforeHoliday);
+            var sameDayClassification = SubmissionClassifier.Classify(DateTime.UtcNow, request.CollectionDate, isDayBeforeHoliday);
+            // Same condition ExecuteAction's submit-time guard rejects on — without also hiding
+            // the button here, a Maker clicks Submit only to be bounced back with an error instead
+            // of being routed to Edit up front.
+            var submitBlockedBySameDayReason = sameDayClassification == SubmissionClassification.SameDayExceptional
+                && (!request.RequiresSpecialApproval || string.IsNullOrWhiteSpace(request.SpecialApprovalReason));
+
             // ── Available transitions (all user roles, filtered by special approval)
             var userRoleIds = GetUserRoles();
             var availableTransitions = new List<WorkflowTransitionDto>();
@@ -643,6 +656,10 @@ namespace VMSService.Web.Controllers
                     // Show the normal approval on the normal path, OR as a fallback when
                     // RequiresSpecialApproval is true but no dedicated exceptional transition exists.
                     var a when a == WithdrawalStatusActionNames.ApproveToRTGSVerification => !request.RequiresSpecialApproval || !hasExceptionalApprovalTransition,
+                    // Hide the submit itself when it would just bounce back with the same-day
+                    // reason error — send the Maker to Edit instead of a failed round trip.
+                    var a when a == WithdrawalStatusActionNames.SubmitForInternalApproval
+                        || a == WithdrawalStatusActionNames.ResubmitForApproval => !submitBlockedBySameDayReason,
                     _ => true,
                 })
                 .ToList();
@@ -662,11 +679,6 @@ namespace VMSService.Web.Controllers
                     _ => t.DisplayLabel,
                 };
             }
-
-            // ── Same-day/exceptional grace-window inputs ──────────────────────────
-            var dayBeforeHoliday = await _publicHolidayRepository.FindByDateAsync(request.CollectionDate.AddDays(-1));
-            var isDayBeforeHoliday = dayBeforeHoliday is not null;
-            var gracePeriodReason = GetGracePeriodReason(request.CollectionDate, dayBeforeHoliday);
 
             // ── Build ViewModel ───────────────────────────────────────────────────
             var vm = new WithdrawalRequestDetailsViewModel
@@ -710,8 +722,7 @@ namespace VMSService.Web.Controllers
                 //    SubmissionClassifier.Classify(DateTime.UtcNow, request.CollectionDate, isDayBeforeHoliday: false)
                 //        == SubmissionClassification.SameDayExceptional,
                 ShowSameDayMakerWarning = (userRoleNames.Contains(RolePolicy.CbMaker) || userRoleNames.Contains(RolePolicy.CbApprover)) &&
-                    SubmissionClassifier.Classify(DateTime.UtcNow, request.CollectionDate, isDayBeforeHoliday)
-                        == SubmissionClassification.SameDayExceptional,
+                    sameDayClassification == SubmissionClassification.SameDayExceptional,
                 CanEditSameDayReason = request.RequiresSpecialApproval &&
                     userRoleNames.Contains(RolePolicy.CbApprover) &&
                     request.StatusTypeName == WithdrawalStatusNames.PendingInternalApproval,
