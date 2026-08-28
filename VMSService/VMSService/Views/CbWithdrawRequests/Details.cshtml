@@ -930,29 +930,67 @@
                                     </div>
                                 </div>
                             }
+                            @* CB Maker same-day notice — shown whenever it's currently same-day,
+                               regardless of whether Submit is actually blocked below. *@
+                            @if (Model.ShowSameDayMakerWarning)
+                            {
+                                <div class="alert alert-warning d-flex align-items-start gap-2 py-2 mb-3">
+                                    <i class="ti ti-alert-triangle text-warning fs-5 flex-shrink-0 mt-1"></i>
+                                    <div>
+                                        <p class="fw-bold mb-1">Same-Day Collection</p>
+                                        <p class="mb-0 small">
+                                            The collection date is today. If this request is approved today, it will be
+                                            flagged as a same-day exceptional request.
+                                            @if (Model.CanEdit)
+                                            {
+                                                <span>Consider editing the request to select a future date if possible.</span>
+                                            }
+                                        </p>
+                                    </div>
+                                </div>
+                            }
+                            @{
+                                // Submit/Resubmit stays in Model.AvailableTransitions even when
+                                // blocked — removing it there would empty the list entirely for a
+                                // Draft with nothing else available, taking the banners above down
+                                // with it (they're gated on Any()). Filter what's offered here
+                                // instead, the same way the BOU Details page handles "dispatch not
+                                // ready yet": the transition survives, only what's rendered changes.
+                                var offeredTransitions = Model.SubmitBlockedBySameDayReason
+                                    ? Model.AvailableTransitions
+                                        .Where(t => t.ActionName != WithdrawalStatusActionNames.SubmitForInternalApproval
+                                            && t.ActionName != WithdrawalStatusActionNames.ResubmitForApproval)
+                                        .ToList()
+                                    : Model.AvailableTransitions.ToList();
+                            }
+                            @if (Model.SubmitBlockedBySameDayReason && !offeredTransitions.Any())
+                            {
+                                <div class="alert alert-danger d-flex align-items-start gap-2 py-2 mb-0">
+                                    <i class="ti ti-alert-triangle fs-5 flex-shrink-0 mt-1"></i>
+                                    <div>
+                                        <p class="fw-bold mb-1">Submission Blocked</p>
+                                        <p class="mb-0 small">
+                                            An exceptional approval reason is required for same-day collection requests
+                                            outside the grace period.
+                                            @if (Model.CanEdit)
+                                            {
+                                                <a asp-action="Edit" asp-route-id="@Model.Id">Edit the request</a>
+                                                <span>to add one before submitting.</span>
+                                            }
+                                            else
+                                            {
+                                                <span>Ask the CB Maker to add one via Edit before submitting.</span>
+                                            }
+                                        </p>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
                             <form method="post"
                                   asp-action="ExecuteAction"
                                   asp-route-id="@Model.Id"
                                   id="workflowForm">
-                                @* CB Maker same-day notice *@
-                                @if (Model.ShowSameDayMakerWarning)
-                                {
-                                    <div class="alert alert-warning d-flex align-items-start gap-2 py-2 mb-3">
-                                        <i class="ti ti-alert-triangle text-warning fs-5 flex-shrink-0 mt-1"></i>
-                                        <div>
-                                            <p class="fw-bold mb-1">Same-Day Collection</p>
-                                            <p class="mb-0 small">
-                                                The collection date is today. If this request is approved today, it will be
-                                                flagged as a same-day exceptional request.
-                                                @if (Model.CanEdit)
-                                                {
-                                                    <span>Consider editing the request to select a future date if possible.</span>
-                                                }
-                                            </p>
-                                        </div>
-                                    </div>
-                                }
-
                                 <div class="mb-3">
                                     <label class="form-label small text-uppercase text-muted fw-semibold">
                                         Comment <span id="commentRequired" class="text-danger" @(Model.ShowExceptionalApprovalWarning ? "" : "style=\"display:none;\"")>*</span>
@@ -967,9 +1005,9 @@
                                     <small id="commentHint" class="text-muted d-block mt-1"></small>
                                 </div>
 
-                                @if (Model.AvailableTransitions.Count == 1)
+                                @if (offeredTransitions.Count == 1)
                                 {
-                                    var t = Model.AvailableTransitions.First();
+                                    var t = offeredTransitions.First();
                                     <input name="actionName" id="soloActionName" value="@t.ActionName"
                                            data-requires-comments="@t.RequiresComments.ToString().ToLower()" hidden />
                                     <div class="d-grid gap-2">
@@ -987,7 +1025,7 @@
                                         </label>
                                         <select id="actionSelect" name="actionName" class="form-select form-select-sm" required>
                                             <option value="">— Choose an action —</option>
-                                            @foreach (var transition in Model.AvailableTransitions)
+                                            @foreach (var transition in offeredTransitions)
                                             {
                                                 <option value="@transition.ActionName"
                                                         data-requires-comments="@transition.RequiresComments.ToString().ToLower()"
@@ -1008,6 +1046,7 @@
 
                                 @Html.AntiForgeryToken()
                             </form>
+                            }
                         </div>
                     }
                 </div>

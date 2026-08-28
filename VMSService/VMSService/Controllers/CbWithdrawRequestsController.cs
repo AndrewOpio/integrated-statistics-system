@@ -620,9 +620,12 @@ namespace VMSService.Web.Controllers
             var isDayBeforeHoliday = dayBeforeHoliday is not null;
             var gracePeriodReason = GetGracePeriodReason(request.CollectionDate, dayBeforeHoliday);
             var sameDayClassification = SubmissionClassifier.Classify(DateTime.UtcNow, request.CollectionDate, isDayBeforeHoliday);
-            // Same condition ExecuteAction's submit-time guard rejects on — without also hiding
-            // the button here, a Maker clicks Submit only to be bounced back with an error instead
-            // of being routed to Edit up front.
+            // Same condition ExecuteAction's submit-time guard rejects on. Exposed on the
+            // ViewModel (SubmitBlockedBySameDayReason) rather than used to remove the transition
+            // from AvailableTransitions here — removing it emptied the list entirely for a Draft
+            // with nothing else available, which took the whole "Action Required" panel (and the
+            // ShowSameDayMakerWarning banner inside it) down with it. The view filters what it
+            // offers instead, the same way the BOU Details page handles "dispatch not ready yet."
             var submitBlockedBySameDayReason = sameDayClassification == SubmissionClassification.SameDayExceptional
                 && (!request.RequiresSpecialApproval || string.IsNullOrWhiteSpace(request.SpecialApprovalReason));
 
@@ -656,10 +659,6 @@ namespace VMSService.Web.Controllers
                     // Show the normal approval on the normal path, OR as a fallback when
                     // RequiresSpecialApproval is true but no dedicated exceptional transition exists.
                     var a when a == WithdrawalStatusActionNames.ApproveToRTGSVerification => !request.RequiresSpecialApproval || !hasExceptionalApprovalTransition,
-                    // Hide the submit itself when it would just bounce back with the same-day
-                    // reason error — send the Maker to Edit instead of a failed round trip.
-                    var a when a == WithdrawalStatusActionNames.SubmitForInternalApproval
-                        || a == WithdrawalStatusActionNames.ResubmitForApproval => !submitBlockedBySameDayReason,
                     _ => true,
                 })
                 .ToList();
@@ -723,6 +722,7 @@ namespace VMSService.Web.Controllers
                 //        == SubmissionClassification.SameDayExceptional,
                 ShowSameDayMakerWarning = (userRoleNames.Contains(RolePolicy.CbMaker) || userRoleNames.Contains(RolePolicy.CbApprover)) &&
                     sameDayClassification == SubmissionClassification.SameDayExceptional,
+                SubmitBlockedBySameDayReason = submitBlockedBySameDayReason,
                 CanEditSameDayReason = request.RequiresSpecialApproval &&
                     userRoleNames.Contains(RolePolicy.CbApprover) &&
                     request.StatusTypeName == WithdrawalStatusNames.PendingInternalApproval,

@@ -131,7 +131,7 @@ public class CbWithdrawRequestsControllerSameDayExceptionalTransitionVisibilityT
         [new WorkflowTransitionDto { ActionName = actionName, DisplayLabel = "Submit for Approval" }];
 
     [Fact]
-    public async Task Unflagged_Same_Day_Draft_Hides_SubmitForInternalApproval()
+    public async Task Unflagged_Same_Day_Draft_Flags_SubmitBlocked_But_Keeps_The_Transition()
     {
         var today = DateOnly.FromDateTime(DateTime.Today);
         var request = NewRequest(today, WithdrawalStatusNames.Draft, requiresSpecialApproval: false, reason: null);
@@ -140,17 +140,19 @@ public class CbWithdrawRequestsControllerSameDayExceptionalTransitionVisibilityT
         var view = Assert.IsType<ViewResult>(await controller.Details(request.Id, CancellationToken.None));
         var vm = Assert.IsType<WithdrawalRequestDetailsViewModel>(view.Model);
 
-        // Same-day-ness itself is time-of-day dependent (see the ExecuteAction tests) — but the
-        // presence/absence of the transition must always match whether the button would actually
-        // be rejected, which is exactly ShowSameDayMakerWarning's own condition.
-        if (vm.ShowSameDayMakerWarning && !request.RequiresSpecialApproval)
-            Assert.DoesNotContain(vm.AvailableTransitions, t => t.ActionName == WithdrawalStatusActionNames.SubmitForInternalApproval);
-        else
-            Assert.Contains(vm.AvailableTransitions, t => t.ActionName == WithdrawalStatusActionNames.SubmitForInternalApproval);
+        // Same-day-ness itself is time-of-day dependent (see the ExecuteAction tests), but
+        // SubmitBlockedBySameDayReason must always agree with ShowSameDayMakerWarning here — both
+        // derive from the same classification, just layered with a different extra condition. The
+        // transition itself must never be removed from AvailableTransitions (that emptied the
+        // list entirely and took ShowSameDayMakerWarning's own Any()-gated banner down with it —
+        // the actual bug this test guards against); the view is responsible for filtering what it
+        // offers, not the controller.
+        Assert.Contains(vm.AvailableTransitions, t => t.ActionName == WithdrawalStatusActionNames.SubmitForInternalApproval);
+        Assert.Equal(vm.ShowSameDayMakerWarning && !request.RequiresSpecialApproval, vm.SubmitBlockedBySameDayReason);
     }
 
     [Fact]
-    public async Task Properly_Flagged_Same_Day_Draft_Still_Shows_SubmitForInternalApproval()
+    public async Task Properly_Flagged_Same_Day_Draft_Is_Never_Blocked()
     {
         var today = DateOnly.FromDateTime(DateTime.Today);
         var request = NewRequest(today, WithdrawalStatusNames.Draft, requiresSpecialApproval: true, reason: "Urgent same-day withdrawal");
@@ -160,13 +162,14 @@ public class CbWithdrawRequestsControllerSameDayExceptionalTransitionVisibilityT
         var vm = Assert.IsType<WithdrawalRequestDetailsViewModel>(view.Model);
 
         Assert.Contains(vm.AvailableTransitions, t => t.ActionName == WithdrawalStatusActionNames.SubmitForInternalApproval);
+        Assert.False(vm.SubmitBlockedBySameDayReason);
     }
 
     [Fact]
-    public async Task Future_Dated_Draft_Always_Shows_SubmitForInternalApproval()
+    public async Task Future_Dated_Draft_Is_Never_Blocked()
     {
         // Fully deterministic regardless of real time — a future collection date is never
-        // same-day, so the hide condition can never fire here.
+        // same-day, so the block condition can never fire here.
         var future = DateOnly.FromDateTime(DateTime.Today.AddDays(10));
         var request = NewRequest(future, WithdrawalStatusNames.Draft, requiresSpecialApproval: false, reason: null);
         var controller = BuildController(request, SubmitTransition(WithdrawalStatusActionNames.SubmitForInternalApproval));
@@ -176,10 +179,11 @@ public class CbWithdrawRequestsControllerSameDayExceptionalTransitionVisibilityT
 
         Assert.Contains(vm.AvailableTransitions, t => t.ActionName == WithdrawalStatusActionNames.SubmitForInternalApproval);
         Assert.False(vm.ShowSameDayMakerWarning);
+        Assert.False(vm.SubmitBlockedBySameDayReason);
     }
 
     [Fact]
-    public async Task Unflagged_Same_Day_ReturnedForRevision_Hides_ResubmitForApproval()
+    public async Task Unflagged_Same_Day_ReturnedForRevision_Flags_SubmitBlocked_But_Keeps_The_Transition()
     {
         var today = DateOnly.FromDateTime(DateTime.Today);
         var request = NewRequest(today, WithdrawalStatusNames.ReturnedForRevision, requiresSpecialApproval: false, reason: null);
@@ -188,9 +192,7 @@ public class CbWithdrawRequestsControllerSameDayExceptionalTransitionVisibilityT
         var view = Assert.IsType<ViewResult>(await controller.Details(request.Id, CancellationToken.None));
         var vm = Assert.IsType<WithdrawalRequestDetailsViewModel>(view.Model);
 
-        if (vm.ShowSameDayMakerWarning && !request.RequiresSpecialApproval)
-            Assert.DoesNotContain(vm.AvailableTransitions, t => t.ActionName == WithdrawalStatusActionNames.ResubmitForApproval);
-        else
-            Assert.Contains(vm.AvailableTransitions, t => t.ActionName == WithdrawalStatusActionNames.ResubmitForApproval);
+        Assert.Contains(vm.AvailableTransitions, t => t.ActionName == WithdrawalStatusActionNames.ResubmitForApproval);
+        Assert.Equal(vm.ShowSameDayMakerWarning && !request.RequiresSpecialApproval, vm.SubmitBlockedBySameDayReason);
     }
 }
