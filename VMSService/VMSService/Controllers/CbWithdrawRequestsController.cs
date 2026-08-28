@@ -293,6 +293,16 @@ namespace VMSService.Web.Controllers
                 if (!await CanAccessRequestAsync(request.CbId))
                     return Forbid();
 
+                // Same set of statuses Edit (GET) allows access to — without this, a direct POST
+                // could mutate a request's content at any status regardless of what the UI offers,
+                // including ones already past CB's stage entirely.
+                if (request.StatusTypeName != WithdrawalStatusNames.Draft
+                    && request.StatusTypeName != WithdrawalStatusNames.ReturnedForRevision
+                    && !IsStalePreSubmission(request))
+                {
+                    return BadRequest(new { errors = new[] { "This request can no longer be edited at its current status." } });
+                }
+
                 // Submission date is derived from status history — the moment the request
                 // first entered "Pending RTGS Code". The settlement-date rule only
                 // applies once the request has actually been submitted; before that the
@@ -894,7 +904,10 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SetSameDayReason(Guid id, string reason, CancellationToken ct)
         {
-            if (!IsCbUser()) return Forbid();
+            // Only reachable in the UI via Details.cshtml's CanEditSameDayReason-gated "Edit
+            // Reason" modal, which requires the CB Approver role specifically — CB Maker is never
+            // offered it.
+            if (!IsCbApprover()) return Forbid();
 
             if (string.IsNullOrWhiteSpace(reason))
             {
@@ -920,6 +933,17 @@ namespace VMSService.Web.Controllers
             if (IsStalePreSubmission(request))
             {
                 TempData["Error"] = "This request's collection date has passed. Update the collection date via Edit before taking any other action.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            // Full CanEditSameDayReason condition (status + RequiresSpecialApproval already true —
+            // this action only ever corrects an existing reason, the initial true/reason pair is
+            // set by SaveDraft) — without this, a direct POST could set the reason (and flip
+            // RequiresSpecialApproval on an otherwise-ordinary request) at any status.
+            if (request.StatusTypeName != WithdrawalStatusNames.PendingInternalApproval
+                || !request.RequiresSpecialApproval)
+            {
+                TempData["Error"] = "The same-day reason can only be edited while the request is Pending Internal Approval and already marked as same-day exceptional.";
                 return RedirectToAction(nameof(Details), new { id });
             }
 
@@ -1159,6 +1183,7 @@ namespace VMSService.Web.Controllers
         // RequirePermission alone can't enforce this server-side, since the whole controller
         // shares one "Details" permission covering both CB roles).
         private bool IsCbMaker() => User.GetAppRoleNames().Contains(RolePolicy.CbMaker);
+        private bool IsCbApprover() => User.GetAppRoleNames().Contains(RolePolicy.CbApprover);
 
         // Every action left on this controller is CB-only: CbOwnershipAuthorizationHandler's "any
         // BOU role bypasses ownership" rule is blanket across every action that calls it, so

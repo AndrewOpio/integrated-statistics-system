@@ -426,4 +426,98 @@ public class CbWithdrawRequestsControllerStalePreSubmissionTests
         Assert.IsNotType<BadRequestObjectResult>(result);
         Assert.Equal(Tomorrow, request.CollectionDate);
     }
+
+    // ── SaveDraft: not just staleness — no status guard existed at all ─────
+    // A direct POST could previously mutate a request's content regardless of its current status,
+    // including ones already past CB's stage entirely (e.g. Pending RTGS Verification, Approved).
+    // The GET Edit page already restricted access to Draft/ReturnedForRevision/stale-pre-submission
+    // — SaveDraft (its POST handler) now enforces the same set server-side.
+
+    [Fact]
+    public async Task SaveDraft_Edit_Of_Request_Already_Past_CbStage_Is_Rejected()
+    {
+        var request = NewRequest(Tomorrow, WithdrawalStatusNames.PendingRTGSVerification);
+        request.CbCode = "TB";
+        request.BouBranchCode = "HO";
+        var controller = BuildSaveDraftController(request);
+        var vm = SaveDraftVmWithDate(request, Tomorrow);
+
+        var result = await controller.SaveDraft(vm, CancellationToken.None);
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        var errors = Assert.IsAssignableFrom<IEnumerable<string>>(
+            badRequest.Value!.GetType().GetProperty("errors")!.GetValue(badRequest.Value));
+        Assert.Contains("This request can no longer be edited at its current status.", errors);
+    }
+
+    [Fact]
+    public async Task SaveDraft_Edit_Of_Draft_Request_Still_Succeeds()
+    {
+        var request = NewRequest(Tomorrow, WithdrawalStatusNames.Draft);
+        request.CbCode = "TB";
+        request.BouBranchCode = "HO";
+        var controller = BuildSaveDraftController(request);
+        var vm = SaveDraftVmWithDate(request, Tomorrow);
+
+        var result = await controller.SaveDraft(vm, CancellationToken.None);
+
+        Assert.IsNotType<BadRequestObjectResult>(result);
+    }
+
+    // ── SetSameDayReason: same class of gap ─────────────────────────────────
+    // Only reachable in the UI from Details.cshtml's CanEditSameDayReason-gated modal (requires
+    // RequiresSpecialApproval + CbApprover + Pending Internal Approval) — but the action itself had
+    // no matching server-side check, so a direct POST could set the reason at any status.
+
+    [Fact]
+    public async Task SetSameDayReason_On_Request_Not_PendingInternalApproval_Is_Rejected()
+    {
+        var request = NewRequest(Tomorrow, WithdrawalStatusNames.Approved);
+        var (controller, _) = BuildController(request, RolePolicy.CbApprover);
+
+        var result = await controller.SetSameDayReason(request.Id, "A valid reason long enough to pass validation", CancellationToken.None);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        Assert.NotNull(controller.TempData["Error"]);
+        Assert.False(request.RequiresSpecialApproval);
+    }
+
+    [Fact]
+    public async Task SetSameDayReason_On_PendingInternalApproval_Request_Succeeds()
+    {
+        var request = NewRequest(Tomorrow, WithdrawalStatusNames.PendingInternalApproval);
+        request.RequiresSpecialApproval = true; // only ever corrects an existing same-day reason
+        var (controller, _) = BuildController(request, RolePolicy.CbApprover);
+
+        var result = await controller.SetSameDayReason(request.Id, "A valid reason long enough to pass validation", CancellationToken.None);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        Assert.True(request.RequiresSpecialApproval);
+        Assert.Equal("A valid reason long enough to pass validation", request.SpecialApprovalReason);
+    }
+
+    [Fact]
+    public async Task SetSameDayReason_On_Request_Not_Already_RequiringSpecialApproval_Is_Rejected()
+    {
+        var request = NewRequest(Tomorrow, WithdrawalStatusNames.PendingInternalApproval);
+        var (controller, _) = BuildController(request, RolePolicy.CbApprover);
+
+        var result = await controller.SetSameDayReason(request.Id, "A valid reason long enough to pass validation", CancellationToken.None);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        Assert.NotNull(controller.TempData["Error"]);
+        Assert.Null(request.SpecialApprovalReason);
+    }
+
+    [Fact]
+    public async Task SetSameDayReason_By_CbMaker_Is_Forbidden()
+    {
+        var request = NewRequest(Tomorrow, WithdrawalStatusNames.PendingInternalApproval);
+        request.RequiresSpecialApproval = true;
+        var (controller, _) = BuildController(request, RolePolicy.CbMaker);
+
+        var result = await controller.SetSameDayReason(request.Id, "A valid reason long enough to pass validation", CancellationToken.None);
+
+        Assert.IsType<ForbidResult>(result);
+    }
 }

@@ -213,9 +213,54 @@ public class CbWithdrawRequestsControllerOwnershipTests
             (Func<CbWithdrawRequestsController, WithdrawalRequest, Task<IActionResult>>)
                 ((c, r) => c.ExecuteAction(r.Id, "SomeAction", "remarks", CancellationToken.None)) };
 
-        yield return new object[] { "SetSameDayReason", WithdrawalStatusNames.PendingInternalApproval,
-            (Func<CbWithdrawRequestsController, WithdrawalRequest, Task<IActionResult>>)
-                ((c, r) => c.SetSameDayReason(r.Id, new string('a', ReasonRules.MinLength), CancellationToken.None)) };
+        // SetSameDayReason deliberately excluded here — it's CbApprover-only (mirrors
+        // CanEditSameDayReason), so a generic CbMaker user would always see ForbidResult
+        // regardless of ownership, which this list's "same-bank user is unaffected" theory can't
+        // tell apart from an ownership denial. Covered separately below with an Approver user.
+    }
+
+    private static ClaimsPrincipal CbApproverUser(int cbId) => new(new ClaimsIdentity(
+    [
+        new Claim(ClaimTypes.Name, "cb-approver"),
+        new Claim(ClaimTypes.NameIdentifier, "cb-approver-id"),
+        new Claim(RolePolicy.CbIdClaim, cbId.ToString()),
+        new Claim(SystemPolicy.ClaimType.AppRole, $"{SystemPolicy.SystemSettings.AppAcronym}:{RolePolicy.CbApprover}"),
+    ]));
+
+    [Fact]
+    public async Task SetSameDayReason_Bank_A_Approver_Against_Bank_B_Request_Is_Denied()
+    {
+        var (controller, request) = BuildController(
+            OtherBankId, WithdrawalStatusNames.PendingInternalApproval, CbApproverUser(OwnBankId));
+        request.RequiresSpecialApproval = true;
+
+        var result = await controller.SetSameDayReason(request.Id, new string('a', ReasonRules.MinLength), CancellationToken.None);
+
+        Assert.IsType<ForbidResult>(result);
+    }
+
+    [Fact]
+    public async Task SetSameDayReason_Bank_A_Approver_Against_Bank_A_Request_Is_Unaffected()
+    {
+        var (controller, request) = BuildController(
+            OwnBankId, WithdrawalStatusNames.PendingInternalApproval, CbApproverUser(OwnBankId));
+        request.RequiresSpecialApproval = true;
+
+        var result = await controller.SetSameDayReason(request.Id, new string('a', ReasonRules.MinLength), CancellationToken.None);
+
+        Assert.IsNotType<ForbidResult>(result);
+    }
+
+    [Fact]
+    public async Task SetSameDayReason_Any_Bou_Role_Is_Denied()
+    {
+        var (controller, request) = BuildController(
+            OtherBankId, WithdrawalStatusNames.PendingInternalApproval, BouUser(RolePolicy.PanelA));
+        request.RequiresSpecialApproval = true;
+
+        var result = await controller.SetSameDayReason(request.Id, new string('a', ReasonRules.MinLength), CancellationToken.None);
+
+        Assert.IsType<ForbidResult>(result);
     }
 
     [Theory]

@@ -1362,6 +1362,33 @@ namespace VMSService.Web.Controllers
             var request = await _uow.Requests.FindById(id);
             if (request is null) return NotFound();
 
+            // VerifyRtgs has no UI entry point today (confirmed: nothing in Details.cshtml posts
+            // to it — CanVerifyRtgs actually gates the live "Submit Verification" form instead) and
+            // SubmitVerification doesn't read anything this action would have set, so this is
+            // defense on an orphaned-but-reachable endpoint rather than a mirror of a real caller.
+            // Role and status conditions match SubmitVerification's own guard below — the closest
+            // thing to an authoritative "when is RTGS verification meaningful" answer in this
+            // controller — plus CanVerifyRtgs's not-already-verified/has-a-code conditions.
+            var userRoles = User.FindAll(ClaimType.AppRole)
+                .Where(c => c.Value.StartsWith($"{SystemSettings.AppAcronym}:"))
+                .Select(c => c.Value.Split(":")[1])
+                .ToList();
+
+            if (!userRoles.Contains(Roles.BackOffice))
+            {
+                TempData["Error"] = "Only Back Office users can verify RTGS.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if ((request.StatusTypeName != WithdrawalStatusNames.PendingWithdrawalConfirmation
+                    && request.StatusTypeName != WithdrawalStatusNames.RecallRequested)
+                || (!string.IsNullOrEmpty(request.RtgsVerificationStatus) && request.RtgsVerificationStatus != RtgsVerification.Pending)
+                || string.IsNullOrEmpty(request.RtgsCode))
+            {
+                TempData["Error"] = "RTGS verification is not available for this request at its current state.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
             var collectionDateSameAsFundSettlementValueDate = request.CollectionDate == request.FundSettlementValueDate;
 
             var validStatuses = new[] { RtgsVerification.Confirmed, RtgsVerification.AmountMismatch, RtgsVerification.DateMismatch, RtgsVerification.NotFound };
