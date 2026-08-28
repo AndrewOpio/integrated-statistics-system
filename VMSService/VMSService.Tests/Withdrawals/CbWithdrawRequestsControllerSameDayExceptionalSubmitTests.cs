@@ -33,12 +33,12 @@ namespace VMSService.Tests.Withdrawals;
 
 /// <summary>
 /// SaveDraft re-derives same-day-exceptional status from CollectionDate and requires a reason
-/// before it'll persist — but that only runs when an actual save happens. A request created with a
-/// future date and left unsubmitted until that date arrives (or edited past the client, e.g.
-/// directly in the DB) can reach the actual submit action with RequiresSpecialApproval/
-/// SpecialApprovalReason still reflecting whatever was true at last save, not now. This covers the
-/// fix: ExecuteAction re-checks at the one point submission itself happens, for both
-/// SubmitForInternalApproval and ResubmitForApproval.
+/// before it'll persist — but that only runs when an actual save happens. A request left sitting
+/// (by either the Maker before submitting, or the Approver before approving) until its collection
+/// date arrives can reach the actual action with RequiresSpecialApproval/SpecialApprovalReason
+/// still reflecting whatever was true earlier, not now. This covers the fix: ExecuteAction
+/// re-checks at the actual action points for both roles — the Maker's SubmitForInternalApproval/
+/// ResubmitForApproval, and the Approver's ApproveToRTGSVerification/ExceptionalWithdrawalRequest.
 ///
 /// SubmissionClassifier hardcodes DateTime.UtcNow — there's no injectable clock anywhere in this
 /// codebase (SaveDraft's identical logic has the same limitation and, confirmed, zero existing
@@ -65,12 +65,14 @@ public class CbWithdrawRequestsControllerSameDayExceptionalSubmitTests
             TotalAmount = 10_000_000m,
         };
 
-    private static (CbWithdrawRequestsController Controller, Mock<IWorkflowService> WorkflowService) BuildController(WithdrawalRequest request)
+    private static (CbWithdrawRequestsController Controller, Mock<IWorkflowService> WorkflowService) BuildController(
+        WithdrawalRequest request, string role = RolePolicy.CbMaker)
     {
         var requestRepo = new Mock<IWithdrawalRequestRepository>();
         requestRepo.Setup(r => r.FindById(request.Id)).ReturnsAsync(request);
 
         var uow = new Mock<IWithdrawalUnitOfWork>();
+        uow.Setup(u => u.Requests).Returns(requestRepo.Object);
         uow.Setup(u => u.SaveAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
         // Forced true unconditionally, regardless of the date asked about — removes dependence on
@@ -118,7 +120,7 @@ public class CbWithdrawRequestsControllerSameDayExceptionalSubmitTests
                 {
                     User = new ClaimsPrincipal(new ClaimsIdentity(
                     [
-                        new Claim("appRole", $"{SystemPolicy.SystemSettings.AppAcronym}:{RolePolicy.CbMaker}"),
+                        new Claim("appRole", $"{SystemPolicy.SystemSettings.AppAcronym}:{role}"),
                         new Claim("cbId", "1"),
                     ])),
                 },
@@ -206,8 +208,8 @@ public class CbWithdrawRequestsControllerSameDayExceptionalSubmitTests
     [Fact]
     public async Task Other_Actions_Are_Never_Subject_To_This_Guard()
     {
-        // Same unflagged same-day setup that could block a submit — Approve isn't a CB Maker
-        // submit action, so it must never even look at same-day-exceptional status here.
+        // Same unflagged same-day setup that could block a submit/approve — an unrelated action
+        // name must never even look at same-day-exceptional status here.
         var today = DateOnly.FromDateTime(DateTime.Today);
         var request = NewRequest(today, requiresSpecialApproval: false, reason: null);
         var (controller, workflowService) = BuildController(request);
@@ -219,5 +221,127 @@ public class CbWithdrawRequestsControllerSameDayExceptionalSubmitTests
             It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<string>(),
             It.IsAny<string>(), It.IsAny<List<int>>(), It.IsAny<string>(),
             It.IsAny<CancellationToken>(), It.IsAny<List<long>?>()), Times.Once);
+    }
+
+    // ── Same guard, the Approver's own approve actions ──────────────────────
+    // A request that was correctly unflagged when the Maker submitted (or even correctly flagged,
+    // then somehow lost its reason) can still become same-day-exceptional by the time the Approver
+    // actually reviews it — same-day-exceptional is a property of the request, not of who's acting
+    // on it, so this is the identical guard applied at the Approver's own action point.
+
+    [Theory]
+    [InlineData(WithdrawalStatusActionNames.ApproveToRTGSVerification)]
+    [InlineData(WithdrawalStatusActionNames.ExceptionalWithdrawalRequest)]
+    public async Task Approve_Of_Unflagged_Same_Day_Request_Matches_Live_Classification(string actionName)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var request = NewRequest(today, requiresSpecialApproval: false, reason: null);
+        var (controller, workflowService) = BuildController(request, RolePolicy.CbApprover);
+
+        var expectedBlocked = TodayIsCurrentlySameDayExceptional(today);
+
+        var result = await controller.ExecuteAction(request.Id, actionName, "approved", CancellationToken.None);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        if (expectedBlocked)
+        {
+            Assert.NotNull(controller.TempData["Error"]);
+            workflowService.Verify(w => w.ExecuteTransition(
+                It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<List<int>>(), It.IsAny<string>(),
+                It.IsAny<CancellationToken>(), It.IsAny<List<long>?>()), Times.Never);
+        }
+        else
+        {
+            workflowService.Verify(w => w.ExecuteTransition(
+                It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<List<int>>(), It.IsAny<string>(),
+                It.IsAny<CancellationToken>(), It.IsAny<List<long>?>()), Times.Once);
+        }
+    }
+
+    [Fact]
+    public async Task Approve_Of_Properly_Flagged_Same_Day_Request_Always_Executes()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var request = NewRequest(today, requiresSpecialApproval: true, reason: "Urgent same-day withdrawal");
+        var (controller, workflowService) = BuildController(request, RolePolicy.CbApprover);
+
+        var result = await controller.ExecuteAction(
+            request.Id, WithdrawalStatusActionNames.ExceptionalWithdrawalRequest, "approved", CancellationToken.None);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        Assert.Null(controller.TempData["Error"]);
+        workflowService.Verify(w => w.ExecuteTransition(
+            It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<string>(),
+            It.IsAny<string>(), It.IsAny<List<int>>(), It.IsAny<string>(),
+            It.IsAny<CancellationToken>(), It.IsAny<List<long>?>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ReturnForRevision_By_Approver_Is_Never_Subject_To_The_Guard()
+    {
+        // Returning isn't approving — no reason should ever be required to send it back.
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var request = NewRequest(today, requiresSpecialApproval: false, reason: null);
+        var (controller, workflowService) = BuildController(request, RolePolicy.CbApprover);
+
+        var result = await controller.ExecuteAction(
+            request.Id, WithdrawalStatusActionNames.ReturnForRevision, "needs changes", CancellationToken.None);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        workflowService.Verify(w => w.ExecuteTransition(
+            It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<string>(),
+            It.IsAny<string>(), It.IsAny<List<int>>(), It.IsAny<string>(),
+            It.IsAny<CancellationToken>(), It.IsAny<List<long>?>()), Times.Once);
+    }
+
+    // ── SetSameDayReason: first-time capture, not just correction ───────────
+    // Previously this action could only correct an already-true RequiresSpecialApproval — there
+    // was no way to set it the first time from the Approver's side, since the flag they'd need to
+    // already be true is exactly the thing that's missing. It now also accepts live
+    // same-day-exceptional as sufficient grounds to act, independent of the stored flag.
+
+    [Fact]
+    public async Task SetSameDayReason_First_Time_Capture_On_Live_Same_Day_Request_Matches_Live_Classification()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var request = NewRequest(today, requiresSpecialApproval: false, reason: null);
+        var (controller, _) = BuildController(request, RolePolicy.CbApprover);
+
+        var expectedAllowed = TodayIsCurrentlySameDayExceptional(today);
+
+        var result = await controller.SetSameDayReason(request.Id, "Captured by the Approver at review time", CancellationToken.None);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        if (expectedAllowed)
+        {
+            Assert.Null(controller.TempData["Error"]);
+            Assert.True(request.RequiresSpecialApproval);
+            Assert.Equal("Captured by the Approver at review time", request.SpecialApprovalReason);
+        }
+        else
+        {
+            Assert.NotNull(controller.TempData["Error"]);
+            Assert.False(request.RequiresSpecialApproval);
+            Assert.Null(request.SpecialApprovalReason);
+        }
+    }
+
+    [Fact]
+    public async Task SetSameDayReason_On_Future_Dated_Request_Is_Still_Rejected()
+    {
+        // Fully deterministic — a future collection date is never same-day, so first-time capture
+        // must never succeed here regardless of the live-classification relaxation.
+        var future = DateOnly.FromDateTime(DateTime.Today.AddDays(10));
+        var request = NewRequest(future, requiresSpecialApproval: false, reason: null);
+        var (controller, _) = BuildController(request, RolePolicy.CbApprover);
+
+        var result = await controller.SetSameDayReason(request.Id, "Should not be accepted", CancellationToken.None);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        Assert.NotNull(controller.TempData["Error"]);
+        Assert.False(request.RequiresSpecialApproval);
+        Assert.Null(request.SpecialApprovalReason);
     }
 }

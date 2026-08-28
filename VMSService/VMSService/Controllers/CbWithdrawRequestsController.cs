@@ -620,13 +620,15 @@ namespace VMSService.Web.Controllers
             var isDayBeforeHoliday = dayBeforeHoliday is not null;
             var gracePeriodReason = GetGracePeriodReason(request.CollectionDate, dayBeforeHoliday);
             var sameDayClassification = SubmissionClassifier.Classify(DateTime.UtcNow, request.CollectionDate, isDayBeforeHoliday);
-            // Same condition ExecuteAction's submit-time guard rejects on. Exposed on the
+            // Same condition ExecuteAction's guard rejects on, for both the CB Maker's submit
+            // actions and the CB Approver's own approve actions — same-day-exceptional is a
+            // property of the request, not of who's currently acting on it. Exposed on the
             // ViewModel (SubmitBlockedBySameDayReason) rather than used to remove the transition
             // from AvailableTransitions here — removing it emptied the list entirely for a Draft
             // with nothing else available, which took the whole "Action Required" panel (and the
             // ShowSameDayMakerWarning banner inside it) down with it. The view filters what it
             // offers instead, the same way the BOU Details page handles "dispatch not ready yet."
-            var submitBlockedBySameDayReason = sameDayClassification == SubmissionClassification.SameDayExceptional
+            var sameDayReasonRequiredButMissing = sameDayClassification == SubmissionClassification.SameDayExceptional
                 && (!request.RequiresSpecialApproval || string.IsNullOrWhiteSpace(request.SpecialApprovalReason));
 
             // ── Available transitions (all user roles, filtered by special approval)
@@ -722,8 +724,14 @@ namespace VMSService.Web.Controllers
                 //        == SubmissionClassification.SameDayExceptional,
                 ShowSameDayMakerWarning = (userRoleNames.Contains(RolePolicy.CbMaker) || userRoleNames.Contains(RolePolicy.CbApprover)) &&
                     sameDayClassification == SubmissionClassification.SameDayExceptional,
-                SubmitBlockedBySameDayReason = submitBlockedBySameDayReason,
-                CanEditSameDayReason = request.RequiresSpecialApproval &&
+                SubmitBlockedBySameDayReason = sameDayReasonRequiredButMissing,
+                // Opens the same reason modal for two cases: correcting an already-captured
+                // reason (RequiresSpecialApproval already true), or capturing it for the first
+                // time when the Approver is the one who discovers it's live same-day-exceptional
+                // (sameDayClassification check) — previously only the correction case was
+                // possible, leaving no way to enter a reason at all when the Maker's own
+                // submission never flagged it.
+                CanEditSameDayReason = (request.RequiresSpecialApproval || sameDayClassification == SubmissionClassification.SameDayExceptional) &&
                     userRoleNames.Contains(RolePolicy.CbApprover) &&
                     request.StatusTypeName == WithdrawalStatusNames.PendingInternalApproval,
                 GracePeriodReason = gracePeriodReason,
@@ -788,12 +796,17 @@ namespace VMSService.Web.Controllers
 
                 // SaveDraft re-derives same-day-exceptional status from CollectionDate and
                 // requires a reason before it'll persist — but that only runs when an actual save
-                // happens. A request created with a future date and left unsubmitted until that
-                // date arrives (or edited past the client) can reach the actual submit action with
-                // RequiresSpecialApproval/SpecialApprovalReason still reflecting whatever was true
-                // at last save, not now. Re-check here, at the one point submission itself happens.
-                if (actionName == WithdrawalStatusActionNames.SubmitForInternalApproval
-                    || actionName == WithdrawalStatusActionNames.ResubmitForApproval)
+                // happens. A request left sitting (by either the Maker before submitting, or the
+                // Approver before approving) until its collection date arrives can reach the
+                // actual action with RequiresSpecialApproval/SpecialApprovalReason still
+                // reflecting whatever was true earlier, not now. Re-check here, at the actual
+                // action points for both roles — the Maker's submit and the Approver's approve.
+                var isMakerSubmitAction = actionName == WithdrawalStatusActionNames.SubmitForInternalApproval
+                    || actionName == WithdrawalStatusActionNames.ResubmitForApproval;
+                var isApproverApproveAction = actionName == WithdrawalStatusActionNames.ApproveToRTGSVerification
+                    || actionName == WithdrawalStatusActionNames.ExceptionalWithdrawalRequest;
+
+                if (isMakerSubmitAction || isApproverApproveAction)
                 {
                     var classification = await SubmissionClassifier.ClassifyAsync(
                         _publicHolidayRepository, DateTime.UtcNow, request.CollectionDate);
@@ -802,7 +815,9 @@ namespace VMSService.Web.Controllers
                     if (requiresSpecialApproval
                         && (!request.RequiresSpecialApproval || string.IsNullOrWhiteSpace(request.SpecialApprovalReason)))
                     {
-                        TempData["Error"] = "An exceptional approval reason is required for same-day collection requests outside the grace period. Update it via Edit first.";
+                        TempData["Error"] = isMakerSubmitAction
+                            ? "An exceptional approval reason is required for same-day collection requests outside the grace period. Update it via Edit first."
+                            : "An exceptional approval reason is required for same-day collection requests outside the grace period. Enter one below first.";
                         return RedirectToAction(nameof(Details), new { id });
                     }
                 }
@@ -962,15 +977,29 @@ namespace VMSService.Web.Controllers
                 return RedirectToAction(nameof(Details), new { id });
             }
 
-            // Full CanEditSameDayReason condition (status + RequiresSpecialApproval already true —
-            // this action only ever corrects an existing reason, the initial true/reason pair is
-            // set by SaveDraft) — without this, a direct POST could set the reason (and flip
-            // RequiresSpecialApproval on an otherwise-ordinary request) at any status.
-            if (request.StatusTypeName != WithdrawalStatusNames.PendingInternalApproval
-                || !request.RequiresSpecialApproval)
+            // Full CanEditSameDayReason condition: status must be Pending Internal Approval, and
+            // either the flag is already true (correcting an existing reason — originally set by
+            // SaveDraft) or it's currently live same-day-exceptional (the Approver is the one
+            // discovering it, first-time capture — the Maker's own submission never flagged it).
+            // Without the live-classification branch, this action could only ever correct an
+            // already-true flag, leaving no way to set it the first time from the Approver's side.
+            // Without the status/classification check at all, a direct POST could set the reason
+            // (and flip RequiresSpecialApproval on an otherwise-ordinary request) at any status.
+            if (request.StatusTypeName != WithdrawalStatusNames.PendingInternalApproval)
             {
-                TempData["Error"] = "The same-day reason can only be edited while the request is Pending Internal Approval and already marked as same-day exceptional.";
+                TempData["Error"] = "The same-day reason can only be set while the request is Pending Internal Approval.";
                 return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (!request.RequiresSpecialApproval)
+            {
+                var classification = await SubmissionClassifier.ClassifyAsync(
+                    _publicHolidayRepository, DateTime.UtcNow, request.CollectionDate);
+                if (classification != SubmissionClassification.SameDayExceptional)
+                {
+                    TempData["Error"] = "This request is not currently same-day exceptional — no reason is needed.";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
             }
 
             request.RequiresSpecialApproval = true;

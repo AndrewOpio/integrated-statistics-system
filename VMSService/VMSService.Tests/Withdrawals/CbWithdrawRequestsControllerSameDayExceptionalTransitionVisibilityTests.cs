@@ -58,7 +58,7 @@ public class CbWithdrawRequestsControllerSameDayExceptionalTransitionVisibilityT
         };
 
     private static CbWithdrawRequestsController BuildController(
-        WithdrawalRequest request, List<WorkflowTransitionDto> transitions)
+        WithdrawalRequest request, List<WorkflowTransitionDto> transitions, string role = RolePolicy.CbMaker)
     {
         var requestRepo = new Mock<IWithdrawalRequestRepository>();
         requestRepo.Setup(r => r.GetWithDetailsAsync(request.Id, It.IsAny<CancellationToken>())).ReturnsAsync(request);
@@ -116,7 +116,7 @@ public class CbWithdrawRequestsControllerSameDayExceptionalTransitionVisibilityT
                 {
                     User = new ClaimsPrincipal(new ClaimsIdentity(
                     [
-                        new Claim("appRole", $"{SystemPolicy.SystemSettings.AppAcronym}:{RolePolicy.CbMaker}"),
+                        new Claim("appRole", $"{SystemPolicy.SystemSettings.AppAcronym}:{role}"),
                         new Claim("appRoleId", $"{SystemPolicy.SystemSettings.AppAcronym}:{RoleId}"),
                         new Claim("cbId", "1"),
                     ])),
@@ -194,5 +194,58 @@ public class CbWithdrawRequestsControllerSameDayExceptionalTransitionVisibilityT
 
         Assert.Contains(vm.AvailableTransitions, t => t.ActionName == WithdrawalStatusActionNames.ResubmitForApproval);
         Assert.Equal(vm.ShowSameDayMakerWarning && !request.RequiresSpecialApproval, vm.SubmitBlockedBySameDayReason);
+    }
+
+    // ── CanEditSameDayReason: first-time capture reachable for the Approver ─
+    // Previously this only opened for a correction (RequiresSpecialApproval already true) — with
+    // nothing able to set that flag the first time from the Approver's side, the modal was
+    // unreachable whenever the Approver was the one discovering the request was same-day.
+
+    [Fact]
+    public async Task Approver_Can_Open_Reason_Modal_On_Unflagged_Live_Same_Day_Request()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var request = NewRequest(today, WithdrawalStatusNames.PendingInternalApproval, requiresSpecialApproval: false, reason: null);
+        var controller = BuildController(
+            request, SubmitTransition(WithdrawalStatusActionNames.ApproveToRTGSVerification), RolePolicy.CbApprover);
+
+        var view = Assert.IsType<ViewResult>(await controller.Details(request.Id, CancellationToken.None));
+        var vm = Assert.IsType<WithdrawalRequestDetailsViewModel>(view.Model);
+
+        // CanEditSameDayReason and SubmitBlockedBySameDayReason share the same underlying
+        // classification, so they must always agree on whether it's currently same-day here.
+        Assert.Equal(vm.SubmitBlockedBySameDayReason, vm.CanEditSameDayReason);
+    }
+
+    [Fact]
+    public async Task Approver_Cannot_Open_Reason_Modal_On_Future_Dated_Request()
+    {
+        // Fully deterministic — never same-day, so the modal must never be reachable here.
+        var future = DateOnly.FromDateTime(DateTime.Today.AddDays(10));
+        var request = NewRequest(future, WithdrawalStatusNames.PendingInternalApproval, requiresSpecialApproval: false, reason: null);
+        var controller = BuildController(
+            request, SubmitTransition(WithdrawalStatusActionNames.ApproveToRTGSVerification), RolePolicy.CbApprover);
+
+        var view = Assert.IsType<ViewResult>(await controller.Details(request.Id, CancellationToken.None));
+        var vm = Assert.IsType<WithdrawalRequestDetailsViewModel>(view.Model);
+
+        Assert.False(vm.CanEditSameDayReason);
+        Assert.False(vm.SubmitBlockedBySameDayReason);
+    }
+
+    [Fact]
+    public async Task CbMaker_Never_Sees_The_Reason_Modal_Even_When_Live_Same_Day()
+    {
+        // CanEditSameDayReason is Approver-only — the Maker's own path to fixing this is Edit,
+        // not this modal.
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var request = NewRequest(today, WithdrawalStatusNames.PendingInternalApproval, requiresSpecialApproval: false, reason: null);
+        var controller = BuildController(
+            request, SubmitTransition(WithdrawalStatusActionNames.SubmitForInternalApproval), RolePolicy.CbMaker);
+
+        var view = Assert.IsType<ViewResult>(await controller.Details(request.Id, CancellationToken.None));
+        var vm = Assert.IsType<WithdrawalRequestDetailsViewModel>(view.Model);
+
+        Assert.False(vm.CanEditSameDayReason);
     }
 }

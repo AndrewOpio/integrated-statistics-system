@@ -91,8 +91,31 @@
                 }
             </div>
         }
+        else if (Model.SubmitBlockedBySameDayReason && Model.CanEditSameDayReason)
+        {
+            @* Live same-day-exceptional, but the Maker's own submission never captured a reason
+               (or it was cleared some other way) — this is the Approver's own first chance to
+               provide one, via the same dedicated field used to correct one later. *@
+            <div class="alert alert-danger d-flex align-items-start gap-3 mb-3">
+                <i class="ti ti-alert-triangle fs-4 flex-shrink-0 mt-1"></i>
+                <div class="flex-grow-1">
+                    <p class="fw-bold mb-1">Exceptional Approval Reason Needed</p>
+                    <p class="mb-0 small">
+                        This request's collection date is today, which requires a same-day
+                        exceptional approval reason — but none has been provided yet. Approval
+                        can't proceed until one is entered.
+                    </p>
+                </div>
+                <button type="button"
+                        class="btn btn-sm btn-outline-danger flex-shrink-0"
+                        data-bs-toggle="modal"
+                        data-bs-target="#editReasonModal">
+                    <i class="ti ti-edit me-1"></i> Enter Reason
+                </button>
+            </div>
+        }
 
-        
+
 
         @* Grace period active — same-day collection, but no exceptional approval needed *@
         @if (!string.IsNullOrEmpty(Model.GracePeriodReason))
@@ -719,7 +742,9 @@
                                          style="width:36px;height:36px;">
                                         <i class="ti ti-alert-triangle text-warning fs-5"></i>
                                     </div>
-                                    <h5 class="modal-title mb-0 fw-bold">Edit Exceptional Approval Reason</h5>
+                                    <h5 class="modal-title mb-0 fw-bold">
+                                        @(Model.RequiresSpecialApproval ? "Edit" : "Enter") Exceptional Approval Reason
+                                    </h5>
                                 </div>
                             </div>
                             <div class="modal-body">
@@ -950,16 +975,21 @@
                                 </div>
                             }
                             @{
-                                // Submit/Resubmit stays in Model.AvailableTransitions even when
-                                // blocked — removing it there would empty the list entirely for a
-                                // Draft with nothing else available, taking the banners above down
-                                // with it (they're gated on Any()). Filter what's offered here
-                                // instead, the same way the BOU Details page handles "dispatch not
-                                // ready yet": the transition survives, only what's rendered changes.
+                                // Submit/Resubmit/Approve stay in Model.AvailableTransitions even
+                                // when blocked — removing them there would empty the list entirely
+                                // for a Draft or Pending Internal Approval request with nothing
+                                // else available, taking the banners above down with it (they're
+                                // gated on Any()). Filter what's offered here instead, the same way
+                                // the BOU Details page handles "dispatch not ready yet": the
+                                // transition survives, only what's rendered changes. One flag
+                                // covers both roles — same-day-exceptional is a property of the
+                                // request, not of who's currently looking at it.
                                 var offeredTransitions = Model.SubmitBlockedBySameDayReason
                                     ? Model.AvailableTransitions
                                         .Where(t => t.ActionName != WithdrawalStatusActionNames.SubmitForInternalApproval
-                                            && t.ActionName != WithdrawalStatusActionNames.ResubmitForApproval)
+                                            && t.ActionName != WithdrawalStatusActionNames.ResubmitForApproval
+                                            && t.ActionName != WithdrawalStatusActionNames.ApproveToRTGSVerification
+                                            && t.ActionName != WithdrawalStatusActionNames.ExceptionalWithdrawalRequest)
                                         .ToList()
                                     : Model.AvailableTransitions.ToList();
                             }
@@ -968,11 +998,15 @@
                                 <div class="alert alert-danger d-flex align-items-start gap-2 py-2 mb-0">
                                     <i class="ti ti-alert-triangle fs-5 flex-shrink-0 mt-1"></i>
                                     <div>
-                                        <p class="fw-bold mb-1">Submission Blocked</p>
+                                        <p class="fw-bold mb-1">Action Blocked</p>
                                         <p class="mb-0 small">
                                             An exceptional approval reason is required for same-day collection requests
                                             outside the grace period.
-                                            @if (Model.CanEdit)
+                                            @if (Model.CanEditSameDayReason)
+                                            {
+                                                <span>Provide one above before approving.</span>
+                                            }
+                                            else if (Model.CanEdit)
                                             {
                                                 <a asp-action="Edit" asp-route-id="@Model.Id">Edit the request</a>
                                                 <span>to add one before submitting.</span>

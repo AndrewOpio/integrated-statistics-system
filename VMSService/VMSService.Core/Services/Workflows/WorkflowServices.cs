@@ -834,12 +834,20 @@ namespace VMSService.Core.Services.Workflows
             request.ModifiedBy = username;
             request.ModifiedDate = DateTime.Now;
 
-            // CB approval is the submission event — classify same-day submissions here. Gated on the
-            // actual approval action, not just the destination status: RejectRecall (ticket 04) can
-            // also land a request on Pending RTGS Code when reverting a rejected recall, and that
-            // revert must never re-run submission classification (wrong semantics for the remarks,
-            // and could spuriously reject the revert itself as "late" against a collection date the
-            // recall cycle has since overtaken).
+            // Reject an approval whose collection date has already passed. Gated on the actual
+            // approval action, not just the destination status: RejectRecall (ticket 04) can also
+            // land a request on Pending RTGS Code when reverting a rejected recall, and that
+            // revert must never be spuriously rejected as "late" against a collection date the
+            // recall cycle has since overtaken.
+            //
+            // RequiresSpecialApproval/SpecialApprovalReason are NOT derived here from the general
+            // workflow comment (`remarks`) — they used to be, silently treating whatever the
+            // Approver typed in the transition's own Comment box as the dedicated reason whenever
+            // the flag wasn't already set. That conflated two different things: a workflow remark
+            // and a specific approval-reason. CbWithdrawRequestsController.ExecuteAction now
+            // re-derives and enforces this properly before the transition is ever attempted — by
+            // the time execution reaches here, either RequiresSpecialApproval/SpecialApprovalReason
+            // are already correct, or the transition never got this far.
             if (effectiveToStatusName == WithdrawalStatusNames.PendingRTGSVerification
                 && actionName == WithdrawalStatusActionNames.ApproveToRTGSVerification)
             {
@@ -853,15 +861,6 @@ namespace VMSService.Core.Services.Workflows
                         "WithdrawalRequest {Id} approval rejected: approval date is past collection date {CollectionDate}",
                         entityId, request.CollectionDate);
                     return false;
-                }
-
-                // Only derive from classification if not already explicitly set via SetSameDayReason.
-                if (!request.RequiresSpecialApproval)
-                {
-                    request.RequiresSpecialApproval = classification == SubmissionClassification.SameDayExceptional;
-                    request.SpecialApprovalReason = classification == SubmissionClassification.SameDayExceptional
-                        ? remarks
-                        : null;
                 }
             }
 
