@@ -25,7 +25,9 @@ using VMSService.Core.Repositories.WithdrawalRequestDenominations;
 using VMSService.Core.Repositories.WithdrawalRequests;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 using VMSService.Core.Repositories.PenaltyWaivers;
+using VMSService.Core.Repositories.PublicHolidays;
 using VMSService.Core.Services.Stocks.StockEntities;
+using VMSService.Core.Services.Submissions;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
@@ -57,7 +59,8 @@ namespace VMSService.Web.Controllers
         IAppliedPenaltyRepository _appliedPenaltyRepository,
         IPenaltyWaiverRepository _penaltyWaiverRepository,
         ILogger<WithdrawalRequestsController> _logger,
-        IMapper _mapper) : Controller
+        IMapper _mapper,
+        IPublicHolidayRepository _publicHolidayRepository) : Controller
     {
         /// <summary>Resolves which BOU branches this user may see and which branch is currently
         /// selected — shared by <see cref="Index"/> and <see cref="History"/> so both apply the
@@ -1301,6 +1304,28 @@ namespace VMSService.Web.Controllers
             {
                 TempData["Error"] = "RTGS code must be provided before submitting verification.";
                 return RedirectToAction(nameof(Details), new { id });
+            }
+
+            // Defensive re-check: RequiresSpecialApproval should have been fixed by the time the
+            // CB Maker submitted (see CbWithdrawRequestsController.ExecuteAction), but same-day-
+            // exceptional is only meaningful relative to that submission moment — BOU can't
+            // re-derive it against its own, later clock. Re-run the classifier against the
+            // recorded SubmitForInternalApproval timestamp instead of trusting the stored flag
+            // silently, so a mis-flagged request can't ride the standard path with no exceptional
+            // sign-off just because something upstream missed it.
+            var submittedAt = await _uow.StatusHistory.FindMostRecentByNewStatusNameAsync(
+                id, WithdrawalStatusNames.PendingInternalApproval, ct);
+            if (submittedAt is not null)
+            {
+                var classification = await SubmissionClassifier.ClassifyAsync(
+                    _publicHolidayRepository, submittedAt.ChangedAt, request.CollectionDate);
+                var shouldHaveBeenExceptional = classification == SubmissionClassification.SameDayExceptional;
+
+                if (shouldHaveBeenExceptional && !request.RequiresSpecialApproval)
+                {
+                    TempData["Error"] = "This request should have been flagged as same-day exceptional at submission but wasn't — return it to the CB for correction before verifying.";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
             }
 
             var username = User.GetUsernameOrSystem();

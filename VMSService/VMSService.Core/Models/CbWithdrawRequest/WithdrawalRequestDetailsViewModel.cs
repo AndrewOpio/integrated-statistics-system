@@ -65,7 +65,6 @@ namespace VMSService.Core.Models.CbWithdrawRequest
         public DateTime? SubmissionDate { get; set; }
         public bool ShowExceptionalApprovalWarning { get; set; }
         public bool ShowSameDayMakerWarning { get; set; }
-        public bool ShowSameDayReasonCapture { get; set; }
         public bool CanEditSameDayReason { get; set; }
 
         /// <summary>Non-null when a same-day grace period is currently active for this request

@@ -242,9 +242,8 @@ namespace VMSService.Web.Controllers
             // Authoritative same-day/exceptional-approval determination — recomputed here from
             // the actual collection date and holiday calendar rather than trusted from the
             // client, so it can't be bypassed and never goes stale after a date change.
-            var dayBeforeHoliday = await _publicHolidayRepository.FindByDateAsync(vm.CollectionDate.Value.AddDays(-1));
-            var classification = SubmissionClassifier.Classify(
-                DateTime.UtcNow, vm.CollectionDate.Value, isDayBeforeHoliday: dayBeforeHoliday is not null);
+            var classification = await SubmissionClassifier.ClassifyAsync(
+                _publicHolidayRepository, DateTime.UtcNow, vm.CollectionDate.Value);
             var requiresSpecialApproval = classification == SubmissionClassification.SameDayExceptional;
 
             if (requiresSpecialApproval && string.IsNullOrWhiteSpace(vm.SpecialApprovalReason))
@@ -713,11 +712,6 @@ namespace VMSService.Web.Controllers
                 ShowSameDayMakerWarning = (userRoleNames.Contains(RolePolicy.CbMaker) || userRoleNames.Contains(RolePolicy.CbApprover)) &&
                     SubmissionClassifier.Classify(DateTime.UtcNow, request.CollectionDate, isDayBeforeHoliday)
                         == SubmissionClassification.SameDayExceptional,
-                ShowSameDayReasonCapture = availableTransitions.Any() &&
-                    userRoleNames.Contains(RolePolicy.CbApprover) &&
-                    !request.RequiresSpecialApproval &&
-                    SubmissionClassifier.Classify(DateTime.UtcNow, request.CollectionDate, isDayBeforeHoliday)
-                        == SubmissionClassification.SameDayExceptional,
                 CanEditSameDayReason = request.RequiresSpecialApproval &&
                     userRoleNames.Contains(RolePolicy.CbApprover) &&
                     request.StatusTypeName == WithdrawalStatusNames.PendingInternalApproval,
@@ -779,6 +773,27 @@ namespace VMSService.Web.Controllers
                 {
                     TempData["Error"] = "This request's collection date has passed. Update the collection date via Edit before taking any other action.";
                     return RedirectToAction(nameof(Details), new { id });
+                }
+
+                // SaveDraft re-derives same-day-exceptional status from CollectionDate and
+                // requires a reason before it'll persist — but that only runs when an actual save
+                // happens. A request created with a future date and left unsubmitted until that
+                // date arrives (or edited past the client) can reach the actual submit action with
+                // RequiresSpecialApproval/SpecialApprovalReason still reflecting whatever was true
+                // at last save, not now. Re-check here, at the one point submission itself happens.
+                if (actionName == WithdrawalStatusActionNames.SubmitForInternalApproval
+                    || actionName == WithdrawalStatusActionNames.ResubmitForApproval)
+                {
+                    var classification = await SubmissionClassifier.ClassifyAsync(
+                        _publicHolidayRepository, DateTime.UtcNow, request.CollectionDate);
+                    var requiresSpecialApproval = classification == SubmissionClassification.SameDayExceptional;
+
+                    if (requiresSpecialApproval
+                        && (!request.RequiresSpecialApproval || string.IsNullOrWhiteSpace(request.SpecialApprovalReason)))
+                    {
+                        TempData["Error"] = "An exceptional approval reason is required for same-day collection requests outside the grace period. Update it via Edit first.";
+                        return RedirectToAction(nameof(Details), new { id });
+                    }
                 }
 
                 var username = User.FindFirst(ClaimTypes.Name)?.Value ?? "System";

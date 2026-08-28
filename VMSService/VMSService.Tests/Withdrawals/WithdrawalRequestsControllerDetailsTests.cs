@@ -16,6 +16,7 @@ using VMSService.Core.Repositories.CounterPartyTypes;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.PenaltyWaivers;
 using VMSService.Core.Repositories.Penalties;
+using VMSService.Core.Repositories.PublicHolidays;
 using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Repositories.WithdrawalRequestDenominations;
@@ -93,7 +94,8 @@ public class WithdrawalRequestsControllerDetailsTests
             Mock.Of<IAppliedPenaltyRepository>(),
             Mock.Of<IPenaltyWaiverRepository>(),
             Mock.Of<ILogger<WithdrawalRequestsController>>(),
-            mapper.Object)
+            mapper.Object,
+            Mock.Of<IPublicHolidayRepository>())
         {
             ControllerContext = new ControllerContext
             {
