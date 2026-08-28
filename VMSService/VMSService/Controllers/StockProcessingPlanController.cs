@@ -1940,6 +1940,35 @@ namespace VMSService.Web.Controllers
                     }
                 }
 
+                if (actionName.Equals("ConfirmResults"))
+                {
+                    // Confirming results locks the plan's figures in, so every board supervisor must
+                    // have declared their MI & Fit returns first — otherwise undeclared denominations
+                    // would be confirmed as nil. Uses the same rule the Details view reports against.
+                    var miAndFitRows = await _miAndFitRepository.FindByPlanId(id);
+
+                    var undeclared = miAndFitRows
+                        .Where(m => !MIandFitDeclaration.IsDeclared(m.ReturnedFitValue, m.ReturnedUnFitValue))
+                        .ToList();
+
+                    if (undeclared.Count > 0)
+                    {
+                        var denominations = await _stockService.GetAllDenominations();
+                        var denomDict = denominations.ToDictionary(d => d.Id);
+
+                        var names = undeclared
+                            .Select(m => denomDict.GetValueOrDefault(m.DenominationId)?.Name
+                                         ?? $"Denomination {m.DenominationId}")
+                            .OrderBy(n => n)
+                            .ToList();
+
+                        TempData["Error"] =
+                            "Cannot confirm results — MI & Fit has not been fully declared. " +
+                            $"The Returned Fit and Returned Un-Fit values are still outstanding for: {string.Join(", ", names)}.";
+                        return RedirectToAction(nameof(Details), new { id });
+                    }
+                }
+
                 bool isExecuted = await _workflowService.ExecuteTransition(
                     StatusConstants.Entity.StockProcessingPlan,
                     id,
@@ -2685,6 +2714,68 @@ namespace VMSService.Web.Controllers
                             BuildMovementDenoms(d => d.CanceledValue), cancelled);
 
                         await PostShredFromMwbAsync(BuildMovementDenoms(d => d.FitShredValue));
+
+                        // ── MI & Fit returned by the boards ────────────────────────────
+                        // Reverses the MI -> MWB and Fit -> MWB legs posted at IssueToBoards, for
+                        // whatever the boards handed back unused. ConfirmResults is gated on every row
+                        // having been declared, so these figures are complete by the time this runs.
+                        var planMiFitsConfirm = await _miAndFitRepository.FindByPlanId(id);
+
+                        if (planMiFitsConfirm.Count > 0)
+                        {
+                            Category miCategoryConfirm = allCategoriesConfirm.FirstOrDefault(c =>
+                                c.Name.Trim().Equals(MiCategoryName, StringComparison.OrdinalIgnoreCase));
+                            Category fitCategoryConfirm = allCategoriesConfirm.FirstOrDefault(c =>
+                                c.Name.Trim().Equals(FitCategoryName, StringComparison.OrdinalIgnoreCase));
+
+                            if (miCategoryConfirm == null || fitCategoryConfirm == null)
+                            {
+                                // Deliberately not a hard failure: the Re-Issue/Cancelled/Shredded legs
+                                // above are already committed, so aborting here would leave the plan
+                                // half-posted. Same stance as the MI & Fit legs at IssueToBoards.
+                                var missingMiFit = new List<string>();
+                                if (miCategoryConfirm == null) missingMiFit.Add(MiCategoryName);
+                                if (fitCategoryConfirm == null) missingMiFit.Add(FitCategoryName);
+
+                                _logger.LogError(
+                                    "MI & Fit returns not posted for plan {PlanId} — missing category configuration: {Missing}.",
+                                    id, string.Join(", ", missingMiFit));
+                                TempData["Error"] = $"MI & Fit returns were not posted — missing configuration: {string.Join(", ", missingMiFit)}.";
+                            }
+                            else
+                            {
+                                // Same grouping and bundle-derivation convention as the MI & Fit legs
+                                // at IssueToBoards, so the reversal lines up with what was issued.
+                                List<StockMovementDenomination> BuildMiFitReturnDenoms(Func<MIandFit, decimal> amountSelector) =>
+                                    planMiFitsConfirm
+                                        .GroupBy(mf => mf.DenominationId)
+                                        .Select(g => new
+                                        {
+                                            DenominationId = g.Key,
+                                            Amount = g.Sum(amountSelector)
+                                        })
+                                        .Where(x => x.Amount > 0)
+                                        .Select(x =>
+                                        {
+                                            var denomValue = denomValueByIdConfirm.GetValueOrDefault(x.DenominationId);
+                                            return new StockMovementDenomination
+                                            {
+                                                DenominationId = x.DenominationId,
+                                                NumBundles = denomValue > 0 ? (int)Math.Round(x.Amount / (denomValue * 1000)) : 0,
+                                                SubTotalValue = x.Amount
+                                            };
+                                        })
+                                        .ToList();
+
+                                // Un-Fit returns go back to MI and Fit returns back to Fit — the same
+                                // pairing IssueToBoards used on the way out.
+                                await PostIncreaseFromMwbAsync(StockConstants.StockMovementTypes.MWBToMI,
+                                    BuildMiFitReturnDenoms(mf => mf.ReturnedUnFitValue), miCategoryConfirm);
+
+                                await PostIncreaseFromMwbAsync(StockConstants.StockMovementTypes.MWBToFit,
+                                    BuildMiFitReturnDenoms(mf => mf.ReturnedFitValue), fitCategoryConfirm);
+                            }
+                        }
 
                         var planBagIds = await _context.SessionBags
                             .Where(sb => sb.StockProcessingPlanId == id && !sb.IsDeleted)

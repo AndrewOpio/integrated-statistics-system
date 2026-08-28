@@ -76,7 +76,7 @@
         <a asp-controller="Home" asp-action="Index" class="navbar-brand me-lg-5">
             <img class="navbar-brand-dark" src="../../img/bou.png" alt="BOU logo">
             <img class="navbar-brand-light" src="../../img/bou.png" alt="BOU logo">
-            <span>Currency Automation System</span>
+            <span>Currency Automation System Hub</span>
         </a>
         <div class="d-flex align-items-center">
             <button class="navbar-toggler d-lg-none collapsed" type="button"
@@ -121,8 +121,8 @@
                         <div class="d-flex justify-content-center">
                             <img src="../../img/bou.png" height="50" width="50" alt="BOU Logo">
                         </div>
-                        <div class="align-items-center">
-                            <span class="mt-3 ms-1 sidebar-text">Currency Automation System</span>
+                        <div class="d-flex justify-content-center align-items-center app-name-cash">
+                            <span class="mt-3 ms-1 sidebar-text text-center">Currency Automation System Hub</span>
                         </div>
                     </div>
                 </li>
@@ -227,7 +227,7 @@
                                 <span class="sidebar-icon fs-5 me-4">
                                     <i class="ti ti-building-bank"></i>
                                 </span>
-                                <span class="sidebar-text">Commercial Banks</span>
+                                <span class="sidebar-text">Issuance</span>
                             </span>
                             <span class="link-arrow">
                                 <svg class="icon icon-sm" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
@@ -588,7 +588,7 @@
                                 <span class="sidebar-icon fs-5 me-4">
                                     <i class="ti ti-settings"></i>
                                 </span>
-                                <span class="sidebar-text">CAS Settings</span>
+                                <span class="sidebar-text">CASH Settings</span>
                             </span>
                             <span class="link-arrow">
                                 <svg class="icon icon-sm" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
@@ -816,6 +816,7 @@
     <!-- Volt JS -->
     <script src="../../js/volt.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    @await Html.PartialAsync("_SessionTimeout")
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 

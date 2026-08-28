@@ -618,6 +618,34 @@ namespace IdentityService.Controllers
             });
         }
 
+        // ═══════════════════════════════════════════════════════════
+        // Extend an active session without re-authenticating
+        // ═══════════════════════════════════════════════════════════
+        [HttpPost("renew")]
+        public IActionResult RenewToken([FromBody] TokenValidationRequest request)
+        {
+            var result = _jwtService.RenewToken(request?.Token);
+
+            if (!result.Success)
+            {
+                _logger.LogInformation("Session renewal refused: {Message}", result.Message);
+
+                return Unauthorized(new
+                {
+                    success = false,
+                    message = result.Message
+                });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                token = result.Token,
+                expiresAtUtc = result.ExpiresAtUtc,
+                authenticatedAtUtc = result.AuthenticatedAtUtc
+            });
+        }
+
         [HttpPost("logout")]
         public async Task<IActionResult> Logout([FromBody] LogoutRequest request)
         {
