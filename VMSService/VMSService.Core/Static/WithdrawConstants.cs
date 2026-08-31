@@ -57,6 +57,22 @@ namespace VMSService.Core.Static
                 PendingInternalApproval,
                 ReturnedForRevision,
             ];
+
+            /// <summary>Terminal statuses Recall is explicitly blocked from in code, independent of
+            /// whatever WorkflowService's config allows (defense in depth, same reasoning as
+            /// CbOnly/BouOnly). Deliberately narrower than <see cref="TerminalStatuses"/>: Rejected
+            /// and RejectExceptionalApproval are included here even though recalling a request
+            /// already rejected makes no sense before its completion step runs; Expired is excluded
+            /// since Recall was never reachable from it.</summary>
+            public static readonly string[] RecallBlockedStatuses =
+            [
+                Approved,
+                Rejected,
+                RejectComplete,
+                RejectExceptionalApproval,
+                RejectExceptionalApprovalComplete,
+                RecallComplete,
+            ];
         }
         public static class WithdrawalStatusActionNames
         {

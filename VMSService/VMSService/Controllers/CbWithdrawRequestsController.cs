@@ -794,6 +794,17 @@ namespace VMSService.Web.Controllers
                     return RedirectToAction(nameof(Details), new { id });
                 }
 
+                // Explicit code-level guard, independent of whatever WorkflowService's config
+                // allows — Recall is intended to be available at every non-terminal status, and
+                // this must hold even if the config were misconfigured to permit it on one that
+                // isn't (see WithdrawalStatusNames.RecallBlockedStatuses).
+                if (actionName == WithdrawalStatusActionNames.RequestRecall
+                    && WithdrawalStatusNames.RecallBlockedStatuses.Contains(request.StatusTypeName))
+                {
+                    TempData["Error"] = "This request can no longer be recalled at its current status.";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
+
                 // SaveDraft re-derives same-day-exceptional status from CollectionDate and
                 // requires a reason before it'll persist — but that only runs when an actual save
                 // happens. A request left sitting (by either the Maker before submitting, or the
