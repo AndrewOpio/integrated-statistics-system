@@ -31,9 +31,9 @@ namespace VMSService.Tests.Withdrawals;
 
 /// <summary>
 /// Recall is intended to be available at every non-terminal status. WorkflowService's config
-/// (ticket 01) already only wires RequestRecall from the five legitimate non-terminal statuses,
-/// but that's config, not a guarantee — this locks the same rule down explicitly in code, so a
-/// misconfigured WorkflowService can't let a terminal-status request be recalled (ticket 29).
+/// already only wires RequestRecall from the five legitimate non-terminal statuses, but that's
+/// config, not a guarantee — this locks the same rule down explicitly in code, so a misconfigured
+/// WorkflowService can't let a terminal-status request be recalled.
 /// </summary>
 public class CbWithdrawRequestsControllerRecallGuardTests
 {
