@@ -124,6 +124,11 @@ namespace VMSService.Core.Static
         {
             public const string Pending = "Pending";
             public const string Confirmed = "Confirmed";
+            public const string Failed = "Failed";
+
+            /// <summary>Legacy failure reasons — no longer written by any live code path
+            /// (RtgsConfirmationFailed now writes <see cref="Failed"/> instead), kept only so
+            /// historical rows that already carry one of these values keep displaying sensibly.</summary>
             public const string AmountMismatch = "AmountMismatch";
             public const string DateMismatch = "DateMismatch";
             public const string NotFound = "NotFound";

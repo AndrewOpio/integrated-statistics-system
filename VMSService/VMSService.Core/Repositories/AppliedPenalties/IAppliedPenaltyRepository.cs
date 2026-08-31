@@ -7,6 +7,16 @@ namespace VMSService.Core.Repositories.AppliedPenalties
     {
         Task<ICollection<AppliedPenalty>> FindBySourceId(string sourceId);
 
+        /// <summary>
+        /// Whether a penalty has ever been recorded for this (sourceId, penaltyId), including a
+        /// soft-deleted (removed/waived) row — deliberately unfiltered by IsDeleted, matching
+        /// Apply's own internal lookup, so a caller can tell "already handled, don't re-trigger"
+        /// apart from "genuinely new". FindBySourceId alone can't answer this: it excludes deleted
+        /// rows, so checking it before calling Apply would let Apply's upsert silently un-delete a
+        /// manually removed/waived penalty on a later re-trigger.
+        /// </summary>
+        Task<bool> ExistsForSource(string sourceId, int penaltyId);
+
         /// <summary>All applied penalties not yet settled on RTGS, across every source (withdrawal, deposit, processing).</summary>
         Task<ICollection<AppliedPenalty>> FindUnsettled();
 

@@ -444,6 +444,7 @@ builder.Services.AddControllersWithViews()
     });
 
 builder.Services.AddHostedService<VMSService.Web.BackgroundServices.WithdrawalExpiryService>();
+builder.Services.AddHostedService<VMSService.Web.BackgroundServices.WithdrawalAmendmentPenaltyService>();
 
 var app = builder.Build();
 

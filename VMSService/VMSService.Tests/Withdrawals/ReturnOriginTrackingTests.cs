@@ -43,6 +43,8 @@ using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 using VMSService.Core.Repositories.CfbTopupRequests;
 using VMSService.Core.Repositories.CfbTopupStatusHistories;
 using VMSService.Core.Repositories.PublicHolidays;
+using VMSService.Core.Repositories.Penalties;
+using VMSService.Core.Repositories.AppliedPenalties;
 using VMSService.Core.Repositories.BoardSessionSurplusShortages;
 using VMSService.Core.Repositories.BoardSessionSurplusShortageStatusHistories;
 using VMSService.Core.Repositories.BagMovements;
@@ -179,7 +181,9 @@ public class ReturnOriginTrackingTests
             Mock.Of<IMonthlyShortageReimbursementStatusHistoryRepository>(),
             Mock.Of<IStockTakeRepository>(),
             Mock.Of<IStockTakeStatusHistoryRepository>(),
-            Mock.Of<IStockPositionService>());
+            Mock.Of<IStockPositionService>(),
+            Mock.Of<IPenaltyRepository>(),
+            Mock.Of<IAppliedPenaltyRepository>());
     }
 
     private static Task<bool> ExecuteAsync(WorkflowServices service, WithdrawalRequest request, string actionName, string remarks = "")

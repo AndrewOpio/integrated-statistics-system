@@ -41,6 +41,9 @@ using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 using VMSService.Core.Repositories.CfbTopupRequests;
 using VMSService.Core.Repositories.CfbTopupStatusHistories;
 using VMSService.Core.Repositories.PublicHolidays;
+using VMSService.Core.Repositories.Penalties;
+using VMSService.Core.Repositories.AppliedPenalties;
+using VMSService.Core.Services.Penalties;
 using VMSService.Core.Repositories.BoardSessionSurplusShortages;
 using VMSService.Core.Repositories.BoardSessionSurplusShortageStatusHistories;
 using VMSService.Core.Repositories.BagMovements;
@@ -108,7 +111,9 @@ namespace VMSService.Core.Services.Workflows
         IMonthlyShortageReimbursementStatusHistoryRepository _reimbursementStatusHistoryRepository,
         IStockTakeRepository _stockTakeRepository,
         IStockTakeStatusHistoryRepository _stockTakeStatusHistoryRepository,
-        IStockPositionService _stockPositionService) : IWorkflowService
+        IStockPositionService _stockPositionService,
+        IPenaltyRepository _penaltyRepository,
+        IAppliedPenaltyRepository _appliedPenaltyRepository) : IWorkflowService
     {
 
 
@@ -763,16 +768,44 @@ namespace VMSService.Core.Services.Workflows
                 if (request.StatusTypeName == WithdrawalStatusNames.PendingVerification
                     || request.StatusTypeName == WithdrawalStatusNames.VerificationFailed)
                 {
+                    // Penalty #7, second trigger: the code CB carried into this cycle differs from
+                    // what it was at the *previous* RTGS-relevant return — a changed code is itself
+                    // evidence of an error, independent of whether this return was also caused by a
+                    // failed verification. Nothing to compare against on a request's first return.
+                    if (request.RtgsCodeAtLastReturn is not null
+                        && request.RtgsCode != request.RtgsCodeAtLastReturn)
+                    {
+                        await AutomaticPenaltyApplier.ApplyIfNotAlreadyAppliedAsync(
+                            _penaltyRepository, _appliedPenaltyRepository, _logger,
+                            PenaltyConstants.Source.Withdrawal, request.TransactionRefNumber,
+                            PenaltyConstants.AutomaticPenalties.ErrorOnLetterOfIntentAndRtgs,
+                            $"RTGS code changed from {request.RtgsCodeAtLastReturn} to {request.RtgsCode} since the prior return.");
+                    }
+
                     request.RtgsCodeAtLastReturn = request.RtgsCode;
                 }
 
                 // Back Office origin: the code itself failed confirmation — the remark is the audit
-                // trail for that, so it's generated here rather than left to a human to type.
+                // trail for that, so it's generated here rather than left to a human to type. The
+                // penalty itself was already applied when RTGSConfirmationFailed fired, below.
                 if (request.StatusTypeName == WithdrawalStatusNames.VerificationFailed)
                 {
                     effectiveRemarks =
                         $"RTGS code {request.RtgsCode} failed confirmation: {request.RtgsVerificationStatus} — Penalty #7 applied";
                 }
+            }
+            else if (actionName == WithdrawalStatusActionNames.RtgsConfirmationFailed)
+            {
+                // Penalty #7, first trigger: Back Office is intentionally marking this RTGS code as
+                // failed. RtgsConfirmationFailed is the only live path that ever writes a failure
+                // outcome — VerifyRtgs has no UI entry point and stays vestigial.
+                request.RtgsVerificationStatus = RtgsVerification.Failed;
+
+                await AutomaticPenaltyApplier.ApplyIfNotAlreadyAppliedAsync(
+                    _penaltyRepository, _appliedPenaltyRepository, _logger,
+                    PenaltyConstants.Source.Withdrawal, request.TransactionRefNumber,
+                    PenaltyConstants.AutomaticPenalties.ErrorOnLetterOfIntentAndRtgs,
+                    $"RTGS code {request.RtgsCode} failed confirmation.");
             }
             else if (actionName == WithdrawalStatusActionNames.RejectRecall)
             {

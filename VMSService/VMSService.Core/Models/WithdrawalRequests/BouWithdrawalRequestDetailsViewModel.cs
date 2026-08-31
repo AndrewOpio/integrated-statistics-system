@@ -28,6 +28,12 @@ namespace VMSService.Core.Models.WithdrawalRequests
         public string? SpecialApprovalReason { get; set; }
         public bool IsPostApprovalView { get; set; }
         public bool IsLateSubmission { get; set; }
+
+        /// <summary>Penalty #5, waived case: the ABM's return for revision happened at or after
+        /// 11:00 EAT — BOU's own lateness, so the "failure to amend in time" penalty never applies
+        /// no matter how long CB takes to resubmit. Computed on read, same pattern as
+        /// <see cref="IsLateSubmission"/> — never persisted as an AppliedPenalty.</summary>
+        public bool IsAmendmentPenaltyWaived { get; set; }
         public bool FundsNotIssued { get; set; }
 
         public string CbCode { get; init; } = string.Empty;

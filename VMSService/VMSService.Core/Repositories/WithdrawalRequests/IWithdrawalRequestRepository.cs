@@ -17,6 +17,10 @@ namespace VMSService.Core.Repositories.WithdrawalRequests
         /// has arrived (on or before <paramref name="asOfDate"/>) — used by the daily expiry job.</summary>
         Task<IEnumerable<WithdrawalRequest>> GetPendingRtgsWithoutCodeAsync(DateOnly asOfDate, CancellationToken ct = default);
 
+        /// <summary>Requests currently sitting at Returned for Internal Revision — candidates for
+        /// Penalty #5's daily amendment-deadline check.</summary>
+        Task<IEnumerable<WithdrawalRequest>> GetReturnedForRevisionAsync(CancellationToken ct = default);
+
         /// <summary>CB landing-page main list: this CB's non-deleted requests, excluding any that
         /// are both terminal (<see cref="Static.WithdrawConstants.WithdrawalStatusNames.TerminalStatuses"/>)
         /// and whose collection date has already passed — those live in <see cref="GetHistoryByCbAsync"/>

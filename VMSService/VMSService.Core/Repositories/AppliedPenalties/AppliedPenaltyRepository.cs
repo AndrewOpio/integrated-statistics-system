@@ -17,6 +17,9 @@ namespace VMSService.Core.Repositories.AppliedPenalties
                 .OrderBy(a => a.Penalty!.Name)
                 .ToListAsync();
 
+        public async Task<bool> ExistsForSource(string sourceId, int penaltyId)
+            => await _db.AppliedPenalties.AnyAsync(a => a.SourceId == sourceId && a.PenaltyId == penaltyId);
+
         public async Task<ICollection<AppliedPenalty>> FindUnsettled()
             => await _db.AppliedPenalties
                 .Include(a => a.Penalty)

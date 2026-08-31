@@ -16,6 +16,8 @@ using VMSService.Core.Models.WithdrawalRequestDenominations;
 using VMSService.Core.Models.WithdrawalRequests;
 using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.AppliedPenalties;
+using VMSService.Core.Repositories.Penalties;
+using VMSService.Core.Services.Penalties;
 using VMSService.Core.Repositories.Attachments;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.WithdrawalRequestAgents;
@@ -58,6 +60,7 @@ namespace VMSService.Web.Controllers
     IWithdrawalStatusResolver _statusResolver,
     IAttachmentRepository _attachmentRepository,
     IPublicHolidayRepository _publicHolidayRepository,
+    IPenaltyRepository _penaltyRepository,
     IAppliedPenaltyRepository _appliedPenaltyRepository,
     ILogger<CbWithdrawRequestsController> _logger,
     IMapper _mapper) : BaseWithdrawController(authorizationService)
@@ -817,11 +820,19 @@ namespace VMSService.Web.Controllers
                 var isApproverApproveAction = actionName == WithdrawalStatusActionNames.ApproveToRTGSVerification
                     || actionName == WithdrawalStatusActionNames.ExceptionalWithdrawalRequest;
 
+                // Captured here (rather than recomputed after the transition) so penalties #1/#2a
+                // below are judged against the same instant the special-approval-reason check just
+                // used — the approval either goes through right now, at this classification, or not
+                // at all.
+                SubmissionClassification? approverActionClassification = null;
+
                 if (isMakerSubmitAction || isApproverApproveAction)
                 {
                     var classification = await SubmissionClassifier.ClassifyAsync(
                         _publicHolidayRepository, DateTime.UtcNow, request.CollectionDate);
                     var requiresSpecialApproval = classification == SubmissionClassification.SameDayExceptional;
+
+                    if (isApproverApproveAction) approverActionClassification = classification;
 
                     if (requiresSpecialApproval
                         && (!request.RequiresSpecialApproval || string.IsNullOrWhiteSpace(request.SpecialApprovalReason)))
@@ -857,6 +868,11 @@ namespace VMSService.Web.Controllers
                 {
                     // Reload to get the fresh status after the workflow transition
                     var updatedRequest = await _withdrawalRequestRepo.FindById(id);
+
+                    if (updatedRequest is not null && isApproverApproveAction && approverActionClassification is not null)
+                    {
+                        await ApplyApproverActionPenaltiesAsync(updatedRequest, approverActionClassification.Value, actionName);
+                    }
 
                     // If the CB Approver sent the request to RTGS Verification but the RTGS code
                     // is already filled in, skip that step and advance directly to
@@ -950,6 +966,63 @@ namespace VMSService.Web.Controllers
             }
 
             return RedirectToAction(nameof(Details), new { id });
+        }
+
+        /// <summary>
+        /// Penalty #2's own clock — collection day, past 11:00 EAT, no weekend/holiday grace window
+        /// at all. Deliberately independent of <see cref="SubmissionClassifier"/>, which answers a
+        /// different question (is the letter of intent itself exceptional, with a multi-day grace
+        /// window) for Penalty #1.
+        /// </summary>
+        private static bool IsRtgsCodeLate(DateOnly collectionDate)
+        {
+            var nowEat = DateTime.UtcNow.AddHours(3);
+            return collectionDate == DateOnly.FromDateTime(nowEat) && TimeOnly.FromDateTime(nowEat) > new TimeOnly(11, 0, 0);
+        }
+
+        /// <summary>
+        /// Penalties #1, #2a and #3b — all judged at the CB Approver's own approval action
+        /// (ApproveToRTGSVerification/ExceptionalWithdrawalRequest), the moment the request is
+        /// actually submitted onward to BOU.
+        /// </summary>
+        private async Task ApplyApproverActionPenaltiesAsync(
+            WithdrawalRequest request, SubmissionClassification classification, string actionName)
+        {
+            if (classification == SubmissionClassification.SameDayExceptional)
+            {
+                // Penalty #1: the letter of intent itself — any exceptional (same-day, outside the
+                // grace window) request — arrived late.
+                await AutomaticPenaltyApplier.ApplyIfNotAlreadyAppliedAsync(
+                    _penaltyRepository, _appliedPenaltyRepository, _logger,
+                    PenaltyConstants.Source.Withdrawal, request.TransactionRefNumber,
+                    PenaltyConstants.AutomaticPenalties.LateSubmissionOfLetterOfIntent,
+                    "Submitted same-day, outside the grace period.");
+            }
+
+            // Penalty #2a: an RTGS code already travelling with the submission is itself late —
+            // this is purely about the RTGS code's own clock (collection day, past 11:00 EAT, no
+            // grace window), independent of whether the letter of intent itself was exceptional. A
+            // code entered later instead (empty now) is Penalty #2b, judged separately at
+            // UpdateRtgs when it's actually entered.
+            if (!string.IsNullOrWhiteSpace(request.RtgsCode) && IsRtgsCodeLate(request.CollectionDate))
+            {
+                await AutomaticPenaltyApplier.ApplyIfNotAlreadyAppliedAsync(
+                    _penaltyRepository, _appliedPenaltyRepository, _logger,
+                    PenaltyConstants.Source.Withdrawal, request.TransactionRefNumber,
+                    PenaltyConstants.AutomaticPenalties.LateSubmissionOfRtgsToTransact,
+                    "RTGS code was already present past 11:00 EAT on the collection date.");
+            }
+
+            // Penalty #3b: the exceptional-approval path submitted after 15:00 EAT.
+            if (actionName == WithdrawalStatusActionNames.ExceptionalWithdrawalRequest
+                && TimeOnly.FromDateTime(DateTime.UtcNow.AddHours(3)) > new TimeOnly(15, 0, 0))
+            {
+                await AutomaticPenaltyApplier.ApplyIfNotAlreadyAppliedAsync(
+                    _penaltyRepository, _appliedPenaltyRepository, _logger,
+                    PenaltyConstants.Source.Withdrawal, request.TransactionRefNumber,
+                    PenaltyConstants.AutomaticPenalties.TransactingLate,
+                    "Exceptional withdrawal request submitted after 15:00 EAT.");
+            }
         }
 
         [HttpPost]
@@ -1108,6 +1181,11 @@ namespace VMSService.Web.Controllers
                 return RedirectToAction(nameof(Details), new { id });
             }
 
+            // Penalty #2b: the code is being entered for the first time (was empty, now isn't) —
+            // captured before RtgsCode is overwritten below. A code that already travelled with the
+            // submission is Penalty #2a instead, judged at the Approver's approval action.
+            var isFirstRtgsCodeEntry = string.IsNullOrWhiteSpace(request.RtgsCode) && normalizedRtgsCode is not null;
+
             request.FundSettlementValueDate = rtgsDate;
             request.RtgsCode = normalizedRtgsCode;
             request.ModifiedBy = GetUserId();
@@ -1145,6 +1223,21 @@ namespace VMSService.Web.Controllers
             {
                 TempData["Error"] = RtgsCodeConflictMessage(normalizedRtgsCode!);
                 return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (isFirstRtgsCodeEntry)
+            {
+                // Penalty #2b: purely the RTGS code's own clock (collection day, past 11:00 EAT, no
+                // grace window) — independent of the letter-of-intent's same-day-exceptional
+                // classification, which Penalty #1/#2a already cover separately.
+                if (IsRtgsCodeLate(request.CollectionDate))
+                {
+                    await AutomaticPenaltyApplier.ApplyIfNotAlreadyAppliedAsync(
+                        _penaltyRepository, _appliedPenaltyRepository, _logger,
+                        PenaltyConstants.Source.Withdrawal, request.TransactionRefNumber,
+                        PenaltyConstants.AutomaticPenalties.LateSubmissionOfRtgsToTransact,
+                        "RTGS code entered past 11:00 EAT on the collection date.");
+                }
             }
 
             TempData["Success"] = autoTransitioned

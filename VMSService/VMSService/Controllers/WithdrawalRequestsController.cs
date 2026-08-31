@@ -469,6 +469,18 @@ namespace VMSService.Web.Controllers
                 .FirstOrDefault();
             bool isLateSubmission = firstPwc != null && firstPwc.ChangedAt.Hour >= 11;
 
+            // Penalty #5, waived case: the ABM's most recent return for revision happened at or
+            // after 11:00 EAT — BOU's own lateness, so the penalty never applies here regardless of
+            // how long CB takes to resubmit. See WithdrawalAmendmentPenaltyService for the "applies"
+            // case (ABM returned before 11:00, still unresubmitted at 11:00).
+            var lastAbmReturn = statusHistoryList
+                .Where(h => h.NewStatusName == WithdrawConstants.WithdrawalStatusNames.ReturnedForRevision
+                         && h.OldStatusName == WithdrawConstants.WithdrawalStatusNames.PendingVerification)
+                .OrderByDescending(h => h.ChangedAt)
+                .FirstOrDefault();
+            bool isAmendmentPenaltyWaived = lastAbmReturn != null
+                && TimeOnly.FromDateTime(lastAbmReturn.ChangedAt.AddHours(3)) >= new TimeOnly(11, 0, 0);
+
             // Load all attachments for this deposit request
             var allAttachments = await _attachmentRepository.FindByEntityId(id.ToString());
             var withdrawalAttachments = allAttachments
@@ -538,6 +550,7 @@ namespace VMSService.Web.Controllers
                 IsLumpSum = request.IsLumpSum,
                 IsPostApprovalView = displayOrigin == WithdrawalOrigin.Bou,
                 IsLateSubmission = isLateSubmission,
+                IsAmendmentPenaltyWaived = isAmendmentPenaltyWaived,
                 HistoryTrail = historyTrail,
                 RtgsVerificationStatus = request.RtgsVerificationStatus,
                 RtgsVerifiedDate = request.RtgsVerifiedDate,

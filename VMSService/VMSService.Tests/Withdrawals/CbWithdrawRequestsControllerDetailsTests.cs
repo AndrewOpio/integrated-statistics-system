@@ -10,6 +10,7 @@ using VMSService.Core.Authorization;
 using VMSService.Core.Models.CbWithdrawRequest;
 using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.AppliedPenalties;
+using VMSService.Core.Repositories.Penalties;
 using VMSService.Core.Repositories.Attachments;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.PublicHolidays;
@@ -85,6 +86,7 @@ public class CbWithdrawRequestsControllerDetailsTests
             Mock.Of<IWithdrawalStatusResolver>(),
             attachmentRepository.Object,
             publicHolidayRepository.Object,
+            Mock.Of<IPenaltyRepository>(),
             Mock.Of<IAppliedPenaltyRepository>(),
             Mock.Of<ILogger<CbWithdrawRequestsController>>(),
             Mock.Of<IMapper>())

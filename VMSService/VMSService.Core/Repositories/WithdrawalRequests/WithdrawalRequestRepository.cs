@@ -85,6 +85,11 @@ namespace VMSService.Core.Repositories.WithdrawalRequests
                     && (r.RtgsCode == null || r.RtgsCode == string.Empty))
                 .ToListAsync(ct);
 
+        public async Task<IEnumerable<WithdrawalRequest>> GetReturnedForRevisionAsync(CancellationToken ct = default)
+            => await _db.WithdrawalRequests
+                .Where(r => !r.IsDeleted && r.StatusTypeName == WithdrawalStatusNames.ReturnedForRevision)
+                .ToListAsync(ct);
+
         public async Task<IEnumerable<WithdrawalRequest>> GetActiveByCbAsync(int cbId, DateOnly today, CancellationToken ct = default)
         => await _db.WithdrawalRequests
             .Where(r => r.CbId == cbId

@@ -43,6 +43,8 @@ using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 using VMSService.Core.Repositories.CfbTopupRequests;
 using VMSService.Core.Repositories.CfbTopupStatusHistories;
 using VMSService.Core.Repositories.PublicHolidays;
+using VMSService.Core.Repositories.Penalties;
+using VMSService.Core.Repositories.AppliedPenalties;
 using VMSService.Core.Repositories.BoardSessionSurplusShortages;
 using VMSService.Core.Repositories.BoardSessionSurplusShortageStatusHistories;
 using VMSService.Core.Repositories.BagMovements;
@@ -197,7 +199,9 @@ public class ReturnRtgsPendingTests
             Mock.Of<IMonthlyShortageReimbursementStatusHistoryRepository>(),
             Mock.Of<IStockTakeRepository>(),
             Mock.Of<IStockTakeStatusHistoryRepository>(),
-            Mock.Of<IStockPositionService>());
+            Mock.Of<IStockPositionService>(),
+            Mock.Of<IPenaltyRepository>(),
+            Mock.Of<IAppliedPenaltyRepository>());
 
         return (service, createdHistory, workflowClient);
     }
