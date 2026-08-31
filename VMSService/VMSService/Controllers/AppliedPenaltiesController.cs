@@ -47,6 +47,10 @@ namespace VMSService.Web.Controllers
                     RtgsSettlingMessage = a.RtgsSettlingMessage,
                     AppliedBy = a.CreatedBy,
                     AppliedAt = a.CreatedDate,
+                    ToBeWaived = a.ToBeWaived,
+                    WaiverReason = a.WaiverReason,
+                    WaivedBy = a.WaivedBy,
+                    WaivedDate = a.WaivedDate,
                 }).ToList();
 
                 return View(model);

@@ -25,7 +25,10 @@ namespace VMSService.Data.Entities
         public bool IsSettledOnRtgs { get; set; } = false;
         public string? RtgsCode { get; set; }
         public string? RtgsSettlingMessage { get; set; }
-        public bool toBeWaived { get; set; } = false;
+        public bool ToBeWaived { get; set; } = false;
+        public string? WaiverReason { get; set; }
+        public string? WaivedBy { get; set; }
+        public DateTime? WaivedDate { get; set; }
         public string Description { get; set; }
         public bool IsDeleted { get; set; } = false;
     }

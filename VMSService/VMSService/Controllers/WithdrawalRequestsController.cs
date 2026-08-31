@@ -633,9 +633,15 @@ namespace VMSService.Web.Controllers
                     RtgsSettlingMessage = a.RtgsSettlingMessage,
                     AppliedBy = a.CreatedBy,
                     AppliedAt = a.CreatedDate,
+                    ToBeWaived = a.ToBeWaived,
+                    WaiverReason = a.WaiverReason,
+                    WaivedBy = a.WaivedBy,
+                    WaivedDate = a.WaivedDate,
                 }).ToList();
 
-                if (request.StatusTypeName == WithdrawalStatusNames.PendingVerification && vm.AvailableTransitions.Any())
+                vm.CanManagePenalties = request.StatusTypeName == WithdrawalStatusNames.PendingVerification && vm.AvailableTransitions.Any();
+
+                if (vm.CanManagePenalties)
                 {
                     var appliedPenaltyIds = appliedPenalties.Select(a => a.PenaltyId).ToHashSet();
                     var applicablePenalties = await _penaltyRepository.FindApplicableFor(PenaltyConstants.AppliesTo.PreTransaction);
@@ -690,21 +696,7 @@ namespace VMSService.Web.Controllers
                 return RedirectToAction(nameof(Details), new { id });
             }
 
-            // Same check used to gate the workflow action buttons — only someone whose role has an
-            // available transition on this request right now may apply/adjust its penalties.
-            var hasAvailableTransition = false;
-            foreach (var roleId in GetUserRoleIds())
-            {
-                var roleTransitions = await _workflowService.GetAvailableTransitionsAsync(
-                    StatusConstants.Entity.WithdrawalRequest, request.StatusTypeId, roleId);
-                if (roleTransitions.Any())
-                {
-                    hasAvailableTransition = true;
-                    break;
-                }
-            }
-
-            if (!hasAvailableTransition)
+            if (!await CallerHasAvailableTransition(request))
             {
                 TempData["Error"] = "You are not authorized to act on this request at its current status.";
                 return RedirectToAction(nameof(Details), new { id });
@@ -742,6 +734,77 @@ namespace VMSService.Web.Controllers
             {
                 _logger.LogError(ex, "Error applying penalties to withdrawal request {Id}", id);
                 TempData["Error"] = "An error occurred while updating penalties.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        /// <summary>Waives one specific applied penalty in place (e.g. an automatically-applied one
+        /// the ABM has reviewed and decided shouldn't stand), with a mandatory reason. Deliberately
+        /// separate from the branch-and-date-ranged <see cref="ApplyPenalties"/>/<c>PenaltyWaiver</c>
+        /// machinery — this waives just this one applied charge, not the penalty type going
+        /// forward. Gated the same way as ApplyPenalties: only while Pending Verification, and only
+        /// for a role with an available transition on the request right now (in practice, the
+        /// ABM).</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> WaivePenalty(Guid id, int appliedPenaltyId, string waiverReason)
+        {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
+            var request = await _uow.Requests.FindById(id);
+            if (request is null)
+            {
+                TempData["Error"] = "Withdrawal request not found.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (request.StatusTypeName != WithdrawalStatusNames.PendingVerification)
+            {
+                TempData["Error"] = "Penalties can only be waived while the request is Pending Verification.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (string.IsNullOrWhiteSpace(waiverReason))
+            {
+                TempData["Error"] = "A reason is required to waive a penalty.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (string.IsNullOrEmpty(request.TransactionRefNumber))
+            {
+                TempData["Error"] = "This request does not have a transaction reference number yet.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (!await CallerHasAvailableTransition(request))
+            {
+                TempData["Error"] = "You are not authorized to act on this request at its current status.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            try
+            {
+                // Confirm the applied penalty actually belongs to this request before touching it —
+                // appliedPenaltyId is user-supplied and otherwise nothing ties it to id/the current
+                // request's own charges.
+                var appliedToThisRequest = (await _appliedPenaltyRepository.FindBySourceId(request.TransactionRefNumber))
+                    .Any(a => a.Id == appliedPenaltyId);
+
+                if (!appliedToThisRequest)
+                {
+                    TempData["Error"] = "That penalty is not applied to this request.";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
+
+                await _appliedPenaltyRepository.Waive(appliedPenaltyId, waiverReason.Trim(), User.GetUsernameOrSystem());
+                await _appliedPenaltyRepository.Save();
+                TempData["Success"] = "Penalty waived.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error waiving applied penalty {AppliedPenaltyId} on withdrawal request {Id}", appliedPenaltyId, id);
+                TempData["Error"] = "An error occurred while waiving the penalty.";
             }
 
             return RedirectToAction(nameof(Details), new { id });
@@ -1662,6 +1725,21 @@ namespace VMSService.Web.Controllers
             .Select(c => int.TryParse(c.Value.Split(":")[1], out var roleId) ? roleId : 0)
             .Where(r => r > 0)
             .ToList();
+
+        /// <summary>Same check used to gate the workflow action buttons — only someone whose role
+        /// has an available transition on this request right now may act on its penalties
+        /// (ApplyPenalties/WaivePenalty).</summary>
+        private async Task<bool> CallerHasAvailableTransition(WithdrawalRequest request)
+        {
+            foreach (var roleId in GetUserRoleIds())
+            {
+                var roleTransitions = await _workflowService.GetAvailableTransitionsAsync(
+                    StatusConstants.Entity.WithdrawalRequest, request.StatusTypeId, roleId);
+                if (roleTransitions.Any())
+                    return true;
+            }
+            return false;
+        }
 
         static BouDispatchCardViewModel BuildFullCard(BouDenominationEditRowViewModel row,
     List<DispatchedBoxDetail> boxesInSegment)

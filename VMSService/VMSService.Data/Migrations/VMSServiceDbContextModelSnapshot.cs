@@ -208,8 +208,17 @@ namespace VMSService.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<bool>("toBeWaived")
+                    b.Property<bool>("ToBeWaived")
                         .HasColumnType("bit");
+
+                    b.Property<string>("WaivedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("WaivedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("WaiverReason")
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 

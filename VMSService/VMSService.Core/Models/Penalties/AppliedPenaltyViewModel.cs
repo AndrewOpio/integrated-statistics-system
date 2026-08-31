@@ -14,5 +14,9 @@ namespace VMSService.Core.Models.Penalties
         public string? RtgsSettlingMessage { get; set; }
         public string AppliedBy { get; set; } = string.Empty;
         public DateTime AppliedAt { get; set; }
+        public bool ToBeWaived { get; set; }
+        public string? WaiverReason { get; set; }
+        public string? WaivedBy { get; set; }
+        public DateTime? WaivedDate { get; set; }
     }
 }

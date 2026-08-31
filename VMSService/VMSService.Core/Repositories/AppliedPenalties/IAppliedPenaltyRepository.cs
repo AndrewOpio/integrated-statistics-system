@@ -40,5 +40,13 @@ namespace VMSService.Core.Repositories.AppliedPenalties
         /// history of it having been applied survives. Stages only; call Save() to commit.
         /// </summary>
         Task Remove(int appliedPenaltyId);
+
+        /// <summary>
+        /// Waives a specific applied penalty in place — sets ToBeWaived, WaiverReason, WaivedBy, and
+        /// WaivedDate together. Distinct from Remove: the charge row stays exactly as applied (not
+        /// soft-deleted), it's just annotated as forgiven, with who and why. Stages only; call Save()
+        /// to commit.
+        /// </summary>
+        Task Waive(int appliedPenaltyId, string reason, string waivedBy);
     }
 }

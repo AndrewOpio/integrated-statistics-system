@@ -79,5 +79,11 @@ namespace VMSService.Core.Models.WithdrawalRequests
 
         public IEnumerable<PenaltyChecklistItemViewModel> ApplicablePenalties { get; set; } = [];
         public IEnumerable<AppliedPenaltyViewModel> AppliedPenalties { get; set; } = [];
+
+        /// <summary>Whether the current user can act on this request's penalties right now — same
+        /// gate ApplyPenalties/WaivePenalty enforce server-side: Pending Verification, and an
+        /// available workflow transition (in practice, the ABM). Drives both the "Manage Penalties"
+        /// checklist and the per-row Waive action.</summary>
+        public bool CanManagePenalties { get; set; }
     }
 }

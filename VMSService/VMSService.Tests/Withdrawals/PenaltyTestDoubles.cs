@@ -88,4 +88,17 @@ public class FakeAppliedPenaltyRepository : IAppliedPenaltyRepository
         if (existing is not null) existing.IsDeleted = true;
         return Task.CompletedTask;
     }
+
+    public Task Waive(int appliedPenaltyId, string reason, string waivedBy)
+    {
+        var existing = Rows.FirstOrDefault(a => a.Id == appliedPenaltyId && !a.IsDeleted);
+        if (existing is not null)
+        {
+            existing.ToBeWaived = true;
+            existing.WaiverReason = reason;
+            existing.WaivedBy = waivedBy;
+            existing.WaivedDate = DateTime.Now;
+        }
+        return Task.CompletedTask;
+    }
 }

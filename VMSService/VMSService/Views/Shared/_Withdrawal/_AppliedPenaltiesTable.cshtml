@@ -1,5 +1,13 @@
 @model IEnumerable<VMSService.Core.Models.Penalties.AppliedPenaltyViewModel>
 
+@{
+    // Set only by the BOU details page — the CB Details view reuses this same partial read-only,
+    // so the Waive column/modal are opt-in via ViewData rather than a required model change.
+    var requestId = ViewData["RequestId"] as Guid?;
+    var canManagePenalties = ViewData["CanManagePenalties"] as bool? ?? false;
+    var canWaive = requestId.HasValue && canManagePenalties;
+}
+
 <div class="table-responsive">
     <table class="table table-sm table-nowrap mb-0">
         <thead class="thead-light">
@@ -8,6 +16,7 @@
                 <th class="border-0">Charge (UGX)</th>
                 <th class="border-0">Applied By</th>
                 <th class="border-0">RTGS Settlement</th>
+                <th class="border-0">Waiver</th>
             </tr>
         </thead>
         <tbody>
@@ -31,8 +40,67 @@
                             <span class="badge bg-secondary">Pending</span>
                         }
                     </td>
+                    <td>
+                        @if (applied.ToBeWaived)
+                        {
+                            <span class="badge bg-secondary"
+                                  title="Waived by @applied.WaivedBy on @applied.WaivedDate?.ToString("dd MMM yyyy") — @applied.WaiverReason">
+                                Waived
+                            </span>
+                        }
+                        else if (canWaive)
+                        {
+                            <button type="button" class="btn btn-sm btn-outline-secondary waive-penalty-btn"
+                                    data-bs-toggle="modal" data-bs-target="#waivePenaltyModal"
+                                    data-penalty-id="@applied.Id" data-penalty-name="@applied.PenaltyName">
+                                Waive
+                            </button>
+                        }
+                    </td>
                 </tr>
             }
         </tbody>
     </table>
 </div>
+
+@if (canWaive)
+{
+    <div class="modal fade" id="waivePenaltyModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form method="post" asp-action="WaivePenalty" asp-controller="WithdrawalRequests" asp-route-id="@requestId">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="appliedPenaltyId" id="waivePenaltyId" value="" />
+                    <div class="modal-header">
+                        <h5 class="modal-title">Waive Penalty</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-3">
+                            Waiving <strong id="waivePenaltyName"></strong> keeps the charge on record but
+                            marks it forgiven — it stays visible in the audit trail with your reason.
+                        </p>
+                        <label for="waiverReason" class="form-label">Reason <span class="text-danger">*</span></label>
+                        <textarea name="waiverReason" id="waiverReason" class="form-control" rows="3"
+                                  maxlength="500" required></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-secondary">
+                            <i class="ti ti-check"></i> Waive
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.querySelectorAll('.waive-penalty-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                document.getElementById('waivePenaltyId').value = btn.dataset.penaltyId;
+                document.getElementById('waivePenaltyName').textContent = btn.dataset.penaltyName;
+                document.getElementById('waiverReason').value = '';
+            });
+        });
+    </script>
+}
