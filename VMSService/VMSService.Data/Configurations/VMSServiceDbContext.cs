@@ -148,6 +148,9 @@ namespace VMSService.Data.Configurations
         public DbSet<StockTakeStatusHistory> StockTakeStatusHistory { get; set; }
         public DbSet<StockTakeSystemPosition> StockTakeSystemPositions { get; set; }
 
+        // BPS machine XML result imports
+        public DbSet<BpsXmlImport> BpsXmlImports => Set<BpsXmlImport>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -309,6 +312,27 @@ namespace VMSService.Data.Configurations
             modelBuilder.Entity<PublicHoliday>()
                 .HasIndex(x => x.Date)
                 .IsUnique();
+
+            // ── BpsXmlImport ─────────────────────
+            // A machine result file may only ever back one processing result. The filtered unique
+            // index is what enforces "locked once used" at the database level; soft-deleted rows are
+            // excluded so unlinking a file genuinely releases it back to the picker.
+            modelBuilder.Entity<BpsXmlImport>()
+                .HasIndex(x => x.FileName)
+                .IsUnique()
+                .HasFilter("[IsDeleted] = 0");
+            modelBuilder.Entity<BpsXmlImport>()
+                .HasIndex(x => x.StockProcessingResultId);
+            modelBuilder.Entity<BpsXmlImport>()
+                .HasOne(x => x.StockProcessingSession)
+                .WithMany()
+                .HasForeignKey(x => x.StockProcessingSessionId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<BpsXmlImport>()
+                .HasOne(x => x.StockProcessingResult)
+                .WithMany()
+                .HasForeignKey(x => x.StockProcessingResultId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             // ── AppliedPenalty ─────────────────────
             modelBuilder.Entity<AppliedPenalty>()

@@ -11,7 +11,6 @@ using VMSService.Core.Models.ExPrintMintDetails;
 using VMSService.Core.Models.ReceivedStocksDetails;
 using VMSService.Core.Models.ReceivedStocks;
 using VMSService.Core.Models.ReceivedStockStatusHistories;
-using VMSService.Core.Repositories.BranchCategories;
 using VMSService.Core.Repositories.Branches;
 using VMSService.Core.Repositories.CounterPartyTypes;
 using VMSService.Core.Repositories.Denominations;
@@ -52,7 +51,6 @@ namespace VMSService.Web.Controllers
         IDenominationRepository _denominationRepository,
         IBranchRepository _branchRepository,
         ICounterPartyTypeRepository _counterPartyTypeRepository,
-        IBranchCategoryRepository _branchCategoryRepository,
         IPackingListRangeRepository _packingListRangeRepository,
         IStockMovementRepository _stockMovementRepository,
         INewStockMovementLogRepository _newStockMovementLogRepository,
@@ -637,8 +635,6 @@ namespace VMSService.Web.Controllers
                             {
                                 // Step 2: Create StockLedger using the movement ID, with one StockLedgerDetail
                                 // per denomination actually present in the received stock's details.
-                                var store = await _branchCategoryRepository
-                                    .FindByBranchAndCategoryName(receivedStock.ExPrintMint.BranchId, StockConstants.StoreTypes.New);
                                 var counterPartyType = await _counterPartyTypeRepository.FindByName(StockConstants.StockCounterPartyType.Vendor);
                                 var categories = await _categoryRepository.FindAll();
                                 var newCategory = categories?.FirstOrDefault(c => c.Name == StockConstants.StoreTypes.New);
@@ -653,6 +649,7 @@ namespace VMSService.Web.Controllers
                                     var denomination = await _denominationRepository.FindById(denominationId);
                                     int numberOfBoxes = details.Sum(d => d.ReceivedEndCaseNumber - d.ReceivedStartCaseNumber + 1);
                                     int numberOfPieces = numberOfBoxes * (denomination?.NumberOfPiecesInABox ?? 0);
+                                    int numberOfBundles = denomination?.NumberOfPiecesInABundle > 0 ? numberOfPieces / denomination.NumberOfPiecesInABundle : 0;
 
                                     stockLedgerDetails.Add(new StockLedgerDetail
                                     {
@@ -663,7 +660,7 @@ namespace VMSService.Web.Controllers
                                         DenominationId = denominationId,
                                         NumberOfPieces = numberOfPieces,
                                         NumberOfBoxes = numberOfBoxes,
-                                        NumberOfBundles = numberOfBoxes,
+                                        NumberOfBundles = numberOfBundles,
                                         Value = denomination != null ? denomination.Value * numberOfPieces : 0,
                                         CategoryId = newCategory?.Id ?? 0,
                                         SubCategoryId = naSubCategory?.Id ?? 0,
@@ -674,7 +671,7 @@ namespace VMSService.Web.Controllers
                                 {
                                     ReferenceCode = receivedStock.ExPrintMint.ExPrintMintReference,
                                     StockMovementId = createdMovement.Id,
-                                    StoreId = store?.Id ?? 0,
+                                    StoreId = receivedStock.ExPrintMint.BranchId,
                                     IsIn = true,
                                     CounterPartyId = receivedStock.ExPrintMint.CurrencyVendorId,
                                     CounterPartyTypeId = counterPartyType?.Id ?? 0,
@@ -764,8 +761,10 @@ namespace VMSService.Web.Controllers
                     Date = DateTime.Now,
                     ReferenceNumber = $"REC-{receivedStock.Id}-{DateTime.Now:yyyyMMddHHmmss}",
                     CurrentStatusId = statusId,
+                    CurrentStatusName = receivedStatus?.Name ?? StatusConstants.StockMovement.Received,
                     DispatchingBranchId = 0,
                     ReceivingBranchId = receivedStock.ExPrintMint.BranchId,
+                    LogisticsId = receivedStock.ExPrintMint.LogisticsId,
                     CreatedBy = username ?? "system",
                     ModifiedBy = username ?? "system",
                     CreatedDate = DateTime.Now,
@@ -773,27 +772,52 @@ namespace VMSService.Web.Controllers
                     Denominations = new List<StockMovementDenomination>()
                 };
 
+                var categories = await _categoryRepository.FindAll();
+                var newCategory = categories?.FirstOrDefault(c => c.Name == StockConstants.StoreTypes.New);
+
+                int totalBoxes = 0;
+                decimal grandTotalValue = 0;
+
                 // One StockMovementDenomination per denomination actually present in the received
                 // stock's details, since a single received stock can span multiple denominations.
                 foreach (var (denominationId, details) in detailsByDenomination)
                 {
+                    var denominationRecord = await _denominationRepository.FindById(denominationId);
+                    int numberOfBoxes = details.Sum(d => d.ReceivedEndCaseNumber - d.ReceivedStartCaseNumber + 1);
+                    int numberOfPieces = numberOfBoxes * (denominationRecord?.NumberOfPiecesInABox ?? 0);
+                    int numberOfBundles = denominationRecord?.NumberOfPiecesInABundle > 0 ? numberOfPieces / denominationRecord.NumberOfPiecesInABundle : 0;
+                    decimal subTotalValue = denominationRecord != null ? denominationRecord.Value * numberOfPieces : 0;
+
                     var denomination = new StockMovementDenomination
                     {
                         DenominationId = denominationId,
+                        NumBagsBoxes = numberOfBoxes,
+                        NumBundles = numberOfBundles,
+                        SubTotalValue = subTotalValue,
+                        DenominationType = "Received",
+                        CategoryId = newCategory?.Id ?? 0,
+                        ContainerType = "Box",
                         BoxNumberRanges = new List<StockMovementDenominationBoxNumberRange>()
                     };
 
                     foreach (var detail in details)
                     {
+                        var packingListRange = await _packingListRangeRepository.FindByIdAsync(detail.PackingListRangeId);
                         denomination.BoxNumberRanges.Add(new StockMovementDenominationBoxNumberRange
                         {
+                            Prefix = packingListRange?.CaseNumberPrefix ?? string.Empty,
                             Start = detail.ReceivedStartCaseNumber.ToString(),
                             End = detail.ReceivedEndCaseNumber.ToString()
                         });
                     }
 
                     stockMovement.Denominations.Add(denomination);
+                    totalBoxes += numberOfBoxes;
+                    grandTotalValue += subTotalValue;
                 }
+
+                stockMovement.TotalBagsBoxes = totalBoxes;
+                stockMovement.GrandTotalValue = grandTotalValue;
 
                 var createdMovement = await _stockMovementRepository.CreateAsync(stockMovement);
 

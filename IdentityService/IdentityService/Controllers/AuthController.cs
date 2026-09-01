@@ -1,5 +1,6 @@
 ﻿using ConfigurationsService.Client;
 using IdentityService.Core.Models;
+using IdentityService.Core.Repository.ApplicationRoleBranches;
 using IdentityService.Core.Repository.CommercialBankUsers;
 using IdentityService.Core.Repository.UserApplicationRoles;
 using IdentityService.Core.Repository.Users;
@@ -21,6 +22,7 @@ namespace IdentityService.Controllers
         ILogger<AuthController> _logger,
         IConfiguration _config,
         IUserApplicationRoleRepository _userAppRoleRepo,
+        IApplicationRoleBranchRepository _appRoleBranchRepo,
         IUserRepository _userRepo,
         UserManager<User> _userManager,
         IConfigurationsServiceClient _configServiceClient,
@@ -438,6 +440,28 @@ namespace IdentityService.Controllers
                 claims.Add(new Claim("appRoleId", $"{userAppRole.ApplicationRole.Application.Acronym}:{userAppRole.ApplicationRole.Id}"));
             }
 
+            var roleIds = userAppRoles.Select(r => r.ApplicationRoleId);
+            var branchAssignments = await _appRoleBranchRepo.FindByApplicationRoleIds(roleIds);
+            var branchIds = branchAssignments.Select(b => b.BranchId).ToHashSet();
+
+            foreach (var branchId in branchIds)
+                claims.Add(new Claim("branchId", branchId.ToString()));
+
+            try
+            {
+                var allBranches = await _configServiceClient.GetAllBouBranchesAsync();
+                var branchMap = allBranches.ToDictionary(b => b.Id, b => b.Name);
+                foreach (var branchId in branchIds)
+                {
+                    if (branchMap.TryGetValue(branchId, out var name))
+                        claims.Add(new Claim("branchName", name));
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not fetch branch names from ConfigurationsService for user {Username}.", username);
+            }
+
             // Add IsStaff claim
             claims.Add(new Claim("isStaff", dbUser.IsStaff.ToString().ToLower()));
             claims.Add(new Claim(ClaimTypes.Name, username));
@@ -591,6 +615,34 @@ namespace IdentityService.Controllers
                 valid = true,
                 username = principal.Identity?.Name,
                 claims = principal.Claims.Select(c => new { c.Type, c.Value })
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // Extend an active session without re-authenticating
+        // ═══════════════════════════════════════════════════════════
+        [HttpPost("renew")]
+        public IActionResult RenewToken([FromBody] TokenValidationRequest request)
+        {
+            var result = _jwtService.RenewToken(request?.Token);
+
+            if (!result.Success)
+            {
+                _logger.LogInformation("Session renewal refused: {Message}", result.Message);
+
+                return Unauthorized(new
+                {
+                    success = false,
+                    message = result.Message
+                });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                token = result.Token,
+                expiresAtUtc = result.ExpiresAtUtc,
+                authenticatedAtUtc = result.AuthenticatedAtUtc
             });
         }
 

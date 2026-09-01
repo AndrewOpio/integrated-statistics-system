@@ -22,10 +22,17 @@ public class ApplicationDbContext : IdentityDbContext<User, Role, string>
     public DbSet<ApplicationRoleBranch> ApplicationRoleBranches { get; set; }
     public DbSet<UserApplicationRole> UserApplicationRoles { get; set; }
     public DbSet<CommercialBankUser> CommercialBankUsers { get; set; }
+    public DbSet<UserBranch> UserBranches { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        builder.Entity<UserBranch>()
+            .HasOne(x => x.User)
+            .WithMany()
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 
 

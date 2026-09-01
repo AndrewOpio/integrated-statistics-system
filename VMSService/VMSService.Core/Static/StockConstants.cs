@@ -30,6 +30,9 @@
         {
             public const string Online  = "Online";
             public const string Offsite = "Offsite";
+
+            /// <summary>Fixed capacity of a single bag of cancelled notes destined for destruction, regardless of denomination.</summary>
+            public const int NotesPerDestructionBag = 500000;
         }
 
         public static class StockMovementTypes
@@ -45,6 +48,10 @@
             // MI & Fit issued to boards alongside the Paids -> MWB move at IssueToBoards.
             public const string MIToMWB = "MI To Money With Boards";
             public const string FitToMWB = "Fit To Money With Boards";
+            // Reversals of the two above, posted at ConfirmResults from what the board supervisors
+            // declared they handed back unused.
+            public const string MWBToMI = "Money With Boards To MI";
+            public const string MWBToFit = "Money With Boards To Fit";
             public const string MWBToReIssue = "Money With Boards To Re-Issue";
             public const string MWBToCancelled = "Money With Boards To Cancelled";
             public const string MWBToShredded = "Money With Boards To Shredded";

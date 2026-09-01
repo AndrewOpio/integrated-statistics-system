@@ -171,8 +171,8 @@ namespace VMSService.Web.Controllers
                 CollectionDate = r.DepositDate,
                 CreationDate = r.CreatedDate,
                 RequiresSpecialApproval = r.RequiresSpecialApproval,
-                RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "�" : r.RtgsCode,
-                BouBranchCode = (await _configServiceClient.GetBouBranchByIdAsync(r.BouBranchId))?.BranchCode ?? "�"
+                RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "—" : r.RtgsCode,
+                BouBranchCode = (await _configServiceClient.GetBouBranchByIdAsync(r.BouBranchId))?.BranchCode ?? "—"
             }).ToList());
 
             rows = [.. rows.OrderByDescending(r => r.CollectionDate)];
@@ -444,12 +444,12 @@ namespace VMSService.Web.Controllers
                 RequiresSpecialApproval = request.RequiresSpecialApproval,
                 SpecialApprovalReason = request.SpecialApprovalReason,
                 DepositAgents = agentDetails,
-                CbName = cb?.Name ?? "�",
+                CbName = cb?.Name ?? "—",
                 CbBranchName = cbBranchName,
-                CbBicCode = cb?.Code ?? "�",
-                CbCode = cb?.CBCode ?? "�",
-                BouBranchName = bouBranch?.Name ?? "�",
-                BouBranchCode = bouBranch?.BranchCode ?? "�",
+                CbBicCode = cb?.Code ?? "—",
+                CbCode = cb?.CBCode ?? "—",
+                BouBranchName = bouBranch?.Name ?? "—",
+                BouBranchCode = bouBranch?.BranchCode ?? "—",
                 BouBranchId = bouBranch?.Id ?? 0,
                 FitNotes = cbDenoms
                     .Where(d => d.DenominationTypeId == noteTypeId && d.SubCategoryId == 1)

@@ -199,7 +199,6 @@
                             <th class="py-2 px-1 text-muted fw-semibold text-end" style="font-size:.72rem;letter-spacing:.04em;">TOTAL ISSUED AMOUNT</th>
                             <th class="py-2 px-1 text-muted fw-semibold text-end" style="font-size:.72rem;letter-spacing:.04em;">REISSUE VALUE</th>
                             <th class="py-2 px-1 text-muted fw-semibold text-end" style="font-size:.72rem;letter-spacing:.04em;">CANCELLED VALUE</th>
-                            <th class="py-2 px-1 text-muted fw-semibold text-end" style="font-size:.72rem;letter-spacing:.04em;">FIT SHRED VALUE</th>
                             <th class="py-2 px-1 text-muted fw-semibold text-end" style="font-size:.72rem;letter-spacing:.04em;">MONEY WITH BOARDS</th>
                             <th class="py-2 pe-3 px-1 text-muted fw-semibold" style="font-size:.72rem;letter-spacing:.04em;">ACTIONS</th>
                         </tr>
@@ -227,7 +226,6 @@
                                 <td class="py-2 px-1 text-end fw-semibold">UGX @summary.TotalIssuedValue.ToString("N0")</td>
                                 <td class="py-2 px-1 text-end">UGX @summary.ReissueValue.ToString("N0")</td>
                                 <td class="py-2 px-1 text-end">UGX @summary.CanceledValue.ToString("N0")</td>
-                                <td class="py-2 px-1 text-end">UGX @summary.FitShredValue.ToString("N0")</td>
                                 <td class="py-2 px-1 text-end">UGX @summary.UnProcessedValue.ToString("N0")</td>
                                 <td class="py-2 pe-3 px-1">
                                     <a asp-controller="StockProcessingSession" asp-action="Details" asp-route-id="@summary.SessionId"
@@ -245,7 +243,6 @@
                             <td class="py-2 px-1 text-end fw-bold" style="color:#31316A;">UGX @Model.ResultSummaries.Sum(s => s.TotalIssuedValue).ToString("N0")</td>
                             <td class="py-2 px-1 text-end fw-bold" style="color:#31316A;">UGX @Model.ResultSummaries.Sum(s => s.ReissueValue).ToString("N0")</td>
                             <td class="py-2 px-1 text-end fw-bold" style="color:#31316A;">UGX @Model.ResultSummaries.Sum(s => s.CanceledValue).ToString("N0")</td>
-                            <td class="py-2 px-1 text-end fw-bold" style="color:#31316A;">UGX @Model.ResultSummaries.Sum(s => s.FitShredValue).ToString("N0")</td>
                             <td class="py-2 px-1 text-end fw-bold" style="color:#31316A;">UGX @Model.ResultSummaries.Sum(s => s.UnProcessedValue).ToString("N0")</td>
                             <td class="pe-3"></td>
                         </tr>
@@ -259,12 +256,61 @@
 @* MI & Fit *@
 @if (Model.MIandFits.Any())
 {
+    var undeclaredMIandFit = Model.MIandFits.Where(m => !m.IsDeclared).ToList();
+
     <div class="card border-0 shadow mb-4">
-        <div class="card-header" style="background:#fff;border-radius:.5rem .5rem 0 0;">
+        <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap"
+             style="background:#fff;border-radius:.5rem .5rem 0 0;">
             <h6 class="fw-bold mb-0" style="color:#31316A;">
                 <i class="ti ti-scale me-2"></i>MI &amp; Fit
             </h6>
+            @if (undeclaredMIandFit.Count > 0)
+            {
+                <span class="badge bg-warning text-warning-emphasis border border-warning-subtle" style="font-size:.7rem;">
+                    <i class="ti ti-clock me-1"></i>@undeclaredMIandFit.Count of @Model.MIandFits.Count pending
+                </span>
+            }
+            else
+            {
+                <span class="badge bg-success border border-success-subtle" style="font-size:.7rem;">
+                    <i class="ti ti-circle-check me-1"></i>Fully declared
+                </span>
+            }
         </div>
+
+        @* Results cannot be confirmed while any board supervisor still owes a return, so the
+           outstanding denominations are named here rather than only surfacing on the failed action. *@
+        @if (undeclaredMIandFit.Count > 0)
+        {
+            <div class="alert alert-warning border-0 rounded-0 mb-0 d-flex align-items-start gap-2">
+                <i class="ti ti-alert-triangle flex-shrink-0 mt-1"></i>
+                <div>
+                    <strong class="d-block mb-1">MI &amp; Fit has not been fully declared</strong>
+                    <p class="mb-1 small">
+                        The assigned Board Supervisor has not declared the Returned Fit and Returned Un-Fit
+                        values for the following denomination@(undeclaredMIandFit.Count == 1 ? "" : "s").
+                        Results cannot be confirmed until every denomination has been declared.
+                    </p>
+                    <ul class="mb-0 ps-3 small">
+                        @foreach (var mf in undeclaredMIandFit)
+                        {
+                            <li>
+                                <strong>@mf.DenominationName</strong>
+                                @if (string.IsNullOrWhiteSpace(mf.BoardSupervisorName))
+                                {
+                                    <span class="text-danger">— no Board Supervisor assigned</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">— assigned to @mf.BoardSupervisorName</span>
+                                }
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        }
+
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0">
@@ -272,10 +318,11 @@
                         <tr>
                             <th class="ps-3 py-2" style="font-size:.8rem;">Denomination</th>
                             <th class="py-2 text-end" style="font-size:.8rem;">Issued Fit</th>
-                            <th class="py-2 text-end" style="font-size:.8rem;">Issued Un-Fit</th>
+                            <th class="py-2 text-end" style="font-size:.8rem;">Issued MI</th>
                             <th class="py-2 text-end" style="font-size:.8rem;">Returned Fit</th>
-                            <th class="py-2 text-end" style="font-size:.8rem;">Returned Un-Fit</th>
+                            <th class="py-2 text-end" style="font-size:.8rem;">Returned MI</th>
                             <th class="py-2" style="font-size:.8rem;">Board Supervisor</th>
+                            <th class="py-2 pe-3" style="font-size:.8rem;">Declaration</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -285,9 +332,32 @@
                                 <td class="ps-3 fw-semibold">@mf.DenominationName</td>
                                 <td class="text-end">UGX @mf.IssuedFitValue.ToString("N0")</td>
                                 <td class="text-end">UGX @mf.IssuedUnFitValue.ToString("N0")</td>
-                                <td class="text-end">UGX @mf.ReturnedFitValue.ToString("N0")</td>
-                                <td class="text-end">UGX @mf.ReturnedUnFitValue.ToString("N0")</td>
+                                @if (mf.IsDeclared)
+                                {
+                                    <td class="text-end">UGX @mf.ReturnedFitValue.ToString("N0")</td>
+                                    <td class="text-end">UGX @mf.ReturnedUnFitValue.ToString("N0")</td>
+                                }
+                                else
+                                {
+                                    @* Showing "UGX 0" here would read as a declared nil return. *@
+                                    <td class="text-end text-muted">—</td>
+                                    <td class="text-end text-muted">—</td>
+                                }
                                 <td>@(mf.BoardSupervisorName ?? "—")</td>
+                                <td class="pe-3">
+                                    @if (mf.IsDeclared)
+                                    {
+                                        <span class="badge bg-success border border-success-subtle" style="font-size:.68rem;">
+                                            <i class="ti ti-circle-check me-1"></i>Declared
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning text-warning-emphasis border border-warning-subtle" style="font-size:.68rem;">
+                                            <i class="ti ti-clock me-1"></i>Pending
+                                        </span>
+                                    }
+                                </td>
                             </tr>
                         }
                     </tbody>

@@ -9,7 +9,6 @@ namespace VMSService.Data.Entities
         public int DestructionRequestId { get; set; }
         public string IDNumber { get; set; }
         public string FullName { get; set; }
-        public bool IsWitness { get; set; }
 
         public virtual DestructionRequest DestructionRequest { get; set; } = null!;
     } 

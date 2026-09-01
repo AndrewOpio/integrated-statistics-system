@@ -2,6 +2,7 @@
 
 @{
     ViewData["Title"] = "Destruction Requests";
+    var verificationOfficerNames = ViewBag.VerificationOfficerNames as Dictionary<string, string> ?? new Dictionary<string, string>();
 }
 
 <div class="row">
@@ -61,7 +62,7 @@
                                     <td class="fw-bold">@item.DestructionType?.Name</td>
                                     <td>@item.Date.ToString("dd/MMM/yyyy")</td>
                                     <td>@item.ReferenceNumber</td>
-                                    <td>@item.VerificationOfficer</td>
+                                    <td>@verificationOfficerNames.GetValueOrDefault(item.VerificationOfficerUserId, item.VerificationOfficerUserId)</td>
                                     <td>
                                         @{
                                             string badgeClass = item.CurrentStatusName switch

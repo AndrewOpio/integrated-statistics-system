@@ -2,6 +2,7 @@ using ConfigurationsService.Client;
 using IdentityService.Core.Models;
 using IdentityService.Core.Repository.ApplicationPermissions;
 using IdentityService.Core.Repository.ApplicationRoleBranches;
+using IdentityService.Core.Repository.UserBranches;
 using IdentityService.Core.Repository.ApplicationRoles;
 using IdentityService.Core.Repository.Applications;
 using IdentityService.Core.Repository.CommercialBankUsers;
@@ -101,6 +102,7 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<IApplicationRoleRepository, ApplicationRoleRepository>();
 builder.Services.AddScoped<IApplicationRoleBranchRepository, ApplicationRoleBranchRepository>();
+builder.Services.AddScoped<IUserBranchRepository, UserBranchRepository>();
 builder.Services.AddScoped<IUserApplicationRoleRepository, UserApplicationRoleRepository>();
 builder.Services.AddScoped<IApplicationPermissionRepository, ApplicationPermissionRepository>();
 builder.Services.AddScoped<ICommercialBankUserRepository, CommercialBankUserRepository>();
@@ -145,18 +147,34 @@ builder.Services.AddAuthentication(options =>
         },
         OnAuthenticationFailed = context =>
         {
-            // Handle specific authentication failures
+            // NEVER redirect from here. This event runs during authentication,
+            // which happens on EVERY request that carries an AuthToken cookie -
+            // including anonymous pages. Redirecting here sent the browser to the
+            // gateway login page, which re-sent the same expired cookie and was
+            // redirected again: ERR_TOO_MANY_REDIRECTS.
+            // Just record the failure and let OnChallenge decide, since that only
+            // runs for endpoints that actually require authorization.
             context.NoResult();
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            context.Response.Redirect(authenticationSettings?.LoginPath ?? "/logout");
             return Task.CompletedTask;
         },
         OnChallenge = async context =>
         {
-            // This event fires when authentication fails
+            // Fires only when a protected endpoint rejected the request.
             context.HandleResponse();
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            context.Response.Redirect(authenticationSettings?.LoginPath ?? "/logout");
+
+            // Clear the stale token, otherwise the browser keeps replaying it.
+            // Options must match how the cookie was issued or the delete is ignored.
+            context.Response.Cookies.Delete("AuthToken", new CookieOptions
+            {
+                Path = "/",
+                Domain = string.IsNullOrWhiteSpace(authenticationSettings?.CookieDomain)
+                    ? null
+                    : authenticationSettings.CookieDomain,
+                Secure = true,
+                SameSite = SameSiteMode.None
+            });
+
+            context.Response.Redirect(authenticationSettings?.LoginPath ?? "/Login");
             await context.Response.CompleteAsync();
         }
     };

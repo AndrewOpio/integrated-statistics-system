@@ -23,6 +23,7 @@ using VMSService.Core.Repositories.DenominationTypes;
 using VMSService.Core.Repositories.ExpectedCurrencies;
 using VMSService.Core.Repositories.ExPrintMintDetails;
 using VMSService.Core.Repositories.ExPrintMintStatusHistories;
+using VMSService.Core.Repositories.Logistics;
 using VMSService.Core.Repositories.PackingListRanges;
 using VMSService.Core.Repositories.VendorTypes;
 using VMSService.Core.Services.Stocks.StockEntities;
@@ -53,7 +54,8 @@ namespace VMSService.Web.Controllers
         IConfigurationsServiceClient _configServiceClient,
         IWorkflowServiceClient _workflowServiceClient,
         IWebHostEnvironment _environment,
-        IAttachmentRepository _attachmentRepository) : Controller
+        IAttachmentRepository _attachmentRepository,
+        ILogisticsRepository _logisticsRepository) : Controller
     {
         [Breadcrumb("Expected Stock", FromController = typeof(HomeController), FromAction = nameof(Index))]
         // GET: ExPrintMints
@@ -210,6 +212,8 @@ namespace VMSService.Web.Controllers
                 // Check if packing list ranges exist for this ExPrintMint
                 var packingListRanges = await _packingListRangeRepository.FindByExStockIdAsync(id.Value);
                 ViewBag.PackingListRanges = packingListRanges ?? new List<PackingListRange>();
+
+                ViewBag.LogisticsList = await _logisticsRepository.GetAllAsync();
 
                 return View(model);
             }
@@ -723,7 +727,7 @@ namespace VMSService.Web.Controllers
         // Add generic transition action
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ExecuteAction(int id, string actionName, string remarks)
+        public async Task<IActionResult> ExecuteAction(int id, string actionName, string remarks, int? logisticsId)
         {
             try
             {
@@ -804,8 +808,14 @@ namespace VMSService.Web.Controllers
 
                 if (isExecuted)
                 {
-                    var attachmentMessage = uploadedAttachmentIds?.Any() == true 
-                        ? $" {uploadedAttachmentIds.Count} attachment(s) uploaded." 
+                    if (logisticsId.HasValue && logisticsId.Value > 0)
+                    {
+                        exPrintMint.LogisticsId = logisticsId.Value;
+                        await _exPrintMintRepository.Update(exPrintMint);
+                    }
+
+                    var attachmentMessage = uploadedAttachmentIds?.Any() == true
+                        ? $" {uploadedAttachmentIds.Count} attachment(s) uploaded."
                         : "";
                     TempData["Success"] = $"Action completed successfully.{attachmentMessage}";
                 }

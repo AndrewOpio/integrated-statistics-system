@@ -7,6 +7,8 @@ namespace VMSService.Core.Repositories.DestructionAuthorizations
     {
         Task<bool> UpdateWithChildren(DestructionAuthorization entity);
         Task<ICollection<DestructionAuthorization>> GetApprovedAuthorizations();
-        Task<Dictionary<int, decimal>> GetRemainingAmounts(int authorizationId);
+        Task<Dictionary<int, decimal>> GetRemainingAmounts(int authorizationId, int? excludeRequestId = null);
+        Task<Dictionary<int, int>> GetRemainingBags(int authorizationId, int? excludeRequestId = null);
+        Task<DestructionAuthorization?> FindActiveByBranch(int branchId, int? excludeId = null);
     }
 }

@@ -59,6 +59,12 @@ namespace VMSService.Core.Mappings
             CreateMap<BPSMachine, BPSMachineViewModel>().ReverseMap();
             CreateMap<CountingRoom, CountingRoomViewModel>().ReverseMap();
             CreateMap<StockProcessingPlan, StockProcessingPlanViewModel>().ReverseMap();
+            CreateMap<ProcessingBoard, ProcessingBoardViewModel>()
+            .ForMember(dest => dest.BPSMachineName, opt => opt.MapFrom(src => src.BPSMachine != null ? src.BPSMachine.Name : null))
+            .ForMember(dest => dest.CountingRoomName, opt => opt.MapFrom(src => src.CountingRoom != null ? src.CountingRoom.Name : null))
+            .ReverseMap()
+            .ForMember(dest => dest.BPSMachine, opt => opt.Ignore())
+            .ForMember(dest => dest.CountingRoom, opt => opt.Ignore());
             CreateMap<DenominationType, DenominationTypeViewModel>().ReverseMap();
             CreateMap<Denomination, DenominationViewModel>().ReverseMap();
             CreateMap<ApprovedCurrencyProcurement, ApprovedCurrencyProcurementsViewModel>().ReverseMap();

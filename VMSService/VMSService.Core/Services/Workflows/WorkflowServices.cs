@@ -491,22 +491,30 @@ namespace VMSService.Core.Services.Workflows
                 return false;
             }
 
-            // "Acknowledge Amendment" is a distinct action/role from the normal Acknowledge,
-            // so the role that acknowledged the original can't also acknowledge the amendment.
-            // The Details UI already only offers the correct one of the two, but this is checked
-            // again here since a role holder could otherwise call ExecuteAction directly with the
-            // wrong action name and bypass that UI-only filter.
-            if (transition.ToStatus.Name == StatusConstants.StockTake.Acknowledged)
+            // "Acknowledge Amendment" is a distinct action/role from the normal Acknowledge, so
+            // the role that acknowledged the original can't also acknowledge the amendment. Once
+            // an amendment reaches Pending Acknowledgement, only Acknowledge Amendment applies —
+            // the Reconciliation Officer's other actions there (plain Acknowledge, Send Back For
+            // Amendment) no longer do. The Details UI already only offers the correct action, but
+            // this is checked again here since a role holder could otherwise call ExecuteAction
+            // directly and bypass that UI-only filter.
+            bool isAmendmentRecord = stockTake.AmendsStockTakeId.HasValue;
+            bool isFromPendingAcknowledgement = transition.FromStatus?.Name == StatusConstants.StockTake.PendingAcknowledgement;
+            bool isAmendmentAction = actionName == StatusConstants.StockTakeActions.AcknowledgeAmendment;
+
+            if (isAmendmentRecord && isFromPendingAcknowledgement && !isAmendmentAction)
             {
-                bool isAmendmentRecord = stockTake.AmendsStockTakeId.HasValue;
-                bool isAmendmentAction = actionName == StatusConstants.StockTakeActions.AcknowledgeAmendment;
-                if (isAmendmentRecord != isAmendmentAction)
-                {
-                    _logger.LogWarning(
-                        "Stock Take {Id} rejected: action {Action} is not valid for {Kind} records",
-                        entityId, actionName, isAmendmentRecord ? "amendment" : "non-amendment");
-                    return false;
-                }
+                _logger.LogWarning(
+                    "Stock Take {Id} rejected: only Acknowledge Amendment is valid for an amendment at Pending Acknowledgement (got {Action})",
+                    entityId, actionName);
+                return false;
+            }
+            if (!isAmendmentRecord && isAmendmentAction)
+            {
+                _logger.LogWarning(
+                    "Stock Take {Id} rejected: Acknowledge Amendment is not valid for non-amendment records",
+                    entityId);
+                return false;
             }
 
             // Create status history record
@@ -897,7 +905,7 @@ namespace VMSService.Core.Services.Workflows
                 }
             }
 
-            // If supervisor is submitting to bank � generate ref number + copy denominations
+            // If supervisor is submitting to bank — generate ref number + copy denominations
             //if (transition.ToStatusId == WithdrawStatuses.WithdrawalStatusIds.SubmittedToBOU)
             //{
             //    //request.SupervisorUserId = username;

@@ -1225,6 +1225,89 @@ namespace VMSService.Data.Migrations
                     b.ToTable("BoxStates");
                 });
 
+            modelBuilder.Entity("VMSService.Data.Entities.BpsXmlImport", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("DenominationValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("FileGeneratedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("FitPieces")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FitShredPieces")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("FitShredValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("FitValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("MachineSerialNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ModifiedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("RejectPieces")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SiteCode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("StockProcessingResultId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StockProcessingSessionId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UnFitShredPieces")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("UnFitShredValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FileName")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.HasIndex("StockProcessingResultId");
+
+                    b.HasIndex("StockProcessingSessionId");
+
+                    b.ToTable("BpsXmlImports");
+                });
+
             modelBuilder.Entity("VMSService.Data.Entities.CfbBox", b =>
                 {
                     b.Property<int>("Id")
@@ -1857,6 +1940,9 @@ namespace VMSService.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("BranchId")
+                        .HasColumnType("int");
+
                     b.Property<string>("CreatedBy")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -2075,7 +2161,7 @@ namespace VMSService.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("VerificationOfficer")
+                    b.Property<string>("VerificationOfficerUserId")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -2162,9 +2248,6 @@ namespace VMSService.Data.Migrations
                     b.Property<string>("IDNumber")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsWitness")
-                        .HasColumnType("bit");
 
                     b.Property<string>("ModifiedBy")
                         .IsRequired()
@@ -2458,6 +2541,9 @@ namespace VMSService.Data.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<int?>("LogisticsId")
+                        .HasColumnType("int");
+
                     b.Property<string>("ModifiedBy")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -2470,6 +2556,8 @@ namespace VMSService.Data.Migrations
                     b.HasIndex("ApprovedCurrencyProcurementId");
 
                     b.HasIndex("CurrencyVendorId");
+
+                    b.HasIndex("LogisticsId");
 
                     b.ToTable("ExPrintMints");
                 });
@@ -5903,6 +5991,25 @@ namespace VMSService.Data.Migrations
                     b.Navigation("PackingListDetails");
                 });
 
+            modelBuilder.Entity("VMSService.Data.Entities.BpsXmlImport", b =>
+                {
+                    b.HasOne("VMSService.Data.Entities.StockProcessingResult", "StockProcessingResult")
+                        .WithMany()
+                        .HasForeignKey("StockProcessingResultId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("VMSService.Data.Entities.StockProcessingSession", "StockProcessingSession")
+                        .WithMany()
+                        .HasForeignKey("StockProcessingSessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("StockProcessingResult");
+
+                    b.Navigation("StockProcessingSession");
+                });
+
             modelBuilder.Entity("VMSService.Data.Entities.CfbCashHolding", b =>
                 {
                     b.HasOne("VMSService.Data.Entities.CfbBox", "CfbBox")
@@ -6129,9 +6236,15 @@ namespace VMSService.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("VMSService.Data.Entities.Logistics", "Logistics")
+                        .WithMany()
+                        .HasForeignKey("LogisticsId");
+
                     b.Navigation("ApprovedCurrencyProcurement");
 
                     b.Navigation("CurrencyVendor");
+
+                    b.Navigation("Logistics");
                 });
 
             modelBuilder.Entity("VMSService.Data.Entities.ExPrintMintDetail", b =>
