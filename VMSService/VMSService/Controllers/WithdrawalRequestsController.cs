@@ -28,6 +28,7 @@ using VMSService.Core.Repositories.PenaltyWaivers;
 using VMSService.Core.Repositories.PublicHolidays;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Submissions;
+using VMSService.Core.Services.Withdrawals;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
@@ -498,28 +499,10 @@ namespace VMSService.Web.Controllers
                 .ToList();
 
             // ── BOU-facing history trail ────────────────────────────────────────────
-            // One node per status the request actually passed through — starts after the
-            // CB Maker's initial submission (Internal Draft), since BOU has nothing to act
-            // on before that. Built from real history rather than a fixed step list, so
-            // branches (exceptional approval, recall, reject) show correctly.
-            var trailEntries = statusHistoryList
-                .Where(h => h.NewStatusName != WithdrawalStatusNames.Draft)
-                .OrderBy(h => h.ChangedAt)
-                .ToList();
-
-            var nextActor = WithdrawalNextActorMap.GetNextActor(request.StatusTypeName);
-            var historyTrail = new WithdrawalHistoryTrailViewModel
-            {
-                Steps = trailEntries.Select((h, i) => new WithdrawalHistoryTrailStep
-                {
-                    StatusName = h.NewStatusName,
-                    ChangedAt = h.ChangedAt,
-                    ChangedBy = h.ChangedBy,
-                    IsCurrent = i == trailEntries.Count - 1,
-                }).ToList(),
-                NextActor = nextActor,
-                IsClosed = nextActor is null,
-            };
+            // A fixed 5-milestone backbone (WithdrawalMilestoneMap) rather than one pill per
+            // StatusHistory row — a request returned any number of times still renders the same
+            // handful of pills. See ticket 36.
+            var historyTrail = WithdrawalHistoryTrailBuilder.Build(statusHistoryList, request.StatusTypeName);
 
             // ── Build ViewModel ───────────────────────────────────────────────────
             var vm = new BouWithdrawalRequestDetailsViewModel
