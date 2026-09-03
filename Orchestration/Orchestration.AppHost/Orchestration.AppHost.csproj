@@ -23,6 +23,7 @@
 	<ProjectReference Include="..\..\ConfigurationsService\ConfigurationsService.Web\ConfigurationsService.Web.csproj" />
 	<ProjectReference Include="..\..\WorkflowService\WorkflowService.Web\WorkflowService.Web.csproj" />
 	<ProjectReference Include="..\..\NotificationService\NotificationService.Api\NotificationService.Api.csproj" />
+	<ProjectReference Include="..\..\ScanService\ScanService.Api\ScanService.Api.csproj" />
 	<!--<ProjectReference Include="..\..\Orchestration\Orchestration.ServiceDefaults\Orchestration.ServiceDefaults.csproj" />-->
   </ItemGroup>
 
