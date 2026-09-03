@@ -37,6 +37,9 @@
   <ItemGroup>
     <ProjectReference Include="..\VMSService.Data\VMSService.Data.csproj" />
 	<ProjectReference Include="..\VMSService.Core\VMSService.Core.csproj" />
+	<!-- Referenced by path rather than as a NuGet package because ScanService.Client is not
+	     published to the internal feed yet. -->
+	<ProjectReference Include="..\..\ScanService\ScanService.Client\ScanService.Client.csproj" />
   </ItemGroup>
 
 </Project>

@@ -16,6 +16,7 @@ using VMSService.Core.Services.Configurations;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
+using VMSService.Web.Services;
 using WorkflowService.Client;
 using WorkflowService.Client.Dto;
 
@@ -32,7 +33,8 @@ namespace VMSService.Controllers
         ICommercialBankUserRepository _commercialBankUserRepo,
         IWorkflowService _workflowService,
         IWorkflowServiceClient _workflowServiceClient,
-        IAgentDetailStatusHistoryRepository _statusHistoryRepository) : Controller
+        IAgentDetailStatusHistoryRepository _statusHistoryRepository,
+        IScannedUploadService _scannedUploadService) : Controller
     {
         [Breadcrumb("Agent Details", FromController = typeof(HomeController), FromAction = nameof(Index))]
         // GET: AgentDetails
@@ -242,11 +244,32 @@ namespace VMSService.Controllers
                     model.PhoneNumber = "+256" + model.PhoneNumber.TrimStart('+').Replace("256", "");
                 }
 
-                // Handle file uploads
-                model.PassportPhoto = await SaveFileAsync(model.PassportPhotoFile, "passportphotos");
-                model.WorkIdScan = await SaveFileAsync(model.WorkIdScanFile, "workidscans");
-                model.SignatureScan = await SaveFileAsync(model.SignatureScanFile, "signaturescans");
-                model.ApprovalAttachment = await SaveFileAsync(model.ApprovalAttachmentFile, "approvalattachments");
+                // Handle file uploads. Every file is scanned by the Scan Service (Windows Defender
+                // via AMSI) before it is written anywhere; a malicious file never reaches disk and
+                // no agent record is created for it.
+                var uploads = await _scannedUploadService.ScanAndSaveAsync(
+                [
+                    new(nameof(model.PassportPhotoFile), model.PassportPhotoFile, "passportphotos"),
+                    new(nameof(model.WorkIdScanFile), model.WorkIdScanFile, "workidscans"),
+                    new(nameof(model.SignatureScanFile), model.SignatureScanFile, "signaturescans"),
+                    new(nameof(model.ApprovalAttachmentFile), model.ApprovalAttachmentFile, "approvalattachments")
+                ], HttpContext.RequestAborted);
+
+                if (!uploads.Success)
+                {
+                    foreach (var error in uploads.Errors)
+                    {
+                        ModelState.AddModelError("", error);
+                    }
+
+                    TempData["Error"] = "The agent was not saved because an uploaded file was rejected by the virus scanner.";
+                    return View(model);
+                }
+
+                model.PassportPhoto = uploads.PathFor(nameof(model.PassportPhotoFile));
+                model.WorkIdScan = uploads.PathFor(nameof(model.WorkIdScanFile));
+                model.SignatureScan = uploads.PathFor(nameof(model.SignatureScanFile));
+                model.ApprovalAttachment = uploads.PathFor(nameof(model.ApprovalAttachmentFile));
 
                 var agentDetail = _mapper.Map<AgentDetail>(model);
 
@@ -402,22 +425,49 @@ namespace VMSService.Controllers
                     : model.PhoneNumber;
                 agentDetail.IsActive = model.IsActive;
 
-                // Handle file uploads - only update if new file is provided
-                if (model.PassportPhotoFile != null)
+                // Handle file uploads - only update if new file is provided. Replacements go through
+                // the Scan Service first, so a rejected file leaves the existing attachment in place.
+                var uploads = await _scannedUploadService.ScanAndSaveAsync(
+                [
+                    new(nameof(model.PassportPhotoFile), model.PassportPhotoFile, "passportphotos"),
+                    new(nameof(model.WorkIdScanFile), model.WorkIdScanFile, "workidscans"),
+                    new(nameof(model.SignatureScanFile), model.SignatureScanFile, "signaturescans"),
+                    new(nameof(model.ApprovalAttachmentFile), model.ApprovalAttachmentFile, "approvalattachments")
+                ], HttpContext.RequestAborted);
+
+                if (!uploads.Success)
                 {
-                    agentDetail.PassportPhoto = await SaveFileAsync(model.PassportPhotoFile, "passportphotos");
+                    foreach (var error in uploads.Errors)
+                    {
+                        ModelState.AddModelError("", error);
+                    }
+
+                    TempData["Error"] = "The agent was not updated because an uploaded file was rejected by the virus scanner.";
+
+                    var rejectedBranches = await _configService.GetAllBranches();
+                    model.BranchList = rejectedBranches.Select(b => new SelectListItem
+                    {
+                        Value = b.Id.ToString(),
+                        Text = b.Name
+                    }).ToList();
+                    return View(model);
                 }
-                if (model.WorkIdScanFile != null)
+
+                if (uploads.HasFileFor(nameof(model.PassportPhotoFile)))
                 {
-                    agentDetail.WorkIdScan = await SaveFileAsync(model.WorkIdScanFile, "workidscans");
+                    agentDetail.PassportPhoto = uploads.PathFor(nameof(model.PassportPhotoFile));
                 }
-                if (model.SignatureScanFile != null)
+                if (uploads.HasFileFor(nameof(model.WorkIdScanFile)))
                 {
-                    agentDetail.SignatureScan = await SaveFileAsync(model.SignatureScanFile, "signaturescans");
+                    agentDetail.WorkIdScan = uploads.PathFor(nameof(model.WorkIdScanFile));
                 }
-                if (model.ApprovalAttachmentFile != null)
+                if (uploads.HasFileFor(nameof(model.SignatureScanFile)))
                 {
-                    agentDetail.ApprovalAttachment = await SaveFileAsync(model.ApprovalAttachmentFile, "approvalattachments");
+                    agentDetail.SignatureScan = uploads.PathFor(nameof(model.SignatureScanFile));
+                }
+                if (uploads.HasFileFor(nameof(model.ApprovalAttachmentFile)))
+                {
+                    agentDetail.ApprovalAttachment = uploads.PathFor(nameof(model.ApprovalAttachmentFile));
                 }
 
                 bool isUpdated = await _agentDetailRepository.Update(agentDetail);
@@ -534,27 +584,8 @@ namespace VMSService.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        private async Task<string> SaveFileAsync(IFormFile? file, string folderName)
-        {
-            if (file == null || file.Length == 0)
-                return string.Empty;
-
-            var uploadsFolder = Path.Combine(FileStorageConstants.UploadsRoot, folderName);
-            if (!Directory.Exists(uploadsFolder))
-            {
-                Directory.CreateDirectory(uploadsFolder);
-            }
-
-            var uniqueFileName = $"{Guid.NewGuid()}_{file.FileName}";
-            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-            using (var fileStream = new FileStream(filePath, FileMode.Create))
-            {
-                await file.CopyToAsync(fileStream);
-            }
-
-            return $"/uploads/{folderName}/{uniqueFileName}";
-        }
+        // Files are no longer written from here. IScannedUploadService streams each upload to the
+        // Scan Service, which scans it with AMSI and only then writes it to the uploads folder.
 
         // Add generic transition action
         [HttpPost]
