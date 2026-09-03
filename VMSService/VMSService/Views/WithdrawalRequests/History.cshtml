@@ -1,0 +1,126 @@
+@model VMSService.Core.Models.WithdrawalRequests.BouWithdrawalRequestViewModel
+@{
+    ViewData["Title"] = "Withdrawal Request History";
+}
+
+@* ── Page Header ── *@
+<div class="mb-3 d-flex align-items-center justify-content-between">
+    <div>
+        <h5 class="fw-bold mb-0">Withdrawal Request History</h5>
+        <p class="text-muted small mb-0">Closed-out requests for the selected period.</p>
+    </div>
+    <a asp-action="Index" class="text-primary small text-decoration-none">
+        <i class="bi bi-arrow-left"></i> Back to Requests
+    </a>
+</div>
+
+@if (Model.NotAttachedToBranch)
+{
+    @await Html.PartialAsync("~/Views/Shared/_Withdrawal/_NotAttachedToBranch.cshtml", "withdrawal request history")
+    return;
+}
+
+@* ── Location Filter Pills ── *@
+<div class="d-flex align-items-center gap-2 flex-wrap mb-3">
+    @if (Model.CanViewAllLocations)
+    {
+        <div class="position-relative pill-wrap">
+            <a href="@Url.Action("History", new { from = Model.DateRange?.From, to = Model.DateRange?.To })"
+               class="location-pill @(Model.SelectedBranch == null ? "active" : "")"
+               title="All locations">
+                ALL
+            </a>
+            <div class="pill-tooltip">All locations</div>
+        </div>
+    }
+
+    @foreach (var branch in Model.BouBranches)
+    {
+        <div class="position-relative pill-wrap">
+            <a href="@Url.Action("History", new { branchCode = branch.BranchCode, from = Model.DateRange?.From, to = Model.DateRange?.To })"
+               class="location-pill @(Model.SelectedBranch == branch.BranchCode ? "active" : "")"
+               title="@branch.Name">
+                @branch.BranchCode
+            </a>
+            <div class="pill-tooltip">@branch.Name</div>
+        </div>
+    }
+</div>
+
+@* ── Date Range Filter ── *@
+<form asp-action="History" method="get" class="d-flex align-items-end gap-2 flex-wrap mb-3">
+    <input type="hidden" name="branchCode" value="@Model.SelectedBranch" />
+    @await Html.PartialAsync("~/Views/Shared/_Withdrawal/_DateRangeFilter.cshtml", Model.DateRange)
+</form>
+
+@* ── History Table ── *@
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white d-flex align-items-center gap-2 py-2">
+        <i class="ti ti-history text-muted"></i>
+        <span class="fw-semibold text-uppercase">History</span>
+    </div>
+
+    <div class="card-body">
+        @if (!Model.Requests.Any())
+        {
+            <div class="text-muted small">
+                <i class="ti ti-inbox me-1"></i>No closed-out requests in the selected period.
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table id="historyTable" class="table align-middle mb-0">
+                    <thead>
+                        <tr style="background:linear-gradient(90deg,#b31b34,#c44a1a,#BA7517)">
+                            <th class="text-white fw-semibold" style="font-size:11px;">Transaction Ref no.</th>
+                            <th class="text-white fw-semibold" style="font-size:11px;">CB</th>
+                            <th class="text-white fw-semibold" style="font-size:11px;">BOU Branch</th>
+                            <th class="text-white fw-semibold" style="font-size:11px;">Collection date</th>
+                            <th class="text-white fw-semibold" style="font-size:11px;">Amount (UGX)</th>
+                            <th class="text-white fw-semibold" style="font-size:11px;">Status</th>
+                            <th class="text-white" style="font-size:11px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.Requests)
+                        {
+                            <tr class="border-bottom">
+                                <td>@row.TransactionRefNumber</td>
+                                <td>@row.CbName</td>
+                                <td>@row.BouBranchCode</td>
+                                <td class="small">@row.CollectionDate.ToString("dd MMM yyyy")</td>
+                                <td class="fw-semibold small">@row.Amount.ToString("N0")</td>
+                                <td>
+                                    <span class="badge bg-info rounded-pill px-2 py-1">
+                                        @row.StatusTypeName
+                                    </span>
+                                </td>
+                                <td>
+                                    <a asp-action="Details" asp-route-id="@row.Id"
+                                       class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
+                                        <i class="ti ti-eye"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        if ($('#historyTable tbody tr').length > 0 && !$('#historyTable tbody tr td[colspan]').length) {
+            $('#historyTable').DataTable({
+                order: [[3, 'desc']],
+                pageLength: 25,
+                columnDefs: [
+                    { orderable: false, targets: [1, 5, 6] }
+                ]
+            });
+        }
+    </script>
+}

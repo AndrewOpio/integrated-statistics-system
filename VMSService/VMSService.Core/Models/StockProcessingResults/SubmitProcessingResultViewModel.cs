@@ -28,6 +28,13 @@ namespace VMSService.Core.Models.StockProcessingResults
         [Range(0, double.MaxValue)]
         public decimal ReissueValue { get; set; } = 0;
 
+        /// <summary>
+        /// Machine result files the operator picked to import. When any are supplied the machine
+        /// fields above are recomputed from the files server-side and the posted values ignored;
+        /// leaving this empty keeps the fields as manually keyed.
+        /// </summary>
+        public List<string> SelectedXmlFiles { get; set; } = [];
+
         public List<DifferentDenomEntryViewModel> DifferentDenomEntries { get; set; } = [];
 
         // Manual-only: note examiners who worked this board, and the bundles each processed

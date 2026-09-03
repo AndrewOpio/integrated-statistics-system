@@ -46,5 +46,12 @@ namespace VMSService.Core.Repositories.WithdrawalRequestStatusHistories
                 .Where(s => s.WithdrawalRequestId == requestId)
                 .OrderBy(s => s.ChangedAt)
                 .ToListAsync(ct);
+
+        public async Task<WithdrawalRequestStatusHistory?> FindMostRecentByNewStatusNameAsync(
+            Guid requestId, string newStatusName, CancellationToken ct = default)
+            => await _db.WithdrawalRequestStatusHistory
+                .Where(s => s.WithdrawalRequestId == requestId && s.NewStatusName == newStatusName)
+                .OrderByDescending(s => s.ChangedAt)
+                .FirstOrDefaultAsync(ct);
     }
 }

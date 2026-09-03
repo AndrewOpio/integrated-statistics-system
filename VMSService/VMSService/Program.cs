@@ -190,13 +190,7 @@ var authenticationSettings = builder.Configuration.GetSection("Authentication").
 
 
 
-builder.Services.AddAuthorizationBuilder()
-    .AddPolicy(RolePolicy.CbOnly, policy =>
-        policy.RequireAuthenticatedUser()
-              .RequireRole(RolePolicy.CbMaker, RolePolicy.CbApprover))
-    .AddPolicy(RolePolicy.BouOnly, policy =>
-        policy.RequireAuthenticatedUser()
-              .RequireRole(RolePolicy.BouChecker, RolePolicy.PanelA, RolePolicy.PanelB));
+builder.Services.AddAuthorizationBuilder();
 
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -226,16 +220,34 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             },
             OnAuthenticationFailed = context =>
             {
+                // NEVER redirect from here. This event runs during authentication,
+                // which happens on EVERY request that carries an AuthToken cookie -
+                // including anonymous pages. Redirecting here sent the browser to the
+                // gateway login page, which re-sent the same expired cookie and was
+                // redirected again: ERR_TOO_MANY_REDIRECTS.
+                // Just record the failure and let OnChallenge decide, since that only
+                // runs for endpoints that actually require authorization.
                 context.NoResult();
-                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                context.Response.Redirect(authenticationSettings?.LoginPath ?? "/logout");
                 return Task.CompletedTask;
             },
             OnChallenge = async context =>
             {
+                // Fires only when a protected endpoint rejected the request.
                 context.HandleResponse();
-                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                context.Response.Redirect(authenticationSettings?.LoginPath ?? "/logout");
+
+                // Clear the stale token, otherwise the browser keeps replaying it.
+                // Options must match how the cookie was issued or the delete is ignored.
+                context.Response.Cookies.Delete("AuthToken", new CookieOptions
+                {
+                    Path = "/",
+                    Domain = string.IsNullOrWhiteSpace(authenticationSettings?.CookieDomain)
+                        ? null
+                        : authenticationSettings.CookieDomain,
+                    Secure = true,
+                    SameSite = SameSiteMode.None
+                });
+
+                context.Response.Redirect(authenticationSettings?.LoginPath ?? "/Login");
                 await context.Response.CompleteAsync();
             },
             OnForbidden = async context =>
@@ -366,6 +378,13 @@ builder.Services.AddScoped<IBagMovementRepository, BagMovementRepository>();
 builder.Services.AddScoped<IBagMovementStatusHistoryRepository, BagMovementStatusHistoryRepository>();
 builder.Services.AddScoped<IMIandFitRepository, MIandFitRepository>();
 builder.Services.AddScoped<IStockProcessingResultRepository, StockProcessingResultRepository>();
+
+// BPS machine XML result imports — the drop folder is environment-specific, so it comes from config.
+builder.Services.AddScoped<VMSService.Core.Services.BpsXmlImports.IBpsXmlImportService>(sp =>
+    new VMSService.Core.Services.BpsXmlImports.BpsXmlImportService(
+        sp.GetRequiredService<VMSService.Data.Configurations.VMSServiceDbContext>(),
+        builder.Configuration["BpsXmlImport:FolderPath"] ?? @"C:\CASFiles\BPS_XML_FILES",
+        sp.GetRequiredService<ILogger<VMSService.Core.Services.BpsXmlImports.BpsXmlImportService>>()));
 builder.Services.AddScoped<IMinDepositStandardRepository, MinDepositStandardRepository>();
 builder.Services.AddScoped<IDepositProcessingFeeRepository, DepositProcessingFeeRepository>();
 builder.Services.AddScoped<IDepositFeeRepository, DepositFeeRepository>();
@@ -450,6 +469,7 @@ builder.Services.AddControllersWithViews()
     });
 
 builder.Services.AddHostedService<VMSService.Web.BackgroundServices.WithdrawalExpiryService>();
+builder.Services.AddHostedService<VMSService.Web.BackgroundServices.WithdrawalAmendmentPenaltyService>();
 
 var app = builder.Build();
 

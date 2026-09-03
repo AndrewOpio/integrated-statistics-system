@@ -17,6 +17,9 @@ namespace VMSService.Core.Repositories.AppliedPenalties
                 .OrderBy(a => a.Penalty!.Name)
                 .ToListAsync();
 
+        public async Task<bool> ExistsForSource(string sourceId, int penaltyId)
+            => await _db.AppliedPenalties.AnyAsync(a => a.SourceId == sourceId && a.PenaltyId == penaltyId);
+
         public async Task<ICollection<AppliedPenalty>> FindUnsettled()
             => await _db.AppliedPenalties
                 .Include(a => a.Penalty)
@@ -85,7 +88,6 @@ namespace VMSService.Core.Repositories.AppliedPenalties
                 Quantity = quantity,
                 // Description is a required column — callers that don't supply one store an empty string.
                 Description = description ?? string.Empty,
-                toBeWaived = true
             };
             await _db.AppliedPenalties.AddAsync(applied);
             return applied;
@@ -96,6 +98,17 @@ namespace VMSService.Core.Repositories.AppliedPenalties
             var existing = await _db.AppliedPenalties.FirstOrDefaultAsync(a => a.Id == appliedPenaltyId);
             if (existing is not null)
                 existing.IsDeleted = true;
+        }
+
+        public async Task Waive(int appliedPenaltyId, string reason, string waivedBy)
+        {
+            var existing = await _db.AppliedPenalties.FirstOrDefaultAsync(a => a.Id == appliedPenaltyId && !a.IsDeleted);
+            if (existing is null) return;
+
+            existing.ToBeWaived = true;
+            existing.WaiverReason = reason;
+            existing.WaivedBy = waivedBy;
+            existing.WaivedDate = DateTime.Now;
         }
     }
 }

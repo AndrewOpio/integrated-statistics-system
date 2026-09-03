@@ -136,6 +136,15 @@
                     </div>
                 </a>
             </div>
+            <div class="col-6 col-lg-12">
+                <a asp-controller="CbRequests" asp-action="History" class="quick-card qc-track">
+                    <div class="qc-icon"><i class="ti ti-history"></i></div>
+                    <div>
+                        <div class="qc-title">History</div>
+                        <div class="qc-sub">Closed-out requests from the last 12 months</div>
+                    </div>
+                </a>
+            </div>
         </div>
     </div>
 
@@ -146,8 +155,8 @@
                 style="font-size:11px;letter-spacing:.5px">
                 Recent Requests
             </h6>
-            <a href="/Company/MyRequests" class="text-primary small text-decoration-none">
-                View all <i class="bi bi-arrow-right"></i>
+            <a asp-controller="CbRequests" asp-action="History" class="text-primary small text-decoration-none">
+                History <i class="bi bi-arrow-right"></i>
             </a>
         </div>
 
@@ -186,6 +195,12 @@
                                         {
                                             <span class="badge rounded-pill bg-warning text-brown bg-opacity-10">
                                                 <i class="ti ti-star me-1"></i>Exceptional Approval Required
+                                            </span>
+                                        }
+                                        @if (r.IsStalePreSubmission)
+                                        {
+                                            <span class="badge rounded-pill bg-danger-subtle text-danger">
+                                                <i class="ti ti-calendar-exclamation me-1"></i>Collection date has passed
                                             </span>
                                         }
                                         @* @if (r.CollectionDate == DateOnly.FromDateTime(r.CreationDate))

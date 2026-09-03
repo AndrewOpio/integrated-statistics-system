@@ -2,8 +2,11 @@
 using ConfigurationsService.Client;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using VMSService.Core.Authorization;
+using VMSService.Core.Extensions;
 using VMSService.Core.Models.AgentDetails;
 using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.CbRequests;
@@ -13,6 +16,8 @@ using VMSService.Core.Models.WithdrawalRequestDenominations;
 using VMSService.Core.Models.WithdrawalRequests;
 using VMSService.Core.Repositories.AgentDetails;
 using VMSService.Core.Repositories.AppliedPenalties;
+using VMSService.Core.Repositories.Penalties;
+using VMSService.Core.Services.Penalties;
 using VMSService.Core.Repositories.Attachments;
 using VMSService.Core.Repositories.Denominations;
 using VMSService.Core.Repositories.WithdrawalRequestAgents;
@@ -22,12 +27,12 @@ using VMSService.Core.Repositories.WithdrawalRequestStatusHistories;
 using VMSService.Core.Repositories.WithdrawalTransactionRefNumberGenerators;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 using VMSService.Core.Repositories.PublicHolidays;
-using VMSService.Core.Services.Identity;
 using VMSService.Core.Services.Submissions;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
 using VMSService.Web.Authorization;
+using VMSService.Web.Extensions;
 using VMSService.Web.Helpers;
 using WorkflowService.Client;
 using WorkflowService.Client.Dto;
@@ -35,6 +40,10 @@ using static VMSService.Core.Static.WithdrawConstants;
 
 namespace VMSService.Web.Controllers
 {
+    // Ticket 34: dropped the CbOnly attribute-based policy entirely — attribute-based authorization
+    // isn't exercised by a direct unit-test method call, so it was never actually covered by
+    // anything. IsCbUser()/IsCbMaker() below are what CbWithdrawRequestsControllerOwnershipTests/
+    // MakerCheckerTests exercise, and are the sole enforcement now.
     [RequirePermission(SystemPermissions.CbWithdrawRequests.Details)]
     public class CbWithdrawRequestsController(
     IAuthorizationService authorizationService,
@@ -50,8 +59,8 @@ namespace VMSService.Web.Controllers
     IWorkflowService _workflowService,
     IWithdrawalStatusResolver _statusResolver,
     IAttachmentRepository _attachmentRepository,
-    IIdentityService _identityService,
     IPublicHolidayRepository _publicHolidayRepository,
+    IPenaltyRepository _penaltyRepository,
     IAppliedPenaltyRepository _appliedPenaltyRepository,
     ILogger<CbWithdrawRequestsController> _logger,
     IMapper _mapper) : BaseWithdrawController(authorizationService)
@@ -59,6 +68,8 @@ namespace VMSService.Web.Controllers
         // ── Create ───────────────────────────────
         public async Task<IActionResult> Create(CancellationToken ct)
         {
+            if (!IsCbMaker()) return Forbid();
+
             var cbId = GetCbIdFromClaims();
 
             var bouBranches = await _configServiceClient.GetAllBouBranchesAsync();
@@ -96,13 +107,18 @@ namespace VMSService.Web.Controllers
         [HttpGet]
         public async Task<IActionResult> Edit(Guid id, CancellationToken ct)
         {
+            if (!IsCbMaker()) return Forbid();
+
             var request = await _uow.Requests.GetWithDetailsAsync(id, ct);
             if (request is null) return NotFound();
-            //if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
+            if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
 
-            // Only allow editing in Draft or ReturnedForRevision
+            // Only allow editing in Draft or ReturnedForRevision — or, stuck stale pre-submission
+            // (any of the three statuses), so the Maker has a way to fix the collection date even
+            // from Pending Internal Approval, where editing is otherwise not allowed.
             if (request.StatusTypeName != WithdrawalStatusNames.Draft
-                && request.StatusTypeName != WithdrawalStatusNames.ReturnedForRevision)
+                && request.StatusTypeName != WithdrawalStatusNames.ReturnedForRevision
+                && !IsStalePreSubmission(request))
                 return RedirectToAction("Details", new { id });
 
             var branchVm = new FromToSelectionViewModel
@@ -148,7 +164,7 @@ namespace VMSService.Web.Controllers
 
             return View(new EditWithdrawViewModel
             {
-                Request = request,
+                Request = _mapper.Map<WithdrawalRequestEditViewModel>(request),
                 Steps = BuildStepViewModel(request.StatusTypeName, false, request.RequiresSpecialApproval),
                 Branches = branchVm,
                 Agents = agentVm,
@@ -210,6 +226,8 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryTokenFromHeader]
         public async Task<IActionResult> SaveDraft([FromBody] SaveWithdrawalRequestViewModel vm, CancellationToken ct)
         {
+            if (!IsCbMaker()) return Forbid();
+
             if (vm is null)
                 return BadRequest(new { errors = new[] { "Request body is missing or invalid." } });
 
@@ -227,9 +245,8 @@ namespace VMSService.Web.Controllers
             // Authoritative same-day/exceptional-approval determination — recomputed here from
             // the actual collection date and holiday calendar rather than trusted from the
             // client, so it can't be bypassed and never goes stale after a date change.
-            var dayBeforeHoliday = await _publicHolidayRepository.FindByDateAsync(vm.CollectionDate.Value.AddDays(-1));
-            var classification = SubmissionClassifier.Classify(
-                DateTime.UtcNow, vm.CollectionDate.Value, isDayBeforeHoliday: dayBeforeHoliday is not null);
+            var classification = await SubmissionClassifier.ClassifyAsync(
+                _publicHolidayRepository, DateTime.UtcNow, vm.CollectionDate.Value);
             var requiresSpecialApproval = classification == SubmissionClassification.SameDayExceptional;
 
             if (requiresSpecialApproval && string.IsNullOrWhiteSpace(vm.SpecialApprovalReason))
@@ -242,6 +259,16 @@ namespace VMSService.Web.Controllers
                 return BadRequest(new { errors = new[] { "RTGS code is required when a request requires exceptional approval." } });
 
             var specialApprovalReasonToStore = requiresSpecialApproval ? vm.SpecialApprovalReason?.Trim() : null;
+
+            // Blank/whitespace means "not entered" — normalized to null throughout, since the
+            // database's uniqueness guarantee is a filtered index on RtgsCode IS NOT NULL.
+            var normalizedRtgsCode = NormalizeRtgsCode(vm.RtgsCode);
+
+            // Fast pre-check for a friendly message — the filtered unique index is the real
+            // guarantee and still applies at save time below in case of a concurrent submission.
+            if (normalizedRtgsCode is not null
+                && await _withdrawalRequestRepo.ExistsByRtgsCodeAsync(normalizedRtgsCode, excludeId: vm.Id, ct))
+                return BadRequest(new { errors = new[] { RtgsCodeConflictMessage(normalizedRtgsCode) } });
 
             // Guard: total amount (lump sum or itemized) must be a whole bundle and meet the
             // minimum withdrawal threshold.
@@ -265,12 +292,21 @@ namespace VMSService.Web.Controllers
 
                 if (request is null) return NotFound();
 
-                //TODO : make access secure.
-                //if (!await CanAccessRequestAsync(request.CbId))  // CbId not Id
-                //    return Forbid();
+                if (!await CanAccessRequestAsync(request.CbId))
+                    return Forbid();
+
+                // Same set of statuses Edit (GET) allows access to — without this, a direct POST
+                // could mutate a request's content at any status regardless of what the UI offers,
+                // including ones already past CB's stage entirely.
+                if (request.StatusTypeName != WithdrawalStatusNames.Draft
+                    && request.StatusTypeName != WithdrawalStatusNames.ReturnedForRevision
+                    && !IsStalePreSubmission(request))
+                {
+                    return BadRequest(new { errors = new[] { "This request can no longer be edited at its current status." } });
+                }
 
                 // Submission date is derived from status history — the moment the request
-                // first entered "Pending RTGS Verification". The settlement-date rule only
+                // first entered "Pending RTGS Code". The settlement-date rule only
                 // applies once the request has actually been submitted; before that the
                 // settlement date simply mirrors the collection date.
                 var statusHistory = await _uow.StatusHistory.GetByRequestAsync(request.Id, ct);
@@ -288,7 +324,7 @@ namespace VMSService.Web.Controllers
                 var collectionDateChanged = request.CollectionDate != vm.CollectionDate.Value;
                 request.CollectionDate = vm.CollectionDate.Value;
                 request.FundSettlementValueDate = vm.RtgsDate;
-                request.RtgsCode = vm.RtgsCode;
+                request.RtgsCode = normalizedRtgsCode;
                 request.RequiresSpecialApproval = requiresSpecialApproval;
                 request.SpecialApprovalReason = specialApprovalReasonToStore;
                 request.ModifiedDate = DateTime.Now;
@@ -333,7 +369,7 @@ namespace VMSService.Web.Controllers
                     BouBranchCode = vm.BouBranchCode,
                     CollectionDate = vm.CollectionDate ?? default,
                     FundSettlementValueDate = vm.RtgsDate,
-                    RtgsCode = vm.RtgsCode,
+                    RtgsCode = normalizedRtgsCode,
                     RequiresSpecialApproval = requiresSpecialApproval,
                     SpecialApprovalReason = specialApprovalReasonToStore,
                     StatusTypeId = await _statusResolver.GetStatusIdAsync(WithdrawalStatusNames.Draft),
@@ -374,8 +410,14 @@ namespace VMSService.Web.Controllers
                     userId, "Saved as draft", ct, changedBy: username);
             }
 
-            await _uow.SaveAsync(ct);
-
+            try
+            {
+                await _uow.SaveAsync(ct);
+            }
+            catch (DbUpdateException ex) when (IsRtgsCodeUniqueViolation(ex))
+            {
+                return BadRequest(new { errors = new[] { RtgsCodeConflictMessage(normalizedRtgsCode!) } });
+            }
 
             TempData["Success"] = vm.Id.HasValue
                 ? $"Withdrawal request {request.TransactionRefNumber} updated successfully."
@@ -384,12 +426,34 @@ namespace VMSService.Web.Controllers
             return Ok(Url.Action("Details", new { id = request.Id }));
         }
 
+        // Blank/whitespace means "not entered" — normalized to null throughout, since the
+        // database's uniqueness guarantee is a filtered index on RtgsCode IS NOT NULL.
+        private static string? NormalizeRtgsCode(string? raw)
+            => string.IsNullOrWhiteSpace(raw) ? null : raw.Trim();
+
+        private static string RtgsCodeConflictMessage(string rtgsCode)
+            => $"RTGS code '{rtgsCode}' is already in use by another request.";
+
+        // Race between ExistsByRtgsCodeAsync's pre-check and this save landing concurrently —
+        // the filtered unique index (UQ_WithdrawalRequest_RtgsCode_Live) is the real guarantee;
+        // this turns its violation into the same friendly message instead of a raw 500. Checked
+        // by SQL error number (2601/nonclustered, 2627/constraint) rather than message text alone,
+        // since SQL Server's message wording can vary by locale/version — the index name in the
+        // message narrows it to this specific index, not any other unique constraint.
+        private static bool IsRtgsCodeUniqueViolation(DbUpdateException ex)
+            => ex.InnerException is SqlException sqlEx
+            && (sqlEx.Number == 2601 || sqlEx.Number == 2627)
+            && sqlEx.Message.Contains("UQ_WithdrawalRequest_RtgsCode_Live", StringComparison.OrdinalIgnoreCase);
+
 
 
         public async Task<IActionResult> Details(Guid id, CancellationToken ct)
         {
+            if (!IsCbUser()) return Forbid();
+
             var request = await _uow.Requests.GetWithDetailsAsync(id, ct);
             if (request is null) return NotFound();
+            if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
 
             // ── Current status ────────────────────────────────────────────────────
             var currentStatus = await _workflowServiceClient.FindStatusById(request.StatusTypeId);
@@ -447,9 +511,15 @@ namespace VMSService.Web.Controllers
                     Amount = d.Amount,
                 });
 
-            // ── canEdit requires Draft/Returned status AND CB Maker role ──────────
+            var isStalePreSubmission = IsStalePreSubmission(request);
+
+            // ── canEdit requires Draft/Returned status AND CB Maker role — also true while
+            // stuck stale pre-submission (any of the three statuses), so the Maker has a way to
+            // fix the collection date even from Pending Internal Approval, where editing is
+            // otherwise not allowed. Drives the Edit *and* Delete button visibility together.
             var canEdit = (request.StatusTypeName == WithdrawalStatusNames.Draft
-                || request.StatusTypeName == WithdrawalStatusNames.ReturnedForRevision)
+                || request.StatusTypeName == WithdrawalStatusNames.ReturnedForRevision
+                || isStalePreSubmission)
                 && userRoleNames.Contains(RolePolicy.CbMaker);
 
             var rtgsEditableStatuses = new[]
@@ -460,7 +530,8 @@ namespace VMSService.Web.Controllers
                 WithdrawalStatusNames.PendingRTGSVerification,
             };
             var canEditRtgs = rtgsEditableStatuses.Contains(request.StatusTypeName)
-                && (userRoleNames.Contains(RolePolicy.CbApprover) || userRoleNames.Contains(RolePolicy.CbMaker));
+                && (userRoleNames.Contains(RolePolicy.CbApprover) || userRoleNames.Contains(RolePolicy.CbMaker))
+                && !isStalePreSubmission;
 
             // ── Status history ────────────────────────────────────────────────────
             var statusHistory = request.WithdrawalRequestStatusHistory
@@ -476,8 +547,40 @@ namespace VMSService.Web.Controllers
                     ChangedBy = h.ChangedBy,
                     ChangedAt = h.ChangedAt,
                     Remarks = h.Remarks,
+                    AttachmentIds = h.AttachmentIds,
                 })
                 .ToList();
+
+            // Load attachments for each status history entry — same lookup as the BOU Details
+            // action, so a receipt attached on Approve shows on both sides, not just BOU's.
+            foreach (var history in statusHistory)
+            {
+                if (string.IsNullOrEmpty(history.AttachmentIds)) continue;
+
+                var attachmentIds = history.AttachmentIds.Split(',')
+                    .Where(aid => int.TryParse(aid.Trim(), out _))
+                    .Select(aid => int.Parse(aid.Trim()))
+                    .ToList();
+
+                var attachments = new List<AttachmentViewModel>();
+                foreach (var attachmentId in attachmentIds)
+                {
+                    var attachment = await _attachmentRepository.FindById(attachmentId);
+                    if (attachment != null && !attachment.IsDeleted)
+                    {
+                        attachments.Add(new AttachmentViewModel
+                        {
+                            Id = attachment.Id,
+                            FileName = attachment.FileName,
+                            FilePath = attachment.FilePath,
+                            FileType = attachment.FileType,
+                            FileSize = attachment.FileSize,
+                            UploadedDate = attachment.CreatedDate
+                        });
+                    }
+                }
+                history.Attachments = attachments;
+            }
 
             // CB users see their own side of the workflow (up through RTGS verification)
             // and whichever terminal outcome the request lands on. The BOU-internal
@@ -513,6 +616,24 @@ namespace VMSService.Web.Controllers
                 })
                 .ToList();
 
+            // ── Same-day/exceptional grace-window inputs — computed early so both the
+            // transitions filter below and ShowSameDayMakerWarning can share one classification
+            // instead of re-deriving it (and re-fetching the same holiday) twice.
+            var dayBeforeHoliday = await _publicHolidayRepository.FindByDateAsync(request.CollectionDate.AddDays(-1));
+            var isDayBeforeHoliday = dayBeforeHoliday is not null;
+            var gracePeriodReason = GetGracePeriodReason(request.CollectionDate, dayBeforeHoliday);
+            var sameDayClassification = SubmissionClassifier.Classify(DateTime.UtcNow, request.CollectionDate, isDayBeforeHoliday);
+            // Same condition ExecuteAction's guard rejects on, for both the CB Maker's submit
+            // actions and the CB Approver's own approve actions — same-day-exceptional is a
+            // property of the request, not of who's currently acting on it. Exposed on the
+            // ViewModel (SubmitBlockedBySameDayReason) rather than used to remove the transition
+            // from AvailableTransitions here — removing it emptied the list entirely for a Draft
+            // with nothing else available, which took the whole "Action Required" panel (and the
+            // ShowSameDayMakerWarning banner inside it) down with it. The view filters what it
+            // offers instead, the same way the BOU Details page handles "dispatch not ready yet."
+            var sameDayReasonRequiredButMissing = sameDayClassification == SubmissionClassification.SameDayExceptional
+                && (!request.RequiresSpecialApproval || string.IsNullOrWhiteSpace(request.SpecialApprovalReason));
+
             // ── Available transitions (all user roles, filtered by special approval)
             var userRoleIds = GetUserRoles();
             var availableTransitions = new List<WorkflowTransitionDto>();
@@ -533,19 +654,24 @@ namespace VMSService.Web.Controllers
 
             // Determine once whether the workflow exposes the exceptional CB-approval path.
             var hasExceptionalApprovalTransition = availableTransitions
-                .Any(t => t.ActionName == "ExceptionalWithdrawaRequest");
+                .Any(t => t.ActionName == WithdrawalStatusActionNames.ExceptionalWithdrawalRequest);
 
             availableTransitions = availableTransitions
                 .Where(t => t.ActionName switch
                 {
                     // Show the exceptional path only when the flag is set.
-                    "ExceptionalWithdrawaRequest" => request.RequiresSpecialApproval,
+                    var a when a == WithdrawalStatusActionNames.ExceptionalWithdrawalRequest => request.RequiresSpecialApproval,
                     // Show the normal approval on the normal path, OR as a fallback when
                     // RequiresSpecialApproval is true but no dedicated exceptional transition exists.
-                    "ApproveToRTGSVefification" => !request.RequiresSpecialApproval || !hasExceptionalApprovalTransition,
+                    var a when a == WithdrawalStatusActionNames.ApproveToRTGSVerification => !request.RequiresSpecialApproval || !hasExceptionalApprovalTransition,
                     _ => true,
                 })
                 .ToList();
+
+            // Hard block: nothing but Edit/Delete while stuck stale pre-submission — RTGS entry
+            // is gated separately (canEditRtgs above), workflow transitions are cleared here.
+            if (isStalePreSubmission)
+                availableTransitions.Clear();
 
             // Override display labels based on the destination status.
             foreach (var t in availableTransitions)
@@ -553,15 +679,10 @@ namespace VMSService.Web.Controllers
                 t.DisplayLabel = t.ToStatus?.Name switch
                 {
                     WithdrawalStatusNames.PendingWithdrawalConfirmation => "Approve Exceptional Request",
-                    WithdrawalStatusNames.PendingRTGSVerification       => "Approve (Pending RTGS Verification)",
+                    WithdrawalStatusNames.PendingRTGSVerification       => "Approve (Pending RTGS Code)",
                     _ => t.DisplayLabel,
                 };
             }
-
-            // ── Same-day/exceptional grace-window inputs ──────────────────────────
-            var dayBeforeHoliday = await _publicHolidayRepository.FindByDateAsync(request.CollectionDate.AddDays(-1));
-            var isDayBeforeHoliday = dayBeforeHoliday is not null;
-            var gracePeriodReason = GetGracePeriodReason(request.CollectionDate, dayBeforeHoliday);
 
             // ── Build ViewModel ───────────────────────────────────────────────────
             var vm = new WithdrawalRequestDetailsViewModel
@@ -575,6 +696,7 @@ namespace VMSService.Web.Controllers
                 RtgsCode = request.RtgsCode,
                 RequiresSpecialApproval = request.RequiresSpecialApproval,
                 ExceptionalApprovalReason = request.SpecialApprovalReason,
+                FundsNotIssued = request.FundsNotIssued,
                 CbName = cb?.Name ?? "—",
                 CbCode = cb?.Code ?? "—",
                 BouBranchName = bankBranch?.Name ?? "—",
@@ -604,17 +726,19 @@ namespace VMSService.Web.Controllers
                 //    SubmissionClassifier.Classify(DateTime.UtcNow, request.CollectionDate, isDayBeforeHoliday: false)
                 //        == SubmissionClassification.SameDayExceptional,
                 ShowSameDayMakerWarning = (userRoleNames.Contains(RolePolicy.CbMaker) || userRoleNames.Contains(RolePolicy.CbApprover)) &&
-                    SubmissionClassifier.Classify(DateTime.UtcNow, request.CollectionDate, isDayBeforeHoliday)
-                        == SubmissionClassification.SameDayExceptional,
-                ShowSameDayReasonCapture = availableTransitions.Any() &&
-                    userRoleNames.Contains(RolePolicy.CbApprover) &&
-                    !request.RequiresSpecialApproval &&
-                    SubmissionClassifier.Classify(DateTime.UtcNow, request.CollectionDate, isDayBeforeHoliday)
-                        == SubmissionClassification.SameDayExceptional,
-                CanEditSameDayReason = request.RequiresSpecialApproval &&
+                    sameDayClassification == SubmissionClassification.SameDayExceptional,
+                SubmitBlockedBySameDayReason = sameDayReasonRequiredButMissing,
+                // Opens the same reason modal for two cases: correcting an already-captured
+                // reason (RequiresSpecialApproval already true), or capturing it for the first
+                // time when the Approver is the one who discovers it's live same-day-exceptional
+                // (sameDayClassification check) — previously only the correction case was
+                // possible, leaving no way to enter a reason at all when the Maker's own
+                // submission never flagged it.
+                CanEditSameDayReason = (request.RequiresSpecialApproval || sameDayClassification == SubmissionClassification.SameDayExceptional) &&
                     userRoleNames.Contains(RolePolicy.CbApprover) &&
                     request.StatusTypeName == WithdrawalStatusNames.PendingInternalApproval,
                 GracePeriodReason = gracePeriodReason,
+                IsStalePreSubmission = isStalePreSubmission,
                 SubmissionDate = statusHistory
                     .Where(h => h.NewStatusName == WithdrawalStatusNames.PendingRTGSVerification
                              || h.NewStatusName == WithdrawalStatusNames.PendingWithdrawalConfirmation)
@@ -654,6 +778,8 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ExecuteAction(Guid id, string actionName, string remarks, CancellationToken ct)
         {
+            if (!IsCbUser()) return Forbid();
+
             try
             {
                 var request = await _withdrawalRequestRepo.FindById(id);
@@ -661,6 +787,61 @@ namespace VMSService.Web.Controllers
                 {
                     TempData["Error"] = "Withdrawal request not found.";
                     return RedirectToAction(nameof(Index));
+                }
+
+                if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
+
+                if (IsStalePreSubmission(request))
+                {
+                    TempData["Error"] = "This request's collection date has passed. Update the collection date via Edit before taking any other action.";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
+
+                // Explicit code-level guard, independent of whatever WorkflowService's config
+                // allows — Recall is intended to be available at every non-terminal status, and
+                // this must hold even if the config were misconfigured to permit it on one that
+                // isn't (see WithdrawalStatusNames.RecallBlockedStatuses).
+                if (actionName == WithdrawalStatusActionNames.RequestRecall
+                    && WithdrawalStatusNames.RecallBlockedStatuses.Contains(request.StatusTypeName))
+                {
+                    TempData["Error"] = "This request can no longer be recalled at its current status.";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
+
+                // SaveDraft re-derives same-day-exceptional status from CollectionDate and
+                // requires a reason before it'll persist — but that only runs when an actual save
+                // happens. A request left sitting (by either the Maker before submitting, or the
+                // Approver before approving) until its collection date arrives can reach the
+                // actual action with RequiresSpecialApproval/SpecialApprovalReason still
+                // reflecting whatever was true earlier, not now. Re-check here, at the actual
+                // action points for both roles — the Maker's submit and the Approver's approve.
+                var isMakerSubmitAction = actionName == WithdrawalStatusActionNames.SubmitForInternalApproval
+                    || actionName == WithdrawalStatusActionNames.ResubmitForApproval;
+                var isApproverApproveAction = actionName == WithdrawalStatusActionNames.ApproveToRTGSVerification
+                    || actionName == WithdrawalStatusActionNames.ExceptionalWithdrawalRequest;
+
+                // Captured here (rather than recomputed after the transition) so penalties #1/#2a
+                // below are judged against the same instant the special-approval-reason check just
+                // used — the approval either goes through right now, at this classification, or not
+                // at all.
+                SubmissionClassification? approverActionClassification = null;
+
+                if (isMakerSubmitAction || isApproverApproveAction)
+                {
+                    var classification = await SubmissionClassifier.ClassifyAsync(
+                        _publicHolidayRepository, DateTime.UtcNow, request.CollectionDate);
+                    var requiresSpecialApproval = classification == SubmissionClassification.SameDayExceptional;
+
+                    if (isApproverApproveAction) approverActionClassification = classification;
+
+                    if (requiresSpecialApproval
+                        && (!request.RequiresSpecialApproval || string.IsNullOrWhiteSpace(request.SpecialApprovalReason)))
+                    {
+                        TempData["Error"] = isMakerSubmitAction
+                            ? "An exceptional approval reason is required for same-day collection requests outside the grace period. Update it via Edit first."
+                            : "An exceptional approval reason is required for same-day collection requests outside the grace period. Enter one below first.";
+                        return RedirectToAction(nameof(Details), new { id });
+                    }
                 }
 
                 var username = User.FindFirst(ClaimTypes.Name)?.Value ?? "System";
@@ -688,28 +869,63 @@ namespace VMSService.Web.Controllers
                     // Reload to get the fresh status after the workflow transition
                     var updatedRequest = await _withdrawalRequestRepo.FindById(id);
 
+                    if (updatedRequest is not null && isApproverApproveAction && approverActionClassification is not null)
+                    {
+                        await ApplyApproverActionPenaltiesAsync(updatedRequest, approverActionClassification.Value, actionName);
+                    }
+
                     // If the CB Approver sent the request to RTGS Verification but the RTGS code
                     // is already filled in, skip that step and advance directly to
-                    // Pending Withdrawal Confirmation.
+                    // Pending RTGS Confirmation — unless this approval follows an ABM return
+                    // (Pending Verification origin) with the RTGS code unchanged since that return,
+                    // in which case Back Office already verified this exact code and it skips
+                    // straight to Pending Verification instead. A changed code (or any other
+                    // origin) still goes through the normal RTGS Confirmation cycle. See ADR-0001.
                     if (updatedRequest is not null
                         && updatedRequest.StatusTypeName == WithdrawalStatusNames.PendingRTGSVerification
                         && !string.IsNullOrWhiteSpace(updatedRequest.RtgsCode))
                     {
                         var oldStatusId   = updatedRequest.StatusTypeId;
                         var oldStatusName = updatedRequest.StatusTypeName;
-                        var newStatusId   = await _statusResolver.GetStatusIdAsync(WithdrawalStatusNames.PendingWithdrawalConfirmation);
+
+                        var lastReturn = await _uow.StatusHistory.FindMostRecentByNewStatusNameAsync(
+                            id, WithdrawalStatusNames.ReturnedForRevision, ct);
+                        var isAbmOrigin = lastReturn?.OldStatusName == WithdrawalStatusNames.PendingVerification;
+                        var codeUnchangedSinceAbmReturn = isAbmOrigin && updatedRequest.RtgsCode == updatedRequest.RtgsCodeAtLastReturn;
+
+                        string newStatusName;
+                        string autoAdvanceRemark;
+                        if (codeUnchangedSinceAbmReturn)
+                        {
+                            newStatusName = WithdrawalStatusNames.PendingVerification;
+                            autoAdvanceRemark = $"RTGS code {updatedRequest.RtgsCode} unchanged since the ABM's return — already verified, skipped straight to Pending Verification.";
+                        }
+                        else
+                        {
+                            newStatusName = WithdrawalStatusNames.PendingWithdrawalConfirmation;
+                            autoAdvanceRemark = "RTGS code already provided — automatically advanced to Pending RTGS Confirmation.";
+
+                            if (isAbmOrigin)
+                            {
+                                // ABM origin, but the code changed since the return — the prior
+                                // verification no longer describes the current code.
+                                updatedRequest.RtgsVerificationStatus = RtgsVerification.Pending;
+                            }
+                        }
+
+                        var newStatusId = await _statusResolver.GetStatusIdAsync(newStatusName);
 
                         updatedRequest.StatusTypeId   = newStatusId;
-                        updatedRequest.StatusTypeName = WithdrawalStatusNames.PendingWithdrawalConfirmation;
+                        updatedRequest.StatusTypeName = newStatusName;
                         updatedRequest.ModifiedBy     = username;
                         updatedRequest.ModifiedDate   = DateTime.Now;
 
                         await AddStatusHistoryAsync(
                             updatedRequest.Id,
                             oldStatusId, oldStatusName,
-                            newStatusId, WithdrawalStatusNames.PendingWithdrawalConfirmation,
+                            newStatusId, newStatusName,
                             GetUserId(),
-                            "RTGS code already provided — automatically advanced to Pending Withdrawal Confirmation.",
+                            autoAdvanceRemark,
                             ct, changedBy: username);
 
                         await _uow.SaveAsync(ct);
@@ -752,10 +968,72 @@ namespace VMSService.Web.Controllers
             return RedirectToAction(nameof(Details), new { id });
         }
 
+        /// <summary>
+        /// Penalty #2's own clock — collection day, past 11:00 EAT, no weekend/holiday grace window
+        /// at all. Deliberately independent of <see cref="SubmissionClassifier"/>, which answers a
+        /// different question (is the letter of intent itself exceptional, with a multi-day grace
+        /// window) for Penalty #1.
+        /// </summary>
+        private static bool IsRtgsCodeLate(DateOnly collectionDate)
+        {
+            var nowEat = DateTime.UtcNow.AddHours(3);
+            return collectionDate == DateOnly.FromDateTime(nowEat) && TimeOnly.FromDateTime(nowEat) > new TimeOnly(11, 0, 0);
+        }
+
+        /// <summary>
+        /// Penalties #1, #2a and #3b — all judged at the CB Approver's own approval action
+        /// (ApproveToRTGSVerification/ExceptionalWithdrawalRequest), the moment the request is
+        /// actually submitted onward to BOU.
+        /// </summary>
+        private async Task ApplyApproverActionPenaltiesAsync(
+            WithdrawalRequest request, SubmissionClassification classification, string actionName)
+        {
+            if (classification == SubmissionClassification.SameDayExceptional)
+            {
+                // Penalty #1: the letter of intent itself — any exceptional (same-day, outside the
+                // grace window) request — arrived late.
+                await AutomaticPenaltyApplier.ApplyIfNotAlreadyAppliedAsync(
+                    _penaltyRepository, _appliedPenaltyRepository, _logger,
+                    PenaltyConstants.Source.Withdrawal, request.TransactionRefNumber,
+                    PenaltyConstants.AutomaticPenalties.LateSubmissionOfLetterOfIntent,
+                    "Submitted same-day, outside the grace period.");
+            }
+
+            // Penalty #2a: an RTGS code already travelling with the submission is itself late —
+            // this is purely about the RTGS code's own clock (collection day, past 11:00 EAT, no
+            // grace window), independent of whether the letter of intent itself was exceptional. A
+            // code entered later instead (empty now) is Penalty #2b, judged separately at
+            // UpdateRtgs when it's actually entered.
+            if (!string.IsNullOrWhiteSpace(request.RtgsCode) && IsRtgsCodeLate(request.CollectionDate))
+            {
+                await AutomaticPenaltyApplier.ApplyIfNotAlreadyAppliedAsync(
+                    _penaltyRepository, _appliedPenaltyRepository, _logger,
+                    PenaltyConstants.Source.Withdrawal, request.TransactionRefNumber,
+                    PenaltyConstants.AutomaticPenalties.LateSubmissionOfRtgsToTransact,
+                    "RTGS code was already present past 11:00 EAT on the collection date.");
+            }
+
+            // Penalty #3b: the exceptional-approval path submitted after 15:00 EAT.
+            if (actionName == WithdrawalStatusActionNames.ExceptionalWithdrawalRequest
+                && TimeOnly.FromDateTime(DateTime.UtcNow.AddHours(3)) > new TimeOnly(15, 0, 0))
+            {
+                await AutomaticPenaltyApplier.ApplyIfNotAlreadyAppliedAsync(
+                    _penaltyRepository, _appliedPenaltyRepository, _logger,
+                    PenaltyConstants.Source.Withdrawal, request.TransactionRefNumber,
+                    PenaltyConstants.AutomaticPenalties.TransactingLate,
+                    "Exceptional withdrawal request submitted after 15:00 EAT.");
+            }
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SetSameDayReason(Guid id, string reason, CancellationToken ct)
         {
+            // Only reachable in the UI via Details.cshtml's CanEditSameDayReason-gated "Edit
+            // Reason" modal, which requires the CB Approver role specifically — CB Maker is never
+            // offered it.
+            if (!IsCbApprover()) return Forbid();
+
             if (string.IsNullOrWhiteSpace(reason))
             {
                 TempData["Error"] = "A reason is required for same-day exceptional approval.";
@@ -775,6 +1053,39 @@ namespace VMSService.Web.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
+
+            if (IsStalePreSubmission(request))
+            {
+                TempData["Error"] = "This request's collection date has passed. Update the collection date via Edit before taking any other action.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            // Full CanEditSameDayReason condition: status must be Pending Internal Approval, and
+            // either the flag is already true (correcting an existing reason — originally set by
+            // SaveDraft) or it's currently live same-day-exceptional (the Approver is the one
+            // discovering it, first-time capture — the Maker's own submission never flagged it).
+            // Without the live-classification branch, this action could only ever correct an
+            // already-true flag, leaving no way to set it the first time from the Approver's side.
+            // Without the status/classification check at all, a direct POST could set the reason
+            // (and flip RequiresSpecialApproval on an otherwise-ordinary request) at any status.
+            if (request.StatusTypeName != WithdrawalStatusNames.PendingInternalApproval)
+            {
+                TempData["Error"] = "The same-day reason can only be set while the request is Pending Internal Approval.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (!request.RequiresSpecialApproval)
+            {
+                var classification = await SubmissionClassifier.ClassifyAsync(
+                    _publicHolidayRepository, DateTime.UtcNow, request.CollectionDate);
+                if (classification != SubmissionClassification.SameDayExceptional)
+                {
+                    TempData["Error"] = "This request is not currently same-day exceptional — no reason is needed.";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
+            }
+
             request.RequiresSpecialApproval = true;
             request.SpecialApprovalReason   = reason.Trim();
             request.ModifiedDate            = DateTime.Now;
@@ -790,13 +1101,17 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
         {
+            if (!IsCbMaker()) return Forbid();
+
             var request = await _uow.Requests.FindById(id);
             if (request is null) return NotFound();
-            //if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
+            if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
 
-            // Only allow delete in Draft or ReturnedForRevision
+            // Only allow delete in Draft or ReturnedForRevision — or, stuck stale pre-submission,
+            // same exception as Edit above.
             if (request.StatusTypeName != WithdrawalStatusNames.Draft
-                && request.StatusTypeName != WithdrawalStatusNames.ReturnedForRevision)
+                && request.StatusTypeName != WithdrawalStatusNames.ReturnedForRevision
+                && !IsStalePreSubmission(request))
             {
                 TempData["Error"] = "Only draft requests can be deleted.";
                 return RedirectToAction(nameof(Details), new { id });
@@ -816,8 +1131,17 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateRtgs(Guid id, DateOnly? rtgsDate, string? rtgsCode, CancellationToken ct)
         {
+            if (!IsCbUser()) return Forbid();
+
             var request = await _uow.Requests.FindById(id);
             if (request is null) return NotFound();
+            if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
+
+            if (IsStalePreSubmission(request))
+            {
+                TempData["Error"] = "This request's collection date has passed. Update the collection date via Edit before taking any other action.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
 
             var rtgsUpdateableStatuses = new[]
             {
@@ -844,15 +1168,33 @@ namespace VMSService.Web.Controllers
                 return RedirectToAction(nameof(Details), new { id });
             }
 
+            // Blank/whitespace means "not entered" — normalized to null throughout, since the
+            // database's uniqueness guarantee is a filtered index on RtgsCode IS NOT NULL.
+            var normalizedRtgsCode = NormalizeRtgsCode(rtgsCode);
+
+            // Fast pre-check for a friendly message — the filtered unique index is the real
+            // guarantee and still applies at save time below in case of a concurrent submission.
+            if (normalizedRtgsCode is not null
+                && await _uow.Requests.ExistsByRtgsCodeAsync(normalizedRtgsCode, excludeId: id, ct))
+            {
+                TempData["Error"] = RtgsCodeConflictMessage(normalizedRtgsCode);
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            // Penalty #2b: the code is being entered for the first time (was empty, now isn't) —
+            // captured before RtgsCode is overwritten below. A code that already travelled with the
+            // submission is Penalty #2a instead, judged at the Approver's approval action.
+            var isFirstRtgsCodeEntry = string.IsNullOrWhiteSpace(request.RtgsCode) && normalizedRtgsCode is not null;
+
             request.FundSettlementValueDate = rtgsDate;
-            request.RtgsCode = rtgsCode;
+            request.RtgsCode = normalizedRtgsCode;
             request.ModifiedBy = GetUserId();
             request.ModifiedDate = DateTime.Now;
 
             var autoTransitioned = false;
 
             if (request.StatusTypeName == WithdrawalStatusNames.PendingRTGSVerification
-                && !string.IsNullOrWhiteSpace(rtgsCode))
+                && !string.IsNullOrWhiteSpace(normalizedRtgsCode))
             {
                 var oldStatusId   = request.StatusTypeId;
                 var oldStatusName = request.StatusTypeName;
@@ -867,183 +1209,41 @@ namespace VMSService.Web.Controllers
                     oldStatusId, oldStatusName,
                     newStatusId, WithdrawalStatusNames.PendingWithdrawalConfirmation,
                     GetUserId(),
-                    "RTGS code entered — automatically advanced to Pending Withdrawal Confirmation.",
+                    $"RTGS code {normalizedRtgsCode} entered — automatically advanced to Pending RTGS Confirmation.",
                     ct, changedBy: username);
 
                 autoTransitioned = true;
             }
 
-            await _uow.SaveAsync(ct);
+            try
+            {
+                await _uow.SaveAsync(ct);
+            }
+            catch (DbUpdateException ex) when (IsRtgsCodeUniqueViolation(ex))
+            {
+                TempData["Error"] = RtgsCodeConflictMessage(normalizedRtgsCode!);
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (isFirstRtgsCodeEntry)
+            {
+                // Penalty #2b: purely the RTGS code's own clock (collection day, past 11:00 EAT, no
+                // grace window) — independent of the letter-of-intent's same-day-exceptional
+                // classification, which Penalty #1/#2a already cover separately.
+                if (IsRtgsCodeLate(request.CollectionDate))
+                {
+                    await AutomaticPenaltyApplier.ApplyIfNotAlreadyAppliedAsync(
+                        _penaltyRepository, _appliedPenaltyRepository, _logger,
+                        PenaltyConstants.Source.Withdrawal, request.TransactionRefNumber,
+                        PenaltyConstants.AutomaticPenalties.LateSubmissionOfRtgsToTransact,
+                        "RTGS code entered past 11:00 EAT on the collection date.");
+                }
+            }
 
             TempData["Success"] = autoTransitioned
-                ? "RTGS details saved. Request advanced to Pending Withdrawal Confirmation."
+                ? "RTGS details saved. Request advanced to Pending RTGS Confirmation."
                 : "RTGS details updated successfully.";
             return RedirectToAction(nameof(Details), new { id });
-        }
-
-        // ── Print Slip ────────────────────────────
-        public async Task<IActionResult> PrintRequest(Guid id, CancellationToken ct)
-        {
-            var request = await _uow.Requests.GetWithDetailsAsync(id, ct);
-            if (request is null) return NotFound();
-
-            if (request.StatusTypeName != WithdrawalStatusNames.Completed
-                && request.StatusTypeName != WithdrawalStatusNames.Approved
-                && request.StatusTypeName != WithdrawalStatusNames.PendingApproval)
-                return RedirectToAction(nameof(Details), new { id });
-
-            var cb = await _configServiceClient.GetCbIdAsync(request.CbId);
-            var bouBranch = await _configServiceClient.GetBouBranchByIdAsync(request.BouBranchId);
-
-            // Agents
-            var agentIds = request.WithdrawalRequestAgents
-                .Where(a => a.EnteredBy == WithdrawalEnteredBy.Cb)
-                .Select(a => a.AgentId)
-                .ToList();
-
-            var agents = new List<AgentDetailViewModel>();
-            foreach (var agentId in agentIds)
-            {
-                var agent = await _agentRepo.FindById(agentId);
-                if (agent is not null)
-                    agents.Add(_mapper.Map<AgentDetailViewModel>(agent));
-            }
-
-            // BOU dispatch denominations
-            var bankRows = request.WithdrawalRequestDenominations
-                .Where(d => d.Origin == WithdrawalOrigin.Bou)
-                .ToList();
-
-            var newBanknotes = new List<BouDispatchCardViewModel>();
-            var reissueNotes = new List<BouDispatchSimpleViewModel>();
-            var coins = new List<BouDispatchSimpleViewModel>();
-
-            foreach (var row in bankRows)
-            {
-                if (string.Equals(row.BundleType, BundleTypes.New, StringComparison.OrdinalIgnoreCase))
-                {
-                    var details = row.DispatchedBoxes?
-                        .OrderBy(b => int.TryParse(b.CaseNumber, out var n) ? n : int.MaxValue)
-                        .ToList() ?? [];
-
-                    if (!details.Any()) continue;
-
-                    var bundlesTotal = row.Bundles ?? 0;
-                    var isFull = bundlesTotal == details.Count * 50;
-                    var firstBox = int.TryParse(details.First().CaseNumber, out var fn) ? fn : 0;
-                    var lastBox = int.TryParse(details.Last().CaseNumber, out var ln) ? ln : 0;
-
-                    newBanknotes.Add(new BouDispatchCardViewModel
-                    {
-                        Id = row.Id,
-                        DenominationId = row.DenominationId,
-                        Denomination = row.DenominationValue,
-                        StartBox = firstBox,
-                        EndBox = lastBox,
-                        IsFull = isFull,
-                        Bundles = bundlesTotal,
-                        SerialStart = details.First().SerialStartTaken,
-                        SerialEnd = details.Last().SerialEndTaken,
-                        SerialPrefix = details.First().SerialPrefix,
-                        Amount = row.Amount,
-                    });
-                }
-                else if (string.Equals(row.BundleType, BundleTypes.Reissue, StringComparison.OrdinalIgnoreCase))
-                {
-                    reissueNotes.Add(new BouDispatchSimpleViewModel
-                    {
-                        Id = row.Id,
-                        DenominationId = row.DenominationId,
-                        Denomination = row.DenominationValue,
-                        Quantity = row.Bundles ?? 0,
-                        Amount = row.Amount,
-                    });
-                }
-                else if (string.Equals(row.BundleType, BundleTypes.Coin, StringComparison.OrdinalIgnoreCase))
-                {
-                    coins.Add(new BouDispatchSimpleViewModel
-                    {
-                        Id = row.Id,
-                        DenominationId = row.DenominationId,
-                        Denomination = row.DenominationValue,
-                        Quantity = row.Boxes ?? 0,
-                        Amount = row.Amount,
-                    });
-                }
-                else
-                {
-                    // BundleType = "NA" — copied from CB before Panel A entered dispatch.
-                    // Fall back: notes have Bundles, coins have Boxes.
-                    if (row.Bundles.HasValue && row.Bundles > 0)
-                        reissueNotes.Add(new BouDispatchSimpleViewModel
-                        {
-                            Id = row.Id,
-                            DenominationId = row.DenominationId,
-                            Denomination = row.DenominationValue,
-                            Quantity = row.Bundles.Value,
-                            Amount = row.Amount,
-                        });
-                    else if (row.Boxes.HasValue && row.Boxes > 0)
-                        coins.Add(new BouDispatchSimpleViewModel
-                        {
-                            Id = row.Id,
-                            DenominationId = row.DenominationId,
-                            Denomination = row.DenominationValue,
-                            Quantity = row.Boxes.Value,
-                            Amount = row.Amount,
-                        });
-                }
-            }
-
-            // Panel names from status history
-            var history = request.WithdrawalRequestStatusHistory.Where(h => !h.IsDeleted).ToList();
-
-            var panelAStatusId = await _statusResolver.GetStatusIdAsync(WithdrawalStatusNames.PendingApproval);
-            var panelBStatusId = await _statusResolver.GetStatusIdAsync(WithdrawalStatusNames.Approved);
-
-            string panelAName = string.Empty;
-            string panelBName = string.Empty;
-
-            var panelAEntry = history.FirstOrDefault(h => h.NewStatusId == panelAStatusId);
-            if (panelAEntry is not null)
-            {
-                var user = await _identityService.GetUserByUsername(panelAEntry.ChangedBy);
-                if (user is not null)
-                    panelAName = System.Text.RegularExpressions.Regex.Replace(
-                        $"{user.FirstName} {user.MiddleName} {user.LastName}".Trim(), @"\s+", " ");
-            }
-
-            var panelBEntry = history.FirstOrDefault(h => h.NewStatusId == panelBStatusId);
-            if (panelBEntry is not null)
-            {
-                var user = await _identityService.GetUserByUsername(panelBEntry.ChangedBy);
-                if (user is not null)
-                    panelBName = System.Text.RegularExpressions.Regex.Replace(
-                        $"{user.FirstName} {user.MiddleName} {user.LastName}".Trim(), @"\s+", " ");
-            }
-
-            var vm = new WithdrawalPrintViewModel
-            {
-                TransactionRefNumber = request.TransactionRefNumber,
-                CollectionDate = request.CollectionDate,
-                RtgsDate = request.FundSettlementValueDate,
-                RtgsCode = request.RtgsCode,
-                CbName = cb?.Name ?? "—",
-                BouBranchName = bouBranch?.Name ?? "—",
-                BouBranchCode = request.BouBranchCode,
-                TotalAmount = request.TotalAmount,
-                TotalNotesAmount = request.TotalNotesAmount,
-                TotalCoinsAmount = request.TotalCoinsAmount,
-                Agents = agents,
-                NewBanknotes = newBanknotes.OrderBy(n => n.Denomination).ThenBy(n => n.StartBox).ToList(),
-                ReissueBanknotes = reissueNotes.OrderBy(n => n.Denomination).ToList(),
-                Coins = coins.OrderBy(c => c.Denomination).ToList(),
-                PanelAName = panelAName,
-                PanelBName = panelBName,
-                RequiresSpecialApproval = request.RequiresSpecialApproval,
-            };
-
-            return View(vm);
         }
 
         // ── Helpers ───────────────────────────────
@@ -1135,6 +1335,30 @@ namespace VMSService.Web.Controllers
 
         private string GetUserId()
             => User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+
+        // Create/Edit/SaveDraft/Delete mutate request data — a CB Approver must not be able to
+        // bypass their own downstream review by editing/deleting the draft directly (mirrors the
+        // Details page's canEdit flag, which already hides these buttons from CB Approver;
+        // RequirePermission alone can't enforce this server-side, since the whole controller
+        // shares one "Details" permission covering both CB roles).
+        private bool IsCbMaker() => User.GetAppRoleNames().Contains(RolePolicy.CbMaker);
+        private bool IsCbApprover() => User.GetAppRoleNames().Contains(RolePolicy.CbApprover);
+
+        // Every action left on this controller is CB-only: CbOwnershipAuthorizationHandler's "any
+        // BOU role bypasses ownership" rule is blanket across every action that calls it, so
+        // without this check a BOU user who knows a request's GUID could edit its RTGS code,
+        // execute CB-side workflow transitions, view its internal review history, or set the CB
+        // Approver's exceptional-approval reason. Account-type check (cbId claim presence), not a
+        // role check — see VMSService.Core.Extensions.ClaimsPrincipalExtensions.IsCbUser.
+        private bool IsCbUser() => User.IsCbUser();
+
+        // Stuck pre-submission (Draft/Pending Internal Approval/Returned for Internal Revision)
+        // with a collection date that's already passed. A hard block, not an auto-expiry: the
+        // record just sits inert until the CB Maker fixes the date via Edit — every other action,
+        // for both CB Maker and CB Approver, is rejected while this is true.
+        private static bool IsStalePreSubmission(WithdrawalRequest request)
+            => WithdrawalRequestRepository.IsStalePreSubmission(
+                request.StatusTypeName, request.CollectionDate, DateOnly.FromDateTime(DateTime.Today));
 
         private static readonly TimeZoneInfo EatZone = TimeZoneInfo.FindSystemTimeZoneById("E. Africa Standard Time");
 

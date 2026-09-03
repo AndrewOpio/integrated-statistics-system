@@ -1,3 +1,5 @@
+using VMSService.Core.Repositories.PublicHolidays;
+
 namespace VMSService.Core.Services.Submissions
 {
     public enum SubmissionClassification
@@ -9,6 +11,18 @@ namespace VMSService.Core.Services.Submissions
 
     public static class SubmissionClassifier
     {
+        /// <summary>Convenience wrapper around <see cref="Classify"/> that does the day-before
+        /// holiday lookup itself — every call site needs that lookup first, so this keeps it from
+        /// being re-typed (and potentially drifting, e.g. a wrong AddDays sign) at each one.</summary>
+        public static async Task<SubmissionClassification> ClassifyAsync(
+            IPublicHolidayRepository holidayRepository,
+            DateTime approvalUtc,
+            DateOnly collectionDate)
+        {
+            var dayBeforeHoliday = await holidayRepository.FindByDateAsync(collectionDate.AddDays(-1));
+            return Classify(approvalUtc, collectionDate, isDayBeforeHoliday: dayBeforeHoliday is not null);
+        }
+
         private static readonly TimeZoneInfo EatZone =
             TimeZoneInfo.FindSystemTimeZoneById("E. Africa Standard Time");
 

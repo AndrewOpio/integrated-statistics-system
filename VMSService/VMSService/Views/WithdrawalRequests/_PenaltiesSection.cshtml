@@ -36,6 +36,10 @@
             {
                 <div>
                     <p class="text-uppercase text-muted small fw-semibold mb-2">Applied Penalties</p>
+                    @{
+                        ViewData["RequestId"] = Model.Id;
+                        ViewData["CanManagePenalties"] = Model.CanManagePenalties;
+                    }
                     @await Html.PartialAsync("~/Views/Shared/_Withdrawal/_AppliedPenaltiesTable.cshtml", Model.AppliedPenalties)
                 </div>
             }

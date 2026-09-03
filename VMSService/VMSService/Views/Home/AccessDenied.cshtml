@@ -1,5 +1,14 @@
+@using VMSService.Core.Authorization
+@using VMSService.Web.Extensions
 @{
     ViewData["Title"] = "Access Denied";
+
+    // Shared across the whole app — every Forbid() result lands here (JWT bearer's OnForbidden
+    // hard-redirects to this one action), so it can't assume a single layout the way every other
+    // view does. Same CB-role check HomeController.Index() already uses to decide where to route
+    // a user, so a CB user denied on e.g. Create still sees their own CB-branded shell instead of
+    // the general one.
+    Layout = User.GetAppRoleNames().Any(RolePolicy.CbRoles.Contains) ? "_CbLayout" : "_Layout";
 }
 
 <div class="row">

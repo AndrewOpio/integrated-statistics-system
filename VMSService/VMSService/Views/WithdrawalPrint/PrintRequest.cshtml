@@ -1,0 +1,344 @@
+@model VMSService.Core.Models.CbWithdrawRequest.WithdrawalPrintViewModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cash Withdrawal Receipt - @Model.TransactionRefNumber</title>
+    <style>
+        @@media print {
+            .no-print { display: none; }
+            @@page { margin: 1cm; }
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 210mm;
+            margin: 0 auto;
+            font-size: 13px;
+            color: #111;
+        }
+
+        .print-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 15px;
+        }
+        .print-button:hover { background-color: #0056b3; }
+
+        /* ── Header ── */
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #111; padding-bottom: 14px; }
+        .header img { width: 60px; height: auto; margin-bottom: 6px; }
+        .header h1 { margin: 2px 0; font-size: 20px; font-weight: bold; }
+        .header .subtitle { font-size: 14px; margin: 2px 0; letter-spacing: .06em; }
+        .header .ref { font-size: 12px; color: #555; margin-top: 4px; }
+
+        /* ── Info grid — no outer box, just clean rows ── */
+        .info-grid {
+            display: grid;
+            grid-template-columns: max-content 1fr max-content 1fr;
+            gap: 5px 16px;
+            margin-bottom: 18px;
+            padding: 10px 0;
+            border-top: 1px solid #ccc;
+            border-bottom: 1px solid #ccc;
+        }
+        .info-label { font-weight: bold; white-space: nowrap; }
+
+        /* ── Section titles ── */
+        .section-title {
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: #555;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 3px;
+            margin: 18px 0 8px;
+        }
+
+        /* ── Tables — horizontal lines only ── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+        table th {
+            border-bottom: 2px solid #111;
+            padding: 5px 8px;
+            font-weight: bold;
+            text-align: left;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: #333;
+        }
+        table td {
+            border-bottom: 1px solid #e0e0e0;
+            padding: 5px 8px;
+        }
+        table tbody tr:last-child td { border-bottom: none; }
+        .denom-detail {
+            font-size: 10px;
+            color: #777;
+        }
+
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+
+        /* ── Total ── */
+        .total-line {
+            border-top: 2px solid #111;
+            border-bottom: 1px solid #ccc;
+            padding: 8px 0;
+            margin: 8px 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+        .total-amount { font-size: 16px; font-weight: bold; }
+        .total-words { font-size: 11px; font-style: italic; color: #555; }
+
+        /* ── Dispatch discrepancy badge ── */
+        .discrepancy-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .discrepancy-match { background: #d4edda; color: #155724; }
+        .discrepancy-mismatch { background: #f8d7da; color: #721c24; }
+
+        /* ── Signature boxes ── */
+        .signature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+        .signature-box {
+            border: 1px solid #bbb;
+            padding: 10px 12px;
+            min-height: 100px;
+        }
+        .signature-box h4 {
+            margin: 0 0 6px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            color: #555;
+        }
+        .signature-box p { margin: 2px 0; font-size: 12px; }
+        .signature-line {
+            margin-top: 36px;
+            border-top: 1px solid #555;
+            padding-top: 3px;
+            font-size: 10px;
+            color: #777;
+        }
+
+        .monospace { font-family: 'Courier New', monospace; }
+    </style>
+</head>
+<body>
+
+    <button class="print-button no-print" onclick="window.print()">&#128424; Print</button>
+
+    @* ── Header ── *@
+    <div class="header">
+        <img src="~/img/bou.png" alt="Bank of Uganda Logo" />
+        <h1>BANK OF UGANDA</h1>
+        <div class="subtitle">Cash Withdrawal Receipt</div>
+        <div class="ref">@Model.TransactionRefNumber</div>
+        @if (Model.RequiresSpecialApproval)
+        {
+            <div style="margin-top:6px;">
+                <span style="background:#c8a96e;color:#5c3a00;padding:3px 10px;border-radius:3px;font-size:11px;font-weight:bold;">
+                    EXCEPTIONAL APPROVAL
+                </span>
+            </div>
+        }
+    </div>
+
+    @* ── Request Details ── *@
+    <div class="info-grid">
+        <span class="info-label">Commercial Bank</span><span>@Model.CbName</span>
+        <span class="info-label">BOU Branch</span><span>@Model.BouBranchName (@Model.BouBranchCode)</span>
+        <span class="info-label">Collection Date</span><span>@Model.CollectionDate.ToString("dd MMMM yyyy")</span>
+        <span class="info-label">Printed</span><span>@DateTime.Now.ToString("dd MMMM yyyy HH:mm")</span>
+        @if (Model.RtgsDate.HasValue)
+        {
+            <span class="info-label">Fund Settlement Value Date</span><span>@Model.RtgsDate.Value.ToString("dd MMMM yyyy")</span>
+            <span class="info-label">RTGS Code</span><span class="monospace">@Model.RtgsCode</span>
+        }
+    </div>
+
+    @* ── Denominations ── *@
+    <div class="section-title">Denomination Details</div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width:12%">Type</th>
+                <th>Denomination</th>
+                <th class="text-right" style="width:16%">Qty</th>
+                <th class="text-right" style="width:18%">Amount (UGX)</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in Model.NewBanknotes)
+            {
+                var boxLabel = row.StartBox == row.EndBox
+                    ? $"Box {row.StartBox}"
+                    : $"Boxes {row.StartBox}–{row.EndBox}";
+                var serialLabel = row.SerialStart == 0 && row.SerialEnd == 0
+                    ? ""
+                    : $"SN {row.SerialPrefix}{row.SerialStart:N0} – {row.SerialPrefix}{row.SerialEnd:N0}";
+                <tr>
+                    <td>New@(row.IsFull ? "" : "*")</td>
+                    <td>
+                        UGX @row.Denomination.ToString("N0")
+                        <br /><span class="denom-detail monospace">@boxLabel &nbsp;·&nbsp; @serialLabel</span>
+                    </td>
+                    <td class="text-right">@row.Bundles.ToString("N0") bundles</td>
+                    <td class="text-right">@row.Amount.ToString("N0")</td>
+                </tr>
+            }
+            @foreach (var row in Model.ReissueBanknotes)
+            {
+                <tr>
+                    <td>Reissue</td>
+                    <td>UGX @row.Denomination.ToString("N0")</td>
+                    <td class="text-right">@row.Quantity.ToString("N0") bundles</td>
+                    <td class="text-right">@row.Amount.ToString("N0")</td>
+                </tr>
+            }
+            @foreach (var row in Model.Coins)
+            {
+                <tr>
+                    <td>Coin</td>
+                    <td>UGX @row.Denomination.ToString("N0")</td>
+                    <td class="text-right">@row.Quantity.ToString("N0") boxes</td>
+                    <td class="text-right">@row.Amount.ToString("N0")</td>
+                </tr>
+            }
+            @if (!Model.NewBanknotes.Any() && !Model.ReissueBanknotes.Any() && !Model.Coins.Any())
+            {
+                <tr><td colspan="4" class="text-center" style="color:#aaa;">No dispatch data</td></tr>
+            }
+        </tbody>
+    </table>
+    @if (Model.NewBanknotes.Any(r => !r.IsFull))
+    {
+        <p style="font-size:10px;color:#777;margin:-8px 0 8px;">* Partial box</p>
+    }
+
+    @* ── Total ── *@
+    @{
+        var hasDispatch = Model.NewBanknotes.Any() || Model.ReissueBanknotes.Any() || Model.Coins.Any();
+    }
+    @if (hasDispatch)
+    {
+        if (Model.DispatchVariance == 0)
+        {
+            <div class="discrepancy-badge discrepancy-match">&#10003; Dispatched total matches requested total</div>
+        }
+        else
+        {
+            var varianceLabel = Model.DispatchVariance > 0 ? "over" : "short";
+            <div class="discrepancy-badge discrepancy-mismatch">
+                &#9888; Dispatched total does not match requested total &mdash; @varianceLabel by UGX @Math.Abs(Model.DispatchVariance).ToString("N0")
+            </div>
+        }
+    }
+    <div class="total-line">
+        <span class="total-words" id="amount-in-words"></span>
+        <span class="total-amount">UGX @Model.TotalAmount.ToString("N0")</span>
+    </div>
+
+    @* ── Collecting Agents ── *@
+    <div class="section-title">Collecting Agents</div>
+    <div class="signature-grid">
+        @{
+            var agentList = Model.Agents.ToList();
+        }
+        @for (int i = 0; i < 2; i++)
+        {
+            <div class="signature-box">
+                <h4>Agent @(i + 1)</h4>
+                @if (i < agentList.Count)
+                {
+                    <p><strong>Name:</strong> @agentList[i].AgentNames</p>
+                    <p><strong>NIN:</strong> @agentList[i].NIN</p>
+                    <p><strong>Phone:</strong> @agentList[i].PhoneNumber</p>
+                }
+                else
+                {
+                    <p style="color:#aaa;">Not assigned</p>
+                }
+                <div class="signature-line">Signature</div>
+            </div>
+        }
+    </div>
+
+    @* ── BOU Panelists ── *@
+    <div class="section-title">Bank of Uganda Panelists</div>
+    <div class="signature-grid">
+        <div class="signature-box">
+            <h4>Panel A</h4>
+            <p><strong>Name:</strong> @(string.IsNullOrEmpty(Model.PanelAName) ? "—" : Model.PanelAName)</p>
+            <div class="signature-line">Signature</div>
+        </div>
+        <div class="signature-box">
+            <h4>Panel B</h4>
+            <p><strong>Name:</strong> @(string.IsNullOrEmpty(Model.PanelBName) ? "—" : Model.PanelBName)</p>
+            <div class="signature-line">Signature</div>
+        </div>
+    </div>
+
+    <script>
+        const ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+            'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+            'Seventeen', 'Eighteen', 'Nineteen'];
+        const TENS = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+        function wordsUnder1000(n) {
+            if (n === 0) return '';
+            if (n < 20) return ONES[n];
+            if (n < 100) return TENS[Math.floor(n / 10)] + (n % 10 ? ' ' + ONES[n % 10] : '');
+            return ONES[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + wordsUnder1000(n % 100) : '');
+        }
+
+        function toWords(n) {
+            if (n === 0) return 'Zero Shillings Only';
+            const scales = [[1e12, 'Trillion'], [1e9, 'Billion'], [1e6, 'Million'], [1e3, 'Thousand'], [1, '']];
+            let res = '', rem = n;
+            scales.forEach(([s, name]) => {
+                if (rem >= s) {
+                    const chunk = Math.floor(rem / s);
+                    res += wordsUnder1000(chunk) + (name ? ' ' + name + ' ' : ' ');
+                    rem %= s;
+                }
+            });
+            return res.trim() + ' Shillings Only';
+        }
+
+        document.getElementById('amount-in-words').textContent = toWords(@Model.TotalAmount);
+    </script>
+</body>
+</html>

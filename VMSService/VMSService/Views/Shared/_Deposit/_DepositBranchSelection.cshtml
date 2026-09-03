@@ -18,7 +18,7 @@
             @* ?? Cb Branch (Sender for deposits) ?? *@
             <div class="col-md-6">
                 <div class="text-uppercase text-muted small mb-1">
-                    FROM � SENDER (DEPOSITOR)
+                    FROM — SENDER (DEPOSITOR)
                 </div>
 
                 <div id="cbBranchCard">
@@ -49,7 +49,7 @@
                         name="bouBranchId"
                         class="form-select mb-3"
                         onchange="onDepositBouBranchSelected(this.value); loadDepositBranchDetails('bou', this.value)">
-                    <option value="">� Select BOU Branch �</option>
+                    <option value="">— Select BOU Branch —</option>
                     @foreach (var branch in Model.BouBranches)
                     {
                         <option value="@branch.Id" selected="@(Model.SelectedBouBranchId == branch.Id ? "selected" : null)">@branch.Name</option>
@@ -58,7 +58,7 @@
 
                 <div id="bouBranchCard" style="display:none;">
                     <div class="text-uppercase text-muted small mb-1">
-                        TO � RECEIVER
+                        TO — RECEIVER
                     </div>
                     <div class="d-flex align-items-stretch rounded-3 overflow-hidden border border-danger">
                         <div class="d-flex align-items-center justify-content-center px-3 bg-danger bg-opacity-10">

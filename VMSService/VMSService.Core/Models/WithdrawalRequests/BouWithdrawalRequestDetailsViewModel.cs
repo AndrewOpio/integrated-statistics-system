@@ -29,6 +29,13 @@ namespace VMSService.Core.Models.WithdrawalRequests
         public bool IsPostApprovalView { get; set; }
         public bool IsLateSubmission { get; set; }
 
+        /// <summary>Penalty #5, waived case: the ABM's return for revision happened at or after
+        /// 11:00 EAT — BOU's own lateness, so the "failure to amend in time" penalty never applies
+        /// no matter how long CB takes to resubmit. Computed on read, same pattern as
+        /// <see cref="IsLateSubmission"/> — never persisted as an AppliedPenalty.</summary>
+        public bool IsAmendmentPenaltyWaived { get; set; }
+        public bool FundsNotIssued { get; set; }
+
         public string CbCode { get; init; } = string.Empty;
         public string CbName { get; init; } = string.Empty;
         public string BouBranchName { get; init; } = string.Empty;
@@ -43,6 +50,10 @@ namespace VMSService.Core.Models.WithdrawalRequests
         public DateTime? ApprovalDate { get; set; }
         public bool CanEditDispatch { get; set; }
         public bool HasDispatchData { get; set; }
+        /// <summary>Dispatched total minus the requested total — 0 means matched, computed once
+        /// here so the "Matched/Over/Short" badge and the Submit-for-Approval readiness gate can't
+        /// drift apart by each recomputing it independently.</summary>
+        public decimal DispatchVariance { get; set; }
         public string RtgsVerificationStatus { get; init; } = "Pending";
         public DateOnly? RtgsVerifiedDate { get; init; }
         public bool CanVerifyRtgs { get; init; }
@@ -68,5 +79,11 @@ namespace VMSService.Core.Models.WithdrawalRequests
 
         public IEnumerable<PenaltyChecklistItemViewModel> ApplicablePenalties { get; set; } = [];
         public IEnumerable<AppliedPenaltyViewModel> AppliedPenalties { get; set; } = [];
+
+        /// <summary>Whether the current user can act on this request's penalties right now — same
+        /// gate ApplyPenalties/WaivePenalty enforce server-side: Pending Verification, and an
+        /// available workflow transition (in practice, the ABM). Drives both the "Manage Penalties"
+        /// checklist and the per-row Waive action.</summary>
+        public bool CanManagePenalties { get; set; }
     }
 }

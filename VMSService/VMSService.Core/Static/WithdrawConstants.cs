@@ -13,11 +13,11 @@ namespace VMSService.Core.Static
             public const string Draft = "Internal Draft";
             public const string PendingInternalApproval = "Pending Internal Approval";
             public const string ReturnedForRevision = "Returned for Internal Revision";
-            public const string PendingRTGSVerification = "Pending RTGS Verification";
-            public const string VerificationFailed = "Verification Failed";
-            public const string PendingWithdrawalConfirmation = "Pending Withdrawal Confirmation";
+            public const string PendingRTGSVerification = "Pending RTGS Code";
+            public const string VerificationFailed = "RTGS Confirmation Failed";
+            public const string PendingWithdrawalConfirmation = "Pending RTGS Confirmation";
             public const string PendingExceptionalApproval = "Pending Exceptional Approval";
-            public const string RejectExceptionalApproval = "Reject Exceptional Approval";
+            public const string RejectExceptionalApproval = "Exceptional Approval Rejected";
             public const string PendingVerification = "Pending Verification";
             public const string PendingExceptionalVerification = "Pending Exceptional Verification";
             public const string PendingApproval = "Pending Approval";
@@ -34,6 +34,45 @@ namespace VMSService.Core.Static
             public const string Cancelled = "Cancelled";
             public const string CancelComplete = "Cancel Complete";
             public const string RejectExceptionalApprovalComplete = "Reject Exceptional Approval Complete";
+
+            /// <summary>Genuinely final statuses — nobody owes this request any further action.
+            /// Deliberately excludes Rejected/RejectExceptionalApproval/RecallApproved, which still
+            /// owe a ReturnRtgsPending/RecallRtgsPending completion step (Complete Reject / Complete
+            /// Reject Exceptional / Complete Recall) — those stay visible on the main list until
+            /// actually completed.</summary>
+            public static readonly string[] TerminalStatuses =
+            [
+                Approved,
+                RejectComplete,
+                RejectExceptionalApprovalComplete,
+                RecallComplete,
+                Expired,
+            ];
+
+            /// <summary>Statuses that exist before the CB Approver has submitted onward to BOU —
+            /// the set Section 10's stale-request rule (collection date already passed) applies to.</summary>
+            public static readonly string[] PreSubmissionStatuses =
+            [
+                Draft,
+                PendingInternalApproval,
+                ReturnedForRevision,
+            ];
+
+            /// <summary>Terminal statuses Recall is explicitly blocked from in code, independent of
+            /// whatever WorkflowService's config allows (defense in depth, same reasoning as
+            /// CbOnly/BouOnly). Deliberately narrower than <see cref="TerminalStatuses"/>: Rejected
+            /// and RejectExceptionalApproval are included here even though recalling a request
+            /// already rejected makes no sense before its completion step runs; Expired is excluded
+            /// since Recall was never reachable from it.</summary>
+            public static readonly string[] RecallBlockedStatuses =
+            [
+                Approved,
+                Rejected,
+                RejectComplete,
+                RejectExceptionalApproval,
+                RejectExceptionalApprovalComplete,
+                RecallComplete,
+            ];
         }
         public static class WithdrawalStatusActionNames
         {
@@ -41,8 +80,8 @@ namespace VMSService.Core.Static
             public const string SubmitForInternalApproval = "SubmitForInternalApproval";
             public const string ReturnForRevision = "ReturnForRevision";
             public const string ResubmitForApproval = "ResubmitForApproval";
-            public const string ApproveToRTGSVerification = "ApproveToRTGSVefification";
-            public const string ExceptionalWithdrawalRequest = "ExceptionalWithdrawaRequest";
+            public const string ApproveToRTGSVerification = "ApproveToRTGSCode";
+            public const string ExceptionalWithdrawalRequest = "ExceptionalWithdrawalRequest";
             public const string RequestRecall = "RequestRecall";
 
             // Back Office
@@ -67,6 +106,7 @@ namespace VMSService.Core.Static
             public const string ApproveExceptional = "ApproveExceptional";
             public const string RejectExceptional = "RejectExceptional";
             public const string ApproveRecall = "ApproveRecall";
+            public const string RejectRecall = "RejectRecall";
         }
 
         public static class AmountRules
@@ -84,6 +124,11 @@ namespace VMSService.Core.Static
         {
             public const string Pending = "Pending";
             public const string Confirmed = "Confirmed";
+            public const string Failed = "Failed";
+
+            /// <summary>Legacy failure reasons — no longer written by any live code path
+            /// (RtgsConfirmationFailed now writes <see cref="Failed"/> instead), kept only so
+            /// historical rows that already carry one of these values keep displaying sensibly.</summary>
             public const string AmountMismatch = "AmountMismatch";
             public const string DateMismatch = "DateMismatch";
             public const string NotFound = "NotFound";
