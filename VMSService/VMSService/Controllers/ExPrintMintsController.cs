@@ -213,7 +213,11 @@ namespace VMSService.Web.Controllers
                 var packingListRanges = await _packingListRangeRepository.FindByExStockIdAsync(id.Value);
                 ViewBag.PackingListRanges = packingListRanges ?? new List<PackingListRange>();
 
-                ViewBag.LogisticsList = await _logisticsRepository.GetAllAsync();
+                var allLogistics = await _logisticsRepository.GetAllAsync();
+                ViewBag.LogisticsList = allLogistics;
+                ViewBag.ApprovedLogisticsList = allLogistics
+                    .Where(l => l.CurrentStatusName == StatusConstants.Logistics.Approved)
+                    .ToList();
 
                 return View(model);
             }

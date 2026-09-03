@@ -99,6 +99,7 @@ namespace VMSService.Core.Repositories.StockMovements
                 .Include(m => m.Denominations)
                     .ThenInclude(d => d.BoxNumberRanges)
                 .Include(m => m.StockMovementDiscrepancies)
+                .OrderByDescending(m => m.CreatedDate)
                 .ToListAsync();
         }
 
@@ -119,6 +120,31 @@ namespace VMSService.Core.Repositories.StockMovements
         public async Task<bool> SaveAsync()
         {
             return await _context.SaveChangesAsync() > 0;
+        }
+
+        public Task RemoveDenominationsAsync(IEnumerable<StockMovementDenomination> denominations)
+        {
+            var denomList = denominations?.ToList() ?? new List<StockMovementDenomination>();
+            if (!denomList.Any())
+            {
+                return Task.CompletedTask;
+            }
+
+            foreach (var denom in denomList)
+            {
+                if (denom.BoxNumberRanges != null && denom.BoxNumberRanges.Any())
+                {
+                    _context.StockMovementDenominationBoxNumberRanges.RemoveRange(denom.BoxNumberRanges);
+                }
+
+                if (denom.DenominationBags != null && denom.DenominationBags.Any())
+                {
+                    _context.StockMovementDenominationBags.RemoveRange(denom.DenominationBags);
+                }
+            }
+
+            _context.StockMovementDenominations.RemoveRange(denomList);
+            return Task.CompletedTask;
         }
 
         public async Task<bool> IsExistsAsync(int id)

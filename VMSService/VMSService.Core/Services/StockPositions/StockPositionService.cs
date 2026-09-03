@@ -15,14 +15,14 @@ namespace VMSService.Core.Services.StockPositions
         ILogger<StockPositionService> _logger) : IStockPositionService
     {
 
-        public async Task<bool> UpdatePositionAsync(string entityType, string statusName, object entity)
+        public async Task<(bool Success, string? ErrorMessage)> UpdatePositionAsync(string entityType, string statusName, object entity)
         {
             try
             {
                 if (entity == null)
                 {
                     _logger.LogWarning("Invalid entity for position update");
-                    return false;
+                    return (false, "No entity was supplied for the position update.");
                 }
 
                 StockLedger stockLedger = null;
@@ -37,7 +37,7 @@ namespace VMSService.Core.Services.StockPositions
                     if (dbMovement == null)
                     {
                         _logger.LogWarning("Stock Movement {Id} not found", movement.Id);
-                        return false;
+                        return (false, $"Stock Movement {movement.Id} could not be found when posting the ledger.");
                     }
 
                     stockLedger = statusName == StatusConstants.StockMovement.Dispatched
@@ -55,57 +55,57 @@ namespace VMSService.Core.Services.StockPositions
                     if (dbDiscrepancy?.StockMovement == null)
                     {
                         _logger.LogWarning("Discrepancy {Id} not found", discrepancy.Id);
-                        return false;
+                        return (false, $"Discrepancy {discrepancy.Id} (or its Stock Movement) could not be found.");
                     }
 
                     var discrepancyLedgers = await CreateDiscrepancyAdjustmentLedgerAsync(dbDiscrepancy);
-                    
+
                     // Handle multiple ledgers from discrepancy adjustment
                     if (discrepancyLedgers == null || !discrepancyLedgers.Any())
                     {
-                        _logger.LogWarning("Unable to create discrepancy ledgers for entity type {EntityType} and status {Status}", 
+                        _logger.LogWarning("Unable to create discrepancy ledgers for entity type {EntityType} and status {Status}",
                             entityType, statusName);
-                        return false;
+                        return (false, "No discrepancy adjustment ledgers could be built for this movement.");
                     }
 
                     // Save all discrepancy ledgers
                     foreach (var ledger in discrepancyLedgers)
                     {
-                        var discrepancyResult = await _stockService.CreateStockLedger(ledger);
-                        if (discrepancyResult == null)
+                        var discrepancyCreated = await _stockService.CreateStockLedger(ledger);
+                        if (!discrepancyCreated)
                         {
-                            _logger.LogError("Failed to create discrepancy stock ledger");
-                            return false;
+                            _logger.LogError("Failed to create discrepancy stock ledger {ReferenceCode}", ledger.ReferenceCode);
+                            return (false, $"The Stock API rejected the discrepancy ledger entry '{ledger.ReferenceCode}'. Check the Stock API logs for the underlying cause.");
                         }
                     }
 
                     _logger.LogInformation("Stock position updated: {EntityType} - {Status}", entityType, statusName);
-                    return true;
+                    return (true, null);
                 }
 
                 if (stockLedger == null)
                 {
-                    _logger.LogWarning("Unable to create stock ledger for entity type {EntityType} and status {Status}", 
+                    _logger.LogWarning("Unable to create stock ledger for entity type {EntityType} and status {Status}",
                         entityType, statusName);
-                    return false;
+                    return (false, $"No stock ledger could be built for entity type '{entityType}' and status '{statusName}'.");
                 }
 
                 // Call external stock service to create ledger
-                var result = await _stockService.CreateStockLedger(stockLedger);
+                var created = await _stockService.CreateStockLedger(stockLedger);
 
-                if (result != null)
+                if (created)
                 {
                     _logger.LogInformation("Stock position updated: {EntityType} - {Status}", entityType, statusName);
-                    return true;
+                    return (true, null);
                 }
 
-                _logger.LogError("Failed to create stock ledger");
-                return false;
+                _logger.LogError("Failed to create stock ledger {ReferenceCode}", stockLedger.ReferenceCode);
+                return (false, $"The Stock API rejected the ledger entry '{stockLedger.ReferenceCode}'. Check the Stock API logs for the underlying cause (e.g. authentication, connectivity, or a missing lookup value).");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating stock position for {EntityType}", entityType);
-                return false;
+                return (false, ex.Message);
             }
         }
 
@@ -116,7 +116,8 @@ namespace VMSService.Core.Services.StockPositions
                 .ToList();
 
             var counterPartyTypeId = await GetCounterPartyTypeIdAsync("Branch");
-            var storeId = await GetInTransitBranchCategoryIdAsync(movement.ReceivingBranchId ?? 0);
+            var storeId = await GetInTransitCategoryIdAsync();
+            var denominations = await _stockService.GetAllDenominations();
 
             var stockLedger = new StockLedger
             {
@@ -132,11 +133,12 @@ namespace VMSService.Core.Services.StockPositions
 
             foreach (var denom in sentDenominations)
             {
+                var piecesPerBundle = denominations.FirstOrDefault(d => d.Id == denom.DenominationId)?.NumberOfPiecesInABundle ?? 0;
                 stockLedger.StockLedgerDetails.Add(new StockLedgerDetail
                 {
                     DenominationId = denom.DenominationId,
                     CategoryId = denom.CategoryId ?? 0,
-                    NumberOfPieces = (denom.NumBundles ?? 0) * 1000,
+                    NumberOfPieces = (denom.NumBundles ?? 0) * piecesPerBundle,
                     NumberOfBoxes = denom.NumBagsBoxes ?? 0,
                     NumberOfBundles = denom.NumBundles ?? 0,
                     Value = denom.SubTotalValue
@@ -153,8 +155,9 @@ namespace VMSService.Core.Services.StockPositions
                 .ToList();
 
             var counterPartyTypeId = await GetCounterPartyTypeIdAsync("Branch");
-            var storeId = await GetInTransitBranchCategoryIdAsync(movement.ReceivingBranchId ?? 0);
-            
+            var storeId = await GetInTransitCategoryIdAsync();
+            var denominations = await _stockService.GetAllDenominations();
+
             var stockLedger = new StockLedger
             {
                 ReferenceCode = $"RECEIPT-{movement.ReferenceNumber}",
@@ -169,11 +172,12 @@ namespace VMSService.Core.Services.StockPositions
 
             foreach (var denom in receivedDenominations)
             {
+                var piecesPerBundle = denominations.FirstOrDefault(d => d.Id == denom.DenominationId)?.NumberOfPiecesInABundle ?? 0;
                 stockLedger.StockLedgerDetails.Add(new StockLedgerDetail
                 {
                     DenominationId = denom.DenominationId,
                     CategoryId = denom.CategoryId ?? 0,
-                    NumberOfPieces = (denom.NumBundles ?? 0) * 1000,
+                    NumberOfPieces = (denom.NumBundles ?? 0) * piecesPerBundle,
                     NumberOfBoxes = denom.NumBagsBoxes ?? 0,
                     NumberOfBundles = denom.NumBundles ?? 0,
                     Value = denom.SubTotalValue
@@ -204,7 +208,7 @@ namespace VMSService.Core.Services.StockPositions
             var extraDenoms = receivedDenomIds.Except(sentDenomIds).ToList();        // Received but not sent
 
             var counterPartyTypeId = await GetCounterPartyTypeIdAsync("Branch");
-            var inTransitStoreId = await GetInTransitBranchCategoryIdAsync(discrepancy.StockMovement.ReceivingBranchId ?? 0);
+            var inTransitStoreId = await GetInTransitCategoryIdAsync();
 
             // Handle denomination mismatches
             if (missingDenoms.Any() || extraDenoms.Any())
@@ -393,38 +397,25 @@ namespace VMSService.Core.Services.StockPositions
             }
         }
 
-        private async Task<int> GetInTransitBranchCategoryIdAsync(int branchId)
+        private async Task<int> GetInTransitCategoryIdAsync()
         {
             try
             {
-                // First, get all categories to find the IN TRANSIT category ID
                 var categories = await _stockService.GetAllCategories();
-                var inTransitCategory = categories.FirstOrDefault(c => 
-                    c.Name.Trim().Equals("IN TRANSIT", StringComparison.OrdinalIgnoreCase));
-                    
+                var inTransitCategory = categories.FirstOrDefault(c =>
+                    c.Name.Trim().Equals("InTransit", StringComparison.OrdinalIgnoreCase));
+
                 if (inTransitCategory == null)
                 {
                     _logger.LogError("IN TRANSIT category not found in Stock Service");
                     throw new InvalidOperationException("IN TRANSIT category not found");
                 }
 
-                // Now get all branch categories and find the one with matching branch and category
-                var branchCategories = await _stockService.GetAllBranchCategories();
-                var inTransitBranchCategory = branchCategories.FirstOrDefault(bc =>
-                    bc.BranchId == branchId &&
-                    bc.Category?.Id == inTransitCategory.Id);
-
-                if (inTransitBranchCategory != null)
-                {
-                    return inTransitBranchCategory.Id;
-                }
-
-                _logger.LogError("IN TRANSIT BranchCategory not found for branch {BranchId} with category ID {CategoryId}", branchId, inTransitCategory.Id);
-                throw new InvalidOperationException($"IN TRANSIT BranchCategory not found for branch {branchId}");
+                return inTransitCategory.Id;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving IN TRANSIT branch category for branch {BranchId}", branchId);
+                _logger.LogError(ex, "Error retrieving IN TRANSIT category");
                 throw;
             }
         }
