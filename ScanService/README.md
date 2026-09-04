@@ -129,3 +129,30 @@ Post the [EICAR test string](https://www.eicar.org/download-anti-malware-testfil
 `/api/scan`. Build the string at runtime rather than saving it to a file - Defender will quarantine
 the file as soon as it is written. A working setup returns `isClean: false`, `verdict: 1`
 (Malicious) and `amsiResultCode: 32768`.
+
+### From Swagger
+
+Swagger runs in Development only. Each POST endpoint shows a **file** picker; `/api/scan/store`
+also shows `destinationDirectory` (required - it must sit under `AllowedDestinationRoots`),
+`destinationFileName` and `overwrite`.
+
+That upload form comes from `MultipartUploadOperationFilter`, not from the action signatures -
+the actions take no parameters because they read the multipart body themselves. Add a form field
+to an endpoint and it has to be added to that filter too, or it will not appear in the UI.
+
+- `/api/scan` answers with the verdict JSON.
+- `/api/scan/content` answers a clean file with the raw bytes, so Swagger offers a **Download
+  file** link rather than showing a body. The verdict is in the response headers Swagger lists
+  underneath. A rejected file comes back as ordinary JSON.
+- `/api/scan/store` answers with the verdict JSON plus `storedPath`.
+
+Swagger cannot demonstrate a malicious file: picking one means having it on disk, and Defender
+quarantines EICAR the moment it is written. Feed it from stdin instead, which never touches the
+file system:
+
+```powershell
+$e = "X5O!P%@AP[4\PZX54(P^)7CC)7}" + '$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!' + '$H+H*'
+$e | curl.exe -s -X POST "https://localhost:7315/api/scan" -F "file=@-;filename=invoice.pdf"
+```
+
+Naming it `.pdf` also shows the verdict is drawn from the content, not the extension.

@@ -75,6 +75,10 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "Aswam Scan Service", Version = "v1" });
     c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, "ScanService.Api.xml"), true);
+
+    // The scan actions read the multipart body themselves, so Swagger has no parameters to build a
+    // file picker from. This declares that body for them.
+    c.OperationFilter<MultipartUploadOperationFilter>();
 });
 
 builder.Services.AddHealthChecks()
