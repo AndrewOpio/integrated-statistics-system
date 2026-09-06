@@ -3,6 +3,7 @@ using ConfigurationsService.Client;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using System.Text.Json;
+using VMSService.Core.Authorization;
 using VMSService.Core.Models.AgentDetails;
 using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.CbDepositRequests;
@@ -24,7 +25,10 @@ using VMSService.Core.Repositories.WithdrawalRequestDenominations;
 using VMSService.Core.Repositories.WithdrawalRequests;
 using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 using VMSService.Core.Repositories.PenaltyWaivers;
+using VMSService.Core.Repositories.PublicHolidays;
 using VMSService.Core.Services.Stocks.StockEntities;
+using VMSService.Core.Services.Submissions;
+using VMSService.Core.Services.Withdrawals;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
@@ -56,82 +60,89 @@ namespace VMSService.Web.Controllers
         IAppliedPenaltyRepository _appliedPenaltyRepository,
         IPenaltyWaiverRepository _penaltyWaiverRepository,
         ILogger<WithdrawalRequestsController> _logger,
-        IMapper _mapper) : Controller
+        IMapper _mapper,
+        IPublicHolidayRepository _publicHolidayRepository) : Controller
     {
-        public async Task<IActionResult> Index(string? branchCode = null)
+        /// <summary>Resolves which BOU branches this user may see and which branch is currently
+        /// selected — shared by <see cref="Index"/> and <see cref="History"/> so both apply the
+        /// exact same visibility rule.</summary>
+        private (bool CanViewAllLocations, List<BranchDto> UserBranches, string? BranchCode, bool NotAttachedToBranch) ResolveBranchScope(
+            string? branchCode, IEnumerable<BranchDto> allBouBranches)
         {
-            //var all = (await _uow.Requests.FindAll()
-            //    ).Where(x => !x.IsDeleted);
+            var userRoles = User.GetAppRoleNames();
 
-            ICollection<WithdrawalRequest> visibleRequests = Array.Empty<WithdrawalRequest>();
+            bool canViewAllLocations = userRoles.Contains(Roles.RemittancesOfficer) || userRoles.Contains(Roles.BackOffice);
 
-            var allRequests = await _withdrawalRequestRepo.FindAll();
+            // A Panel A/Panel B (BM/ABM) user is separately assigned a role named after their
+            // branch — e.g. "Kampala Branch" — alongside their panel role. Confirmed directly
+            // against IdentityDB (ticket 16): every Panel A/B user holds exactly one such role,
+            // and its name is always "{branch.Name} Branch". This isn't in RolePolicy's catalog
+            // (ticket 34 flagged these as unaccounted-for roles) since it's a per-branch variant,
+            // not a fixed role name.
+            var userBranches = canViewAllLocations
+                ? allBouBranches.ToList()
+                : allBouBranches.Where(branch => userRoles.Contains($"{branch.Name} Branch")).ToList();
 
-            allRequests = allRequests.Where(x => !x.IsDeleted).ToList();
-
-            var allStatuses = await _workflowServiceClient.FindAllStatuses();
-
-            allStatuses = [.. allStatuses.Where(x => x.EntityType.Name == StatusConstants.Entity.WithdrawalRequest)];
-
-            var statusMap = allStatuses.ToDictionary(s => s.Id, s => s.Name);
-
-            var allCbs = await _configServiceClient.GetAllCommercialBankAsync();
-
-            var cbMap = allCbs.ToDictionary(s => s.Id, s => s.Name);
-
-            var now = DateTime.Now;
-            var startOfMonth = new DateTime(now.Year, now.Month, 1);
-
-            var allBouBranches = await _configServiceClient.GetAllBouBranchesAsync();
-
-            // Get user roles
-            var userRoles = User.FindAll(ClaimType.AppRole)
-                .Where(c => c.Value.StartsWith($"{SystemSettings.AppAcronym}:"))
-                .Select(c => c.Value.Split(":")[1])
-                .ToList();
-
-            // Determine if user can view all locations
-            bool canViewAllLocations = userRoles.Contains(Roles.RemittancesOfficer);
-
-            // Filter branches based on user roles
-            var userBranches = new List<BranchDto>();
-            var draftStatus = await GetStatusByNameAsync(DepositStatuses.DepositStatusNames.Draft);
-            var draftStatusSpecial = await GetStatusByNameExceptionalAsync(DepositStatuses.DepositStatusNames.Draft);
-
-            if (canViewAllLocations)
-            {
-                // Remittances Officer can see all branches
-                userBranches = allBouBranches.ToList();
-                visibleRequests = (await _uow.Requests.FindAll()).Where(r => r.StatusTypeId != draftStatus.Id && r.StatusTypeId != draftStatusSpecial.Id).ToList();
-            }
-            else
-            {
-                // Filter branches based on role names matching branch names
-                userBranches = allBouBranches
-                    .Where(branch => userRoles.Any(role => role.Contains(branch.Name)))
-                    .ToList();
-            }
-
-            // For non-RemittancesOfficer, lock to their branch
+            // For users without full cross-branch visibility, lock to their own branch
             if (!canViewAllLocations)
             {
                 if (string.IsNullOrEmpty(branchCode) || !userBranches.Any(b => b.BranchCode == branchCode))
                     branchCode = userBranches.FirstOrDefault()?.BranchCode;
             }
 
-            // Apply branch filter
-            var filteredRequests = allRequests
-                .Where(r => r.StatusTypeName != WithdrawalStatusNames.Approved
-                         && r.StatusTypeName != WithdrawalStatusNames.RejectExceptionalApprovalComplete
-                         && r.StatusTypeName != WithdrawalStatusNames.RecallComplete)
-                .AsEnumerable();
+            // A branch-scoped user with no resolvable branch would otherwise hit the repo with a
+            // null branchCode below, which reads as "no filter" and returns every branch's rows —
+            // the opposite of what a misconfigured user should see.
+            bool notAttachedToBranch = !canViewAllLocations && userBranches.Count == 0;
 
-            if (!string.IsNullOrEmpty(branchCode))
-                filteredRequests = filteredRequests.Where(r => r.BouBranchCode == branchCode);
+            return (canViewAllLocations, userBranches, branchCode, notAttachedToBranch);
+        }
+
+        private static RecentRequestRowViewModel MapRow(
+            WithdrawalRequest r, Dictionary<int, string> cbMap, DateOnly today, HashSet<Guid> withBouOrigin)
+            => new()
+            {
+                Id = r.Id,
+                TransactionRefNumber = r.TransactionRefNumber ?? "Not Generated",
+                Amount = r.TotalAmount,
+                StatusTypeName = r.StatusTypeName,
+                CbName = cbMap.GetValueOrDefault(r.CbId, "No CB"),
+                CollectionDate = r.CollectionDate,
+                CreationDate = r.CreatedDate,
+                RequiresSpecialApproval = r.RequiresSpecialApproval,
+                RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "—" : r.RtgsCode,
+                BouBranchCode = r.BouBranchCode,
+                ReturnRtgsPending = r.ReturnRtgsDate == null &&
+                    (r.StatusTypeName == WithdrawalStatusNames.Cancelled ||
+                     r.StatusTypeName == WithdrawalStatusNames.Rejected ||
+                     r.StatusTypeName == WithdrawalStatusNames.RejectExceptionalApproval ||
+                     r.StatusTypeName == WithdrawalStatusNames.RecallApproved),
+                IsAbandoned = r.StatusTypeName == WithdrawalStatusNames.PendingVerification
+                    && r.CollectionDate < today
+                    && withBouOrigin.Contains(r.Id),
+            };
+
+        public async Task<IActionResult> Index(string? branchCode = null)
+        {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
+            var today = DateOnly.FromDateTime(DateTime.Today);
+
+            var allCbs = await _configServiceClient.GetAllCommercialBankAsync();
+            var cbMap = allCbs.ToDictionary(s => s.Id, s => s.Name);
+
+            var allBouBranches = await _configServiceClient.GetAllBouBranchesAsync();
+            var (canViewAllLocations, userBranches, resolvedBranchCode, notAttachedToBranch) = ResolveBranchScope(branchCode, allBouBranches);
+            branchCode = resolvedBranchCode;
+
+            if (notAttachedToBranch)
+                return View(new BouWithdrawalRequestViewModel { NotAttachedToBranch = true });
+
+            // Main list: excludes requests that are both terminal and past their collection date —
+            // those live in History instead (ticket 19). Branch scoping pushed to the query itself.
+            var active = (await _withdrawalRequestRepo.GetActiveAsync(today, branchCode)).ToList();
 
             // ── Individual status counts ─────────────────────────────────────────────
-            var active = filteredRequests.Where(r => !r.IsDeleted).ToList();
-
             var pendingInternalApproval = active.Count(r => r.StatusTypeName == WithdrawalStatusNames.PendingInternalApproval);
             var pendingWithdrawalConfirmation = active.Count(r => r.StatusTypeName == WithdrawalStatusNames.PendingWithdrawalConfirmation);
             var pendingExceptionalApproval = active.Count(r => r.StatusTypeName == WithdrawalStatusNames.PendingExceptionalApproval);
@@ -152,29 +163,20 @@ namespace VMSService.Web.Controllers
             var pendingCb = pendingInternalApproval;
             var underBankProcessing = pendingWithdrawalConfirmation + pendingExceptionalApproval + pendingRecommendation + pendingConfirmation;
             var recallCount = recallRequested + recalled;
-            var totalProcessed = active
-                .Where(r => r.StatusTypeName == WithdrawalStatusNames.Approved)
-                .Sum(r => r.TotalAmount);
+            // Deliberately a lifetime sum, independent of the active/history split — "Total
+            // Processed" is a running total, not a recent-activity count.
+            var totalProcessed = await _withdrawalRequestRepo.SumApprovedAmountAsync(branchCode);
 
             // ── Requests table ───────────────────────────────────────────────────────
-            var rows = filteredRequests.Select(r => new RecentRequestRowViewModel
-            {
-                Id = r.Id,
-                TransactionRefNumber = r.TransactionRefNumber ?? "Not Generated",
-                Amount = r.TotalAmount,
-                StatusTypeName = statusMap.GetValueOrDefault(r.StatusTypeId, "Unknown"),
-                CbName = cbMap.GetValueOrDefault(r.CbId, "No CB"),
-                CollectionDate = r.CollectionDate,
-                CreationDate = r.CreatedDate,
-                RequiresSpecialApproval = r.RequiresSpecialApproval,
-                RtgsCode = string.IsNullOrEmpty(r.RtgsCode) ? "—" : r.RtgsCode,
-                BouBranchCode = r.BouBranchCode,
-                ReturnRtgsPending = r.ReturnRtgsDate == null &&
-                    (r.StatusTypeName == WithdrawalStatusNames.Cancelled ||
-                     r.StatusTypeName == WithdrawalStatusNames.Rejected ||
-                     r.StatusTypeName == WithdrawalStatusNames.RejectExceptionalApproval ||
-                     r.StatusTypeName == WithdrawalStatusNames.RecallApproved),
-            }).OrderBy(r => r.CollectionDate).ToList();
+            var pendingVerificationIds = active
+                .Where(r => r.StatusTypeName == WithdrawalStatusNames.PendingVerification && r.CollectionDate < today)
+                .Select(r => r.Id);
+            var withBouOrigin = await _wrDenomRepo.GetRequestIdsWithBouOriginAsync(pendingVerificationIds);
+
+            var rows = active
+                .Select(r => MapRow(r, cbMap, today, withBouOrigin))
+                .OrderBy(r => r.CollectionDate)
+                .ToList();
 
 
             var vm = new BouWithdrawalRequestViewModel
@@ -202,8 +204,48 @@ namespace VMSService.Web.Controllers
             return View(vm);
         }
 
+        /// <summary>Terminal, past-collection-date requests excluded from the main list —
+        /// caller-selected date range, defaulting to the last 7 days. Unlike the CB-facing
+        /// equivalent, BOU is the authoritative side and the range carries no floor: BOU can pull
+        /// any period. Same branch-scoping rules as <see cref="Index"/>.</summary>
+        public async Task<IActionResult> History(string? branchCode = null, DateOnly? from = null, DateOnly? to = null)
+        {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            var range = DateRangeFilterViewModel.Resolve(today, from, to);
+
+            var allCbs = await _configServiceClient.GetAllCommercialBankAsync();
+            var cbMap = allCbs.ToDictionary(s => s.Id, s => s.Name);
+
+            var allBouBranches = await _configServiceClient.GetAllBouBranchesAsync();
+            var (canViewAllLocations, userBranches, resolvedBranchCode, notAttachedToBranch) = ResolveBranchScope(branchCode, allBouBranches);
+            branchCode = resolvedBranchCode;
+
+            if (notAttachedToBranch)
+                return View(new BouWithdrawalRequestViewModel { NotAttachedToBranch = true });
+
+            var history = await _withdrawalRequestRepo.GetHistoryAsync(today, range.From, range.To, branchCode);
+
+            var rows = history
+                .Select(r => MapRow(r, cbMap, today, withBouOrigin: []))
+                .OrderByDescending(r => r.CollectionDate)
+                .ToList();
+
+            return View(new BouWithdrawalRequestViewModel
+            {
+                Requests = rows,
+                BouBranches = userBranches,
+                SelectedBranch = branchCode,
+                CanViewAllLocations = canViewAllLocations,
+                DateRange = range,
+            });
+        }
+
         public async Task<IActionResult> Details(Guid id, CancellationToken ct)
         {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
 
 
             var request = await _uow.Requests.GetWithDetailsAsync(id, ct);
@@ -277,8 +319,7 @@ namespace VMSService.Web.Controllers
             var isPanelB = userRoles.Contains(SystemPolicy.Roles.PanelB);
 
             var canEditDispatch = isPanelB
-                && (request.StatusTypeName == WithdrawConstants.WithdrawalStatusNames.PendingVerification
-                    || request.StatusTypeName == WithdrawConstants.WithdrawalStatusNames.ReturnedForRevision);
+                && request.StatusTypeName == WithdrawConstants.WithdrawalStatusNames.PendingVerification;
 
             var bankRows = request.WithdrawalRequestDenominations
                 .Where(d => d.Origin == WithdrawalOrigin.Bou)
@@ -422,12 +463,24 @@ namespace VMSService.Web.Controllers
                 }
             }
 
-            // Late submission: request first reached Pending Withdrawal Confirmation after 11am
+            // Late submission: request first reached Pending RTGS Confirmation after 11am
             var firstPwc = statusHistoryList
                 .Where(h => h.NewStatusName == WithdrawConstants.WithdrawalStatusNames.PendingWithdrawalConfirmation)
                 .OrderBy(h => h.ChangedAt)
                 .FirstOrDefault();
             bool isLateSubmission = firstPwc != null && firstPwc.ChangedAt.Hour >= 11;
+
+            // Penalty #5, waived case: the ABM's most recent return for revision happened at or
+            // after 11:00 EAT — BOU's own lateness, so the penalty never applies here regardless of
+            // how long CB takes to resubmit. See WithdrawalAmendmentPenaltyService for the "applies"
+            // case (ABM returned before 11:00, still unresubmitted at 11:00).
+            var lastAbmReturn = statusHistoryList
+                .Where(h => h.NewStatusName == WithdrawConstants.WithdrawalStatusNames.ReturnedForRevision
+                         && h.OldStatusName == WithdrawConstants.WithdrawalStatusNames.PendingVerification)
+                .OrderByDescending(h => h.ChangedAt)
+                .FirstOrDefault();
+            bool isAmendmentPenaltyWaived = lastAbmReturn != null
+                && TimeOnly.FromDateTime(lastAbmReturn.ChangedAt.AddHours(3)) >= new TimeOnly(11, 0, 0);
 
             // Load all attachments for this deposit request
             var allAttachments = await _attachmentRepository.FindByEntityId(id.ToString());
@@ -446,28 +499,10 @@ namespace VMSService.Web.Controllers
                 .ToList();
 
             // ── BOU-facing history trail ────────────────────────────────────────────
-            // One node per status the request actually passed through — starts after the
-            // CB Maker's initial submission (Internal Draft), since BOU has nothing to act
-            // on before that. Built from real history rather than a fixed step list, so
-            // branches (exceptional approval, recall, reject) show correctly.
-            var trailEntries = statusHistoryList
-                .Where(h => h.NewStatusName != WithdrawalStatusNames.Draft)
-                .OrderBy(h => h.ChangedAt)
-                .ToList();
-
-            var nextActor = WithdrawalNextActorMap.GetNextActor(request.StatusTypeName);
-            var historyTrail = new WithdrawalHistoryTrailViewModel
-            {
-                Steps = trailEntries.Select((h, i) => new WithdrawalHistoryTrailStep
-                {
-                    StatusName = h.NewStatusName,
-                    ChangedAt = h.ChangedAt,
-                    ChangedBy = h.ChangedBy,
-                    IsCurrent = i == trailEntries.Count - 1,
-                }).ToList(),
-                NextActor = nextActor,
-                IsClosed = nextActor is null,
-            };
+            // A fixed 5-milestone backbone (WithdrawalMilestoneMap) rather than one pill per
+            // StatusHistory row — a request returned any number of times still renders the same
+            // handful of pills. See ticket 36.
+            var historyTrail = WithdrawalHistoryTrailBuilder.Build(statusHistoryList, request.StatusTypeName);
 
             // ── Build ViewModel ───────────────────────────────────────────────────
             var vm = new BouWithdrawalRequestDetailsViewModel
@@ -480,6 +515,7 @@ namespace VMSService.Web.Controllers
                 FundSettlementValueDate = request.FundSettlementValueDate,
                 RtgsCode = request.RtgsCode,
                 RequiresSpecialApproval = request.RequiresSpecialApproval,
+                FundsNotIssued = request.FundsNotIssued,
                 CbName = cb?.Name ?? "—",
                 CbCode = cb?.Code ?? "—",
                 BouBranchName = bankBranch?.Name ?? "—",
@@ -497,6 +533,7 @@ namespace VMSService.Web.Controllers
                 IsLumpSum = request.IsLumpSum,
                 IsPostApprovalView = displayOrigin == WithdrawalOrigin.Bou,
                 IsLateSubmission = isLateSubmission,
+                IsAmendmentPenaltyWaived = isAmendmentPenaltyWaived,
                 HistoryTrail = historyTrail,
                 RtgsVerificationStatus = request.RtgsVerificationStatus,
                 RtgsVerifiedDate = request.RtgsVerifiedDate,
@@ -512,6 +549,10 @@ namespace VMSService.Web.Controllers
                 ReturnRtgsDate = request.ReturnRtgsDate,
                 CanEditDispatch = canEditDispatch,
                 HasDispatchData = bankRows.Count > 0,
+                DispatchVariance = dispatchedNewBanknotes.Sum(r => r.Amount)
+                    + dispatchedReissueBanknotes.Sum(r => r.Amount)
+                    + dispatchedCoins.Sum(r => r.Amount)
+                    - request.TotalAmount,
                 EditableBankRows = editableBankRows,
                 DispatchedNewBanknotes = dispatchedNewBanknotes,
                 DispatchedReissueBanknotes = dispatchedReissueBanknotes,
@@ -553,7 +594,6 @@ namespace VMSService.Web.Controllers
                     "Pending_Recommendation" => !request.RequiresSpecialApproval,
                     "Verified" => !request.RequiresSpecialApproval && request.RtgsVerificationStatus is RtgsVerification.Confirmed or RtgsVerification.DateMismatch,
                     "Verified Exceptional" => request.RequiresSpecialApproval && request.RtgsVerificationStatus is RtgsVerification.Confirmed or RtgsVerification.DateMismatch,
-                    "Verification Failed" => request.RtgsVerificationStatus is RtgsVerification.AmountMismatch or RtgsVerification.NotFound,
                     "Reject Recall" => !request.RequiresSpecialApproval,
                     "Reject Recall Exceptional" => request.RequiresSpecialApproval,
                     _ => true
@@ -576,9 +616,15 @@ namespace VMSService.Web.Controllers
                     RtgsSettlingMessage = a.RtgsSettlingMessage,
                     AppliedBy = a.CreatedBy,
                     AppliedAt = a.CreatedDate,
+                    ToBeWaived = a.ToBeWaived,
+                    WaiverReason = a.WaiverReason,
+                    WaivedBy = a.WaivedBy,
+                    WaivedDate = a.WaivedDate,
                 }).ToList();
 
-                if (request.StatusTypeName == WithdrawalStatusNames.PendingVerification && vm.AvailableTransitions.Any())
+                vm.CanManagePenalties = request.StatusTypeName == WithdrawalStatusNames.PendingVerification && vm.AvailableTransitions.Any();
+
+                if (vm.CanManagePenalties)
                 {
                     var appliedPenaltyIds = appliedPenalties.Select(a => a.PenaltyId).ToHashSet();
                     var applicablePenalties = await _penaltyRepository.FindApplicableFor(PenaltyConstants.AppliesTo.PreTransaction);
@@ -612,6 +658,8 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ApplyPenalties(Guid id, List<int>? penaltyIds)
         {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
             var request = await _uow.Requests.FindById(id);
             if (request is null)
             {
@@ -631,21 +679,7 @@ namespace VMSService.Web.Controllers
                 return RedirectToAction(nameof(Details), new { id });
             }
 
-            // Same check used to gate the workflow action buttons — only someone whose role has an
-            // available transition on this request right now may apply/adjust its penalties.
-            var hasAvailableTransition = false;
-            foreach (var roleId in GetUserRoleIds())
-            {
-                var roleTransitions = await _workflowService.GetAvailableTransitionsAsync(
-                    StatusConstants.Entity.WithdrawalRequest, request.StatusTypeId, roleId);
-                if (roleTransitions.Any())
-                {
-                    hasAvailableTransition = true;
-                    break;
-                }
-            }
-
-            if (!hasAvailableTransition)
+            if (!await CallerHasAvailableTransition(request))
             {
                 TempData["Error"] = "You are not authorized to act on this request at its current status.";
                 return RedirectToAction(nameof(Details), new { id });
@@ -688,9 +722,162 @@ namespace VMSService.Web.Controllers
             return RedirectToAction(nameof(Details), new { id });
         }
 
+        /// <summary>Waives one specific applied penalty in place (e.g. an automatically-applied one
+        /// the ABM has reviewed and decided shouldn't stand), with a mandatory reason. Deliberately
+        /// separate from the branch-and-date-ranged <see cref="ApplyPenalties"/>/<c>PenaltyWaiver</c>
+        /// machinery — this waives just this one applied charge, not the penalty type going
+        /// forward. Gated the same way as ApplyPenalties: only while Pending Verification, and only
+        /// for a role with an available transition on the request right now (in practice, the
+        /// ABM).</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> WaivePenalty(Guid id, int appliedPenaltyId, string waiverReason)
+        {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
+            var request = await _uow.Requests.FindById(id);
+            if (request is null)
+            {
+                TempData["Error"] = "Withdrawal request not found.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (request.StatusTypeName != WithdrawalStatusNames.PendingVerification)
+            {
+                TempData["Error"] = "Penalties can only be waived while the request is Pending Verification.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (string.IsNullOrWhiteSpace(waiverReason))
+            {
+                TempData["Error"] = "A reason is required to waive a penalty.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (string.IsNullOrEmpty(request.TransactionRefNumber))
+            {
+                TempData["Error"] = "This request does not have a transaction reference number yet.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (!await CallerHasAvailableTransition(request))
+            {
+                TempData["Error"] = "You are not authorized to act on this request at its current status.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            try
+            {
+                // Confirm the applied penalty actually belongs to this request before touching it —
+                // appliedPenaltyId is user-supplied and otherwise nothing ties it to id/the current
+                // request's own charges.
+                var appliedToThisRequest = (await _appliedPenaltyRepository.FindBySourceId(request.TransactionRefNumber))
+                    .Any(a => a.Id == appliedPenaltyId);
+
+                if (!appliedToThisRequest)
+                {
+                    TempData["Error"] = "That penalty is not applied to this request.";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
+
+                await _appliedPenaltyRepository.Waive(appliedPenaltyId, waiverReason.Trim(), User.GetUsernameOrSystem());
+                await _appliedPenaltyRepository.Save();
+                TempData["Success"] = "Penalty waived.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error waiving applied penalty {AppliedPenaltyId} on withdrawal request {Id}", appliedPenaltyId, id);
+                TempData["Error"] = "An error occurred while waiving the penalty.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        /// <summary>The ABM's one-way declaration that no funds will be dispatched for this
+        /// request. Deliberately separate from <see cref="SaveBankDenominations"/> — it's not a
+        /// dispatch edit, so it doesn't belong behind that modal. Requires a penalty to already be
+        /// applied (a "no funds issued" outcome always carries a reason/charge, per the business
+        /// rule: dispatch without penalty, dispatch with penalty, or no funds issued with penalty —
+        /// never no funds issued with nothing at all) and immediately releases any boxes already
+        /// held via the same sequence Reject/Return use.</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> MarkFundsNotIssued(Guid id, CancellationToken ct)
+        {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
+            var request = await _uow.Requests.FindById(id);
+            if (request is null)
+            {
+                TempData["Error"] = "Withdrawal request not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (request.StatusTypeName != WithdrawalStatusNames.PendingVerification)
+            {
+                TempData["Error"] = "This request is not editable in its current status.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            var appliedPenalties = string.IsNullOrEmpty(request.TransactionRefNumber)
+                ? []
+                : await _appliedPenaltyRepository.FindBySourceId(request.TransactionRefNumber);
+            if (appliedPenalties.Count == 0)
+            {
+                TempData["Error"] = "Apply at least one penalty before marking this request as Funds Not Issued.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            request.FundsNotIssued = true;
+            await ReleaseBouHoldAsync(id, ct);
+
+            TempData["Success"] = "Request marked as Funds Not Issued.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        /// <summary>Reverses <see cref="MarkFundsNotIssued"/> — the request becomes dispatch-editable
+        /// again via <see cref="SaveBankDenominations"/>. Deliberately does not try to restore the
+        /// boxes that were released: those may already have been reassigned to another request by
+        /// now, so the ABM just re-enters dispatch from scratch, picking whatever boxes are currently
+        /// available, the same as any other dispatch entry. Applied penalties are left untouched —
+        /// those were legitimately incurred and this doesn't relitigate them.</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UndoFundsNotIssued(Guid id, CancellationToken ct)
+        {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
+            var request = await _uow.Requests.FindById(id);
+            if (request is null)
+            {
+                TempData["Error"] = "Withdrawal request not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (request.StatusTypeName != WithdrawalStatusNames.PendingVerification)
+            {
+                TempData["Error"] = "This request is not editable in its current status.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (!request.FundsNotIssued)
+            {
+                TempData["Error"] = "This request has not been marked as Funds Not Issued.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            request.FundsNotIssued = false;
+            await _uow.SaveAsync(ct);
+
+            TempData["Success"] = "Funds Not Issued undone. Dispatch can be re-entered.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         [HttpGet]
         public async Task<IActionResult> AvailableBoxes(int denominationId, Guid requestId, CancellationToken ct)
         {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
             var request = await _uow.Requests.FindById(requestId);
             if (request is null) return NotFound();
 
@@ -705,6 +892,8 @@ namespace VMSService.Web.Controllers
         public async Task<IActionResult> SaveBankDenominations(
             Guid id, string payload, CancellationToken ct)
         {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
             using var transaction = await _uow.BeginTransactionAsync(ct);
 
             try
@@ -717,10 +906,15 @@ namespace VMSService.Web.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
-                if (request.StatusTypeName != WithdrawalStatusNames.PendingVerification
-                    && request.StatusTypeName != WithdrawalStatusNames.ReturnedForRevision)
+                if (request.StatusTypeName != WithdrawalStatusNames.PendingVerification)
                 {
                     TempData["Error"] = "This request is not editable in its current status.";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
+
+                if (request.FundsNotIssued)
+                {
+                    TempData["Error"] = "This request has been marked as Funds Not Issued and can no longer be edited.";
                     return RedirectToAction(nameof(Details), new { id });
                 }
 
@@ -884,11 +1078,24 @@ namespace VMSService.Web.Controllers
 
             await _uow.SaveAsync(ct);
         }
-        
+
+        /// <summary>Releases a request's held BOU-origin dispatch data — box-state reversal, then
+        /// the denomination rows themselves. Row-clearing must run second: the reversal reads those
+        /// rows to know what to reverse, so clearing first would leave it nothing to work from.
+        /// Safe to call unconditionally — both steps no-op if the request never reached dispatch.</summary>
+        private async Task ReleaseBouHoldAsync(Guid requestId, CancellationToken ct)
+        {
+            await ReverseBoxStateForRequestAsync(requestId, ct);
+            await _uow.Denominations.DeleteBouRowsWithChildrenAsync(requestId, ct);
+            await _uow.SaveAsync(ct);
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ExecuteAction(Guid id, string actionName, string remarks, CancellationToken ct)
         {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
             try
             {
                 var request = await _uow.Requests.FindById(id);
@@ -898,6 +1105,10 @@ namespace VMSService.Web.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
+                // Captured before ExecuteTransition mutates the entity — ReturnForRevision shares
+                // one ToStatus across three origins (ADR-0001), so this is how the ABM's own return
+                // (from Pending Verification) is told apart from the CB Approver's/Back Office's.
+                var originalStatusName = request.StatusTypeName;
 
                 var username = User.GetUsernameOrSystem();
                 var userRoles = User.GetAppRoleIds();
@@ -935,6 +1146,31 @@ namespace VMSService.Web.Controllers
                         id,
                         StatusConstants.Entity.WithdrawalRequest,
                         username);
+
+                    // Reject server-side if a required attachment was never actually uploaded —
+                    // the client-side check in Details.cshtml can be bypassed (JS disabled, direct
+                    // POST), and HandleAttachmentUploadsAsync itself just skips missing files rather
+                    // than failing, so this is the only real enforcement of "can't approve without
+                    // attaching the receipt".
+                    var requiredAttachments = transition.AttachmentRequirements.Where(r => r.IsRequired).ToList();
+                    if (requiredAttachments.Any())
+                    {
+                        var uploadedRequirementIds = uploadedAttachmentIds
+                            .Select(aid => transition.AttachmentRequirements
+                                .FirstOrDefault(r => Request.Form.Files[$"attachments_{r.Id}"]?.Length > 0)?.Id ?? 0)
+                            .Where(reqId => reqId > 0)
+                            .ToList();
+
+                        var missingRequirements = requiredAttachments
+                            .Where(r => !uploadedRequirementIds.Contains(r.Id))
+                            .ToList();
+
+                        if (missingRequirements.Any())
+                        {
+                            TempData["Error"] = $"Missing required attachments: {string.Join(", ", missingRequirements.Select(r => r.AttachmentName))}";
+                            return RedirectToAction(nameof(Details), new { id });
+                        }
+                    }
                 }
 
                 bool isExecuted = await _workflowService.ExecuteTransition(
@@ -1058,6 +1294,25 @@ namespace VMSService.Web.Controllers
 
                         TempData["Success"] = "Withdrawal confirmed. Stock position updated.";
                     }
+                    else if (updatedRequest?.StatusTypeName == WithdrawalStatusNames.Rejected)
+                    {
+                        // Dispatch was recorded at Pending Verification (boxes held, serials advanced)
+                        // but the request was rejected before reaching Approved — nothing physically
+                        // left, so release the hold.
+                        await ReleaseBouHoldAsync(id, ct);
+                        TempData["Success"] = "Action completed successfully.";
+                    }
+                    else if (updatedRequest?.StatusTypeName == WithdrawalStatusNames.ReturnedForRevision
+                        && originalStatusName == WithdrawalStatusNames.PendingVerification)
+                    {
+                        // ABM's own return (as opposed to the CB Approver's or Back Office's, which
+                        // land on this same shared status — see ADR-0001): dispatch data already
+                        // exists here, and the returned request might never come back to BOU the
+                        // same day (or at all), so release the held boxes the same way a Reject does
+                        // rather than leaving them reserved indefinitely.
+                        await ReleaseBouHoldAsync(id, ct);
+                        TempData["Success"] = "Action completed successfully.";
+                    }
                     else
                     {
                         TempData["Success"] = "Action completed successfully.";
@@ -1081,6 +1336,8 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SubmitVerification(Guid id, CancellationToken ct)
         {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
             var request = await _uow.Requests.FindById(id);
             if (request is null) return NotFound();
 
@@ -1098,7 +1355,7 @@ namespace VMSService.Web.Controllers
             if (request.StatusTypeName != WithdrawalStatusNames.PendingWithdrawalConfirmation
                 && request.StatusTypeName != WithdrawalStatusNames.RecallRequested)
             {
-                TempData["Error"] = "Verification can only be submitted when the request is Pending Withdrawal Confirmation or Recall Requested.";
+                TempData["Error"] = "Verification can only be submitted when the request is Pending RTGS Confirmation or Recall Requested.";
                 return RedirectToAction(nameof(Details), new { id });
             }
 
@@ -1106,6 +1363,28 @@ namespace VMSService.Web.Controllers
             {
                 TempData["Error"] = "RTGS code must be provided before submitting verification.";
                 return RedirectToAction(nameof(Details), new { id });
+            }
+
+            // Defensive re-check: RequiresSpecialApproval should have been fixed by the time the
+            // CB Maker submitted (see CbWithdrawRequestsController.ExecuteAction), but same-day-
+            // exceptional is only meaningful relative to that submission moment — BOU can't
+            // re-derive it against its own, later clock. Re-run the classifier against the
+            // recorded SubmitForInternalApproval timestamp instead of trusting the stored flag
+            // silently, so a mis-flagged request can't ride the standard path with no exceptional
+            // sign-off just because something upstream missed it.
+            var submittedAt = await _uow.StatusHistory.FindMostRecentByNewStatusNameAsync(
+                id, WithdrawalStatusNames.PendingInternalApproval, ct);
+            if (submittedAt is not null)
+            {
+                var classification = await SubmissionClassifier.ClassifyAsync(
+                    _publicHolidayRepository, submittedAt.ChangedAt, request.CollectionDate);
+                var shouldHaveBeenExceptional = classification == SubmissionClassification.SameDayExceptional;
+
+                if (shouldHaveBeenExceptional && !request.RequiresSpecialApproval)
+                {
+                    TempData["Error"] = "This request should have been flagged as same-day exceptional at submission but wasn't — return it to the CB for correction before verifying.";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
             }
 
             var username = User.GetUsernameOrSystem();
@@ -1162,8 +1441,37 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> VerifyRtgs(Guid id, string verificationStatus, DateOnly? rtgsVerifiedDate, CancellationToken ct)
         {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
             var request = await _uow.Requests.FindById(id);
             if (request is null) return NotFound();
+
+            // VerifyRtgs has no UI entry point today (confirmed: nothing in Details.cshtml posts
+            // to it — CanVerifyRtgs actually gates the live "Submit Verification" form instead) and
+            // SubmitVerification doesn't read anything this action would have set, so this is
+            // defense on an orphaned-but-reachable endpoint rather than a mirror of a real caller.
+            // Role and status conditions match SubmitVerification's own guard below — the closest
+            // thing to an authoritative "when is RTGS verification meaningful" answer in this
+            // controller — plus CanVerifyRtgs's not-already-verified/has-a-code conditions.
+            var userRoles = User.FindAll(ClaimType.AppRole)
+                .Where(c => c.Value.StartsWith($"{SystemSettings.AppAcronym}:"))
+                .Select(c => c.Value.Split(":")[1])
+                .ToList();
+
+            if (!userRoles.Contains(Roles.BackOffice))
+            {
+                TempData["Error"] = "Only Back Office users can verify RTGS.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if ((request.StatusTypeName != WithdrawalStatusNames.PendingWithdrawalConfirmation
+                    && request.StatusTypeName != WithdrawalStatusNames.RecallRequested)
+                || (!string.IsNullOrEmpty(request.RtgsVerificationStatus) && request.RtgsVerificationStatus != RtgsVerification.Pending)
+                || string.IsNullOrEmpty(request.RtgsCode))
+            {
+                TempData["Error"] = "RTGS verification is not available for this request at its current state.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
 
             var collectionDateSameAsFundSettlementValueDate = request.CollectionDate == request.FundSettlementValueDate;
 
@@ -1223,6 +1531,8 @@ namespace VMSService.Web.Controllers
             Guid id, string expectedStatus, string actionName,
             string codePrefix, string successMessage, CancellationToken ct)
         {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
             var request = await _uow.Requests.FindById(id);
             if (request is null) return NotFound();
 
@@ -1265,6 +1575,8 @@ namespace VMSService.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CompleteRecall(Guid id, CancellationToken ct)
         {
+            if (!IsWithdrawalBouRole()) return Forbid();
+
             var request = await _uow.Requests.FindById(id);
             if (request is null) return NotFound();
 
@@ -1298,7 +1610,16 @@ namespace VMSService.Web.Controllers
                 ct: ct);
 
             if (isExecuted)
+            {
+                // Ends the dispatch the same way a Reject does — release any held boxes. Confirmed
+                // (ticket 06): Recall can be requested from Pending Approval, where dispatch is
+                // guaranteed to have happened, and from Pending Verification, where it may already
+                // have — so leaving boxes held all the way to Recall Complete is a real, not just
+                // hypothetical, instance of the same dangling-boxes problem Reject and the ABM's
+                // ReturnForRevision fix.
+                await ReleaseBouHoldAsync(id, ct);
                 TempData["Success"] = "Recall completed successfully. Reverse RTGS details recorded.";
+            }
             else
                 TempData["Error"] = "Failed to complete recall. You may not have permission for this action.";
 
@@ -1388,6 +1709,21 @@ namespace VMSService.Web.Controllers
             .Where(r => r > 0)
             .ToList();
 
+        /// <summary>Same check used to gate the workflow action buttons — only someone whose role
+        /// has an available transition on this request right now may act on its penalties
+        /// (ApplyPenalties/WaivePenalty).</summary>
+        private async Task<bool> CallerHasAvailableTransition(WithdrawalRequest request)
+        {
+            foreach (var roleId in GetUserRoleIds())
+            {
+                var roleTransitions = await _workflowService.GetAvailableTransitionsAsync(
+                    StatusConstants.Entity.WithdrawalRequest, request.StatusTypeId, roleId);
+                if (roleTransitions.Any())
+                    return true;
+            }
+            return false;
+        }
+
         static BouDispatchCardViewModel BuildFullCard(BouDenominationEditRowViewModel row,
     List<DispatchedBoxDetail> boxesInSegment)
         {
@@ -1429,5 +1765,10 @@ namespace VMSService.Web.Controllers
             };
         }
 
+        // Had no authorization guard at all until ticket 09's follow-up — any authenticated user,
+        // including CB, could reach every action here. RolePolicy.WithdrawalBouRoles is
+        // withdrawal-scoped, not the general BouRoles (shared with deposits) — Bou Checker and
+        // Head of Back Office are deliberately excluded, confirmed by the user. See ticket 34.
+        private bool IsWithdrawalBouRole() => User.GetAppRoleNames().Any(RolePolicy.WithdrawalBouRoles.Contains);
     }
 }

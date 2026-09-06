@@ -82,6 +82,19 @@ namespace VMSService.Core.Repositories.WithdrawalRequestDenominations
             => await _db.WithdrawalRequestDenominations
             .AnyAsync(d => d.WithdrawalRequestId == requestId && d.Origin == WithdrawalOrigin.Bou, ct);
 
+        public async Task<HashSet<Guid>> GetRequestIdsWithBouOriginAsync(IEnumerable<Guid> requestIds, CancellationToken ct = default)
+        {
+            var ids = requestIds.ToList();
+            if (ids.Count == 0) return new HashSet<Guid>();
+
+            return (await _db.WithdrawalRequestDenominations
+                .Where(d => ids.Contains(d.WithdrawalRequestId) && d.Origin == WithdrawalOrigin.Bou)
+                .Select(d => d.WithdrawalRequestId)
+                .Distinct()
+                .ToListAsync(ct))
+                .ToHashSet();
+        }
+
         public async Task DeleteBouRowsWithChildrenAsync(Guid requestId, CancellationToken ct = default)
         {
             var bankRows = await _db.WithdrawalRequestDenominations

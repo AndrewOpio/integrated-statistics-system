@@ -13,5 +13,6 @@ namespace VMSService.Core.Repositories.WithdrawalRequestStatusHistories
     {
         Task<IEnumerable<WithdrawalRequestStatusHistory>> GetByRequestAsync(Guid requestId, CancellationToken ct = default);
         Task<WithdrawalRequestStatusHistory> FindByNewStatusId(int newStatusId);
+        Task<WithdrawalRequestStatusHistory?> FindMostRecentByNewStatusNameAsync(Guid requestId, string newStatusName, CancellationToken ct = default);
     }
 }

@@ -17,7 +17,7 @@
 
             public const string CbMaker = "CB Maker";
             public const string CbApprover = "CB Approver";
-            public const string BouChecker = "Bou Checker";
+            public const string BouChecker = "BOU Checker";
             public const string PanelA = "Panel A";
             public const string PanelB = "Panel B";
 

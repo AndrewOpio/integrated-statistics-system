@@ -208,8 +208,17 @@ namespace VMSService.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<bool>("toBeWaived")
+                    b.Property<bool>("ToBeWaived")
                         .HasColumnType("bit");
+
+                    b.Property<string>("WaivedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("WaivedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("WaiverReason")
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -5428,6 +5437,9 @@ namespace VMSService.Data.Migrations
                     b.Property<DateOnly?>("FundSettlementValueDate")
                         .HasColumnType("date");
 
+                    b.Property<bool>("FundsNotIssued")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
@@ -5459,7 +5471,13 @@ namespace VMSService.Data.Migrations
                     b.Property<DateOnly?>("ReturnRtgsDate")
                         .HasColumnType("date");
 
+                    b.Property<bool>("ReturnRtgsPending")
+                        .HasColumnType("bit");
+
                     b.Property<string>("RtgsCode")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("RtgsCodeAtLastReturn")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("RtgsVerificationStatus")
@@ -5496,6 +5514,11 @@ namespace VMSService.Data.Migrations
                     b.HasIndex("CbId");
 
                     b.HasIndex("CollectionDate");
+
+                    b.HasIndex("RtgsCode")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_WithdrawalRequest_RtgsCode_Live")
+                        .HasFilter("[RtgsCode] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.HasIndex("StatusTypeId");
 
@@ -5669,6 +5692,9 @@ namespace VMSService.Data.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AttachmentIds")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("ChangedAt")
                         .HasColumnType("datetime2");

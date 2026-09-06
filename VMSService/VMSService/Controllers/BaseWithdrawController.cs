@@ -12,7 +12,7 @@ namespace VMSService.Web.Controllers;
         /// Returns false if the current user is a commercial bank user attempting to access a request that does not belong to their company.
         /// BOU users always pass this check.
         /// </summary>
-        protected async Task<bool> CanAccessRequestAsync(Guid cbId)
+        protected async Task<bool> CanAccessRequestAsync(int cbId)
         {
             var authContext = new WithdrawalRequestAuthContext { CbId = cbId };
             var result = await AuthorizationService

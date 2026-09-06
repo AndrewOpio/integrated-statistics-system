@@ -62,3 +62,13 @@ OrderService/
 PublishProfiles/
 
 VMSService/.claude/settings.json
+
+############################
+# Agent workspace (not tracked)
+############################
+.scratch/
+.agents/
+docs/
+skills-lock.json
+CLAUDE.md
+CONTEXT.md

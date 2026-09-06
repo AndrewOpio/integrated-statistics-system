@@ -22,5 +22,9 @@ namespace VMSService.Core.Models.CbWithdrawRequest
         public string PanelAName { get; set; } = string.Empty;
         public string PanelBName { get; set; } = string.Empty;
         public bool RequiresSpecialApproval { get; set; }
+        /// <summary>Dispatched total minus the requested/approved total — 0 means matched. Same
+        /// formula as <c>BouWithdrawalRequestDetailsViewModel.DispatchVariance</c>, kept in sync so
+        /// the receipt and the BOU dispatch-editing page never disagree about what "matched" means.</summary>
+        public decimal DispatchVariance { get; set; }
     }
 }

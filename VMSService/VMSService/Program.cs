@@ -191,13 +191,7 @@ var authenticationSettings = builder.Configuration.GetSection("Authentication").
 
 
 
-builder.Services.AddAuthorizationBuilder()
-    .AddPolicy(RolePolicy.CbOnly, policy =>
-        policy.RequireAuthenticatedUser()
-              .RequireRole(RolePolicy.CbMaker, RolePolicy.CbApprover))
-    .AddPolicy(RolePolicy.BouOnly, policy =>
-        policy.RequireAuthenticatedUser()
-              .RequireRole(RolePolicy.BouChecker, RolePolicy.PanelA, RolePolicy.PanelB));
+builder.Services.AddAuthorizationBuilder();
 
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -481,6 +475,7 @@ builder.Services.AddControllersWithViews()
     });
 
 builder.Services.AddHostedService<VMSService.Web.BackgroundServices.WithdrawalExpiryService>();
+builder.Services.AddHostedService<VMSService.Web.BackgroundServices.WithdrawalAmendmentPenaltyService>();
 
 var app = builder.Build();
 

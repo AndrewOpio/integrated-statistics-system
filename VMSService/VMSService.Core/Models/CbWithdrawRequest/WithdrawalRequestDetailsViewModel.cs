@@ -26,6 +26,7 @@ namespace VMSService.Core.Models.CbWithdrawRequest
         public bool RequiresSpecialApproval { get; set; }
         public string? ExceptionalApprovalReason { get; set; }
         public bool IsPostApprovalView { get; set; }
+        public bool FundsNotIssued { get; set; }
         //public string InitiatorName { get; init; } = string.Empty;
 
         public string CbCode { get; init; } = string.Empty;
@@ -64,13 +65,25 @@ namespace VMSService.Core.Models.CbWithdrawRequest
         public DateTime? SubmissionDate { get; set; }
         public bool ShowExceptionalApprovalWarning { get; set; }
         public bool ShowSameDayMakerWarning { get; set; }
-        public bool ShowSameDayReasonCapture { get; set; }
         public bool CanEditSameDayReason { get; set; }
+
+        /// <summary>True when Submit/Resubmit is present in <see cref="AvailableTransitions"/> but
+        /// would be rejected server-side — same condition ExecuteAction's submit-time guard
+        /// rejects on. The view uses this to filter which transitions it actually offers and to
+        /// explain why, the same way the BOU Details page handles "dispatch not ready yet" — the
+        /// transition itself stays in the list rather than being removed, so this flag (and
+        /// <see cref="ShowSameDayMakerWarning"/>) don't go dark as a side effect of an empty
+        /// transitions list.</summary>
+        public bool SubmitBlockedBySameDayReason { get; set; }
 
         /// <summary>Non-null when a same-day grace period is currently active for this request
         /// (weekend or public holiday, before 11am EAT) — the reason to display, e.g. the
         /// holiday's name or "the previous day was a weekend".</summary>
         public string? GracePeriodReason { get; set; }
+
+        /// <summary>Section 10: still stuck pre-submission with a collection date that's already
+        /// passed. Flag/banner only — the hard-block-on-action behavior is separate, pending work.</summary>
+        public bool IsStalePreSubmission { get; set; }
         public IEnumerable<WithdrawalRequestStatusHistoryViewModel> StatusHistory { get; set; } = [];
         public IEnumerable<AttachmentViewModel> AllAttachments { get; set; } = [];
 

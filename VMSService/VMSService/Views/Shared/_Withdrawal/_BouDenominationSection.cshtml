@@ -134,8 +134,7 @@
             var dispatchNewTotal = Model.DispatchedNewBanknotes?.Sum(r => r.Amount) ?? 0m;
             var dispatchReissueTotal = Model.DispatchedReissueBanknotes?.Sum(r => r.Amount) ?? 0m;
             var dispatchCoinsTotal = Model.DispatchedCoins?.Sum(r => r.Amount) ?? 0m;
-            var dispatchGrandTotal = dispatchNewTotal + dispatchReissueTotal + dispatchCoinsTotal;
-            var dispatchVariance = dispatchGrandTotal - Model.TotalAmount;
+            var dispatchVariance = Model.DispatchVariance;
         }
 
         <div>
@@ -162,12 +161,21 @@
                             </span>
                         }
                     }
-                    @if (Model.CanEditDispatch)
+                    @if (Model.CanEditDispatch && !Model.FundsNotIssued)
                     {
                         <button type="button" class="btn btn-sm btn-outline-success"
                                 data-bs-toggle="modal" data-bs-target="#editDispatchModal">
                             <i class="ti ti-edit me-1"></i>Edit Dispatch
                         </button>
+                        var hasAppliedPenalty = Model.AppliedPenalties.Any();
+                        <span tabindex="0" data-bs-toggle="tooltip"
+                              title="@(hasAppliedPenalty ? null : "Apply at least one penalty first")">
+                            <button type="button" class="btn btn-sm btn-outline-warning"
+                                    data-bs-toggle="modal" data-bs-target="#fundsNotIssuedModal"
+                                    disabled="@(!hasAppliedPenalty)">
+                                <i class="ti ti-ban me-1"></i>Funds Not Issued
+                            </button>
+                        </span>
                     }
                 </div>
             </div>
@@ -176,13 +184,33 @@
 
             @if (!hasDispatch)
             {
-                <div class="border rounded-3 p-4 text-center bg-body-tertiary">
-                    <i class="ti ti-package-off fs-3 text-muted d-block mb-2"></i>
-                    <div class="fw-bold text-muted">Nothing dispatched yet</div>
-                    <div class="small text-muted">
-                        The bank has not recorded a dispatch for this request.
+                @if (Model.FundsNotIssued)
+                {
+                    <div class="border border-warning rounded-3 p-4 text-center bg-warning bg-opacity-10">
+                        <i class="ti ti-ban fs-3 text-warning d-block mb-2"></i>
+                        <div class="fw-bold text-warning">Funds Not Issued</div>
+                        <div class="small text-muted mb-3">
+                            The bank has confirmed that no funds will be dispatched for this request.
+                        </div>
+                        @if (Model.CanEditDispatch)
+                        {
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    data-bs-toggle="modal" data-bs-target="#undoFundsNotIssuedModal">
+                                <i class="ti ti-arrow-back-up me-1"></i>Undo
+                            </button>
+                        }
                     </div>
-                </div>
+                }
+                else
+                {
+                    <div class="border rounded-3 p-4 text-center bg-body-tertiary">
+                        <i class="ti ti-package-off fs-3 text-muted d-block mb-2"></i>
+                        <div class="fw-bold text-muted">Nothing dispatched yet</div>
+                        <div class="small text-muted">
+                            The bank has not recorded a dispatch for this request.
+                        </div>
+                    </div>
+                }
             }
             else
             {
@@ -343,6 +371,66 @@
 
     </div>
 </div>
+
+@if (Model.CanEditDispatch && !Model.FundsNotIssued)
+{
+    <div class="modal fade" id="fundsNotIssuedModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Mark as Funds Not Issued</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">
+                        Mark this request as Funds Not Issued? This will release any boxes already
+                        held for it. This can be undone later, but dispatch will need to be re-entered
+                        from scratch — the released boxes aren't guaranteed to still be available.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
+                    <form asp-controller="WithdrawalRequests" asp-action="MarkFundsNotIssued" asp-route-id="@Model.Id" method="post">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-warning">
+                            <i class="ti ti-ban me-1"></i>Confirm
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (Model.CanEditDispatch && Model.FundsNotIssued)
+{
+    <div class="modal fade" id="undoFundsNotIssuedModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Undo Funds Not Issued</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">
+                        Undo Funds Not Issued for this request? Dispatch will need to be re-entered
+                        from scratch — the boxes released earlier aren't guaranteed to still be
+                        available. Applied penalties are left as they are.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
+                    <form asp-controller="WithdrawalRequests" asp-action="UndoFundsNotIssued" asp-route-id="@Model.Id" method="post">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-secondary">
+                            <i class="ti ti-arrow-back-up me-1"></i>Confirm
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 @*<div class="card border-start border-top-0 border-end-0 border-bottom-0 border-4 shadow-sm rounded-start-0"
      style="border-color:#791F1F!important;">
     <div class="card-body d-flex flex-column gap-3">

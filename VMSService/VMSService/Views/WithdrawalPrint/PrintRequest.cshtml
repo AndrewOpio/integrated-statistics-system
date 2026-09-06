@@ -111,6 +111,18 @@
         .total-amount { font-size: 16px; font-weight: bold; }
         .total-words { font-size: 11px; font-style: italic; color: #555; }
 
+        /* ── Dispatch discrepancy badge ── */
+        .discrepancy-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .discrepancy-match { background: #d4edda; color: #155724; }
+        .discrepancy-mismatch { background: #f8d7da; color: #721c24; }
+
         /* ── Signature boxes ── */
         .signature-grid {
             display: grid;
@@ -237,6 +249,23 @@
     }
 
     @* ── Total ── *@
+    @{
+        var hasDispatch = Model.NewBanknotes.Any() || Model.ReissueBanknotes.Any() || Model.Coins.Any();
+    }
+    @if (hasDispatch)
+    {
+        if (Model.DispatchVariance == 0)
+        {
+            <div class="discrepancy-badge discrepancy-match">&#10003; Dispatched total matches requested total</div>
+        }
+        else
+        {
+            var varianceLabel = Model.DispatchVariance > 0 ? "over" : "short";
+            <div class="discrepancy-badge discrepancy-mismatch">
+                &#9888; Dispatched total does not match requested total &mdash; @varianceLabel by UGX @Math.Abs(Model.DispatchVariance).ToString("N0")
+            </div>
+        }
+    }
     <div class="total-line">
         <span class="total-words" id="amount-in-words"></span>
         <span class="total-amount">UGX @Model.TotalAmount.ToString("N0")</span>

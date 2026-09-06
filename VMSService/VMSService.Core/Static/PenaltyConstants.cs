@@ -23,6 +23,13 @@ namespace VMSService.Core.Static
             public const string MissingPieces = "Discrepancies in deposits — missing pieces";
             public const string DenominationMixUp = "Mix-up of denominations within bundles";
             public const string FitUnfitMixUp = "Fit notes in unfit notes and vice versa";
+
+            // Withdrawals — names match withdrawal-shared-concepts.md's penalty matrix verbatim.
+            public const string LateSubmissionOfLetterOfIntent = "Late submission of letter of intent";
+            public const string LateSubmissionOfRtgsToTransact = "Late submission of RTGS to transact";
+            public const string TransactingLate = "Transacting late (after 3pm)";
+            public const string FailureToAmendInTime = "Failure to amend in time";
+            public const string ErrorOnLetterOfIntentAndRtgs = "Error on the letter of intent and RTGS";
         }
     }
 }

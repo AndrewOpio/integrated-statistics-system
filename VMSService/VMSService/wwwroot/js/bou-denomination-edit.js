@@ -653,6 +653,12 @@
         else if (e.target.classList.contains('simple-qty')) onSimpleQtyChange(e.target);
     });
 
+    // Enter in any field must never implicitly submit the dispatch form —
+    // "Add" and "Save Draft" are deliberate, separate steps.
+    document.getElementById('bankDispatchForm')?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') e.preventDefault();
+    });
+
     document.addEventListener('change', e => {
         if (e.target.classList.contains('simple-denom')) onSimpleDenomChange(e.target);
     });
@@ -751,6 +757,12 @@
 
     // ── Submit: serialize cards + simple rows into payload ────
     document.getElementById('bankDispatchForm')?.addEventListener('submit', function (e) {
+        // Disable the submit button so a rapid double-click can't fire a second native POST
+        // before the first submission navigates away. Disabling here (inside the submit
+        // handler, not a click handler) doesn't affect the submission already in flight —
+        // the browser has already committed to it by the time this listener runs.
+        this.querySelector('button[type="submit"]')?.setAttribute('disabled', 'disabled');
+
         const payload = [];
 
         // Coalesce Full cards by denomination — multiple Full cards for the same denom

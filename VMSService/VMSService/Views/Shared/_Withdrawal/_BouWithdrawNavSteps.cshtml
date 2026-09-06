@@ -1,22 +1,34 @@
 @model VMSService.Core.Models.WithdrawalRequests.WithdrawalHistoryTrailViewModel
 
-@* ── History trail — one pill per status the request actually passed through ── *@
+@* ── Milestone stepper — a fixed set of stages, independent of how many times the request has been returned ── *@
 <div class="d-flex flex-wrap align-items-center gap-2 mb-3" style="row-gap:8px;">
-    @for (int i = 0; i < Model.Steps.Count; i++)
+    @for (int i = 0; i <= Model.LastVisibleIndex; i++)
     {
-        var step = Model.Steps[i];
-        <span class="badge rounded-pill px-3 py-2 @(step.IsCurrent ? "bg-warning text-dark" : "bg-white bg-opacity-25 text-white")"
-              style="font-size:11px;" title="@(step.ChangedBy) &middot; @(step.ChangedAt.ToString("dd MMM yyyy HH:mm"))">
-            @if (!step.IsCurrent)
+        var step = Model.Milestones[i];
+        <span class="badge rounded-pill px-3 py-2 @(step.IsCurrent ? "bg-warning text-dark" : step.IsReached ? "bg-white bg-opacity-25 text-white" : "bg-white bg-opacity-10 text-white-50")"
+              style="font-size:11px;">
+            @if (step.IsReached && !step.IsCurrent)
             {
                 <i class="ti ti-check me-1"></i>
             }
-            @step.StatusName
+            @step.Name
         </span>
-        if (i < Model.Steps.Count - 1)
+        @if (i == 0 && Model.ReturnCount > 0)
+        {
+            <span class="badge rounded-pill bg-danger-lt text-danger px-2 py-1" style="font-size:10px;">
+                returned &times;@Model.ReturnCount
+            </span>
+        }
+        @if (i < Model.LastVisibleIndex || Model.Exit is not null)
         {
             <i class="ti ti-chevron-right text-white opacity-50" style="font-size:12px;"></i>
         }
+    }
+    @if (Model.Exit is not null)
+    {
+        <span class="badge rounded-pill px-3 py-2 bg-danger text-white" style="font-size:11px;" title="@Model.Exit.StatusName">
+            <i class="ti ti-x me-1"></i>@Model.Exit.Label
+        </span>
     }
 </div>
 

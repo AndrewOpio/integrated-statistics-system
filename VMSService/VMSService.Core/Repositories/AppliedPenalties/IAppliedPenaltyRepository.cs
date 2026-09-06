@@ -7,6 +7,16 @@ namespace VMSService.Core.Repositories.AppliedPenalties
     {
         Task<ICollection<AppliedPenalty>> FindBySourceId(string sourceId);
 
+        /// <summary>
+        /// Whether a penalty has ever been recorded for this (sourceId, penaltyId), including a
+        /// soft-deleted (removed/waived) row — deliberately unfiltered by IsDeleted, matching
+        /// Apply's own internal lookup, so a caller can tell "already handled, don't re-trigger"
+        /// apart from "genuinely new". FindBySourceId alone can't answer this: it excludes deleted
+        /// rows, so checking it before calling Apply would let Apply's upsert silently un-delete a
+        /// manually removed/waived penalty on a later re-trigger.
+        /// </summary>
+        Task<bool> ExistsForSource(string sourceId, int penaltyId);
+
         /// <summary>All applied penalties not yet settled on RTGS, across every source (withdrawal, deposit, processing).</summary>
         Task<ICollection<AppliedPenalty>> FindUnsettled();
 
@@ -30,5 +40,13 @@ namespace VMSService.Core.Repositories.AppliedPenalties
         /// history of it having been applied survives. Stages only; call Save() to commit.
         /// </summary>
         Task Remove(int appliedPenaltyId);
+
+        /// <summary>
+        /// Waives a specific applied penalty in place — sets ToBeWaived, WaiverReason, WaivedBy, and
+        /// WaivedDate together. Distinct from Remove: the charge row stays exactly as applied (not
+        /// soft-deleted), it's just annotated as forgiven, with who and why. Stages only; call Save()
+        /// to commit.
+        /// </summary>
+        Task Waive(int appliedPenaltyId, string reason, string waivedBy);
     }
 }

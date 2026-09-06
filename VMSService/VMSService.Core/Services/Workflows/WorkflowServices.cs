@@ -41,6 +41,9 @@ using VMSService.Core.Repositories.WithdrawalUnitOfWorks;
 using VMSService.Core.Repositories.CfbTopupRequests;
 using VMSService.Core.Repositories.CfbTopupStatusHistories;
 using VMSService.Core.Repositories.PublicHolidays;
+using VMSService.Core.Repositories.Penalties;
+using VMSService.Core.Repositories.AppliedPenalties;
+using VMSService.Core.Services.Penalties;
 using VMSService.Core.Repositories.BoardSessionSurplusShortages;
 using VMSService.Core.Repositories.BoardSessionSurplusShortageStatusHistories;
 using VMSService.Core.Repositories.BagMovements;
@@ -108,7 +111,9 @@ namespace VMSService.Core.Services.Workflows
         IMonthlyShortageReimbursementStatusHistoryRepository _reimbursementStatusHistoryRepository,
         IStockTakeRepository _stockTakeRepository,
         IStockTakeStatusHistoryRepository _stockTakeStatusHistoryRepository,
-        IStockPositionService _stockPositionService) : IWorkflowService
+        IStockPositionService _stockPositionService,
+        IPenaltyRepository _penaltyRepository,
+        IAppliedPenaltyRepository _appliedPenaltyRepository) : IWorkflowService
     {
 
 
@@ -125,7 +130,12 @@ namespace VMSService.Core.Services.Workflows
             };
             try
             {
-                // Find the valid transition
+                // Find the valid transition. Unlike the Guid overload below, this stays a single
+                // FindByTransitionKey lookup (no per-role disambiguation) — none of the entity types
+                // routed through this overload are known to have WorkflowService rows sharing the same
+                // (EntityType, FromStatus, ActionName) key across more than one role the way
+                // WithdrawalRequest's RequestRecall does. If one turns up, apply the same fix as the
+                // Guid overload.
                 WorkflowTransitionDto transition = await _workflowServiceClient.FindByTransitionKey(requestData);
 
                 if (transition == null)
@@ -228,17 +238,22 @@ namespace VMSService.Core.Services.Workflows
             CancellationToken ct,
             List<long>? attachmentIds = null)
         {
-            var requestData = new GetTransitionByKeyRequestDto
-            {
-                EntityTypeName = entityType,
-                FromStatusId = currentStatusId,
-                ActionName = actionName,
-            };
-
             try
             {
-                WorkflowTransitionDto transition = await _workflowServiceClient
-                    .FindByTransitionKey(requestData);
+                // Some actions (e.g. WithdrawalRequest's RequestRecall) have more than one
+                // WorkflowTransitions row for the same (EntityType, FromStatus, ActionName) — one per
+                // eligible role, since RequiredRole is single-valued per row. A plain FindByTransitionKey
+                // lookup can't disambiguate between them, so look up transitions scoped to each of the
+                // caller's own roles instead — the same role-aware endpoint already used to build the
+                // UI's available-actions list — and take the one matching this action name.
+                WorkflowTransitionDto? transition = null;
+                foreach (var role in userRoles)
+                {
+                    var roleTransitions = await _workflowServiceClient.GetAvailableTransitionsAsync(
+                        SystemPolicy.SystemSettings.AppAcronym, entityType, currentStatusId, role);
+                    transition = roleTransitions.FirstOrDefault(t => t.ActionName == actionName);
+                    if (transition != null) break;
+                }
 
                 if (transition == null)
                 {
@@ -248,20 +263,12 @@ namespace VMSService.Core.Services.Workflows
                     return false;
                 }
 
-                if (!userRoles.Contains(transition.RequiredRole))
-                {
-                    _logger.LogWarning(
-                        "User {Username} with roles {Roles} attempted transition requiring role {RequiredRole}",
-                        username, userRoles, transition.RequiredRole);
-                    return false;
-                }
-
                 return entityType switch
                 {
                     StatusConstants.Entity.WithdrawalRequest =>
                         await HandleWithdrawalTransitions(
                             entityId, currentStatusId, actionName,
-                            username, remarks, transition),
+                            username, remarks, transition, attachmentIds),
 
                     StatusConstants.Entity.DepositRequest =>
                             await HandleDepositTransitions(
@@ -730,7 +737,7 @@ namespace VMSService.Core.Services.Workflows
             }
         }
 
-        private async Task<bool> HandleWithdrawalTransitions(Guid entityId, int currentStatusId, string actionName, string username, string remarks, WorkflowTransitionDto transition)
+        private async Task<bool> HandleWithdrawalTransitions(Guid entityId, int currentStatusId, string actionName, string username, string remarks, WorkflowTransitionDto transition, List<long>? attachmentIds = null)
         {
             var request = await _uow.Requests.FindById(entityId);
             if (request is null)
@@ -748,30 +755,142 @@ namespace VMSService.Core.Services.Workflows
                 return false;
             }
 
+            // ReturnForRevision reuses a single shared status (Returned for Internal Revision)
+            // across three different origins — CB Approver's own return, the ABM's return (Pending
+            // Verification), and Back Office's return (RTGS Confirmation Failed). See ADR-0001.
+            // ResubmitForApproval (CB Maker) always follows the normal configured transition to
+            // Pending Internal Approval regardless of origin — the CB Approver always reviews it
+            // again; the ABM-same-code skip-ahead happens later, at the CB Approver's own approval
+            // action (CbWithdrawRequestsController.ExecuteAction), not here.
+            var effectiveToStatusId = transition.ToStatusId;
+            var effectiveToStatusName = transition.ToStatus.Name;
+            var effectiveRemarks = remarks;
+
+            if (actionName == WithdrawalStatusActionNames.ReturnForRevision)
+            {
+                // Only the two RTGS-relevant origins (ABM's return from Pending Verification, Back
+                // Office's return from RTGS Confirmation Failed) have a code worth snapshotting — the
+                // CB Approver's own return, from Pending Internal Approval, never has a confirmed or
+                // failed code to compare against, so it's left untouched here rather than clobbering
+                // whatever an earlier RTGS-relevant return already recorded. See ADR-0001.
+                if (request.StatusTypeName == WithdrawalStatusNames.PendingVerification
+                    || request.StatusTypeName == WithdrawalStatusNames.VerificationFailed)
+                {
+                    // Penalty #7, second trigger: the code CB carried into this cycle differs from
+                    // what it was at the *previous* RTGS-relevant return — a changed code is itself
+                    // evidence of an error, independent of whether this return was also caused by a
+                    // failed verification. Nothing to compare against on a request's first return.
+                    if (request.RtgsCodeAtLastReturn is not null
+                        && request.RtgsCode != request.RtgsCodeAtLastReturn)
+                    {
+                        await AutomaticPenaltyApplier.ApplyIfNotAlreadyAppliedAsync(
+                            _penaltyRepository, _appliedPenaltyRepository, _logger,
+                            PenaltyConstants.Source.Withdrawal, request.TransactionRefNumber,
+                            PenaltyConstants.AutomaticPenalties.ErrorOnLetterOfIntentAndRtgs,
+                            $"RTGS code changed from {request.RtgsCodeAtLastReturn} to {request.RtgsCode} since the prior return.");
+                    }
+
+                    request.RtgsCodeAtLastReturn = request.RtgsCode;
+                }
+
+                // Back Office origin: the code itself failed confirmation — the remark is the audit
+                // trail for that, so it's generated here rather than left to a human to type. The
+                // penalty itself was already applied when RTGSConfirmationFailed fired, below.
+                if (request.StatusTypeName == WithdrawalStatusNames.VerificationFailed)
+                {
+                    effectiveRemarks =
+                        $"RTGS code {request.RtgsCode} failed confirmation: {request.RtgsVerificationStatus} — Penalty #7 applied";
+                }
+            }
+            else if (actionName == WithdrawalStatusActionNames.RtgsConfirmationFailed)
+            {
+                // Penalty #7, first trigger: Back Office is intentionally marking this RTGS code as
+                // failed. RtgsConfirmationFailed is the only live path that ever writes a failure
+                // outcome — VerifyRtgs has no UI entry point and stays vestigial.
+                request.RtgsVerificationStatus = RtgsVerification.Failed;
+
+                await AutomaticPenaltyApplier.ApplyIfNotAlreadyAppliedAsync(
+                    _penaltyRepository, _appliedPenaltyRepository, _logger,
+                    PenaltyConstants.Source.Withdrawal, request.TransactionRefNumber,
+                    PenaltyConstants.AutomaticPenalties.ErrorOnLetterOfIntentAndRtgs,
+                    $"RTGS code {request.RtgsCode} failed confirmation.");
+            }
+            else if (actionName == WithdrawalStatusActionNames.RejectRecall)
+            {
+                // Recall can be requested from five different statuses, so there's no single fixed
+                // ToStatus to configure — revert directly to wherever it actually came from. Single
+                // Currency-Approver action, no other actor's review to worry about skipping, so (unlike
+                // ResubmitForApproval) this is safe to resolve and apply in one step. See ADR-0001.
+                var lastRecallTransition = await _uow.StatusHistory.FindMostRecentByNewStatusNameAsync(
+                    entityId, WithdrawalStatusNames.RecallRequested);
+
+                if (lastRecallTransition is not null)
+                {
+                    effectiveToStatusId = lastRecallTransition.OldStatusId;
+                    effectiveToStatusName = lastRecallTransition.OldStatusName;
+                }
+            }
+            else if (actionName == WithdrawalStatusActionNames.RejectExceptional)
+            {
+                // Structurally always true, same as Reject below: Pending RTGS Confirmation exists
+                // specifically to gate the Confirmed/Failed decision before a request can advance, and
+                // SubmitVerification unconditionally writes Confirmed before a request can reach Pending
+                // Exceptional Approval at all — a Failed code never gets this far. See ticket 34, which
+                // also closes the one theoretical gap (VerifyRtgs has no UI path and no status guard
+                // today). Kept as a live read of RtgsVerificationStatus rather than hardcoded, matching
+                // Reject's explicit-not-inferred style, purely for historical-data safety (ticket 33
+                // leaves old AmountMismatch/DateMismatch/NotFound values on existing rows untouched).
+                request.ReturnRtgsPending = request.RtgsVerificationStatus == RtgsVerification.Confirmed;
+            }
+            else if (actionName == WithdrawalStatusActionNames.Reject)
+            {
+                // RTGS is always confirmed by the time a BM reject can happen (the request necessarily
+                // passed through Pending RTGS Confirmation to get here) — unconditionally true, set
+                // explicitly rather than left implicit.
+                request.ReturnRtgsPending = true;
+            }
+
             // Create status history record
             var statusHistory = new WithdrawalRequestStatusHistory
             {
                 WithdrawalRequestId = entityId,
                 OldStatusId = request.StatusTypeId,
                 OldStatusName = request.StatusTypeName,
-                NewStatusId = transition.ToStatusId,
-                NewStatusName = transition.ToStatus.Name,
+                NewStatusId = effectiveToStatusId,
+                NewStatusName = effectiveToStatusName,
                 ChangedBy = username,
                 ChangedAt = DateTime.UtcNow,
-                Remarks = remarks,
+                Remarks = effectiveRemarks,
+                AttachmentIds = attachmentIds != null && attachmentIds.Any()
+                    ? string.Join(",", attachmentIds)
+                    : null,
                 CreatedBy = username,
                 CreatedDate = DateTime.Now,
             };
             await _uow.StatusHistory.Create(statusHistory);
 
             // Update request status
-            request.StatusTypeId = transition.ToStatusId;
-            request.StatusTypeName = transition.ToStatus.Name;
+            request.StatusTypeId = effectiveToStatusId;
+            request.StatusTypeName = effectiveToStatusName;
             request.ModifiedBy = username;
             request.ModifiedDate = DateTime.Now;
 
-            // CB approval is the submission event — classify same-day submissions here
-            if (transition.ToStatus.Name == WithdrawalStatusNames.PendingRTGSVerification)
+            // Reject an approval whose collection date has already passed. Gated on the actual
+            // approval action, not just the destination status: RejectRecall (ticket 04) can also
+            // land a request on Pending RTGS Code when reverting a rejected recall, and that
+            // revert must never be spuriously rejected as "late" against a collection date the
+            // recall cycle has since overtaken.
+            //
+            // RequiresSpecialApproval/SpecialApprovalReason are NOT derived here from the general
+            // workflow comment (`remarks`) — they used to be, silently treating whatever the
+            // Approver typed in the transition's own Comment box as the dedicated reason whenever
+            // the flag wasn't already set. That conflated two different things: a workflow remark
+            // and a specific approval-reason. CbWithdrawRequestsController.ExecuteAction now
+            // re-derives and enforces this properly before the transition is ever attempted — by
+            // the time execution reaches here, either RequiresSpecialApproval/SpecialApprovalReason
+            // are already correct, or the transition never got this far.
+            if (effectiveToStatusName == WithdrawalStatusNames.PendingRTGSVerification
+                && actionName == WithdrawalStatusActionNames.ApproveToRTGSVerification)
             {
                 var dayBeforeHoliday = await _publicHolidayRepository.FindByDateAsync(request.CollectionDate.AddDays(-1));
                 var classification = SubmissionClassifier.Classify(
@@ -783,15 +902,6 @@ namespace VMSService.Core.Services.Workflows
                         "WithdrawalRequest {Id} approval rejected: approval date is past collection date {CollectionDate}",
                         entityId, request.CollectionDate);
                     return false;
-                }
-
-                // Only derive from classification if not already explicitly set via SetSameDayReason.
-                if (!request.RequiresSpecialApproval)
-                {
-                    request.RequiresSpecialApproval = classification == SubmissionClassification.SameDayExceptional;
-                    request.SpecialApprovalReason = classification == SubmissionClassification.SameDayExceptional
-                        ? remarks
-                        : null;
                 }
             }
 
