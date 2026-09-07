@@ -43,6 +43,28 @@
 							</select>
 						</div>
 
+						@if (Model.LogisticsOptions != null && Model.LogisticsOptions.Any())
+						{
+							<div class="mb-3">
+								<label class="form-label" for="logisticsId">Logistics <span class="text-muted small">(optional)</span></label>
+								<select class="form-select" name="logisticsId" id="logisticsId">
+									<option value="">-- None --</option>
+									@foreach (var logistics in Model.LogisticsOptions)
+									{
+										if (Model.SelectedLogisticsId == logistics.Id)
+										{
+											<option value="@logistics.Id" selected>@logistics.Title</option>
+										}
+										else
+										{
+											<option value="@logistics.Id">@logistics.Title</option>
+										}
+									}
+								</select>
+								<span class="text-muted small d-block mt-1">Attach the transport/escort details for this delivery.</span>
+							</div>
+						}
+
 						<div class="mb-3">
 							<label class="form-label">
 								Comments
