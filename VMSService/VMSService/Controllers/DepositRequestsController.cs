@@ -26,12 +26,14 @@ using VMSService.Core.Repositories.DenominationTypes;
 using VMSService.Core.Repositories.DepositUnitOfWorks;
 using VMSService.Core.Repositories.FeeTypes;
 using VMSService.Core.Repositories.Penalties;
+using VMSService.Core.Repositories.PenaltyWaivers;
 using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.Stocks;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
 using VMSService.Data.Entities;
+using VMSService.Web.Extensions;
 using WorkflowService.Client;
 using WorkflowService.Client.Dto;
 
@@ -57,6 +59,7 @@ namespace VMSService.Web.Controllers
         IWebHostEnvironment _environment,
         IBagRepository _bagRepository,
         IPenaltyRepository _penaltyRepository,
+        IPenaltyWaiverRepository _penaltyWaiverRepository,
         IAppliedPenaltyRepository _appliedPenaltyRepository) : Controller
     {
         // Penalties may only be captured while BOU is confirming the physical deposit.
@@ -387,6 +390,7 @@ namespace VMSService.Web.Controllers
             // Tracked separately from the FeeType-based fees above; the view presents a combined total.
             var appliedPenaltyVms = new List<AppliedPenaltyViewModel>();
             var applicablePenaltyVms = new List<PenaltyChecklistItemViewModel>();
+            var canManagePenalties = false;
 
             if (!string.IsNullOrEmpty(request.TransactionRefNumber))
             {
@@ -403,25 +407,41 @@ namespace VMSService.Web.Controllers
                     RtgsSettlingMessage = a.RtgsSettlingMessage,
                     AppliedBy = a.CreatedBy,
                     AppliedAt = a.CreatedDate,
+                    ToBeWaived = a.ToBeWaived,
+                    WaiverReason = a.WaiverReason,
+                    WaivedBy = a.WaivedBy,
+                    WaivedDate = a.WaivedDate,
                 }).ToList();
 
                 // The checklist only appears to someone who can actually act on the request now.
-                if (currentStatus.Name == PenaltyCaptureStatus && availableTransitions.Count > 0)
+                canManagePenalties = currentStatus.Name == PenaltyCaptureStatus && availableTransitions.Count > 0;
+
+                if (canManagePenalties)
                 {
                     var appliedPenaltyIds = appliedPenalties.Select(a => a.PenaltyId).ToHashSet();
                     var applicablePenalties = await _penaltyRepository.FindApplicableFor(PenaltyConstants.AppliesTo.PreTransaction);
-                    applicablePenaltyVms = applicablePenalties.Select(p => new PenaltyChecklistItemViewModel
+
+                    foreach (var p in applicablePenalties)
                     {
-                        Id = p.Id,
-                        Name = p.Name,
-                        Description = p.Description,
-                        Unit = p.Unit,
-                        PenaltyValue = p.PenaltyValue,
-                        PenaltyPercent = p.PenaltyPercent,
-                        PercentCutOff = p.PercentCutOff,
-                        PenaltyMultiplier = p.PenaltyMultiplier,
-                        IsChecked = appliedPenaltyIds.Contains(p.Id),
-                    }).ToList();
+                        // A branch-scoped waiver, checked against the request's deposit date,
+                        // suppresses the penalty from being selectable — it stays visible so BOU
+                        // can see why it's not offered rather than it just vanishing.
+                        var waiver = await _penaltyWaiverRepository.FindActiveAsync(p.Id, request.BouBranchId, request.DepositDate);
+                        applicablePenaltyVms.Add(new PenaltyChecklistItemViewModel
+                        {
+                            Id = p.Id,
+                            Name = p.Name,
+                            Description = p.Description,
+                            Unit = p.Unit,
+                            PenaltyValue = p.PenaltyValue,
+                            PenaltyPercent = p.PenaltyPercent,
+                            PercentCutOff = p.PercentCutOff,
+                            PenaltyMultiplier = p.PenaltyMultiplier,
+                            IsChecked = appliedPenaltyIds.Contains(p.Id),
+                            IsWaived = waiver is not null,
+                            WaiverEndDate = waiver?.EndDate,
+                        });
+                    }
                 }
             }
 
@@ -508,6 +528,7 @@ namespace VMSService.Web.Controllers
                 HasPenaltyViolations = penaltyFee > 0,
                 AppliedPenalties = appliedPenaltyVms,
                 ApplicablePenalties = applicablePenaltyVms,
+                CanManagePenalties = canManagePenalties,
                 AllAttachments = depositAttachments,
                 Bags = depositBags,
             };
@@ -539,22 +560,7 @@ namespace VMSService.Web.Controllers
                 return RedirectToAction(nameof(Details), new { id });
             }
 
-            // Same check used to gate the workflow action buttons — only someone whose role has an
-            // available transition on this request right now may apply/adjust its penalties.
-            var entityTypeName = EntityTypeNameFor(request.RequiresSpecialApproval);
-            var hasAvailableTransition = false;
-            foreach (var roleId in GetUserRoles())
-            {
-                var roleTransitions = await _workflowService.GetAvailableTransitionsAsync(
-                    entityTypeName, request.StatusTypeId, roleId);
-                if (roleTransitions.Count > 0)
-                {
-                    hasAvailableTransition = true;
-                    break;
-                }
-            }
-
-            if (!hasAvailableTransition)
+            if (!await CallerHasAvailableTransition(request))
             {
                 TempData["Error"] = "You are not authorized to act on this request at its current status.";
                 return RedirectToAction(nameof(Details), new { id });
@@ -584,6 +590,11 @@ namespace VMSService.Web.Controllers
 
                 foreach (var penaltyId in checkedPenaltyIds)
                 {
+                    // Re-check server-side even though waived penalties aren't offered on the
+                    // checklist — a waiver could have been added after the page was loaded.
+                    if (await _penaltyWaiverRepository.IsWaivedAsync(penaltyId, request.BouBranchId, request.DepositDate))
+                        continue;
+
                     await _appliedPenaltyRepository.Apply(
                         PenaltyConstants.Source.Deposit,
                         request.TransactionRefNumber,
@@ -611,6 +622,92 @@ namespace VMSService.Web.Controllers
             }
 
             return RedirectToAction(nameof(Details), new { id });
+        }
+
+        /// <summary>Waives one specific applied penalty in place, with a mandatory reason — the charge
+        /// stays on record and visible in the audit trail rather than being removed. Deliberately
+        /// separate from the branch-and-date-ranged <see cref="ApplyPenalties"/>/<c>PenaltyWaiver</c>
+        /// machinery: this forgives just this one applied charge, not the penalty type going forward.
+        /// Gated the same way as ApplyPenalties — only while the request is at the penalty-capture
+        /// status, and only for a role with an available transition on it right now.</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> WaivePenalty(Guid id, int appliedPenaltyId, string waiverReason)
+        {
+            var request = await _uow.Requests.FindById(id);
+            if (request is null)
+            {
+                TempData["Error"] = "Deposit request not found.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            var currentStatus = await _workflowServiceClient.FindStatusById(request.StatusTypeId);
+            if (currentStatus?.Name != PenaltyCaptureStatus)
+            {
+                TempData["Error"] = $"Penalties can only be waived while the request is {PenaltyCaptureStatus}.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (string.IsNullOrWhiteSpace(waiverReason))
+            {
+                TempData["Error"] = "A reason is required to waive a penalty.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (string.IsNullOrEmpty(request.TransactionRefNumber))
+            {
+                TempData["Error"] = "This request does not have a transaction reference number yet.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            if (!await CallerHasAvailableTransition(request))
+            {
+                TempData["Error"] = "You are not authorized to act on this request at its current status.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            try
+            {
+                // Confirm the applied penalty actually belongs to this request before touching it —
+                // appliedPenaltyId is user-supplied and otherwise nothing ties it to id/the current
+                // request's own charges.
+                var appliedToThisRequest = (await _appliedPenaltyRepository.FindBySourceId(request.TransactionRefNumber))
+                    .Any(a => a.Id == appliedPenaltyId);
+
+                if (!appliedToThisRequest)
+                {
+                    TempData["Error"] = "That penalty is not applied to this request.";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
+
+                await _appliedPenaltyRepository.Waive(appliedPenaltyId, waiverReason.Trim(), User.GetUsernameOrSystem());
+                await _appliedPenaltyRepository.Save();
+                TempData["Success"] = "Penalty waived.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error waiving applied penalty {AppliedPenaltyId} on deposit request {Id}", appliedPenaltyId, id);
+                TempData["Error"] = "An error occurred while waiving the penalty.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        /// <summary>The same check that gates the workflow action buttons — only someone whose role
+        /// has an available transition on this request right now may apply, adjust or waive its
+        /// penalties.</summary>
+        private async Task<bool> CallerHasAvailableTransition(DepositRequest request)
+        {
+            var entityTypeName = EntityTypeNameFor(request.RequiresSpecialApproval);
+
+            foreach (var roleId in GetUserRoles())
+            {
+                var roleTransitions = await _workflowService.GetAvailableTransitionsAsync(
+                    entityTypeName, request.StatusTypeId, roleId);
+                if (roleTransitions.Count > 0) return true;
+            }
+
+            return false;
         }
 
         [HttpPost]

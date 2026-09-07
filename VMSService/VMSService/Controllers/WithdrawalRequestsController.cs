@@ -81,7 +81,7 @@ namespace VMSService.Web.Controllers
             // not a fixed role name.
             var userBranches = canViewAllLocations
                 ? allBouBranches.ToList()
-                : allBouBranches.Where(branch => userRoles.Contains($"{branch.Name} Branch")).ToList();
+                : allBouBranches.Where(branch => userRoles.Contains($"{branch.Name}")).ToList();
 
             // For users without full cross-branch visibility, lock to their own branch
             if (!canViewAllLocations)

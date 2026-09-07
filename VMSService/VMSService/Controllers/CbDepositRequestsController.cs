@@ -358,6 +358,17 @@ namespace VMSService.Web.Controllers
             }
             try
             {
+                // Checked before GetOrCreateRequestAsync, which would otherwise apply the date
+                // to the tracked entity before we ever get to look at it.
+                var storedDepositDate = vm.Id.HasValue
+                    ? (await _uow.Requests.FindById(vm.Id.Value))?.DepositDate
+                    : null;
+
+                if (!IsDepositDateAllowed(vm.DepositDate, storedDepositDate))
+                {
+                    return BadRequest(new { errors = new[] { BackdatedDepositDateError } });
+                }
+
                 var userId = GetUserId();
                 var request = await GetOrCreateRequestAsync(vm, userId, ct);
 
@@ -898,6 +909,11 @@ namespace VMSService.Web.Controllers
                     return BadRequest(new { errors = new[] { $"Cannot edit request in '{currentStatus.Name}' status." } });
                 }
 
+                if (!IsDepositDateAllowed(vm.DepositDate, existingRequest.DepositDate))
+                {
+                    return BadRequest(new { errors = new[] { BackdatedDepositDateError } });
+                }
+
                 var userId = GetUserId();
 
                 // Update request details
@@ -1290,6 +1306,27 @@ namespace VMSService.Web.Controllers
 
         private string GetUserId()
             => User.FindFirst(ClaimTypes.Name)?.Value ?? string.Empty;
+
+        // ── Deposit-date floor ───────────────────────────────────────
+        // A deposit may not be backdated. The date drives the transaction ref number, the
+        // exceptional-approval routing (same-day only — see isSameDayApprovalRequired in
+        // deposit-form.js) and the stock position the deposit eventually books, so a past date
+        // silently misstates all three. Mirrored client-side by the picker's `min` attribute;
+        // this is the authoritative check.
+        private static readonly TimeZoneInfo EatZone = TimeZoneInfo.FindSystemTimeZoneById("E. Africa Standard Time");
+
+        private static DateOnly TodayEat()
+            => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, EatZone));
+
+        private const string BackdatedDepositDateError = "The deposit date cannot be in the past.";
+
+        /// <summary>
+        /// True when <paramref name="depositDate"/> may be saved. A date already stored on the
+        /// request passes unchanged, so a draft whose date has since passed stays editable —
+        /// only a <em>move</em> into the past is blocked. Pass null for a new request.
+        /// </summary>
+        private static bool IsDepositDateAllowed(DateOnly depositDate, DateOnly? storedDepositDate)
+            => depositDate == storedDepositDate || depositDate >= TodayEat();
 
         private bool ValidateSubmit(SaveDepositRequestViewModel vm, out List<string> errors)
         {
