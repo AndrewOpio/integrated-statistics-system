@@ -208,6 +208,22 @@ namespace VMSService.Web.Controllers
                     .Where(x => x.DenominationId > 0 && (x.NumBagsBoxes.HasValue || x.NumBundles.HasValue || x.SubTotalValue > 0))
                     .ToList() ?? new List<StockMovementDenominationViewModel>();
 
+                var denominations = await _stockService.GetAllDenominations();
+                foreach (var denom in filteredDenoms)
+                {
+                    var piecesPerBundle = denominations.FirstOrDefault(d => d.Id == denom.DenominationId)?.NumberOfPiecesInABundle ?? 0;
+                    var requestedPieces = (denom.NumBundles ?? 0) * piecesPerBundle;
+                    if (requestedPieces <= 0)
+                        continue;
+
+                    var availablePosition = await _stockPositionService.GetStockPositionAsync(model.DispatchingBranch ?? 0, denom.DenominationId);
+                    if (requestedPieces > availablePosition)
+                    {
+                        var denomName = denominations.FirstOrDefault(d => d.Id == denom.DenominationId)?.Name ?? $"Denomination {denom.DenominationId}";
+                        return BadRequest(new { message = $"Requested quantity for {denomName} ({requestedPieces} pieces) exceeds the available stock at the dispatching branch ({availablePosition} pieces)." });
+                    }
+                }
+
                 var movement = new StockMovement
                 {
                     MovementType = model.MovementType,
@@ -550,6 +566,8 @@ namespace VMSService.Web.Controllers
                 return BadRequest(ModelState);
             }
 
+            try
+            {
             var movement = await _stockMovementRepository.FindByIdForEditAsync(id);
             if (movement == null)
             {
@@ -591,15 +609,14 @@ namespace VMSService.Web.Controllers
                 movement.TotalBagsBoxes = model.BranchTotalBagsBoxes;
                 movement.GrandTotalValue = model.BranchGrandTotalValue;
 
-                // Update denominations - clear existing and add new ones
-                if (movement.Denominations != null)
+                // Update denominations - explicitly remove existing (and their box-range/bag children)
+                // rather than Clear(), since a global Restrict delete-behavior rule blocks EF's
+                // automatic orphan deletion and throws a "severed relationship" error instead.
+                if (movement.Denominations != null && movement.Denominations.Any())
                 {
-                    movement.Denominations.Clear();
+                    await _stockMovementRepository.RemoveDenominationsAsync(movement.Denominations.ToList());
                 }
-                else
-                {
-                    movement.Denominations = new List<StockMovementDenomination>();
-                }
+                movement.Denominations = new List<StockMovementDenomination>();
 
                 if (filteredDenoms != null)
                 {
@@ -658,15 +675,14 @@ namespace VMSService.Web.Controllers
                 movement.TotalBagsBoxes = model.InternalTotalBoxes;
                 movement.GrandTotalValue = model.InternalGrandTotalValue;
 
-                // Update denominations - clear existing and add new ones
-                if (movement.Denominations != null)
+                // Update denominations - explicitly remove existing (and their box-range/bag children)
+                // rather than Clear(), since a global Restrict delete-behavior rule blocks EF's
+                // automatic orphan deletion and throws a "severed relationship" error instead.
+                if (movement.Denominations != null && movement.Denominations.Any())
                 {
-                    movement.Denominations.Clear();
+                    await _stockMovementRepository.RemoveDenominationsAsync(movement.Denominations.ToList());
                 }
-                else
-                {
-                    movement.Denominations = new List<StockMovementDenomination>();
-                }
+                movement.Denominations = new List<StockMovementDenomination>();
 
                 if (filteredDenoms != null)
                 {
@@ -699,6 +715,12 @@ namespace VMSService.Web.Controllers
             }
 
             return BadRequest(new { message = "Invalid movement type." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving edited stock movement {MovementId}", id);
+                return StatusCode(500, new { message = ex.InnerException?.Message ?? ex.Message });
+            }
         }
 
 
@@ -757,7 +779,8 @@ namespace VMSService.Web.Controllers
                         var discrepancy = new StockMovementDiscrepancy
                         {
                             StockMovementId = id,
-                            CurrentStatusId = pendingDiscrepancyStatus.Id
+                            CurrentStatusId = pendingDiscrepancyStatus.Id,
+                            CurrentStatusName = pendingDiscrepancyStatus.Name
                         };
                         await _discrepancyRepository.AddAsync(discrepancy);
 
@@ -782,7 +805,8 @@ namespace VMSService.Web.Controllers
                                     var discrepancy = new StockMovementDiscrepancy
                                     {
                                         StockMovementId = id,
-                                        CurrentStatusId = pendingDiscrepancyStatus.Id
+                                        CurrentStatusId = pendingDiscrepancyStatus.Id,
+                                        CurrentStatusName = pendingDiscrepancyStatus.Name
                                     };
                                     await _discrepancyRepository.AddAsync(discrepancy);
                                 }
@@ -836,10 +860,16 @@ namespace VMSService.Web.Controllers
                 if (statusName == StatusConstants.StockMovement.Dispatched ||
                     statusName == StatusConstants.StockMovement.Received)
                 {
-                    await _stockPositionService.UpdatePositionAsync(
+                    var (positionUpdated, positionError) = await _stockPositionService.UpdatePositionAsync(
                         StatusConstants.Entity.StockMovement,
                         statusName,
                         updatedMovement);
+
+                    if (!positionUpdated)
+                    {
+                        _logger.LogWarning("Stock position update failed for Stock Movement {MovementId} on status {Status}: {Error}", id, statusName, positionError);
+                        TempData["Warning"] = $"Action completed, but the stock position could not be updated. Details: {positionError}";
+                    }
                 }
             }
 
@@ -1029,10 +1059,16 @@ namespace VMSService.Web.Controllers
                 // Update stock position if transitioning to Resolved
                 if (newStatusType.Name == StatusConstants.StockMovementDiscrepancy.DiscrepancyResolved)
                 {
-                    await _stockPositionService.UpdatePositionAsync(
+                    var (positionUpdated, positionError) = await _stockPositionService.UpdatePositionAsync(
                         StatusConstants.Entity.StockMovementDiscrepancy,
                         newStatusType.Name,
                         discrepancy);
+
+                    if (!positionUpdated)
+                    {
+                        _logger.LogWarning("Stock position update failed for Discrepancy {DiscrepancyId}: {Error}", discrepancy.Id, positionError);
+                        TempData["Warning"] = $"Discrepancy resolved, but the stock position could not be updated. Details: {positionError}";
+                    }
                 }
 
                 TempData["SuccessMessage"] = $"Discrepancy status updated to {newStatusType.Name}.";

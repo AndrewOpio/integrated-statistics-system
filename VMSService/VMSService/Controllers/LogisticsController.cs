@@ -72,6 +72,12 @@ namespace VMSService.Web.Controllers
                 EntityTypeName = StatusConstants.Entity.Logistics
             });
 
+            if (draftStatus == null)
+            {
+                _logger.LogError("Logistics Draft status could not be resolved from WorkflowService.");
+                return StatusCode(500, new { message = "Could not resolve the Draft status. Please try again." });
+            }
+
             var logistics = new Data.Entities.Logistics
             {
                 Title = model.Title,
@@ -80,7 +86,7 @@ namespace VMSService.Web.Controllers
                 Date = model.Date,
                 TeamLeader = model.TeamLeader,
                 AssistantTeamLeader = model.AssistantTeamLeader,
-                CreatedBy = currentUserId,
+                CreatedBy = currentUserName,
                 CreatedDate = DateTime.UtcNow,
                 CurrentStatusId = draftStatus.Id,
                 CurrentStatusName = draftStatus.Name,
@@ -178,14 +184,14 @@ namespace VMSService.Web.Controllers
                    .Where(id => id.HasValue)
                    .Select(id => id.Value)
                    .ToList();
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "System";
+                var currentUserName = User.FindFirstValue("displayName") ?? User.Identity?.Name ?? "Unknown";
 
                 var success = await _workflowService.ExecuteTransition(
                     VMSService.Core.Static.StatusConstants.Entity.Logistics,
                     id,
                     logistics.CurrentStatusId,
                     actionName,
-                    userId,
+                    currentUserName,
                     userRoles,
                     remarks
                 );

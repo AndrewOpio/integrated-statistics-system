@@ -79,9 +79,12 @@
                                             <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="View Details">
                                                 <i class="ti ti-eye"></i>
                                             </a>
-                                            <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
-                                                <i class="ti ti-edit"></i>
-                                            </a>
+                                            @if (item.CurrentStatusName == "Draft" || item.CurrentStatusName == "Returned")
+                                            {
+                                                <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary" title="Edit">
+                                                    <i class="ti ti-edit"></i>
+                                                </a>
+                                            }
                                         </div>
                                     </td>
                                 </tr>

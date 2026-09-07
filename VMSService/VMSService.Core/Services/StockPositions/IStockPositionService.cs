@@ -5,9 +5,10 @@ namespace VMSService.Core.Services.StockPositions
     public interface IStockPositionService
     {
         /// <summary>
-        /// Update stock position based on entity type and status transition
+        /// Update stock position based on entity type and status transition.
+        /// ErrorMessage is populated whenever Success is false, so callers can surface the real cause.
         /// </summary>
-        Task<bool> UpdatePositionAsync(string entityType, string statusName, object entity);
+        Task<(bool Success, string? ErrorMessage)> UpdatePositionAsync(string entityType, string statusName, object entity);
 
         /// <summary>
         /// Get current stock position for a branch category and denomination

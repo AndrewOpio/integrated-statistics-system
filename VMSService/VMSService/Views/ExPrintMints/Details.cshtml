@@ -113,6 +113,28 @@
 								}
 							</p>
 						</div>
+
+						@{
+							var attachedLogistics = Model.LogisticsId.HasValue
+								? (ViewBag.LogisticsList as List<VMSService.Data.Entities.Logistics>)?.FirstOrDefault(l => l.Id == Model.LogisticsId.Value)
+								: null;
+						}
+						<div class="mb-2">
+							<small class="text-muted text-uppercase fw-semibold d-block mb-1">Logistics</small>
+							<p class="mb-0 fw-bold">
+								@if (attachedLogistics != null)
+								{
+									<a href="@Url.Action("Details", "Logistics", new { id = attachedLogistics.Id })" class="text-decoration-none">
+										<i class="ti ti-truck me-1 text-info"></i>
+										@attachedLogistics.Title (@attachedLogistics.ReferenceNumber)
+									</a>
+								}
+								else
+								{
+									<span class="text-muted">Not attached</span>
+								}
+							</p>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -219,37 +241,18 @@
 @{
 	var packingListRanges = (List<VMSService.Data.Entities.PackingListRange>)ViewBag.PackingListRanges ?? new List<VMSService.Data.Entities.PackingListRange>();
 	bool hasPackingRanges = packingListRanges != null && packingListRanges.Any();
-	
+	bool canAttachLogistics = Model.CurrentStatusName == StatusConstants.ExPrintMint.Draft || Model.CurrentStatusName == StatusConstants.ExPrintMint.Returned;
+
 	var workflowActionsViewModel = new VMSService.Core.Models.Shared.WorkflowActionsViewModel
 	{
 		EntityId = Model.Id,
 		ControllerName = "ExPrintMints",
 		AvailableTransitions = Model.AvailableTransitions ?? new List<WorkflowService.Client.Dto.WorkflowTransitionDto>(),
 		IsValid = hasPackingRanges,
-		AdditionalValidationMessage = hasPackingRanges ? null : "<strong>No Packing List Ranges Found</strong> - Please add packing list ranges before performing any actions."
+		AdditionalValidationMessage = hasPackingRanges ? null : "<strong>No Packing List Ranges Found</strong> - Please add packing list ranges before performing any actions.",
+		LogisticsOptions = canAttachLogistics ? (ViewBag.ApprovedLogisticsList as List<VMSService.Data.Entities.Logistics>) : null,
+		SelectedLogisticsId = Model.LogisticsId
 	};
-}
-@if (hasPackingRanges && workflowActionsViewModel.AvailableTransitions != null && workflowActionsViewModel.AvailableTransitions.Any())
-{
-	var logisticsList = ViewBag.LogisticsList as List<VMSService.Data.Entities.Logistics> ?? new List<VMSService.Data.Entities.Logistics>();
-	<div class="mb-3">
-		<label class="form-label" for="logisticsId">Logistics <span class="text-muted small">(optional)</span></label>
-		<select class="form-select" name="logisticsId" id="logisticsId" form="workflowForm">
-			<option value="">-- None --</option>
-			@foreach (var logistics in logisticsList)
-			{
-				if (Model.LogisticsId == logistics.Id)
-				{
-					<option value="@logistics.Id" selected>@logistics.Title</option>
-				}
-				else
-				{
-					<option value="@logistics.Id">@logistics.Title</option>
-				}
-			}
-		</select>
-		<span class="text-muted small d-block mt-1">Attach the transport/escort details for this delivery, then execute an action below.</span>
-	</div>
 }
 @await Html.PartialAsync("_WorkflowActions", workflowActionsViewModel)
 

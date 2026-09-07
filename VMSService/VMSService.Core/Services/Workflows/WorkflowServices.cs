@@ -7,6 +7,7 @@ using VMSService.Core.Repositories.ApprovedCurrencyProcurements;
 using VMSService.Core.Repositories.ApprovedCurrencyStatusHistories;
 using VMSService.Core.Repositories.EodDiscrepancyReportStatusHistories;
 using VMSService.Core.Repositories.EodDiscrepancyReports;
+using VMSService.Core.Repositories.Logistics;
 using VMSService.Core.Repositories.MonthlySurpluses;
 using VMSService.Core.Repositories.MonthlySurplusStatusHistories;
 using VMSService.Core.Repositories.MonthlyShortages;
@@ -112,6 +113,8 @@ namespace VMSService.Core.Services.Workflows
         IStockTakeRepository _stockTakeRepository,
         IStockTakeStatusHistoryRepository _stockTakeStatusHistoryRepository,
         IStockPositionService _stockPositionService,
+        ILogisticsRepository _logisticsRepository,
+        ILogisticsStatusHistoryRepository _logisticsStatusHistoryRepository,
         IPenaltyRepository _penaltyRepository,
         IAppliedPenaltyRepository _appliedPenaltyRepository) : IWorkflowService
     {
@@ -214,6 +217,9 @@ namespace VMSService.Core.Services.Workflows
 
                     case StatusConstants.Entity.BagMovement:
                         return await HandleBagMovementTransitions(entityId, currentStatusId, actionName, username, remarks, transition, attachmentIds);
+
+                    case StatusConstants.Entity.Logistics:
+                        return await HandleLogisticsTransitions(entityId, currentStatusId, actionName, username, remarks, transition);
 
                     default:
                         _logger.LogWarning("Unknown entity type: {EntityType}", entityType);
@@ -410,6 +416,60 @@ namespace VMSService.Core.Services.Workflows
 
             _logger.LogInformation("Expected Stock {Id} transitioned from status {From} to {To} by user {UserId} with action {Action}. Attachments: {AttachmentCount}",
                 entityId, currentStatusId, transition.ToStatusId, userId, actionName, attachmentIds?.Count ?? 0);
+
+            return true;
+        }
+
+        private async Task<bool> HandleLogisticsTransitions(int entityId, int currentStatusId, string actionName,
+            string userId, string remarks, WorkflowTransitionDto transition)
+        {
+            var logistics = await _logisticsRepository.GetByIdAsync(entityId);
+            if (logistics == null)
+            {
+                _logger.LogWarning("Logistics {Id} not found", entityId);
+                return false;
+            }
+
+            // Verify current status matches
+            if (logistics.CurrentStatusId != currentStatusId)
+            {
+                _logger.LogWarning("Logistics {Id} status mismatch. Current: {Current}, Expected: {Expected}",
+                    entityId, logistics.CurrentStatusId, currentStatusId);
+                return false;
+            }
+
+            // Create status history record
+            var statusHistory = new LogisticsStatusHistory
+            {
+                LogisticsId = entityId,
+                OldStatusId = logistics.CurrentStatusId,
+                OldStatusName = logistics.CurrentStatusName,
+                NewStatusId = transition.ToStatusId,
+                NewStatusName = transition.ToStatus.Name,
+                ChangedBy = userId,
+                ChangedAt = DateTime.Now,
+                Remarks = remarks
+            };
+
+            await _logisticsStatusHistoryRepository.CreateAsync(statusHistory);
+
+            // Update logistics status
+            logistics.CurrentStatusId = transition.ToStatusId;
+            logistics.CurrentStatusName = transition.ToStatus.Name;
+            await _logisticsRepository.UpdateAsync(logistics);
+
+            // Send notifications
+            if (transition.SendNotification)
+            {
+                await SendTransitionNotification(
+                    $"Logistics {logistics.Title}",
+                    transition,
+                    statusHistory.NewStatusName,
+                    userId, remarks);
+            }
+
+            _logger.LogInformation("Logistics {Id} transitioned from status {From} to {To} by user {UserId} with action {Action}",
+                entityId, currentStatusId, transition.ToStatusId, userId, actionName);
 
             return true;
         }
