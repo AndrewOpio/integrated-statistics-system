@@ -2,21 +2,16 @@
 @{
     Layout = null;
 }
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Deposit Request - @Model.ReferenceNumber</title>
+    <title>Cash Deposit Receipt - @Model.ReferenceNumber</title>
     <style>
         @@media print {
-            .no-print {
-                display: none;
-            }
-            @@page {
-                margin: 0.5cm;
-            }
+            .no-print { display: none; }
+            @@page { margin: 1cm; }
         }
 
         body {
@@ -24,103 +19,8 @@
             padding: 20px;
             max-width: 210mm;
             margin: 0 auto;
-            font-size: 14px;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .header img {
-            width: 80px;
-            height: auto;
-            margin-bottom: 10px;
-        }
-
-        .header h1 {
-            margin: 5px 0;
-            font-size: 24px;
-            font-weight: bold;
-        }
-
-        .header .subtitle {
-            font-size: 18px;
-            margin: 5px 0;
-        }
-
-        .info-section {
-            margin-bottom: 20px;
-        }
-
-        .info-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-        }
-
-        .info-label {
-            font-weight: bold;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        }
-
-        table th, table td {
-            border: 1px solid #333;
-            padding: 8px;
-            text-align: left;
-        }
-
-        table th {
-            background-color: #f0f0f0;
-            font-weight: bold;
-        }
-
-        .text-right {
-            text-align: right;
-        }
-
-        .text-center {
-            text-align: center;
-        }
-
-        .subcategory-header {
-            background-color: #e8e8e8;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-
-        .total-row {
-            font-weight: bold;
-            background-color: #f5f5f5;
-        }
-
-        .signature-section {
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .signature-box {
-            width: 45%;
-            border: 1px solid #333;
-            padding: 15px;
-            min-height: 100px;
-        }
-
-        .signature-box h4 {
-            margin: 0 0 10px 0;
-            border-bottom: 1px solid #333;
-            padding-bottom: 5px;
-        }
-
-        .signature-line {
-            margin-top: 60px;
-            border-top: 1px solid #333;
-            padding-top: 5px;
+            font-size: 13px;
+            color: #111;
         }
 
         .print-button {
@@ -133,215 +33,262 @@
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 15px;
+        }
+        .print-button:hover { background-color: #0056b3; }
+
+        /* ── Header ── */
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #111; padding-bottom: 14px; }
+        .header img { width: 60px; height: auto; margin-bottom: 6px; }
+        .header h1 { margin: 2px 0; font-size: 20px; font-weight: bold; }
+        .header .subtitle { font-size: 14px; margin: 2px 0; letter-spacing: .06em; }
+        .header .ref { font-size: 12px; color: #555; margin-top: 4px; }
+
+        /* ── Info grid — no outer box, just clean rows ── */
+        .info-grid {
+            display: grid;
+            grid-template-columns: max-content 1fr max-content 1fr;
+            gap: 5px 16px;
+            margin-bottom: 18px;
+            padding: 10px 0;
+            border-top: 1px solid #ccc;
+            border-bottom: 1px solid #ccc;
+        }
+        .info-label { font-weight: bold; white-space: nowrap; }
+
+        /* ── Section titles ── */
+        .section-title {
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: #555;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 3px;
+            margin: 18px 0 8px;
         }
 
-        .print-button:hover {
-            background-color: #0056b3;
+        /* ── Tables — horizontal lines only ── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 6px;
+            font-size: 12px;
         }
+        table th {
+            border-bottom: 2px solid #111;
+            padding: 5px 8px;
+            font-weight: bold;
+            text-align: left;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: #333;
+        }
+        table td {
+            border-bottom: 1px solid #e0e0e0;
+            padding: 5px 8px;
+        }
+        table tbody tr:last-child td { border-bottom: none; }
 
-        .row {
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+
+        /* ── Total ── */
+        .total-line {
+            border-top: 2px solid #111;
+            border-bottom: 1px solid #ccc;
+            padding: 8px 0;
+            margin: 8px 0 20px;
             display: flex;
-            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: baseline;
         }
+        .total-amount { font-size: 16px; font-weight: bold; }
+        .total-words { font-size: 11px; font-style: italic; color: #555; }
 
-        .col-md-4 {
-            -webkit-box-flex: 0;
-            -ms-flex: 0 0 33.333333%;
-            flex: 0 0 33.333333%;
-            max-width: 33.333333%;
+        /* Deposits carry a processing fee the withdrawal receipt has no equivalent for —
+           kept subordinate to the total line so it can't be mistaken for part of the deposit. */
+        .fee-line {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            margin: -14px 0 20px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #ccc;
+        }
+        .fee-label { color: #555; }
+
+        /* ── Signature boxes ── */
+        .signature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+        .signature-box {
+            border: 1px solid #bbb;
+            padding: 10px 12px;
+            min-height: 100px;
+        }
+        .signature-box h4 {
+            margin: 0 0 6px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            color: #555;
+        }
+        .signature-box p { margin: 2px 0; font-size: 12px; }
+        .signature-line {
+            margin-top: 36px;
+            border-top: 1px solid #555;
+            padding-top: 3px;
+            font-size: 10px;
+            color: #777;
         }
     </style>
 </head>
 <body>
-    <button class="print-button no-print" onclick="window.print()">
-        <i class="ti ti-printer"></i> Print
-    </button>
 
+    <button class="print-button no-print" onclick="window.print()">&#128424; Print</button>
+
+    @* ── Header ── *@
     <div class="header">
         <img src="~/img/bou.png" alt="Bank of Uganda Logo" />
         <h1>BANK OF UGANDA</h1>
-        <div class="subtitle">Deposit Request</div>
+        <div class="subtitle">Cash Deposit Receipt</div>
+        <div class="ref">@Model.ReferenceNumber</div>
+        @if (Model.RequiresSpecialApproval)
+        {
+            <div style="margin-top:6px;">
+                <span style="background:#c8a96e;color:#5c3a00;padding:3px 10px;border-radius:3px;font-size:11px;font-weight:bold;">
+                    EXCEPTIONAL APPROVAL
+                </span>
+            </div>
+        }
     </div>
 
-    <div class="info-section">
-        <div class="info-row">
-            <div>
-                <span class="info-label">Deposit Date:</span>
-                @Model.DepositDate.ToString("dd MMMM yyyy")
-            </div>
-            <div>
-                <span class="info-label">Time:</span>
-                @DateTime.Now.ToString("HH:mm")
-            </div>
-        </div>
-        <div class="info-row">
-            <div>
-                <span class="info-label">Reference Number:</span>
-                @Model.ReferenceNumber
-            </div>
-        </div>
-        <div class="info-row">
-            <div>
-                <span class="info-label">BOU Branch:</span>
-                @Model.BouBranchName
-            </div>
-        </div>
-        <div class="info-row">
-            <div>
-                <span class="info-label">Commercial Bank:</span>
-                @Model.CbName
-            </div>
-        </div>
+    @* ── Request Details ── *@
+    <div class="info-grid">
+        <span class="info-label">Commercial Bank</span><span>@Model.CbName</span>
+        <span class="info-label">BOU Branch</span><span>@Model.BouBranchName (@Model.BouBranchCode)</span>
+        <span class="info-label">Deposit Date</span><span>@Model.DepositDate.ToString("dd MMMM yyyy")</span>
+        <span class="info-label">Printed</span><span>@DateTime.Now.ToString("dd MMMM yyyy HH:mm")</span>
     </div>
 
-    <h3>Denominations</h3>
+    @* ── Denominations ── *@
+    <div class="section-title">Denomination Details</div>
 
     <table>
         <thead>
             <tr>
-                <th>Category</th>
+                <th style="width:12%">Type</th>
                 <th>Denomination</th>
-                <th class="text-right">Number of Bundles</th>
-                <th class="text-right">Amount (UGX)</th>
+                <th class="text-right" style="width:16%">Qty</th>
+                <th class="text-right" style="width:18%">Amount (UGX)</th>
             </tr>
         </thead>
         <tbody>
-            @* FIT Notes *@
-            @if (Model.FitNotes.Any())
+            @foreach (var row in Model.FitNotes)
             {
-                @foreach (var denom in Model.FitNotes)
-                {
-                    <tr>
-                        <td>FIT</td>
-                        <td>@denom.DenominationLabel</td>
-                        <td class="text-right">@denom.Bundles</td>
-                        <td class="text-right">@denom.Amount.ToString("N0")</td>
-                    </tr>
-                }
+                <tr>
+                    <td>Fit</td>
+                    <td>@row.DenominationLabel</td>
+                    <td class="text-right">@((row.Bundles ?? 0).ToString("N0")) bundles</td>
+                    <td class="text-right">@row.Amount.ToString("N0")</td>
+                </tr>
             }
-
-            @* UNFIT Notes *@
-            @if (Model.UnfitNotes.Any())
+            @foreach (var row in Model.UnfitNotes)
             {
-                @foreach (var denom in Model.UnfitNotes)
-                {
-                    <tr>
-                        <td>UNFIT</td>
-                        <td>@denom.DenominationLabel</td>
-                        <td class="text-right">@denom.Bundles</td>
-                        <td class="text-right">@denom.Amount.ToString("N0")</td>
-                    </tr>
-                }
+                <tr>
+                    <td>Unfit</td>
+                    <td>@row.DenominationLabel</td>
+                    <td class="text-right">@((row.Bundles ?? 0).ToString("N0")) bundles</td>
+                    <td class="text-right">@row.Amount.ToString("N0")</td>
+                </tr>
             }
-
-            @* N/A Notes *@
-            @if (Model.NANotes.Any())
+            @foreach (var row in Model.NANotes)
             {
-                @foreach (var denom in Model.NANotes)
-                {
-                    <tr>
-                        <td>N/A</td>
-                        <td>@denom.DenominationLabel</td>
-                        <td class="text-right">@denom.Bundles</td>
-                        <td class="text-right">@denom.Amount.ToString("N0")</td>
-                    </tr>
-                }
+                <tr>
+                    <td>N/A</td>
+                    <td>@row.DenominationLabel</td>
+                    <td class="text-right">@((row.Bundles ?? 0).ToString("N0")) bundles</td>
+                    <td class="text-right">@row.Amount.ToString("N0")</td>
+                </tr>
             }
-
-            @* Coins *@
-            @if (Model.Coins.Any())
+            @foreach (var row in Model.Coins)
             {
-                @foreach (var denom in Model.Coins)
-                {
-                    <tr>
-                        <td>N/A (COINS)</td>
-                        <td>@denom.DenominationLabel</td>
-                        <td class="text-right">@denom.Boxes Boxes</td>
-                        <td class="text-right">@denom.Amount.ToString("N0")</td>
-                    </tr>
-                }
+                <tr>
+                    <td>Coin</td>
+                    <td>@row.DenominationLabel</td>
+                    <td class="text-right">@((row.Boxes ?? 0).ToString("N0")) boxes</td>
+                    <td class="text-right">@row.Amount.ToString("N0")</td>
+                </tr>
+            }
+            @if (!Model.FitNotes.Any() && !Model.UnfitNotes.Any() && !Model.NANotes.Any() && !Model.Coins.Any())
+            {
+                <tr><td colspan="4" class="text-center" style="color:#aaa;">No denomination data</td></tr>
             }
         </tbody>
     </table>
 
-    <div class="info-section">
-        <div class="info-row">
-            <span class="info-label">Total Amount (Figures):</span>
-            <span style="font-size: 18px; font-weight: bold;">UGX @Model.TotalAmount.ToString("N0")</span>
-        </div>
-        <div class="info-row">
-            <span class="info-label">Total Amount (Words):</span>
-            <span style="font-style: italic;" id="amount-in-words"></span>
-        </div>
-        @if (Model.ProcessingFee > 0)
-        {
-            <div class="info-row mt-4">
-                <span class="info-label">Processing Fee:</span>
-                <span>UGX @Model.ProcessingFee.ToString("N0")</span>
-            </div>
-        }
+    @* ── Total ── *@
+    <div class="total-line">
+        <span class="total-words" id="amount-in-words"></span>
+        <span class="total-amount">UGX @Model.TotalAmount.ToString("N0")</span>
     </div>
+    @if (Model.ProcessingFee > 0)
+    {
+        <div class="fee-line">
+            <span class="fee-label">Processing Fee</span>
+            <span>UGX @Model.ProcessingFee.ToString("N0")</span>
+        </div>
+    }
 
-    <h3>Transacting Agents</h3>
-
-    <div class="signature-section">
+    @* ── Depositing Agents ── *@
+    <div class="section-title">Depositing Agents</div>
+    <div class="signature-grid">
         @{
             var agentList = Model.DepositAgents.ToList();
         }
-        @if (agentList.Count > 0)
+        @for (int i = 0; i < 2; i++)
         {
             <div class="signature-box">
-                <h4>Agent 1</h4>
-                <p><strong>Name:</strong> @agentList[0].AgentNames</p>
-                <p><strong>NIN:</strong> @agentList[0].NIN</p>
-                <div class="signature-line">
-                    Signature
-                </div>
-            </div>
-        }
-
-        @if (agentList.Count > 1)
-        {
-            <div class="signature-box">
-                <h4>Agent 2</h4>
-                <p><strong>Name:</strong> @agentList[1].AgentNames</p>
-                <p><strong>NIN:</strong> @agentList[1].NIN</p>
-                <div class="signature-line">
-                    Signature
-                </div>
+                <h4>Agent @(i + 1)</h4>
+                @if (i < agentList.Count)
+                {
+                    <p><strong>Name:</strong> @agentList[i].AgentNames</p>
+                    <p><strong>NIN:</strong> @agentList[i].NIN</p>
+                    <p><strong>Phone:</strong> @agentList[i].PhoneNumber</p>
+                }
+                else
+                {
+                    <p style="color:#aaa;">Not assigned</p>
+                }
+                <div class="signature-line">Signature</div>
             </div>
         }
     </div>
 
-    <div class="panelists-section mt-4">
-        <h3>Bank of Uganda Panelists</h3>
-        <div class="row">
-            <div class="col-md-4">
-                <p><strong>Panel A:</strong></p>
-            </div>
-            <div class="col-md-4">
-                <p>@(string.IsNullOrEmpty(Model.PanelAName) ? "N/A" : Model.PanelAName)</p>
-            </div>
-            <div class="col-md-4">
-                <p >Signature: _________________</p>
-            </div>
+    @* ── BOU Panelists ──
+       An unresolved panelist prints blank rather than a placeholder: the signature line beside it
+       is filled in by hand, and a dash or "N/A" reads as "no panelist required" on a signed form. *@
+    <div class="section-title">Bank of Uganda Panelists</div>
+    <div class="signature-grid">
+        <div class="signature-box">
+            <h4>Panel A</h4>
+            <p><strong>Name:</strong> @Model.PanelAName</p>
+            <div class="signature-line">Signature</div>
         </div>
-        <div class="row">
-            <div class="col-md-4">
-                <p><strong>Panel B:</strong></p>
-            </div>
-            <div class="col-md-4">
-                <p>@(string.IsNullOrEmpty(Model.PanelBName) ? "N/A" : Model.PanelBName)</p>
-            </div>
-            <div class="col-md-4">
-                <p>Signature: __________________</p>
-            </div>
+        <div class="signature-box">
+            <h4>Panel B</h4>
+            <p><strong>Name:</strong> @Model.PanelBName</p>
+            <div class="signature-line">Signature</div>
         </div>
     </div>
 
     <script>
-        // Convert number to words
         const ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
             'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
             'Seventeen', 'Eighteen', 'Nineteen'];
@@ -355,7 +302,7 @@
         }
 
         function toWords(n) {
-            if (n === 0) return 'Zero Shillings';
+            if (n === 0) return 'Zero Shillings Only';
             const scales = [[1e12, 'Trillion'], [1e9, 'Billion'], [1e6, 'Million'], [1e3, 'Thousand'], [1, '']];
             let res = '', rem = n;
             scales.forEach(([s, name]) => {

@@ -78,6 +78,20 @@
             public const string Unfit = "Unfit";
             public const string NA = "N/A";
             public const string Mixed = "Mixed";
+
+            /// <summary>The only subcategories a commercial bank may declare against deposited
+            /// banknotes. The Paids category carries more than these — "Mixed", plus whatever an
+            /// admin adds through the SubCategories screen — and deposit-denom-table.js resolves
+            /// its Fit/Unfit/N-A constants by name, silently ignoring anything else: an
+            /// unrecognised option would be selectable but excluded from the Fit/Unfit subtotals
+            /// and from the legend above the table. So the narrowing happens server-side, before
+            /// the list is ever serialised into the page.</summary>
+            /// Case-insensitive on purpose: deposit-denom-table.js matches these names with
+            /// label.toLowerCase(), so a "FIT" row in the database is one it can still classify.
+            /// Filtering more strictly than the script that consumes the list would drop an
+            /// option the UI would otherwise have handled correctly.
+            public static readonly IReadOnlySet<string> DepositSelectable =
+                new HashSet<string>(StringComparer.OrdinalIgnoreCase) { Fit, Unfit, NA };
         }
 
         public static class StockCategories

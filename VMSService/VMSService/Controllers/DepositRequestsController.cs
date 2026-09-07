@@ -1204,7 +1204,9 @@ namespace VMSService.Web.Controllers
                 string panelAName = string.Empty;
                 string panelBName = string.Empty;
 
-                var statusHistory = request.DepositRequestStatusHistory;
+                // Soft-deleted rows are excluded: this name is printed onto a signed document, so a
+                // withdrawn history entry must not supply a panelist. Matches WithdrawalPrintController.
+                var statusHistory = request.DepositRequestStatusHistory.Where(h => !h.IsDeleted).ToList();
 
                 // Get Panel A (Recommended status)
                 var recommendedStatus = await GetStatusByNameAsync(DepositStatuses.DepositStatusNames.Recommended);
@@ -1252,6 +1254,8 @@ namespace VMSService.Web.Controllers
                     CbName = cb.Name,
                     BouBranchName = bouBranch.Name,
                     BouBranchCode = bouBranch.BranchCode,
+                    // Drives the header's EXCEPTIONAL APPROVAL badge, mirroring the withdrawal receipt.
+                    RequiresSpecialApproval = request.RequiresSpecialApproval,
                     FitNotes = cbDenoms
                         .Where(d => d.DenominationTypeId == noteTypeId && d.SubCategoryId == 1)
                         .Select(d => new DepositDenominationLineViewModel

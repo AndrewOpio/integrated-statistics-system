@@ -154,8 +154,7 @@ namespace VMSService.Web.Controllers
                 {
                     Notes = denoms.Where(d => d.DenominationType?.Name?.Equals("Note") ?? false),
                     Coins = denoms.Where(d => d.DenominationType?.Name?.Equals("Coin") ?? false),
-                    SubCategories = (await _subCategoryRepo.FindAll())
-                        .Where(s => !s.IsDeleted && (s.Category?.Name == StockConstants.StoreTypes.Paids))
+                    SubCategories = await GetDepositSubCategoriesAsync(),
                 },
                 PublicHolidayDates = await GetPublicHolidayDatesAsync(),
             };
@@ -727,6 +726,18 @@ namespace VMSService.Web.Controllers
             return View(vm);
         }
 
+        /// <summary>The subcategories offered in the deposit denomination table's SUBCATEGORY
+        /// select, for both Create and Edit — shared so the two can't drift apart. Narrowed to
+        /// <see cref="StockConstants.SubCategories.DepositSelectable"/>: the Paids category also
+        /// holds "Mixed" and anything else added through the SubCategories screen, none of which
+        /// is a valid deposit declaration.</summary>
+        private async Task<IEnumerable<SubCategory>> GetDepositSubCategoriesAsync()
+            => (await _subCategoryRepo.FindAll())
+                .Where(s => !s.IsDeleted
+                         && s.Category?.Name == StockConstants.StoreTypes.Paids
+                         && StockConstants.SubCategories.DepositSelectable.Contains(s.Name))
+                .ToList();
+
         private static string GetCurrentStepKey(string status) => status switch
         {
             DepositStatuses.DepositStatusNames.Draft or
@@ -847,8 +858,7 @@ namespace VMSService.Web.Controllers
                             Amount = d.Amount,
                             SubCategoryId = d.SubCategoryId
                         }).ToList(),
-                        SubCategories = (await _subCategoryRepo.FindAll())
-                            .Where(s => !s.IsDeleted && (s.Category?.Name == StockConstants.StoreTypes.Paids))
+                        SubCategories = await GetDepositSubCategoriesAsync(),
                     },
                     DepositDate = request.DepositDate,
                     RtgsDate = request.RtgsDate,
