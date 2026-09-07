@@ -7,6 +7,7 @@ using System.Reflection.Emit;
 using System.Security.Claims;
 using VMSService.Controllers;
 using VMSService.Core.Authorization;
+using VMSService.Core.Extensions;
 using VMSService.Core.Models.AgentDetails;
 using VMSService.Core.Models.Attachments;
 using VMSService.Core.Models.Bags;
@@ -29,6 +30,7 @@ using VMSService.Core.Repositories.Penalties;
 using VMSService.Core.Repositories.PenaltyWaivers;
 using VMSService.Core.Repositories.StockMovements;
 using VMSService.Core.Repositories.Stocks;
+using VMSService.Core.Services.Identity;
 using VMSService.Core.Services.Stocks.StockEntities;
 using VMSService.Core.Services.Workflows;
 using VMSService.Core.Static;
@@ -41,6 +43,7 @@ namespace VMSService.Web.Controllers
 {
     [Authorize]
     public class DepositRequestsController(
+        IAuthorizationService authorizationService,
         IDepositUnitOfWork _uow,
         IWorkflowServiceClient _workflowServiceClient,
         IWorkflowService _workflowService,
@@ -60,7 +63,8 @@ namespace VMSService.Web.Controllers
         IBagRepository _bagRepository,
         IPenaltyRepository _penaltyRepository,
         IPenaltyWaiverRepository _penaltyWaiverRepository,
-        IAppliedPenaltyRepository _appliedPenaltyRepository) : Controller
+        IAppliedPenaltyRepository _appliedPenaltyRepository,
+        IIdentityService _identityService) : BaseWithdrawController(authorizationService)
     {
         // Penalties may only be captured while BOU is confirming the physical deposit.
         private const string PenaltyCaptureStatus = DepositStatuses.DepositStatusNames.SubmittedToBank;
@@ -1128,6 +1132,184 @@ namespace VMSService.Web.Controllers
                 EntityTypeName = StatusConstants.Entity.DepositRequestExceptional,
             });
         }
+
+        // GET: DepositRequests/PrintRequest/5
+        //
+        // Mirrors ticket 23's treatment of the withdrawal print page (WithdrawalPrintController):
+        // the printed deposit slip renders identically regardless of who's viewing it, so it lives
+        // in one place that both the CB and BOU Details pages link to rather than being duplicated.
+        // It previously sat in CbDepositRequestsController behind `if (!User.IsCbUser())`, which
+        // made the button on the BOU Details page a guaranteed Access Denied.
+        //
+        // CanAccessRequestAsync is the same own-bank-CB-or-any-BOU-staff check the withdrawal print
+        // page uses. Note it is also strictly tighter than the check it replaces: the old one
+        // confirmed the caller was *a* CB user but never that the request belonged to their bank.
+        public async Task<IActionResult> PrintRequest(Guid id, CancellationToken ct)
+        {
+            try
+            {
+                var request = await _uow.Requests.GetWithDetailsAsync(id, ct);
+                if (request == null)
+                {
+                    TempData["Error"] = "Deposit request not found.";
+                    return RedirectToCallerDetails(id);
+                }
+
+                if (!await CanAccessRequestAsync(request.CbId)) return Forbid();
+
+                // Get agent details
+                var cbAgentIds = request.DepositRequestAgents
+                    .Select(a => a.AgentId)
+                    .ToList();
+
+                var agentDetails = new List<AgentDetailViewModel>();
+                foreach (var agentId in cbAgentIds)
+                {
+                    var agent = await _agentRepo.FindById(agentId);
+                    if (agent != null)
+                        agentDetails.Add(_mapper.Map<AgentDetailViewModel>(agent));
+                }
+
+                // Get denominations
+                var cbDenoms = request.DepositRequestDenominations
+                    .Where(d => d.Origin == DepositStatuses.DepositOrigin.Cb);
+
+                // Get branch details
+                var cb = await _configServiceClient.GetCbIdAsync(request.CbId);
+                var bouBranch = await _configServiceClient.GetBouBranchByIdAsync(request.BouBranchId);
+
+                // Get denomination types
+                DenominationType? noteType = (await _denominationTypeRepo.FindAll())
+                    .FirstOrDefault(x => x.Name == StockConstants.DenominationTypes.Note);
+                int noteTypeId = noteType?.Id ?? 0;
+                DenominationType? coinType = (await _denominationTypeRepo.FindAll())
+                    .FirstOrDefault(x => x.Name == StockConstants.DenominationTypes.Coin);
+                int coinTypeId = coinType?.Id ?? 0;
+
+                // Get fees
+                var depositFees = await _uow.DepositFees.GetByDepositRequestId(id);
+                var processingFeeType = await _feeTypeRepo.FindByName(SystemPolicy.FeeTypes.ProcessingFees);
+
+                decimal processingFee = 0;
+                if (processingFeeType != null)
+                {
+                    var processingFeeEntity = depositFees.FirstOrDefault(f => f.FeeTypeId == processingFeeType.Id);
+                    if (processingFeeEntity != null)
+                    {
+                        processingFee = processingFeeEntity.Amount;
+                    }
+                }
+
+                // Get panelists from status history
+                string panelAName = string.Empty;
+                string panelBName = string.Empty;
+
+                var statusHistory = request.DepositRequestStatusHistory;
+
+                // Get Panel A (Recommended status)
+                var recommendedStatus = await GetStatusByNameAsync(DepositStatuses.DepositStatusNames.Recommended);
+                var panelAHistory = statusHistory
+                    .FirstOrDefault(h => h.NewStatusId == recommendedStatus.Id);
+
+                if (panelAHistory != null && !string.IsNullOrEmpty(panelAHistory.ChangedBy))
+                {
+                    var panelAUser = await _identityService.GetUserByUsername(panelAHistory.ChangedBy);
+                    if (panelAUser != null)
+                    {
+                        panelAName = $"{panelAUser.FirstName} {panelAUser.MiddleName} {panelAUser.LastName}".Trim();
+                        // Remove extra spaces if MiddleName is empty
+                        panelAName = System.Text.RegularExpressions.Regex.Replace(panelAName, @"\s+", " ");
+                    }
+                }
+
+                // Get Panel B (Approved status)
+                var approvedStatus = await GetStatusByNameAsync(DepositStatuses.DepositStatusNames.Approved);
+                if (request.RequiresSpecialApproval)
+                {
+                    approvedStatus = await GetStatusByNameExceptionalAsync(DepositStatuses.DepositStatusNames.Approved);
+                }
+
+                var panelBHistory = statusHistory
+                    .FirstOrDefault(h => h.NewStatusId == approvedStatus.Id);
+
+                if (panelBHistory != null && !string.IsNullOrEmpty(panelBHistory.ChangedBy))
+                {
+                    var panelBUser = await _identityService.GetUserByUsername(panelBHistory.ChangedBy);
+                    if (panelBUser != null)
+                    {
+                        panelBName = $"{panelBUser.FirstName} {panelBUser.MiddleName} {panelBUser.LastName}".Trim();
+                        // Remove extra spaces if MiddleName is empty
+                        panelBName = System.Text.RegularExpressions.Regex.Replace(panelBName, @"\s+", " ");
+                    }
+                }
+
+                var vm = new DepositRequestDetailsViewModel
+                {
+                    Id = request.Id,
+                    ReferenceNumber = request.TransactionRefNumber,
+                    DepositDate = request.DepositDate,
+                    DepositAgents = agentDetails,
+                    CbName = cb.Name,
+                    BouBranchName = bouBranch.Name,
+                    BouBranchCode = bouBranch.BranchCode,
+                    FitNotes = cbDenoms
+                        .Where(d => d.DenominationTypeId == noteTypeId && d.SubCategoryId == 1)
+                        .Select(d => new DepositDenominationLineViewModel
+                        {
+                            DenominationLabel = $"UGX {d.DenominationValue:N0}",
+                            Bundles = d.Bundles,
+                            Amount = d.Amount,
+                            SubCategoryName = "FIT"
+                        }),
+                    UnfitNotes = cbDenoms
+                        .Where(d => d.DenominationTypeId == noteTypeId && d.SubCategoryId == 2)
+                        .Select(d => new DepositDenominationLineViewModel
+                        {
+                            DenominationLabel = $"UGX {d.DenominationValue:N0}",
+                            Bundles = d.Bundles,
+                            Amount = d.Amount,
+                            SubCategoryName = "UNFIT"
+                        }),
+                    NANotes = cbDenoms
+                        .Where(d => d.DenominationTypeId == noteTypeId && d.SubCategoryId == 3)
+                        .Select(d => new DepositDenominationLineViewModel
+                        {
+                            DenominationLabel = $"UGX {d.DenominationValue:N0}",
+                            Bundles = d.Bundles,
+                            Amount = d.Amount,
+                            SubCategoryName = "N/A"
+                        }),
+                    Coins = cbDenoms
+                        .Where(d => d.DenominationTypeId == coinTypeId)
+                        .Select(d => new DepositDenominationLineViewModel
+                        {
+                            DenominationLabel = $"UGX {d.DenominationValue:N0}",
+                            Boxes = d.Boxes,
+                            Amount = d.Amount,
+                            SubCategoryName = "N/A"
+                        }),
+                    TotalNotesAmount = request.TotalNotesAmount,
+                    TotalCoinsAmount = request.TotalCoinsAmount,
+                    TotalAmount = request.TotalAmount,
+                    ProcessingFee = processingFee,
+                    PanelAName = panelAName,
+                    PanelBName = panelBName
+                };
+
+                return View(vm);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading deposit request for printing with id {RequestId}", id);
+                TempData["Error"] = "An error occurred while loading the deposit request. Please try again.";
+                return RedirectToCallerDetails(id);
+            }
+        }
+
+        /// <summary>Sends the caller back to the Details page on their own side of the CB/BOU split.
+        /// The print page is reached from both, so a fixed redirect would strand one of them.</summary>
+        private IActionResult RedirectToCallerDetails(Guid id)
+            => RedirectToAction(nameof(Details), User.IsCbUser() ? "CbDepositRequests" : "DepositRequests", new { id });
 
         // Add new action for AJAX stats updates
         [HttpGet]
