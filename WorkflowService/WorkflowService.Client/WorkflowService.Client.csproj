@@ -6,7 +6,7 @@
 		<Nullable>enable</Nullable>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 		<PackageId>WorkflowService.Client</PackageId>
-		<Version>1.0.4</Version>
+		<Version>1.0.7</Version>
 		<Authors>BOU</Authors>
 		<Description>Workflow service and Shared Dto classes: StatusType, WorkflowTransition</Description>
 		<PackageIcon>bou.png</PackageIcon>
