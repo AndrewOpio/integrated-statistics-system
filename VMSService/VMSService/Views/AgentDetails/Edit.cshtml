@@ -25,6 +25,13 @@
                 <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible fade show" role="alert">
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
+                <div class="alert alert-light border d-flex align-items-center gap-2 py-2 px-3" role="note">
+                    <i class="ti ti-shield-check text-success"></i>
+                    <span class="small mb-0">
+                        Replacement attachments are scanned for viruses before they are saved.
+                        A file found to be malicious is rejected and the current attachment is kept.
+                    </span>
+                </div>
                 <form asp-action="Edit" method="post" enctype="multipart/form-data">
                     <input type="hidden" asp-for="Id">
                     <input type="hidden" asp-for="PassportPhoto">

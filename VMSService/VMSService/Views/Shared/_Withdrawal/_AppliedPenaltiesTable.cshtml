@@ -6,6 +6,9 @@
     var requestId = ViewData["RequestId"] as Guid?;
     var canManagePenalties = ViewData["CanManagePenalties"] as bool? ?? false;
     var canWaive = requestId.HasValue && canManagePenalties;
+
+    // Withdrawals and deposits both post to their own WaivePenalty action with the same signature.
+    var waiveController = ViewData["WaiveController"] as string ?? "WithdrawalRequests";
 }
 
 <div class="table-responsive">
@@ -68,7 +71,7 @@
     <div class="modal fade" id="waivePenaltyModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                <form method="post" asp-action="WaivePenalty" asp-controller="WithdrawalRequests" asp-route-id="@requestId">
+                <form method="post" asp-action="WaivePenalty" asp-controller="@waiveController" asp-route-id="@requestId">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="appliedPenaltyId" id="waivePenaltyId" value="" />
                     <div class="modal-header">

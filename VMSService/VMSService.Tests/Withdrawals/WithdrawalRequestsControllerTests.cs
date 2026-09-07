@@ -83,10 +83,15 @@ public class WithdrawalRequestsControllerTests
         var configClient = new Mock<IConfigurationsServiceClient>();
         configClient.Setup(c => c.GetAllCommercialBankAsync())
             .ReturnsAsync([]);
+        // Branch names carry the " Branch" suffix in the ConfigurationsService data itself — the
+        // same shape HomeController and StockMovementController assume when they match a role
+        // against a branch name. ResolveBranchScope matches the role name to Name exactly, so
+        // seeding a bare "Kampala" here would silently stop exercising the scoping path and every
+        // branch-scoped test below would pass for the wrong reason (NotAttachedToBranch).
         configClient.Setup(c => c.GetAllBouBranchesAsync())
             .ReturnsAsync([
-                new BranchDto { Id = 1, Name = "Kampala", BranchCode = "KLA" },
-                new BranchDto { Id = 2, Name = "Mbale", BranchCode = "MBL" },
+                new BranchDto { Id = 1, Name = "Kampala Branch", BranchCode = "KLA" },
+                new BranchDto { Id = 2, Name = "Mbale Branch", BranchCode = "MBL" },
             ]);
 
         var wrDenomRepo = new Mock<IWithdrawalRequestDenominationRepository>();
@@ -233,8 +238,9 @@ public class WithdrawalRequestsControllerTests
     public async Task Index_Panel_A_User_Is_Scoped_To_Their_Own_Branch_Role()
     {
         // BM/ABM users carry a branch-named role (e.g. "Kampala Branch") alongside their panel
-        // role — confirmed against IdentityDB (ticket 16) — rather than a substring collision
-        // between the role name and the branch name.
+        // role — confirmed against IdentityDB (ticket 16). The role name equals the branch name
+        // exactly; Contains here is list-element equality, not a substring collision between the
+        // two ("Kampala Branch" must not pick up a "Kampala Branch Annex").
         var controller = BuildController([
             NewRequest(WithdrawalStatusNames.PendingApproval, bouBranchCode: "KLA"),
             NewRequest(WithdrawalStatusNames.PendingApproval, bouBranchCode: "MBL"),
@@ -242,6 +248,12 @@ public class WithdrawalRequestsControllerTests
 
         var view = Assert.IsType<ViewResult>(await controller.Index());
         var vm = Assert.IsType<BouWithdrawalRequestViewModel>(view.Model);
+
+        // Asserted explicitly: a convention mismatch between the role name and the branch name
+        // resolves to zero branches, which reads as a misconfigured account rather than as a
+        // filter that failed. Without this the failure would surface only as an empty Requests
+        // list, which several unrelated bugs could also produce.
+        Assert.False(vm.NotAttachedToBranch);
 
         var row = Assert.Single(vm.Requests);
         Assert.Equal("KLA", row.BouBranchCode);

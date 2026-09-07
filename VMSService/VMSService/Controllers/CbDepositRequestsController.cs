@@ -154,8 +154,7 @@ namespace VMSService.Web.Controllers
                 {
                     Notes = denoms.Where(d => d.DenominationType?.Name?.Equals("Note") ?? false),
                     Coins = denoms.Where(d => d.DenominationType?.Name?.Equals("Coin") ?? false),
-                    SubCategories = (await _subCategoryRepo.FindAll())
-                        .Where(s => !s.IsDeleted && (s.Category?.Name == StockConstants.StoreTypes.Paids))
+                    SubCategories = await GetDepositSubCategoriesAsync(),
                 },
                 PublicHolidayDates = await GetPublicHolidayDatesAsync(),
             };
@@ -358,6 +357,17 @@ namespace VMSService.Web.Controllers
             }
             try
             {
+                // Checked before GetOrCreateRequestAsync, which would otherwise apply the date
+                // to the tracked entity before we ever get to look at it.
+                var storedDepositDate = vm.Id.HasValue
+                    ? (await _uow.Requests.FindById(vm.Id.Value))?.DepositDate
+                    : null;
+
+                if (!IsDepositDateAllowed(vm.DepositDate, storedDepositDate))
+                {
+                    return BadRequest(new { errors = new[] { BackdatedDepositDateError } });
+                }
+
                 var userId = GetUserId();
                 var request = await GetOrCreateRequestAsync(vm, userId, ct);
 
@@ -716,6 +726,18 @@ namespace VMSService.Web.Controllers
             return View(vm);
         }
 
+        /// <summary>The subcategories offered in the deposit denomination table's SUBCATEGORY
+        /// select, for both Create and Edit — shared so the two can't drift apart. Narrowed to
+        /// <see cref="StockConstants.SubCategories.DepositSelectable"/>: the Paids category also
+        /// holds "Mixed" and anything else added through the SubCategories screen, none of which
+        /// is a valid deposit declaration.</summary>
+        private async Task<IEnumerable<SubCategory>> GetDepositSubCategoriesAsync()
+            => (await _subCategoryRepo.FindAll())
+                .Where(s => !s.IsDeleted
+                         && s.Category?.Name == StockConstants.StoreTypes.Paids
+                         && StockConstants.SubCategories.DepositSelectable.Contains(s.Name))
+                .ToList();
+
         private static string GetCurrentStepKey(string status) => status switch
         {
             DepositStatuses.DepositStatusNames.Draft or
@@ -836,8 +858,7 @@ namespace VMSService.Web.Controllers
                             Amount = d.Amount,
                             SubCategoryId = d.SubCategoryId
                         }).ToList(),
-                        SubCategories = (await _subCategoryRepo.FindAll())
-                            .Where(s => !s.IsDeleted && (s.Category?.Name == StockConstants.StoreTypes.Paids))
+                        SubCategories = await GetDepositSubCategoriesAsync(),
                     },
                     DepositDate = request.DepositDate,
                     RtgsDate = request.RtgsDate,
@@ -896,6 +917,11 @@ namespace VMSService.Web.Controllers
                 if (!editableStatuses.Contains(currentStatus.Name))
                 {
                     return BadRequest(new { errors = new[] { $"Cannot edit request in '{currentStatus.Name}' status." } });
+                }
+
+                if (!IsDepositDateAllowed(vm.DepositDate, existingRequest.DepositDate))
+                {
+                    return BadRequest(new { errors = new[] { BackdatedDepositDateError } });
                 }
 
                 var userId = GetUserId();
@@ -1291,6 +1317,27 @@ namespace VMSService.Web.Controllers
         private string GetUserId()
             => User.FindFirst(ClaimTypes.Name)?.Value ?? string.Empty;
 
+        // ── Deposit-date floor ───────────────────────────────────────
+        // A deposit may not be backdated. The date drives the transaction ref number, the
+        // exceptional-approval routing (same-day only — see isSameDayApprovalRequired in
+        // deposit-form.js) and the stock position the deposit eventually books, so a past date
+        // silently misstates all three. Mirrored client-side by the picker's `min` attribute;
+        // this is the authoritative check.
+        private static readonly TimeZoneInfo EatZone = TimeZoneInfo.FindSystemTimeZoneById("E. Africa Standard Time");
+
+        private static DateOnly TodayEat()
+            => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, EatZone));
+
+        private const string BackdatedDepositDateError = "The deposit date cannot be in the past.";
+
+        /// <summary>
+        /// True when <paramref name="depositDate"/> may be saved. A date already stored on the
+        /// request passes unchanged, so a draft whose date has since passed stays editable —
+        /// only a <em>move</em> into the past is blocked. Pass null for a new request.
+        /// </summary>
+        private static bool IsDepositDateAllowed(DateOnly depositDate, DateOnly? storedDepositDate)
+            => depositDate == storedDepositDate || depositDate >= TodayEat();
+
         private bool ValidateSubmit(SaveDepositRequestViewModel vm, out List<string> errors)
         {
             errors = [];
@@ -1600,168 +1647,6 @@ namespace VMSService.Web.Controllers
             });
         }
 
-        // GET: CbDepositRequests/PrintRequest/5
-        public async Task<IActionResult> PrintRequest(Guid id, CancellationToken ct)
-        {
-            if (!User.IsCbUser()) return Forbid();
-
-            try
-            {
-                var request = await _uow.Requests.GetWithDetailsAsync(id, ct);
-                if (request == null)
-                {
-                    TempData["Error"] = "Deposit request not found.";
-                    return RedirectToAction(nameof(Index));
-                }
-
-                // Get agent details
-                var cbAgentIds = request.DepositRequestAgents
-                    .Select(a => a.AgentId)
-                    .ToList();
-
-                var agentDetails = new List<AgentDetailViewModel>();
-                foreach (var agentId in cbAgentIds)
-                {
-                    var agent = await _agentRepo.FindById(agentId);
-                    if (agent != null)
-                        agentDetails.Add(_mapper.Map<AgentDetailViewModel>(agent));
-                }
-
-                // Get denominations
-                var cbDenoms = request.DepositRequestDenominations
-                    .Where(d => d.Origin == DepositStatuses.DepositOrigin.Cb);
-
-                // Get branch details
-                var cb = await _configServiceClient.GetCbIdAsync(request.CbId);
-                var bouBranch = await _configServiceClient.GetBouBranchByIdAsync(request.BouBranchId);
-
-                // Get denomination types
-                DenominationType? noteType = (await _denominationTypeRepo.FindAll())
-                    .FirstOrDefault(x => x.Name == StockConstants.DenominationTypes.Note);
-                int noteTypeId = noteType?.Id ?? 0;
-                DenominationType? coinType = (await _denominationTypeRepo.FindAll())
-                    .FirstOrDefault(x => x.Name == StockConstants.DenominationTypes.Coin);
-                int coinTypeId = coinType?.Id ?? 0;
-
-                // Get fees
-                var depositFees = await _uow.DepositFees.GetByDepositRequestId(id);
-                var processingFeeType = await _feeTypeRepo.FindByName(SystemPolicy.FeeTypes.ProcessingFees);
-
-                decimal processingFee = 0;
-                if (processingFeeType != null)
-                {
-                    var processingFeeEntity = depositFees.FirstOrDefault(f => f.FeeTypeId == processingFeeType.Id);
-                    if (processingFeeEntity != null)
-                    {
-                        processingFee = processingFeeEntity.Amount;
-                    }
-                }
-
-                // Get panelists from status history
-                string panelAName = string.Empty;
-                string panelBName = string.Empty;
-
-                var statusHistory = request.DepositRequestStatusHistory;
-
-                // Get Panel A (Recommended status)
-                var recommendedStatus = await GetStatusByNameAsync(DepositStatuses.DepositStatusNames.Recommended);
-                var panelAHistory = statusHistory
-                    .FirstOrDefault(h => h.NewStatusId == recommendedStatus.Id);
-
-                if (panelAHistory != null && !string.IsNullOrEmpty(panelAHistory.ChangedBy))
-                {
-                    var panelAUser = await _identityService.GetUserByUsername(panelAHistory.ChangedBy);
-                    if (panelAUser != null)
-                    {
-                        panelAName = $"{panelAUser.FirstName} {panelAUser.MiddleName} {panelAUser.LastName}".Trim();
-                        // Remove extra spaces if MiddleName is empty
-                        panelAName = System.Text.RegularExpressions.Regex.Replace(panelAName, @"\s+", " ");
-                    }
-                }
-
-                // Get Panel B (Approved status)
-                var approvedStatus = await GetStatusByNameAsync(DepositStatuses.DepositStatusNames.Approved);
-                if (request.RequiresSpecialApproval)
-                {
-                    approvedStatus = await GetStatusByNameExceptionalAsync(DepositStatuses.DepositStatusNames.Approved);
-                }
-
-                var panelBHistory = statusHistory
-                    .FirstOrDefault(h => h.NewStatusId == approvedStatus.Id);
-
-                if (panelBHistory != null && !string.IsNullOrEmpty(panelBHistory.ChangedBy))
-                {
-                    var panelBUser = await _identityService.GetUserByUsername(panelBHistory.ChangedBy);
-                    if (panelBUser != null)
-                    {
-                        panelBName = $"{panelBUser.FirstName} {panelBUser.MiddleName} {panelBUser.LastName}".Trim();
-                        // Remove extra spaces if MiddleName is empty
-                        panelBName = System.Text.RegularExpressions.Regex.Replace(panelBName, @"\s+", " ");
-                    }
-                }
-
-                var vm = new DepositRequestDetailsViewModel
-                {
-                    Id = request.Id,
-                    ReferenceNumber = request.TransactionRefNumber,
-                    DepositDate = request.DepositDate,
-                    DepositAgents = agentDetails,
-                    CbName = cb.Name,
-                    BouBranchName = bouBranch.Name,
-                    BouBranchCode = bouBranch.BranchCode,
-                    FitNotes = cbDenoms
-                        .Where(d => d.DenominationTypeId == noteTypeId && d.SubCategoryId == 1)
-                        .Select(d => new DepositDenominationLineViewModel
-                        {
-                            DenominationLabel = $"UGX {d.DenominationValue:N0}",
-                            Bundles = d.Bundles,
-                            Amount = d.Amount,
-                            SubCategoryName = "FIT"
-                        }),
-                    UnfitNotes = cbDenoms
-                        .Where(d => d.DenominationTypeId == noteTypeId && d.SubCategoryId == 2)
-                        .Select(d => new DepositDenominationLineViewModel
-                        {
-                            DenominationLabel = $"UGX {d.DenominationValue:N0}",
-                            Bundles = d.Bundles,
-                            Amount = d.Amount,
-                            SubCategoryName = "UNFIT"
-                        }),
-                    NANotes = cbDenoms
-                        .Where(d => d.DenominationTypeId == noteTypeId && d.SubCategoryId == 3)
-                        .Select(d => new DepositDenominationLineViewModel
-                        {
-                            DenominationLabel = $"UGX {d.DenominationValue:N0}",
-                            Bundles = d.Bundles,
-                            Amount = d.Amount,
-                            SubCategoryName = "N/A"
-                        }),
-                    Coins = cbDenoms
-                        .Where(d => d.DenominationTypeId == coinTypeId)
-                        .Select(d => new DepositDenominationLineViewModel
-                        {
-                            DenominationLabel = $"UGX {d.DenominationValue:N0}",
-                            Boxes = d.Boxes,
-                            Amount = d.Amount,
-                            SubCategoryName = "N/A"
-                        }),
-                    TotalNotesAmount = request.TotalNotesAmount,
-                    TotalCoinsAmount = request.TotalCoinsAmount,
-                    TotalAmount = request.TotalAmount,
-                    ProcessingFee = processingFee,
-                    PanelAName = panelAName,
-                    PanelBName = panelBName
-                };
-
-                return View(vm);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error loading deposit request for printing with id {RequestId}", id);
-                TempData["Error"] = "An error occurred while loading the deposit request. Please try again.";
-                return RedirectToAction(nameof(Index));
-            }
-        }
     }
 
     // Request models for new API endpoints

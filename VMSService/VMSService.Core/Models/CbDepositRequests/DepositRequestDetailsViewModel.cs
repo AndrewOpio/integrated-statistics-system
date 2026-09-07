@@ -74,6 +74,10 @@ namespace VMSService.Core.Models.CbDepositRequest
         public IList<AppliedPenaltyViewModel> AppliedPenalties { get; set; } = [];
         public IList<PenaltyChecklistItemViewModel> ApplicablePenalties { get; set; } = [];
 
+        /// <summary>True when the viewer may apply, adjust or waive this request's penalties right
+        /// now. Set only by the BOU details page; the CB view reuses this model read-only.</summary>
+        public bool CanManagePenalties { get; set; }
+
         /// <summary>Sum of charges from the AppliedPenalty system only.</summary>
         public decimal TotalAppliedPenalties => AppliedPenalties.Sum(a => a.ChargeValue);
 

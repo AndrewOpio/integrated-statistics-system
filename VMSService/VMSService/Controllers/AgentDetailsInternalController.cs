@@ -277,27 +277,9 @@ namespace VMSService.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        private async Task<string> SaveFileAsync(IFormFile? file, string folderName)
-        {
-            if (file == null || file.Length == 0)
-                return string.Empty;
-
-            var uploadsFolder = Path.Combine(FileStorageConstants.UploadsRoot, folderName);
-            if (!Directory.Exists(uploadsFolder))
-            {
-                Directory.CreateDirectory(uploadsFolder);
-            }
-
-            var uniqueFileName = $"{Guid.NewGuid()}_{file.FileName}";
-            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-            using (var fileStream = new FileStream(filePath, FileMode.Create))
-            {
-                await file.CopyToAsync(fileStream);
-            }
-
-            return $"/uploads/{folderName}/{uniqueFileName}";
-        }
+        // This controller has no upload actions of its own. If one is added, use
+        // IScannedUploadService so the file is scanned by the Scan Service before it is stored -
+        // never write an upload straight to the file system.
 
         // Add generic transition action
         [HttpPost]

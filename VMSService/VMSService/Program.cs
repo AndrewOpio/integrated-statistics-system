@@ -7,6 +7,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using NotificationService.Client;
 using OpenTelemetry;
+using ScanService.Client;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using SmartBreadcrumbs.Extensions;
@@ -439,6 +440,11 @@ builder.Services.AddWorkflowServiceClient(workflowServiceBaseUrl);
 
 // Register ConfigurationsServiceClient Service
 builder.Services.AddConfigurationsServiceClient(builder.Configuration["MicroServices:configurationsservice"] ?? "https://localhost:7089");
+
+// Register Scan Service - every user upload goes through it (Windows Defender via AMSI) before
+// it is allowed anywhere near the file system.
+builder.Services.AddScanServiceClient(builder.Configuration["MicroServices:scanservice"] ?? "https://localhost:7315");
+builder.Services.AddScoped<IScannedUploadService, ScannedUploadService>();
 
 // Register Notification Service
 builder.Services.AddNotificationServiceClient(builder.Configuration["MicroServices:notificationservice"] ?? "https://localhost:7129");

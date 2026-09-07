@@ -75,13 +75,18 @@ namespace VMSService.Web.Controllers
 
             // A Panel A/Panel B (BM/ABM) user is separately assigned a role named after their
             // branch — e.g. "Kampala Branch" — alongside their panel role. Confirmed directly
-            // against IdentityDB (ticket 16): every Panel A/B user holds exactly one such role,
-            // and its name is always "{branch.Name} Branch". This isn't in RolePolicy's catalog
-            // (ticket 34 flagged these as unaccounted-for roles) since it's a per-branch variant,
-            // not a fixed role name.
+            // against IdentityDB (ticket 16): every Panel A/B user holds exactly one such role.
+            // The role name matches the branch's Name exactly; the " Branch" suffix lives in the
+            // ConfigurationsService branch data itself, not in the role naming, so nothing is
+            // appended here. HomeController and StockMovementController match the same way.
+            // This isn't in RolePolicy's catalog (ticket 34 flagged these as unaccounted-for
+            // roles) since it's a per-branch variant, not a fixed role name.
+            //
+            // Contains is list-element equality, not a substring test, so "Kampala Branch" will
+            // not pick up a hypothetical "Kampala Branch Annex".
             var userBranches = canViewAllLocations
                 ? allBouBranches.ToList()
-                : allBouBranches.Where(branch => userRoles.Contains($"{branch.Name} Branch")).ToList();
+                : allBouBranches.Where(branch => userRoles.Contains(branch.Name)).ToList();
 
             // For users without full cross-branch visibility, lock to their own branch
             if (!canViewAllLocations)

@@ -293,18 +293,20 @@
                 },
                 body: JSON.stringify(formData)
             })
-            .then(response => {
+            .then(async response => {
                 if (response.ok) {
-                    return response.text();
+                    window.location.href = await response.text();
+                    return;
                 }
-                throw new Error('Failed to update deposit request');
-            })
-            .then(redirectUrl => {
-                window.location.href = redirectUrl;
+
+                // Surface the server's own messages (e.g. a backdated deposit date) rather
+                // than a generic failure the user can do nothing with.
+                const data = await response.json().catch(() => null);
+                showDepositErrors(data?.errors ?? ['Failed to update deposit request. Please try again.']);
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Failed to update deposit request. Please try again.');
+                showDepositErrors(['A network error occurred. Please check your connection and try again.']);
             });
         }
     </script>

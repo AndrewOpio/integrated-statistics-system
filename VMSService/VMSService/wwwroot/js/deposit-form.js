@@ -28,6 +28,36 @@ function onDepositBouBranchSelected(id) {
 }
 
 // ?????????????????????????????????????????????
+// Deposit date floor
+// A deposit may not be backdated. Enforced server-side by
+// CbDepositRequestsController.IsDepositDateAllowed; the picker's `min` and the submit-time
+// check below just stop the user getting that far.
+// ?????????????????????????????????????????????
+
+// Today in EAT as yyyy-MM-dd — same format the date input uses, so plain string
+// comparison orders correctly.
+function depositTodayEat() {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Etc/GMT-3',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(new Date());
+}
+
+function applyDepositDateFloor() {
+    // Absent on the Edit page, where the deposit date is rendered read-only.
+    const input = document.getElementById('depositDate');
+    if (input) input.min = depositTodayEat();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyDepositDateFloor);
+} else {
+    applyDepositDateFloor();
+}
+
+// ?????????????????????????????????????????????
 // Agent selection
 // ?????????????????????????????????????????????
 
@@ -74,6 +104,11 @@ function validateDepositForm(isDraft) {
         if (!depositFormState.depositDate)
             errors.push('Please select a deposit date.');
     }
+
+    // Checked for drafts too — `min` only greys the calendar out, a typed-in date still
+    // reaches here, and a backdated request is invalid however it is saved.
+    if (depositFormState.depositDate && depositFormState.depositDate < depositTodayEat())
+        errors.push('The deposit date cannot be in the past.');
 
     return errors;
 }
@@ -181,15 +216,7 @@ function isSameDayApprovalRequired() {
     // period, no special approval. See collection-date-rules.js.
     if (isGracePeriodActive(window.publicHolidayDates)) return false;
 
-    let today = new Date();
-    const formatter = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Etc/GMT-3',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-    });
-
-    depositFormState.createdDate = formatter.format(today);
+    depositFormState.createdDate = depositTodayEat();
 
     return depositFormState.createdDate !== null
         && depositFormState.depositDate !== null
@@ -201,10 +228,7 @@ function checkSpecialApproval() {
     console.log("Checking Exceptional Approval");
 
     // Grace-period indicator — only relevant when today is the selected deposit date.
-    const eatToday = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Etc/GMT-3', year: 'numeric', month: '2-digit', day: '2-digit',
-    }).format(new Date());
-    const graceReason = depositFormState.depositDate === eatToday
+    const graceReason = depositFormState.depositDate === depositTodayEat()
         ? getGracePeriodReason(window.publicHolidayDates)
         : null;
 
