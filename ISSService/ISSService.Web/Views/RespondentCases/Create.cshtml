@@ -1,0 +1,111 @@
+@model ISSService.Web.Models.RespondentCases.RespondentCaseViewModel
+
+@{
+    ViewData["Title"] = "Add Respondent Case";
+}
+
+<h1 class="mb-3">Add Respondent Case</h1>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">
+            Reporting Cycle
+        </h5>
+
+        <dl class="row mb-0">
+            <dt class="col-sm-3">
+                Statistical Process
+            </dt>
+            <dd class="col-sm-9">
+                @Model.StatisticalProcessName
+            </dd>
+
+            <dt class="col-sm-3">
+                Reporting Cycle
+            </dt>
+            <dd class="col-sm-9">
+                @Model.ReportingCycleName
+            </dd>
+
+            <dt class="col-sm-3">
+                Reporting Period
+            </dt>
+            <dd class="col-sm-9">
+                @Model.ReportingPeriod
+            </dd>
+        </dl>
+    </div>
+</div>
+
+<form asp-action="Create" method="post">
+    @Html.AntiForgeryToken()
+
+    <input asp-for="ReportingCycleId"
+           type="hidden" />
+
+    <div asp-validation-summary="ModelOnly"
+         class="text-danger mb-3">
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="RespondentId"
+               class="form-label">
+        </label>
+
+        <select asp-for="RespondentId"
+                asp-items="Model.Respondents"
+                class="form-select">
+            <option value="">
+                -- Select Respondent --
+            </option>
+        </select>
+
+        <span asp-validation-for="RespondentId"
+              class="text-danger">
+        </span>
+
+        <div class="form-text">
+            Only active respondents eligible for this statistical
+            process and not already assigned to this reporting cycle
+            are shown.
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Notes"
+               class="form-label">
+        </label>
+
+        <textarea asp-for="Notes"
+                  class="form-control"
+                  rows="4">
+        </textarea>
+
+        <span asp-validation-for="Notes"
+              class="text-danger">
+        </span>
+    </div>
+
+    <div class="alert alert-light border">
+        The case reference and initial workflow status are assigned
+        automatically when the respondent case is created.
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit"
+                class="btn btn-primary">
+            Create Respondent Case
+        </button>
+
+        <a asp-action="Index"
+           asp-route-reportingCycleId="@Model.ReportingCycleId"
+           class="btn btn-outline-secondary">
+            Cancel
+        </a>
+    </div>
+</form>
+
+@section Scripts
+{
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -72,3 +72,8 @@ docs/
 skills-lock.json
 CLAUDE.md
 CONTEXT.md
+
+############################
+# ISS runtime file storage
+############################
+ISSService/ISSService.Web/ISSFiles/

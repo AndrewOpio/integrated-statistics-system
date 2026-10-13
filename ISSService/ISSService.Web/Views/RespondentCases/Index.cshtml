@@ -1,0 +1,142 @@
+@model IEnumerable<ISSService.Web.Models.RespondentCases.RespondentCaseViewModel>
+
+@{
+    ViewData["Title"] = "Respondent Cases";
+
+    var reportingCycleId =
+        ViewBag.ReportingCycleId != null
+            ? (int)ViewBag.ReportingCycleId
+            : 0;
+
+    var reportingCycleName =
+        ViewBag.ReportingCycleName as string
+        ?? "Reporting Cycle";
+
+    var statisticalProcessName =
+        ViewBag.StatisticalProcessName as string
+        ?? "Statistical Process";
+}
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h1 class="mb-1">Respondent Cases</h1>
+
+        <div class="text-muted">
+            <strong>@statisticalProcessName</strong>
+            <span class="mx-1">|</span>
+            @reportingCycleName
+        </div>
+    </div>
+
+    <a asp-action="Create"
+       asp-route-reportingCycleId="@reportingCycleId"
+       class="btn btn-primary">
+        Add Respondent Case
+    </a>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">
+        @TempData["Success"]
+    </div>
+}
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">
+        No respondent cases have been created for this reporting
+        cycle yet.
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Case Reference</th>
+                    <th>Respondent</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Distributed</th>
+                    <th>Latest Submission</th>
+                    <th>Accepted</th>
+                    <th>Active</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>
+                            <strong>@item.CaseReference</strong>
+                        </td>
+
+                        <td>
+                            <div>
+                                <strong>@item.RespondentCode</strong>
+                            </div>
+                            <div class="text-muted">
+                                @item.RespondentName
+                            </div>
+                        </td>
+
+                        <td>
+                            @item.RespondentTypeName
+                        </td>
+
+                        <td>
+                            @item.CurrentStatusName
+                        </td>
+
+                        <td>
+                            @(item.DistributedDate.HasValue
+                                ? item.DistributedDate.Value
+                                    .ToString("dd MMM yyyy HH:mm")
+                                : "-")
+                        </td>
+
+                        <td>
+                            @(item.LatestSubmissionDate.HasValue
+                                ? item.LatestSubmissionDate.Value
+                                    .ToString("dd MMM yyyy HH:mm")
+                                : "-")
+                        </td>
+
+                        <td>
+                            @(item.AcceptedDate.HasValue
+                                ? item.AcceptedDate.Value
+                                    .ToString("dd MMM yyyy HH:mm")
+                                : "-")
+                        </td>
+
+                        <td>
+                            @if (item.IsActive)
+                            {
+                                <span class="badge bg-success">
+                                    Active
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">
+                                    Inactive
+                                </span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<div class="mt-4">
+    <a asp-controller="ReportingCycles"
+       asp-action="Index"
+       asp-route-statisticalProcessId="@ViewBag.StatisticalProcessId"
+       class="btn btn-outline-secondary">
+        Back to Reporting Cycles
+    </a>
+</div>

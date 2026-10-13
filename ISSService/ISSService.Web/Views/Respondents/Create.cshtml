@@ -1,0 +1,223 @@
+@model ISSService.Web.Models.Respondents.RespondentViewModel
+
+@{
+    ViewData["Title"] = "Add Respondent";
+}
+
+<div class="container-fluid px-4 py-4">
+
+    <div class="mb-3">
+        <a asp-controller="Respondents"
+           asp-action="Index"
+           class="text-decoration-none">
+            &larr; Back to Respondent Register
+        </a>
+    </div>
+
+    <div class="mb-4">
+        <h1 class="mb-1">Add Respondent</h1>
+        <p class="text-muted mb-0">
+            Register an institution or other respondent for participation
+            in statistical data collection processes.
+        </p>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-white py-3">
+            <h4 class="mb-0">Respondent Details</h4>
+        </div>
+
+        <div class="card-body">
+            <form asp-controller="Respondents"
+                  asp-action="Create"
+                  method="post">
+
+                @Html.AntiForgeryToken()
+
+                <div asp-validation-summary="ModelOnly"
+                     class="text-danger mb-3">
+                </div>
+
+                <div class="row">
+
+                    <div class="col-md-4 mb-3">
+                        <label asp-for="Code"
+                               class="form-label">
+                        </label>
+
+                        <input asp-for="Code"
+                               class="form-control"
+                               placeholder="e.g. SACCO001" />
+
+                        <span asp-validation-for="Code"
+                              class="text-danger">
+                        </span>
+
+                        <div class="form-text">
+                            Use the official or controlled institutional
+                            identifier where available.
+                        </div>
+                    </div>
+
+                    <div class="col-md-8 mb-3">
+                        <label asp-for="Name"
+                               class="form-label">
+                        </label>
+
+                        <input asp-for="Name"
+                               class="form-control"
+                               placeholder="Enter respondent name" />
+
+                        <span asp-validation-for="Name"
+                              class="text-danger">
+                        </span>
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label asp-for="RespondentType"
+                               class="form-label">
+                        </label>
+
+                        <select asp-for="RespondentType"
+                                asp-items="Html.GetEnumSelectList<ISSService.Data.Entities.RespondentType>()"
+                                class="form-select">
+                        </select>
+
+                        <span asp-validation-for="RespondentType"
+                              class="text-danger">
+                        </span>
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label asp-for="Region"
+                               class="form-label">
+                        </label>
+
+                        <input asp-for="Region"
+                               class="form-control"
+                               placeholder="Enter region" />
+
+                        <span asp-validation-for="Region"
+                              class="text-danger">
+                        </span>
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label asp-for="District"
+                               class="form-label">
+                        </label>
+
+                        <input asp-for="District"
+                               class="form-control"
+                               placeholder="Enter district" />
+
+                        <span asp-validation-for="District"
+                              class="text-danger">
+                        </span>
+                    </div>
+
+                    <div class="col-12 mb-3">
+                        <label asp-for="Address"
+                               class="form-label">
+                        </label>
+
+                        <textarea asp-for="Address"
+                                  class="form-control"
+                                  rows="2"
+                                  placeholder="Enter physical or postal address">
+                        </textarea>
+
+                        <span asp-validation-for="Address"
+                              class="text-danger">
+                        </span>
+                    </div>
+
+                </div>
+
+                <hr class="my-4" />
+
+                <h5 class="mb-3">Primary Contact</h5>
+
+                <div class="row">
+
+                    <div class="col-md-4 mb-3">
+                        <label asp-for="PrimaryContactName"
+                               class="form-label">
+                        </label>
+
+                        <input asp-for="PrimaryContactName"
+                               class="form-control"
+                               placeholder="Enter contact name" />
+
+                        <span asp-validation-for="PrimaryContactName"
+                              class="text-danger">
+                        </span>
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label asp-for="PrimaryContactEmail"
+                               class="form-label">
+                        </label>
+
+                        <input asp-for="PrimaryContactEmail"
+                               class="form-control"
+                               placeholder="Enter email address" />
+
+                        <span asp-validation-for="PrimaryContactEmail"
+                              class="text-danger">
+                        </span>
+                    </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label asp-for="PrimaryContactPhone"
+                               class="form-label">
+                        </label>
+
+                        <input asp-for="PrimaryContactPhone"
+                               class="form-control"
+                               placeholder="Enter phone number" />
+
+                        <span asp-validation-for="PrimaryContactPhone"
+                              class="text-danger">
+                        </span>
+                    </div>
+
+                </div>
+
+                <hr class="my-4" />
+
+                <div class="form-check mb-4">
+                    <input asp-for="IsActive"
+                           class="form-check-input" />
+
+                    <label asp-for="IsActive"
+                           class="form-check-label">
+                        Active Respondent
+                    </label>
+
+                    <div class="form-text">
+                        Only active respondents should normally be considered
+                        for assignment to new reporting cycles.
+                    </div>
+                </div>
+
+                <button type="submit"
+                        class="btn btn-primary">
+                    Create Respondent
+                </button>
+
+                <a asp-controller="Respondents"
+                   asp-action="Index"
+                   class="btn btn-outline-secondary">
+                    Cancel
+                </a>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts
+{
+    <partial name="_ValidationScriptsPartial" />
+}

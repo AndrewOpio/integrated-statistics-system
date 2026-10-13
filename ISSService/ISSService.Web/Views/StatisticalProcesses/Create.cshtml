@@ -1,0 +1,225 @@
+@model ISSService.Web.Models.StatisticalProcesses.StatisticalProcessViewModel
+
+@using ISSService.Data.Entities
+
+@{
+    ViewData["Title"] = "Add Statistical Process";
+}
+
+<div class="container py-4">
+
+    <div class="mb-4">
+
+        <a asp-controller="StatisticalProcesses"
+           asp-action="Index"
+           class="text-decoration-none">
+            ← Back to Statistical Process Catalogue
+        </a>
+
+        <h2 class="mt-3 mb-1">
+            Add Statistical Process
+        </h2>
+
+        <p class="text-muted mb-0">
+            Configure a statistical production process for management within the
+            Integrated Statistical System.
+        </p>
+
+    </div>
+
+    <div class="card shadow-sm">
+
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0">
+                Process Configuration
+            </h5>
+        </div>
+
+        <div class="card-body p-4">
+
+            <form asp-controller="StatisticalProcesses"
+                  asp-action="Create"
+                  method="post">
+
+                @Html.AntiForgeryToken()
+
+                <div asp-validation-summary="ModelOnly"
+                     class="alert alert-danger"
+                     role="alert">
+                </div>
+
+                <div class="row g-3">
+
+                    <div class="col-md-4">
+
+                        <label asp-for="Code"
+                               class="form-label">
+                        </label>
+
+                        <input asp-for="Code"
+                               class="form-control"
+                               placeholder="e.g. SACCO" />
+
+                        <div class="form-text">
+                            Unique short code for the statistical process.
+                        </div>
+
+                        <span asp-validation-for="Code"
+                              class="text-danger">
+                        </span>
+
+                    </div>
+
+                    <div class="col-md-8">
+
+                        <label asp-for="Name"
+                               class="form-label">
+                        </label>
+
+                        <input asp-for="Name"
+                               class="form-control"
+                               placeholder="e.g. SACCO Returns" />
+
+                        <span asp-validation-for="Name"
+                              class="text-danger">
+                        </span>
+
+                    </div>
+
+                    <div class="col-12">
+
+                        <label asp-for="Description"
+                               class="form-label">
+                        </label>
+
+                        <textarea asp-for="Description"
+                                  class="form-control"
+                                  rows="3"
+                                  placeholder="Describe the purpose and scope of the statistical process.">
+                        </textarea>
+
+                        <span asp-validation-for="Description"
+                              class="text-danger">
+                        </span>
+
+                    </div>
+
+                    <div class="col-md-4">
+
+                        <label asp-for="ProcessType"
+                               class="form-label">
+                        </label>
+
+                        <select asp-for="ProcessType"
+                                asp-items="Html.GetEnumSelectList<StatisticalProcessType>()"
+                                class="form-select">
+                        </select>
+
+                        <span asp-validation-for="ProcessType"
+                              class="text-danger">
+                        </span>
+
+                    </div>
+
+                    <div class="col-md-4">
+
+                        <label asp-for="CollectionMode"
+                               class="form-label">
+                        </label>
+
+                        <select asp-for="CollectionMode"
+                                asp-items="Html.GetEnumSelectList<CollectionMode>()"
+                                class="form-select">
+                        </select>
+
+                        <span asp-validation-for="CollectionMode"
+                              class="text-danger">
+                        </span>
+
+                    </div>
+
+                    <div class="col-md-4">
+
+                        <label asp-for="ReportingFrequency"
+                               class="form-label">
+                        </label>
+
+                        <select asp-for="ReportingFrequency"
+                                asp-items="Html.GetEnumSelectList<ReportingFrequency>()"
+                                class="form-select">
+                        </select>
+
+                        <span asp-validation-for="ReportingFrequency"
+                              class="text-danger">
+                        </span>
+
+                    </div>
+
+                    <div class="col-md-8">
+
+                        <label asp-for="ResponsibleUnit"
+                               class="form-label">
+                        </label>
+
+                        <input asp-for="ResponsibleUnit"
+                               class="form-control"
+                               placeholder="Enter the responsible unit" />
+
+                        <span asp-validation-for="ResponsibleUnit"
+                              class="text-danger">
+                        </span>
+
+                    </div>
+
+                    <div class="col-md-4">
+
+                        <label class="form-label d-block">
+                            Process Status
+                        </label>
+
+                        <div class="form-check form-switch mt-2">
+
+                            <input asp-for="IsActive"
+                                   class="form-check-input"
+                                   role="switch" />
+
+                            <label asp-for="IsActive"
+                                   class="form-check-label">
+                                Active
+                            </label>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <hr class="my-4" />
+
+                <div class="d-flex justify-content-end gap-2">
+
+                    <a asp-controller="StatisticalProcesses"
+                       asp-action="Index"
+                       class="btn btn-outline-secondary">
+                        Cancel
+                    </a>
+
+                    <button type="submit"
+                            class="btn btn-primary">
+                        Save Statistical Process
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+@section Scripts
+{
+    <partial name="_ValidationScriptsPartial" />
+}

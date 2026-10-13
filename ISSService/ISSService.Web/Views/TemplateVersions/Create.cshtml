@@ -1,0 +1,296 @@
+@model ISSService.Web.Models.TemplateVersions.TemplateVersionViewModel
+
+@{
+    ViewData["Title"] = "Add Template Version";
+}
+
+<div class="container-fluid px-4 py-4">
+
+    <div class="mb-3">
+
+        <a asp-controller="TemplateVersions"
+           asp-action="Index"
+           asp-route-dataCollectionTemplateId="@Model.DataCollectionTemplateId"
+           class="text-decoration-none">
+            &larr; Back to Template Versions
+        </a>
+
+    </div>
+
+    <div class="mb-4">
+
+        <h1 class="mb-1">Add Template Version</h1>
+
+        <p class="text-muted mb-0">
+            Register a controlled version of
+            <strong>@Model.TemplateName</strong>.
+        </p>
+
+    </div>
+
+    <form asp-controller="TemplateVersions"
+          asp-action="Create"
+          method="post"
+          enctype="multipart/form-data">
+
+        @Html.AntiForgeryToken()
+
+        <input asp-for="DataCollectionTemplateId"
+               type="hidden" />
+
+        <div asp-validation-summary="ModelOnly"
+             class="alert alert-danger"
+             role="alert">
+        </div>
+
+        <div class="card shadow-sm mb-4">
+
+            <div class="card-header bg-white py-3">
+                <h4 class="mb-0">Version Configuration</h4>
+            </div>
+
+            <div class="card-body">
+
+                <div class="alert alert-light border mb-4">
+
+                    <div class="row g-3">
+
+                        <div class="col-md-4">
+
+                            <small class="text-muted d-block">
+                                Statistical Process
+                            </small>
+
+                            <strong>
+                                @Model.StatisticalProcessName
+                            </strong>
+
+                        </div>
+
+                        <div class="col-md-2">
+
+                            <small class="text-muted d-block">
+                                Process Code
+                            </small>
+
+                            <strong>
+                                @Model.StatisticalProcessCode
+                            </strong>
+
+                        </div>
+
+                        <div class="col-md-4">
+
+                            <small class="text-muted d-block">
+                                Data Collection Template
+                            </small>
+
+                            <strong>
+                                @Model.TemplateName
+                            </strong>
+
+                        </div>
+
+                        <div class="col-md-2">
+
+                            <small class="text-muted d-block">
+                                Template Code
+                            </small>
+
+                            <strong>
+                                @Model.TemplateCode
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="row g-3">
+
+                    <div class="col-md-3">
+
+                        <label asp-for="VersionNumber"
+                               class="form-label">
+                        </label>
+
+                        <input asp-for="VersionNumber"
+                               type="number"
+                               min="1"
+                               class="form-control" />
+
+                        <span asp-validation-for="VersionNumber"
+                              class="text-danger">
+                        </span>
+
+                        <div class="form-text">
+                            Version numbers are unique within this
+                            master template.
+                        </div>
+
+                    </div>
+
+                    <div class="col-md-5">
+
+                        <label asp-for="VersionLabel"
+                               class="form-label">
+                        </label>
+
+                        <input asp-for="VersionLabel"
+                               class="form-control"
+                               placeholder="e.g. Version 1" />
+
+                        <span asp-validation-for="VersionLabel"
+                              class="text-danger">
+                        </span>
+
+                    </div>
+
+                    <div class="col-md-4">
+
+                        <label asp-for="Status"
+                               class="form-label">
+                        </label>
+
+                        <select asp-for="Status"
+                                asp-items="Html.GetEnumSelectList<ISSService.Data.Entities.TemplateVersionStatus>()"
+                                class="form-select">
+                        </select>
+
+                        <span asp-validation-for="Status"
+                              class="text-danger">
+                        </span>
+
+                        <div class="form-text">
+                            New versions should normally begin as Draft.
+                        </div>
+
+                    </div>
+
+                    <div class="col-md-6">
+
+                        <label asp-for="EffectiveFrom"
+                               class="form-label">
+                        </label>
+
+                        <input asp-for="EffectiveFrom"
+                               type="date"
+                               class="form-control" />
+
+                        <span asp-validation-for="EffectiveFrom"
+                              class="text-danger">
+                        </span>
+
+                    </div>
+
+                    <div class="col-md-6">
+
+                        <label asp-for="EffectiveTo"
+                               class="form-label">
+                        </label>
+
+                        <input asp-for="EffectiveTo"
+                               type="date"
+                               class="form-control" />
+
+                        <span asp-validation-for="EffectiveTo"
+                              class="text-danger">
+                        </span>
+
+                        <div class="form-text">
+                            Leave blank while the version has no defined
+                            end date.
+                        </div>
+
+                    </div>
+
+                    <div class="col-12">
+                        <hr class="my-2" />
+
+                        <h5 class="mb-1">
+                            Controlled Workbook
+                        </h5>
+
+                        <small class="text-muted">
+                            The selected file will be sent to the Bank's
+                            Scan Service before ISS stores it. A file that
+                            does not receive a clean malware verdict will
+                            not be saved.
+                        </small>
+                    </div>
+
+                    <div class="col-12">
+
+                        <label asp-for="TemplateFile"
+                               class="form-label">
+                        </label>
+
+                        <input asp-for="TemplateFile"
+                               type="file"
+                               class="form-control"
+                               accept=".xlsx,.xls,.xlsm" />
+
+                        <span asp-validation-for="TemplateFile"
+                              class="text-danger">
+                        </span>
+
+                        <div class="form-text">
+                            Select the controlled Excel workbook for this
+                            template version.
+                        </div>
+
+                    </div>
+
+                    <div class="col-12">
+
+                        <label asp-for="ChangeNotes"
+                               class="form-label">
+                        </label>
+
+                        <textarea asp-for="ChangeNotes"
+                                  class="form-control"
+                                  rows="4"
+                                  placeholder="Describe the initial version or changes introduced by this version.">
+                        </textarea>
+
+                        <span asp-validation-for="ChangeNotes"
+                              class="text-danger">
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="card-footer bg-white">
+
+                <div class="d-flex justify-content-end gap-2">
+
+                    <a asp-controller="TemplateVersions"
+                       asp-action="Index"
+                       asp-route-dataCollectionTemplateId="@Model.DataCollectionTemplateId"
+                       class="btn btn-outline-secondary">
+                        Cancel
+                    </a>
+
+                    <button type="submit"
+                            class="btn btn-primary">
+                        Scan and Save Template Version
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </form>
+
+</div>
+
+@section Scripts
+{
+    <partial name="_ValidationScriptsPartial" />
+}

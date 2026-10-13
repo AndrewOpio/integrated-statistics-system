@@ -1,0 +1,268 @@
+@model IEnumerable<ISSService.Web.Models.DataCollectionTemplates.DataCollectionTemplateViewModel>
+
+@{
+    ViewData["Title"] = "Data Collection Templates";
+
+    var processId = (int)ViewBag.StatisticalProcessId;
+    var processCode = ViewBag.StatisticalProcessCode as string ?? "";
+    var processName = ViewBag.StatisticalProcessName as string ?? "";
+    var templates = Model.ToList();
+}
+
+<div class="container-fluid px-4 py-4">
+
+    <div class="mb-3">
+        <a asp-controller="StatisticalProcesses"
+           asp-action="Index"
+           class="text-decoration-none">
+            &larr; Back to Statistical Process Catalogue
+        </a>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+
+        <div>
+            <h1 class="mb-1">Data Collection Templates</h1>
+
+            <p class="text-muted mb-0">
+                Manage the templates and collection instruments used by
+                <strong>@processName</strong>.
+            </p>
+        </div>
+
+        <div>
+            <a asp-controller="DataCollectionTemplates"
+               asp-action="Create"
+               asp-route-statisticalProcessId="@processId"
+               class="btn btn-primary">
+                Add Data Collection Template
+            </a>
+        </div>
+
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show"
+             role="alert">
+
+            @TempData["Success"]
+
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close">
+            </button>
+
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show"
+             role="alert">
+
+            @TempData["Error"]
+
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close">
+            </button>
+
+        </div>
+    }
+
+    <div class="card shadow-sm">
+
+        <div class="card-header bg-white py-3">
+
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+
+                <div>
+                    <h4 class="mb-1">@processName</h4>
+
+                    <div class="text-muted">
+                        Process Code:
+                        <strong>@processCode</strong>
+                    </div>
+                </div>
+
+                <span class="badge bg-secondary">
+                    @templates.Count template(s)
+                </span>
+
+            </div>
+
+        </div>
+
+        <div class="card-body p-0">
+
+            @if (!templates.Any())
+            {
+                <div class="text-center py-5 px-4">
+
+                    <h4>No data collection templates configured</h4>
+
+                    <p class="text-muted mb-4">
+                        No template has yet been defined for
+                        @processName. Create the first template to
+                        establish the collection instrument that will
+                        later be versioned and assigned to reporting
+                        cycles.
+                    </p>
+
+                    <a asp-controller="DataCollectionTemplates"
+                       asp-action="Create"
+                       asp-route-statisticalProcessId="@processId"
+                       class="btn btn-primary">
+                        Add Data Collection Template
+                    </a>
+
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+
+                    <table class="table table-hover align-middle mb-0">
+
+                        <thead class="table-light">
+                            <tr>
+                                <th>Code</th>
+                                <th>Template</th>
+                                <th>Type</th>
+                                <th>Respondent Specific</th>
+                                <th>Previous Period Data</th>
+                                <th>Status</th>
+                                <th class="text-center">Versions</th>
+                                <th class="text-center">Active Versions</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            @foreach (var template in templates)
+                            {
+                                <tr>
+
+                                    <td>
+                                        <strong>@template.Code</strong>
+                                    </td>
+
+                                    <td>
+                                        <div class="fw-semibold">
+                                            @template.Name
+                                        </div>
+
+                                        @if (!string.IsNullOrWhiteSpace(
+                                            template.Description))
+                                        {
+                                            <small class="text-muted">
+                                                @template.Description
+                                            </small>
+                                        }
+                                    </td>
+
+                                    <td>
+                                        @template.TemplateType
+                                    </td>
+
+                                    <td>
+                                        @if (template.IsRespondentSpecific)
+                                        {
+                                            <span class="badge bg-success">
+                                                Yes
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">
+                                                No
+                                            </span>
+                                        }
+                                    </td>
+
+                                    <td>
+                                        @if (template.SupportsPreviousPeriodData)
+                                        {
+                                            <span class="badge bg-success">
+                                                Yes
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">
+                                                No
+                                            </span>
+                                        }
+                                    </td>
+
+                                    <td>
+                                        @if (template.IsActive)
+                                        {
+                                            <span class="badge bg-success">
+                                                Active
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">
+                                                Inactive
+                                            </span>
+                                        }
+                                    </td>
+
+                                    <td class="text-center">
+                                        @template.VersionCount
+                                    </td>
+
+                                    <td class="text-center">
+                                        @template.ActiveVersionCount
+                                    </td>
+
+                                    <td class="text-end">
+
+                                        <div class="d-flex justify-content-end flex-wrap gap-1">
+
+                                            <a asp-controller="DataCollectionTemplates"
+                                               asp-action="Details"
+                                               asp-route-id="@template.Id"
+                                               class="btn btn-sm btn-outline-secondary">
+                                                Details
+                                            </a>
+
+                                            <a asp-controller="DataCollectionTemplates"
+                                               asp-action="Edit"
+                                               asp-route-id="@template.Id"
+                                               class="btn btn-sm btn-outline-primary">
+                                                Edit
+                                            </a>
+
+                                            <a asp-controller="TemplateVersions"
+                                               asp-action="Index"
+                                               asp-route-dataCollectionTemplateId="@template.Id"
+                                               class="btn btn-sm btn-primary">
+                                                Versions
+                                            </a>
+
+                                        </div>
+
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+            }
+
+        </div>
+
+    </div>
+
+</div>

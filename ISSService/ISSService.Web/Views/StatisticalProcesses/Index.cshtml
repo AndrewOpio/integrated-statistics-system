@@ -1,0 +1,250 @@
+@model IEnumerable<ISSService.Web.Models.StatisticalProcesses.StatisticalProcessViewModel>
+
+@{
+    ViewData["Title"] = "Statistical Process Catalogue";
+}
+
+<div class="container-fluid py-4">
+
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
+        <div>
+            <h2 class="mb-1">Statistical Process Catalogue</h2>
+            <p class="text-muted mb-0">
+                Configure and manage statistical processes within the Integrated Statistical System.
+            </p>
+        </div>
+
+        <div class="mt-3 mt-md-0">
+            <a asp-controller="StatisticalProcesses"
+               asp-action="Create"
+               class="btn btn-primary">
+                Add Statistical Process
+            </a>
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show"
+             role="alert">
+            @TempData["Success"]
+
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close">
+            </button>
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show"
+             role="alert">
+            @TempData["Error"]
+
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close">
+            </button>
+        </div>
+    }
+
+    <div class="card shadow-sm">
+
+        <div class="card-header bg-white py-3">
+            <div class="d-flex justify-content-between align-items-center">
+
+                <div>
+                    <h5 class="mb-0">Configured Processes</h5>
+                    <small class="text-muted">
+                        Wave 1 and other statistical production processes
+                    </small>
+                </div>
+
+                <span class="badge bg-secondary">
+                    @Model.Count() process(es)
+                </span>
+
+            </div>
+        </div>
+
+        <div class="card-body p-0">
+
+            @if (!Model.Any())
+            {
+                <div class="p-5 text-center">
+
+                    <h5>No statistical processes configured</h5>
+
+                    <p class="text-muted mb-3">
+                        The ISS statistical process catalogue is currently empty.
+                        Add the first process to begin configuring reporting cycles,
+                        templates and respondents.
+                    </p>
+
+                    <a asp-controller="StatisticalProcesses"
+                       asp-action="Create"
+                       class="btn btn-primary">
+                        Add Statistical Process
+                    </a>
+
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+
+                    <table class="table table-hover align-middle mb-0">
+
+                        <thead class="table-light">
+                            <tr>
+                                <th>Code</th>
+                                <th>Process</th>
+                                <th>Type</th>
+                                <th>Collection Mode</th>
+                                <th>Frequency</th>
+                                <th>Responsible Unit</th>
+                                <th>Cycles</th>
+                                <th>Templates</th>
+                                <th>Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+
+                                    <td>
+                                        <span class="fw-semibold">
+                                            @item.Code
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        <div class="fw-semibold">
+                                            @item.Name
+                                        </div>
+
+                                        @if (!string.IsNullOrWhiteSpace(item.Description))
+                                        {
+                                            <div class="small text-muted">
+                                                @item.Description
+                                            </div>
+                                        }
+                                    </td>
+
+                                    <td>
+                                        @item.ProcessType
+                                    </td>
+
+                                    <td>
+                                        @item.CollectionMode
+                                    </td>
+
+                                    <td>
+                                        @item.ReportingFrequency
+                                    </td>
+
+                                    <td>
+                                        @if (!string.IsNullOrWhiteSpace(item.ResponsibleUnit))
+                                        {
+                                            @item.ResponsibleUnit
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">
+                                                Not specified
+                                            </span>
+                                        }
+                                    </td>
+
+                                    <td>
+                                        @item.ReportingCycleCount
+                                    </td>
+
+                                    <td>
+                                        @item.TemplateCount
+                                    </td>
+
+                                    <td>
+                                        @if (item.IsActive)
+                                        {
+                                            <span class="badge bg-success">
+                                                Active
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">
+                                                Inactive
+                                            </span>
+                                        }
+                                    </td>
+
+                                    <td class="text-end">
+
+                                        <div class="d-flex justify-content-end flex-wrap gap-1">
+
+                                            <a asp-controller="StatisticalProcesses"
+                                               asp-action="Details"
+                                               asp-route-id="@item.Id"
+                                               class="btn btn-sm btn-outline-secondary">
+                                                Details
+                                            </a>
+
+                                            <a asp-controller="StatisticalProcesses"
+                                               asp-action="Edit"
+                                               asp-route-id="@item.Id"
+                                               class="btn btn-sm btn-outline-primary">
+                                                Edit
+                                            </a>
+
+                                            <a asp-controller="ReportingCycles"
+                                               asp-action="Index"
+                                               asp-route-statisticalProcessId="@item.Id"
+                                               class="btn btn-sm btn-outline-primary">
+                                                Cycles
+                                            </a>
+
+                                            <a asp-controller="DataCollectionTemplates"
+                                               asp-action="Index"
+                                               asp-route-statisticalProcessId="@item.Id"
+                                               class="btn btn-sm btn-outline-primary">
+                                                Templates
+                                            </a>
+
+                                            @if (item.Code.Contains(
+                                                "SACCO",
+                                                StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                <a asp-controller="Sacco"
+                                                   asp-action="Index"
+                                                   class="btn btn-sm btn-primary">
+                                                    Open SACCO
+                                                </a>
+                                            }
+
+                                        </div>
+
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+            }
+
+        </div>
+
+    </div>
+
+</div>

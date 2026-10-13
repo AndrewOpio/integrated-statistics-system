@@ -1,0 +1,507 @@
+@model ISSService.Web.Models.Sacco.SaccoDashboardViewModel
+
+@{
+    ViewData["Title"] = "SACCO Reporting Dashboard";
+}
+
+<div class="container-fluid py-4">
+
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
+        <div>
+            <h2 class="mb-1">SACCO Reporting Dashboard</h2>
+            <p class="text-muted mb-0">
+                Integrated Statistical System
+            </p>
+        </div>
+
+        @if (Model.AvailableCycles.Any())
+        {
+            <form method="get"
+                  asp-controller="Sacco"
+                  asp-action="Index"
+                  class="mt-3 mt-md-0">
+
+                <div class="input-group">
+                    <label class="input-group-text" for="cycleId">
+                        Reporting Cycle
+                    </label>
+
+                    <select id="cycleId"
+                            name="cycleId"
+                            class="form-select"
+                            onchange="this.form.submit()">
+
+                        @foreach (var cycle in Model.AvailableCycles)
+                        {
+                            if (Model.SelectedCycleId == cycle.Id)
+                            {
+                                <option value="@cycle.Id" selected>
+                                    @cycle.Name
+                                </option>
+                            }
+                            else
+                            {
+                                <option value="@cycle.Id">
+                                    @cycle.Name
+                                </option>
+                            }
+                        }
+
+                    </select>
+                </div>
+
+            </form>
+        }
+    </div>
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            @TempData["Error"]
+        </div>
+    }
+
+    @if (!Model.ProcessConfigured)
+    {
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+
+                <h4 class="card-title">
+                    SACCO process setup required
+                </h4>
+
+                <p class="text-muted mb-0">
+                    The SACCO statistical process has not yet been configured
+                    in the ISS development database. Once the process is
+                    configured, its reporting cycles and respondent cases
+                    will appear here.
+                </p>
+
+            </div>
+        </div>
+    }
+    else if (!Model.AvailableCycles.Any())
+    {
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+
+                <h4 class="card-title">
+                    No reporting cycles available
+                </h4>
+
+                <p class="text-muted mb-0">
+                    @Model.ProcessName has been configured, but no reporting
+                    cycle has yet been created.
+                </p>
+
+            </div>
+        </div>
+    }
+    else if (Model.Cycle != null)
+    {
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+
+                <div class="row g-3">
+
+                    <div class="col-md-4">
+                        <div class="text-muted small">
+                            Reporting Cycle
+                        </div>
+
+                        <div class="fw-semibold">
+                            @Model.Cycle.Name
+                        </div>
+
+                        <div class="small text-muted">
+                            @Model.Cycle.Code
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="text-muted small">
+                            Reporting Period
+                        </div>
+
+                        <div class="fw-semibold">
+                            @Model.Cycle.PeriodStartDate.ToString("dd MMM yyyy")
+                            -
+                            @Model.Cycle.PeriodEndDate.ToString("dd MMM yyyy")
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="text-muted small">
+                            Cycle Status
+                        </div>
+
+                        <div class="fw-semibold">
+                            @Model.Cycle.Status
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="text-muted small">
+                            Collection Opens
+                        </div>
+
+                        <div class="fw-semibold">
+                            @if (Model.Cycle.CollectionOpenDate.HasValue)
+                            {
+                                @Model.Cycle.CollectionOpenDate.Value.ToString("dd MMM yyyy")
+                            }
+                            else
+                            {
+                                <span>Not set</span>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="text-muted small">
+                            Submission Due
+                        </div>
+
+                        <div class="fw-semibold">
+                            @if (Model.Cycle.SubmissionDueDate.HasValue)
+                            {
+                                @Model.Cycle.SubmissionDueDate.Value.ToString("dd MMM yyyy")
+                            }
+                            else
+                            {
+                                <span>Not set</span>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="text-muted small">
+                            Collection Closes
+                        </div>
+
+                        <div class="fw-semibold">
+                            @if (Model.Cycle.CollectionCloseDate.HasValue)
+                            {
+                                @Model.Cycle.CollectionCloseDate.Value.ToString("dd MMM yyyy")
+                            }
+                            else
+                            {
+                                <span>Not set</span>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="text-muted small">
+                            Assigned Template
+                        </div>
+
+                        <div class="fw-semibold">
+                            @if (!string.IsNullOrWhiteSpace(Model.Cycle.TemplateName))
+                            {
+                                @Model.Cycle.TemplateName
+                            }
+                            else
+                            {
+                                <span>No template assigned</span>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="text-muted small">
+                            Template Version
+                        </div>
+
+                        <div class="fw-semibold">
+                            @if (!string.IsNullOrWhiteSpace(Model.Cycle.TemplateVersion))
+                            {
+                                @Model.Cycle.TemplateVersion
+                            }
+                            else
+                            {
+                                <span>Not available</span>
+                            }
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+
+            <div class="col-sm-6 col-xl">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+
+                        <div class="text-muted small">
+                            Respondent Cases
+                        </div>
+
+                        <div class="fs-3 fw-bold">
+                            @Model.Cycle.TotalCases
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-6 col-xl">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+
+                        <div class="text-muted small">
+                            Distributed
+                        </div>
+
+                        <div class="fs-3 fw-bold">
+                            @Model.Cycle.DistributedCases
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-6 col-xl">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+
+                        <div class="text-muted small">
+                            Submitted
+                        </div>
+
+                        <div class="fs-3 fw-bold">
+                            @Model.Cycle.CasesWithSubmissions
+                        </div>
+
+                        <div class="small text-muted">
+                            @Model.Cycle.SubmissionRate.ToString("0.0")%
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-6 col-xl">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+
+                        <div class="text-muted small">
+                            Accepted
+                        </div>
+
+                        <div class="fs-3 fw-bold">
+                            @Model.Cycle.AcceptedCases
+                        </div>
+
+                        <div class="small text-muted">
+                            @Model.Cycle.AcceptanceRate.ToString("0.0")%
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-6 col-xl">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+
+                        <div class="text-muted small">
+                            Validation Failures
+                        </div>
+
+                        <div class="fs-3 fw-bold">
+                            @Model.Cycle.CasesWithValidationFailures
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="card shadow-sm">
+
+            <div class="card-header bg-white py-3">
+                <div class="d-flex justify-content-between align-items-center">
+
+                    <div>
+                        <h5 class="mb-0">
+                            SACCO Respondent Cases
+                        </h5>
+
+                        <small class="text-muted">
+                            Reporting and submission monitoring
+                        </small>
+                    </div>
+
+                    <span class="badge bg-secondary">
+                        @Model.RespondentCases.Count case(s)
+                    </span>
+
+                </div>
+            </div>
+
+            <div class="card-body p-0">
+
+                @if (!Model.RespondentCases.Any())
+                {
+                    <div class="p-4 text-center">
+
+                        <h5>No respondent cases</h5>
+
+                        <p class="text-muted mb-0">
+                            No SACCO respondents have yet been assigned
+                            to this reporting cycle.
+                        </p>
+
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+
+                        <table class="table table-hover align-middle mb-0">
+
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Case Reference</th>
+                                    <th>SACCO</th>
+                                    <th>Location</th>
+                                    <th>Workflow Status</th>
+                                    <th>Submissions</th>
+                                    <th>Latest Submission</th>
+                                    <th>Validation</th>
+                                    <th>Last Submitted</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                @foreach (var item in Model.RespondentCases)
+                                {
+                                    <tr>
+
+                                        <td>
+                                            <span class="fw-semibold">
+                                                @item.CaseReference
+                                            </span>
+                                        </td>
+
+                                        <td>
+                                            <div class="fw-semibold">
+                                                @item.RespondentName
+                                            </div>
+
+                                            <div class="small text-muted">
+                                                @item.RespondentCode
+                                            </div>
+                                        </td>
+
+                                        <td>
+                                            @if (!string.IsNullOrWhiteSpace(item.District) ||
+                                                 !string.IsNullOrWhiteSpace(item.Region))
+                                            {
+                                                @if (!string.IsNullOrWhiteSpace(item.District))
+                                                {
+                                                    <div>
+                                                        @item.District
+                                                    </div>
+                                                }
+
+                                                @if (!string.IsNullOrWhiteSpace(item.Region))
+                                                {
+                                                    <div class="small text-muted">
+                                                        @item.Region
+                                                    </div>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">
+                                                    Not available
+                                                </span>
+                                            }
+                                        </td>
+
+                                        <td>
+                                            @if (string.IsNullOrWhiteSpace(item.CurrentStatusName))
+                                            {
+                                                <span class="badge bg-secondary">
+                                                    Not configured
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-primary">
+                                                    @item.CurrentStatusName
+                                                </span>
+                                            }
+                                        </td>
+
+                                        <td>
+                                            @item.SubmissionCount
+                                        </td>
+
+                                        <td>
+                                            @if (item.LatestSubmissionStatus.HasValue)
+                                            {
+                                                @item.LatestSubmissionStatus.Value
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">
+                                                    Not submitted
+                                                </span>
+                                            }
+                                        </td>
+
+                                        <td>
+                                            @if (item.LatestValidationStatus.HasValue)
+                                            {
+                                                @item.LatestValidationStatus.Value
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">
+                                                    Not run
+                                                </span>
+                                            }
+                                        </td>
+
+                                        <td>
+                                            @if (item.LatestSubmissionDate.HasValue)
+                                            {
+                                                var submittedDate =
+                                                    item.LatestSubmissionDate.Value;
+
+                                                <span>
+                                                    @submittedDate.ToString("dd MMM yyyy HH:mm")
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">
+                                                    —
+                                                </span>
+                                            }
+                                        </td>
+
+                                    </tr>
+                                }
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+                }
+
+            </div>
+
+        </div>
+    }
+
+</div>

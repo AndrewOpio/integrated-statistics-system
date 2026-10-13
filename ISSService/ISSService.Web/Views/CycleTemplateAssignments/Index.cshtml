@@ -1,0 +1,226 @@
+@model IEnumerable<ISSService.Web.Models.CycleTemplateAssignments.CycleTemplateAssignmentViewModel>
+
+@{
+    ViewData["Title"] = "Cycle Templates";
+
+    var reportingCycleId = (int)ViewBag.ReportingCycleId;
+    var statisticalProcessId = (int)ViewBag.StatisticalProcessId;
+
+    var reportingCycleCode =
+        ViewBag.ReportingCycleCode?.ToString() ?? string.Empty;
+
+    var reportingCycleName =
+        ViewBag.ReportingCycleName?.ToString() ?? string.Empty;
+
+    var statisticalProcessCode =
+        ViewBag.StatisticalProcessCode?.ToString() ?? string.Empty;
+
+    var statisticalProcessName =
+        ViewBag.StatisticalProcessName?.ToString() ?? string.Empty;
+
+    var periodStartDate =
+        ViewBag.PeriodStartDate is DateTime startDate
+            ? startDate
+            : DateTime.MinValue;
+
+    var periodEndDate =
+        ViewBag.PeriodEndDate is DateTime endDate
+            ? endDate
+            : DateTime.MinValue;
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h1 class="h3 mb-1">Cycle Templates</h1>
+            <p class="text-muted mb-0">
+                Manage the controlled data collection template versions
+                assigned to this reporting cycle.
+            </p>
+        </div>
+
+        <a asp-controller="CycleTemplateAssignments"
+           asp-action="Create"
+           asp-route-reportingCycleId="@reportingCycleId"
+           class="btn btn-primary">
+            Assign Template Version
+        </a>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success" role="alert">
+            @TempData["Success"]
+        </div>
+    }
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <strong>Reporting Cycle</strong>
+        </div>
+
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <div class="text-muted small">
+                        Statistical Process
+                    </div>
+                    <div class="fw-semibold">
+                        @statisticalProcessCode -
+                        @statisticalProcessName
+                    </div>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <div class="text-muted small">
+                        Reporting Cycle
+                    </div>
+                    <div class="fw-semibold">
+                        @reportingCycleCode -
+                        @reportingCycleName
+                    </div>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <div class="text-muted small">
+                        Reporting Period
+                    </div>
+                    <div class="fw-semibold">
+                        @periodStartDate.ToString("dd MMM yyyy")
+                        -
+                        @periodEndDate.ToString("dd MMM yyyy")
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="alert alert-info">
+            No template versions have been assigned to this
+            reporting cycle yet.
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-header">
+                <strong>Assigned Template Versions</strong>
+            </div>
+
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Template</th>
+                                <th>Version</th>
+                                <th>Version Status</th>
+                                <th>Workbook</th>
+                                <th>Primary</th>
+                                <th>Assignment Status</th>
+                                <th>Assigned</th>
+                                <th>Assigned By</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold">
+                                            @item.TemplateCode
+                                        </div>
+                                        <div class="small text-muted">
+                                            @item.TemplateName
+                                        </div>
+                                    </td>
+
+                                    <td>
+                                        <div>
+                                            Version @item.VersionNumber
+                                        </div>
+                                        <div class="small text-muted">
+                                            @item.VersionLabel
+                                        </div>
+                                    </td>
+
+                                    <td>
+                                        @item.VersionStatus
+                                    </td>
+
+                                    <td>
+                                        @if (string.IsNullOrWhiteSpace(
+                                            item.FileName))
+                                        {
+                                            <span class="text-muted">
+                                                No file
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            @item.FileName
+                                        }
+                                    </td>
+
+                                    <td>
+                                        @if (item.IsPrimary)
+                                        {
+                                            <span class="badge bg-primary">
+                                                Primary
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">
+                                                Supporting
+                                            </span>
+                                        }
+                                    </td>
+
+                                    <td>
+                                        @if (item.IsActive)
+                                        {
+                                            <span class="badge bg-success">
+                                                Active
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">
+                                                Inactive
+                                            </span>
+                                        }
+                                    </td>
+
+                                    <td>
+                                        @item.AssignedDate.ToString(
+                                            "dd MMM yyyy HH:mm")
+                                    </td>
+
+                                    <td>
+                                        @(string.IsNullOrWhiteSpace(
+                                            item.AssignedBy)
+                                            ? "-"
+                                            : item.AssignedBy)
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="mt-4">
+        <a asp-controller="ReportingCycles"
+           asp-action="Index"
+           asp-route-statisticalProcessId="@statisticalProcessId"
+           class="btn btn-outline-secondary">
+            Back to Reporting Cycles
+        </a>
+    </div>
+</div>

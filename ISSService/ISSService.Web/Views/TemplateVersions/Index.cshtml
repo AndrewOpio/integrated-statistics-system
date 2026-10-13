@@ -1,0 +1,279 @@
+@model IEnumerable<ISSService.Web.Models.TemplateVersions.TemplateVersionViewModel>
+
+@{
+    ViewData["Title"] = "Template Versions";
+
+    var templateId = (int)ViewBag.DataCollectionTemplateId;
+    var templateCode = ViewBag.TemplateCode as string ?? "";
+    var templateName = ViewBag.TemplateName as string ?? "";
+    var processId = (int)ViewBag.StatisticalProcessId;
+    var processCode = ViewBag.StatisticalProcessCode as string ?? "";
+    var processName = ViewBag.StatisticalProcessName as string ?? "";
+
+    var versions = Model.ToList();
+}
+
+<div class="container-fluid px-4 py-4">
+
+    <div class="mb-3">
+        <a asp-controller="DataCollectionTemplates"
+           asp-action="Index"
+           asp-route-statisticalProcessId="@processId"
+           class="text-decoration-none">
+            &larr; Back to Data Collection Templates
+        </a>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+
+        <div>
+            <h1 class="mb-1">Template Versions</h1>
+
+            <p class="text-muted mb-0">
+                Manage versioned collection instruments for
+                <strong>@templateName</strong>.
+            </p>
+        </div>
+
+        <div>
+            <a asp-controller="TemplateVersions"
+               asp-action="Create"
+               asp-route-dataCollectionTemplateId="@templateId"
+               class="btn btn-primary">
+                Add Template Version
+            </a>
+        </div>
+
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show"
+             role="alert">
+
+            @TempData["Success"]
+
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close">
+            </button>
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show"
+             role="alert">
+
+            @TempData["Error"]
+
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Close">
+            </button>
+        </div>
+    }
+
+    <div class="card shadow-sm">
+
+        <div class="card-header bg-white py-3">
+
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+
+                <div>
+                    <h4 class="mb-1">@templateName</h4>
+
+                    <div class="text-muted">
+                        Template Code:
+                        <strong>@templateCode</strong>
+                    </div>
+
+                    <div class="text-muted">
+                        Statistical Process:
+                        <strong>@processName (@processCode)</strong>
+                    </div>
+                </div>
+
+                <span class="badge bg-secondary">
+                    @versions.Count version(s)
+                </span>
+
+            </div>
+
+        </div>
+
+        <div class="card-body p-0">
+
+            @if (!versions.Any())
+            {
+                <div class="text-center py-5 px-4">
+
+                    <h4>No template versions configured</h4>
+
+                    <p class="text-muted mb-4">
+                        The master template has been defined, but no
+                        physical version has yet been uploaded.
+                        Create Version 1 to register the first
+                        controlled collection workbook.
+                    </p>
+
+                    <a asp-controller="TemplateVersions"
+                       asp-action="Create"
+                       asp-route-dataCollectionTemplateId="@templateId"
+                       class="btn btn-primary">
+                        Add Template Version
+                    </a>
+
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+
+                    <table class="table table-hover align-middle mb-0">
+
+                        <thead class="table-light">
+                            <tr>
+                                <th>Version</th>
+                                <th>Label</th>
+                                <th>Effective Period</th>
+                                <th>Status</th>
+                                <th>Workbook</th>
+                                <th>Integrity Hash</th>
+                                <th class="text-center">
+                                    Cycle Assignments
+                                </th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            @foreach (var version in versions)
+                            {
+                                var statusClass = version.Status switch
+                                {
+                                    ISSService.Data.Entities.TemplateVersionStatus.Draft
+                                        => "bg-secondary",
+
+                                    ISSService.Data.Entities.TemplateVersionStatus.Approved
+                                        => "bg-info text-dark",
+
+                                    ISSService.Data.Entities.TemplateVersionStatus.Active
+                                        => "bg-success",
+
+                                    ISSService.Data.Entities.TemplateVersionStatus.Retired
+                                        => "bg-dark",
+
+                                    _ => "bg-secondary"
+                                };
+
+                                <tr>
+
+                                    <td>
+                                        <strong>
+                                            @version.VersionNumber
+                                        </strong>
+                                    </td>
+
+                                    <td>
+                                        <div class="fw-semibold">
+                                            @version.VersionLabel
+                                        </div>
+
+                                        @if (!string.IsNullOrWhiteSpace(
+                                            version.ChangeNotes))
+                                        {
+                                            <small class="text-muted">
+                                                @version.ChangeNotes
+                                            </small>
+                                        }
+                                    </td>
+
+                                    <td>
+                                        <div>
+                                            @version.EffectiveFrom.ToString("dd MMM yyyy")
+                                        </div>
+
+                                        <small class="text-muted">
+                                            to
+                                            @(version.EffectiveTo?.ToString("dd MMM yyyy")
+                                                ?? "Open-ended")
+                                        </small>
+                                    </td>
+
+                                    <td>
+                                        <span class="badge @statusClass">
+                                            @version.Status
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        @if (!string.IsNullOrWhiteSpace(
+                                            version.FileName))
+                                        {
+                                            <span>
+                                                @version.FileName
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">
+                                                No file
+                                            </span>
+                                        }
+                                    </td>
+
+                                    <td>
+                                        @if (!string.IsNullOrWhiteSpace(
+                                            version.FileHash))
+                                        {
+                                            <code title="@version.FileHash">
+                                                @(version.FileHash.Length > 16
+                                                    ? version.FileHash[..16] + "..."
+                                                    : version.FileHash)
+                                            </code>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">
+                                                Not available
+                                            </span>
+                                        }
+                                    </td>
+
+                                    <td class="text-center">
+                                        @version.CycleAssignmentCount
+                                    </td>
+
+                                    <td>
+                                        <div>
+                                            @version.CreatedDate.ToString("dd MMM yyyy")
+                                        </div>
+
+                                        @if (!string.IsNullOrWhiteSpace(
+                                            version.CreatedBy))
+                                        {
+                                            <small class="text-muted">
+                                                @version.CreatedBy
+                                            </small>
+                                        }
+                                    </td>
+
+                                </tr>
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+            }
+
+        </div>
+
+    </div>
+
+</div>

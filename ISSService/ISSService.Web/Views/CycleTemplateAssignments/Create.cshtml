@@ -1,0 +1,161 @@
+@model ISSService.Web.Models.CycleTemplateAssignments.CycleTemplateAssignmentViewModel
+
+@{
+    ViewData["Title"] = "Assign Template Version";
+}
+
+<div class="container-fluid">
+    <div class="mb-4">
+        <h1 class="h3 mb-1">Assign Template Version</h1>
+        <p class="text-muted mb-0">
+            Assign a controlled data collection template version
+            to this reporting cycle.
+        </p>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <strong>Reporting Cycle</strong>
+        </div>
+
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <div class="text-muted small">
+                        Statistical Process
+                    </div>
+                    <div class="fw-semibold">
+                        @Model.StatisticalProcessCode -
+                        @Model.StatisticalProcessName
+                    </div>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <div class="text-muted small">
+                        Reporting Cycle
+                    </div>
+                    <div class="fw-semibold">
+                        @Model.ReportingCycleCode -
+                        @Model.ReportingCycleName
+                    </div>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <div class="text-muted small">
+                        Reporting Period
+                    </div>
+                    <div class="fw-semibold">
+                        @Model.PeriodStartDate.ToString("dd MMM yyyy")
+                        -
+                        @Model.PeriodEndDate.ToString("dd MMM yyyy")
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <strong>Template Assignment</strong>
+        </div>
+
+        <div class="card-body">
+            <form asp-action="Create" method="post">
+                @Html.AntiForgeryToken()
+
+                <input asp-for="ReportingCycleId"
+                       type="hidden" />
+
+                <input asp-for="StatisticalProcessId"
+                       type="hidden" />
+
+                <div asp-validation-summary="ModelOnly"
+                     class="text-danger mb-3">
+                </div>
+
+                @if (Model.AvailableTemplateVersions.Any())
+                {
+                    <div class="mb-3">
+                        <label asp-for="DataCollectionTemplateVersionId"
+                               class="form-label">
+                        </label>
+
+                        <select asp-for="DataCollectionTemplateVersionId"
+                                asp-items="Model.AvailableTemplateVersions"
+                                class="form-select">
+                            <option value="">
+                                -- Select a template version --
+                            </option>
+                        </select>
+
+                        <span asp-validation-for="DataCollectionTemplateVersionId"
+                              class="text-danger">
+                        </span>
+
+                        <div class="form-text">
+                            Only active master templates belonging to
+                            @Model.StatisticalProcessCode are available
+                            for assignment.
+                        </div>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input asp-for="IsPrimary"
+                               class="form-check-input" />
+
+                        <label asp-for="IsPrimary"
+                               class="form-check-label">
+                        </label>
+
+                        <div class="form-text">
+                            The primary collection instrument is the
+                            principal template used for this reporting
+                            cycle. Assigning a new primary template will
+                            automatically demote any existing primary
+                            assignment.
+                        </div>
+                    </div>
+
+                    <div class="form-check mb-4">
+                        <input asp-for="IsActive"
+                               class="form-check-input" />
+
+                        <label asp-for="IsActive"
+                               class="form-check-label">
+                            Active Assignment
+                        </label>
+
+                        <div class="form-text">
+                            An active assignment is available for use
+                            within this reporting cycle.
+                        </div>
+                    </div>
+
+                    <button type="submit"
+                            class="btn btn-primary">
+                        Assign Template Version
+                    </button>
+                }
+                else
+                {
+                    <div class="alert alert-info mb-4">
+                        There are no additional eligible template
+                        versions available for assignment to this
+                        reporting cycle.
+                    </div>
+                }
+
+                <a asp-action="Index"
+                   asp-route-reportingCycleId="@Model.ReportingCycleId"
+                   class="btn btn-outline-secondary">
+                    Cancel
+                </a>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts
+{
+    <partial name="_ValidationScriptsPartial" />
+}
