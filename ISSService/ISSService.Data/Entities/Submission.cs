@@ -6,6 +6,12 @@ public class Submission
 
     public int RespondentCaseId { get; set; }
 
+    // Records the exact template version against which this
+    // submission was prepared. This preserves historical
+    // traceability even if the reporting cycle's template
+    // assignment changes later.
+    public int DataCollectionTemplateVersionId { get; set; }
+
     public int SubmissionNumber { get; set; }
 
     public SubmissionMethod SubmissionMethod { get; set; }
@@ -26,6 +32,9 @@ public class Submission
 
     public string? Notes { get; set; }
 
+    // Only the latest valid submission for a respondent case
+    // should be marked as current. Earlier submissions remain
+    // available as part of the audit trail.
     public bool IsCurrent { get; set; } = true;
 
     public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
@@ -37,6 +46,9 @@ public class Submission
     public string? ModifiedBy { get; set; }
 
     public RespondentCase RespondentCase { get; set; } = null!;
+
+    public DataCollectionTemplateVersion DataCollectionTemplateVersion { get; set; }
+        = null!;
 
     public ICollection<ValidationRun> ValidationRuns { get; set; }
         = new List<ValidationRun>();

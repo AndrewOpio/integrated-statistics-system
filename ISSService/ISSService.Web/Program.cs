@@ -1,7 +1,9 @@
 using ISSService.Core.Services.Workflows;
 using ISSService.Data.Configurations;
 using ISSService.Data.Services.Workflows;
+using ISSService.Web.Services.Submissions;
 using ISSService.Web.Services.Templates;
+using ISSService.Web.Services.Validation;
 using Microsoft.EntityFrameworkCore;
 using ScanService.Client;
 using WorkflowService.Client;
@@ -41,6 +43,27 @@ builder.Services.AddScanServiceClient(scanServiceBaseUrl);
 builder.Services.AddScoped<
     IScannedTemplateStorageService,
     ScannedTemplateStorageService>();
+
+// Register ISS scanned submission storage.
+// Submitted returns are scanned by the Bank's ScanService before
+// any file bytes are written to ISS storage.
+builder.Services.AddScoped<
+    IScannedSubmissionStorageService,
+    ScannedSubmissionStorageService>();
+
+// Register SACCO workbook validation.
+// The validator independently evaluates the submitted workbook
+// rather than relying on the workbook's own validation formulas.
+builder.Services.AddScoped<
+    ISaccoWorkbookValidationService,
+    SaccoWorkbookValidationService>();
+
+// Register submission validation orchestration.
+// This service creates auditable validation runs, persists findings,
+// and updates the submission validation status.
+builder.Services.AddScoped<
+    ISubmissionValidationService,
+    SubmissionValidationService>();
 
 var app = builder.Build();
 

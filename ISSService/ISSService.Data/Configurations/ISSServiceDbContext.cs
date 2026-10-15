@@ -394,6 +394,13 @@ public class ISSServiceDbContext : DbContext
             })
             .IsUnique();
 
+            entity.HasIndex(x => x.DataCollectionTemplateVersionId);
+
+            entity.HasOne(x => x.DataCollectionTemplateVersion)
+                .WithMany()
+                .HasForeignKey(x => x.DataCollectionTemplateVersionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             entity.HasMany(x => x.ValidationRuns)
                 .WithOne(x => x.Submission)
                 .HasForeignKey(x => x.SubmissionId)

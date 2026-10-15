@@ -1,0 +1,168 @@
+@model ISSService.Web.Models.Submissions.SubmissionViewModel
+
+@{
+    ViewData["Title"] = "Upload SACCO Return";
+}
+
+<h1 class="mb-3">Upload SACCO Return</h1>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">
+            Respondent Case
+        </h5>
+
+        <dl class="row mb-0">
+            <dt class="col-sm-3">
+                Case Reference
+            </dt>
+            <dd class="col-sm-9">
+                @Model.CaseReference
+            </dd>
+
+            <dt class="col-sm-3">
+                Respondent
+            </dt>
+            <dd class="col-sm-9">
+                @Model.RespondentCode - @Model.RespondentName
+            </dd>
+
+            <dt class="col-sm-3">
+                Statistical Process
+            </dt>
+            <dd class="col-sm-9">
+                @Model.StatisticalProcessName
+            </dd>
+
+            <dt class="col-sm-3">
+                Reporting Cycle
+            </dt>
+            <dd class="col-sm-9">
+                @Model.ReportingCycleName
+            </dd>
+
+            <dt class="col-sm-3">
+                Reporting Period
+            </dt>
+            <dd class="col-sm-9">
+                @Model.ReportingPeriod
+            </dd>
+
+            <dt class="col-sm-3">
+                Current Case Status
+            </dt>
+            <dd class="col-sm-9">
+                @Model.CurrentCaseStatusName
+            </dd>
+        </dl>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">
+            Assigned Collection Template
+        </h5>
+
+        <dl class="row mb-0">
+            <dt class="col-sm-3">
+                Template
+            </dt>
+            <dd class="col-sm-9">
+                @Model.TemplateName
+            </dd>
+
+            <dt class="col-sm-3">
+                Template Version
+            </dt>
+            <dd class="col-sm-9">
+                @Model.TemplateVersionLabel
+            </dd>
+        </dl>
+
+        <div class="form-text mt-2">
+            The applicable template version is determined
+            automatically from the reporting cycle's active
+            primary template assignment.
+        </div>
+    </div>
+</div>
+
+<form asp-action="Create"
+      method="post"
+      enctype="multipart/form-data">
+
+    @Html.AntiForgeryToken()
+
+    <input asp-for="RespondentCaseId"
+           type="hidden" />
+
+    <input asp-for="DataCollectionTemplateVersionId"
+           type="hidden" />
+
+    <div asp-validation-summary="ModelOnly"
+         class="text-danger mb-3">
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="SubmissionFile"
+               class="form-label">
+        </label>
+
+        <input asp-for="SubmissionFile"
+               type="file"
+               class="form-control" />
+
+        <span asp-validation-for="SubmissionFile"
+              class="text-danger">
+        </span>
+
+        <div class="form-text">
+            Upload the completed return prepared using the
+            assigned collection template. The file will be
+            scanned by the Bank's Scan Service before it is
+            stored by ISS.
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Notes"
+               class="form-label">
+        </label>
+
+        <textarea asp-for="Notes"
+                  class="form-control"
+                  rows="4">
+        </textarea>
+
+        <span asp-validation-for="Notes"
+              class="text-danger">
+        </span>
+    </div>
+
+    <div class="alert alert-light border">
+        The submission number, submission date, applicable
+        template version and initial submission status are
+        assigned automatically. If this is a corrected return,
+        the earlier submission remains in the audit history
+        and the new return becomes the current submission.
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit"
+                class="btn btn-primary">
+            Upload Return
+        </button>
+
+        <a asp-action="Index"
+           asp-route-respondentCaseId="@Model.RespondentCaseId"
+           class="btn btn-outline-secondary">
+            Cancel
+        </a>
+    </div>
+</form>
+
+@section Scripts
+{
+    <partial name="_ValidationScriptsPartial" />
+}

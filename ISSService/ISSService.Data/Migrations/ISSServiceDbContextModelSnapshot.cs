@@ -548,6 +548,9 @@ namespace ISSService.Data.Migrations
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("DataCollectionTemplateVersionId")
+                        .HasColumnType("int");
+
                     b.Property<string>("FileHash")
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)");
@@ -597,6 +600,8 @@ namespace ISSService.Data.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DataCollectionTemplateVersionId");
 
                     b.HasIndex("RespondentCaseId", "SubmissionNumber")
                         .IsUnique();
@@ -843,11 +848,19 @@ namespace ISSService.Data.Migrations
 
             modelBuilder.Entity("ISSService.Data.Entities.Submission", b =>
                 {
+                    b.HasOne("ISSService.Data.Entities.DataCollectionTemplateVersion", "DataCollectionTemplateVersion")
+                        .WithMany()
+                        .HasForeignKey("DataCollectionTemplateVersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("ISSService.Data.Entities.RespondentCase", "RespondentCase")
                         .WithMany("Submissions")
                         .HasForeignKey("RespondentCaseId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("DataCollectionTemplateVersion");
 
                     b.Navigation("RespondentCase");
                 });

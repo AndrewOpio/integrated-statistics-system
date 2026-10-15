@@ -1,0 +1,277 @@
+@model IEnumerable<ISSService.Web.Models.Submissions.SubmissionViewModel>
+
+@{
+    ViewData["Title"] = "Submission History";
+}
+
+<h1 class="mb-3">Submission History</h1>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">
+            Respondent Case
+        </h5>
+
+        <dl class="row mb-0">
+            <dt class="col-sm-3">
+                Case Reference
+            </dt>
+            <dd class="col-sm-9">
+                @ViewBag.CaseReference
+            </dd>
+
+            <dt class="col-sm-3">
+                Respondent
+            </dt>
+            <dd class="col-sm-9">
+                @ViewBag.RespondentCode - @ViewBag.RespondentName
+            </dd>
+
+            <dt class="col-sm-3">
+                Statistical Process
+            </dt>
+            <dd class="col-sm-9">
+                @ViewBag.StatisticalProcessName
+            </dd>
+
+            <dt class="col-sm-3">
+                Reporting Cycle
+            </dt>
+            <dd class="col-sm-9">
+                @ViewBag.ReportingCycleName
+            </dd>
+
+            <dt class="col-sm-3">
+                Current Case Status
+            </dt>
+            <dd class="col-sm-9">
+                @ViewBag.CurrentStatusName
+            </dd>
+        </dl>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">
+        @TempData["Success"]
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">
+        @TempData["Error"]
+    </div>
+}
+
+<div class="d-flex gap-2 mb-3">
+    <a asp-action="Create"
+       asp-route-respondentCaseId="@ViewBag.RespondentCaseId"
+       class="btn btn-primary">
+        Upload SACCO Return
+    </a>
+
+    <a asp-controller="RespondentCases"
+       asp-action="Index"
+       asp-route-reportingCycleId="@ViewBag.ReportingCycleId"
+       class="btn btn-outline-secondary">
+        Back to Respondent Cases
+    </a>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">
+        No returns have been submitted for this respondent case.
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered align-middle">
+            <thead>
+                <tr>
+                    <th>
+                        Submission
+                    </th>
+                    <th>
+                        Template Version
+                    </th>
+                    <th>
+                        File
+                    </th>
+                    <th>
+                        Submitted
+                    </th>
+                    <th>
+                        Submitted By
+                    </th>
+                    <th>
+                        Status
+                    </th>
+                    <th>
+                        Current
+                    </th>
+                    <th>
+                        Actions
+                    </th>
+                </tr>
+            </thead>
+
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>
+                            #@item.SubmissionNumber
+                        </td>
+
+                        <td>
+                            <div>
+                                @item.TemplateName
+                            </div>
+
+                            <small class="text-muted">
+                                @item.TemplateVersionLabel
+                            </small>
+                        </td>
+
+                        <td>
+                            <div>
+                                @item.FileName
+                            </div>
+
+                            @if (item.FileSizeBytes.HasValue)
+                            {
+                                <small class="text-muted">
+                                    @($"{item.FileSizeBytes.Value:N0} bytes")
+                                </small>
+                            }
+                        </td>
+
+                        <td>
+                            @if (item.SubmittedDate.HasValue)
+                            {
+                                @item.SubmittedDate.Value.ToString(
+                                    "dd MMM yyyy HH:mm")
+                            }
+                        </td>
+
+                        <td>
+                            @item.SubmittedBy
+                        </td>
+
+                        <td>
+                            @if (item.StatusName == "Validated")
+                            {
+                                <span class="badge bg-success">
+                                    Validated
+                                </span>
+                            }
+                            else if (item.StatusName == "ValidationFailed")
+                            {
+                                <span class="badge bg-danger">
+                                    Validation Failed
+                                </span>
+                            }
+                            else if (item.StatusName == "Validating")
+                            {
+                                <span class="badge bg-warning text-dark">
+                                    Validating
+                                </span>
+                            }
+                            else if (item.StatusName == "Received")
+                            {
+                                <span class="badge bg-info text-dark">
+                                    Received
+                                </span>
+                            }
+                            else if (item.StatusName == "Superseded")
+                            {
+                                <span class="badge bg-secondary">
+                                    Superseded
+                                </span>
+                            }
+                            else
+                            {
+                                @item.StatusName
+                            }
+                        </td>
+
+                        <td>
+                            @if (item.IsCurrent)
+                            {
+                                <span class="badge bg-success">
+                                    Current
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">
+                                    Historical
+                                </span>
+                            }
+                        </td>
+
+                        <td>
+                            @if (item.IsCurrent &&
+                                 item.StatusName != "Accepted" &&
+                                 item.StatusName != "Validating")
+                            {
+                                <form asp-action="Validate"
+                                      method="post"
+                                      class="d-inline">
+                                    <input type="hidden"
+                                           name="submissionId"
+                                           value="@item.Id" />
+
+                                    <button type="submit"
+                                            class="btn btn-sm btn-outline-primary">
+                                        Validate
+                                    </button>
+                                </form>
+                            }
+                            else if (!item.IsCurrent)
+                            {
+                                <span class="text-muted">
+                                    Historical
+                                </span>
+                            }
+                            else if (item.StatusName == "Validating")
+                            {
+                                <span class="text-muted">
+                                    Validation in progress
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">
+                                    No action
+                                </span>
+                            }
+                        </td>
+                    </tr>
+
+                    @if (!string.IsNullOrWhiteSpace(item.Notes))
+                    {
+                        <tr>
+                            <td colspan="8">
+                                <strong>Notes:</strong>
+                                @item.Notes
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="alert alert-light border mt-3">
+        Earlier submissions are retained as part of the return's
+        audit history. Only the latest successfully received return
+        is marked as the current submission. Validation is performed
+        against the stored return and recorded as part of the
+        submission's validation history.
+    </div>
+}
