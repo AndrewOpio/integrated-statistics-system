@@ -215,41 +215,48 @@ else
                         </td>
 
                         <td>
-                            @if (item.IsCurrent &&
-                                 item.StatusName != "Accepted" &&
-                                 item.StatusName != "Validating")
-                            {
-                                <form asp-action="Validate"
-                                      method="post"
-                                      class="d-inline">
-                                    <input type="hidden"
-                                           name="submissionId"
-                                           value="@item.Id" />
+                            <div class="d-flex flex-wrap gap-1">
+                                @if (item.HasValidationRuns)
+                                {
+                                    <a asp-action="ValidationResults"
+                                       asp-route-submissionId="@item.Id"
+                                       class="btn btn-sm btn-outline-secondary">
+                                        Validation Results
+                                    </a>
+                                }
 
-                                    <button type="submit"
-                                            class="btn btn-sm btn-outline-primary">
-                                        Validate
-                                    </button>
-                                </form>
-                            }
-                            else if (!item.IsCurrent)
-                            {
-                                <span class="text-muted">
-                                    Historical
-                                </span>
-                            }
-                            else if (item.StatusName == "Validating")
-                            {
-                                <span class="text-muted">
-                                    Validation in progress
-                                </span>
-                            }
-                            else
-                            {
-                                <span class="text-muted">
-                                    No action
-                                </span>
-                            }
+                                @if (item.IsCurrent &&
+                                     item.StatusName != "Accepted" &&
+                                     item.StatusName != "Validating")
+                                {
+                                    <form asp-action="Validate"
+                                          method="post"
+                                          class="d-inline">
+                                        <input type="hidden"
+                                               name="submissionId"
+                                               value="@item.Id" />
+
+                                        <button type="submit"
+                                                class="btn btn-sm btn-outline-primary">
+                                            Validate
+                                        </button>
+                                    </form>
+                                }
+                                else if (item.StatusName == "Validating")
+                                {
+                                    <span class="text-muted small">
+                                        Validation in progress
+                                    </span>
+                                }
+                                else if (!item.IsCurrent &&
+                                         item.StatusName != "Validated" &&
+                                         item.StatusName != "ValidationFailed")
+                                {
+                                    <span class="text-muted small">
+                                        Historical
+                                    </span>
+                                }
+                            </div>
                         </td>
                     </tr>
 

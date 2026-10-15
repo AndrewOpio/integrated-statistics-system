@@ -67,6 +67,9 @@ public class SubmissionViewModel
     [Display(Name = "Current Submission")]
     public bool IsCurrent { get; set; }
 
+    [Display(Name = "Validation History")]
+    public bool HasValidationRuns { get; set; }
+
     [StringLength(
         2000,
         ErrorMessage = "Notes cannot exceed 2,000 characters.")]

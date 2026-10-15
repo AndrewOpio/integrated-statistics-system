@@ -1,6 +1,7 @@
-using ISSService.Data.Configurations;
+﻿using ISSService.Data.Configurations;
 using ISSService.Data.Entities;
 using ISSService.Web.Models.Submissions;
+using ISSService.Web.Models.Validation;
 using ISSService.Web.Services.Submissions;
 using ISSService.Web.Services.Validation;
 using Microsoft.AspNetCore.Mvc;
@@ -88,6 +89,8 @@ public class SubmissionsController : Controller
                     x.FileHash,
                 IsCurrent =
                     x.IsCurrent,
+                HasValidationRuns =
+                    x.ValidationRuns.Any(),
                 Notes =
                     x.Notes
             })
@@ -431,6 +434,17 @@ public class SubmissionsController : Controller
                 $"{result.PassedChecks} passed, " +
                 $"{result.WarningChecks} warnings, " +
                 $"{result.FailedChecks} failed.";
+
+            if (result.ValidationRunId.HasValue)
+            {
+                return RedirectToAction(
+                    nameof(ValidationResults),
+                    new
+                    {
+                        submissionId =
+                            submission.Id
+                    });
+            }
         }
         else
         {
@@ -445,6 +459,175 @@ public class SubmissionsController : Controller
                 respondentCaseId =
                     submission.RespondentCaseId
             });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ValidationResults(
+        int submissionId,
+        CancellationToken cancellationToken)
+    {
+        var model = await _db.Submissions
+            .AsNoTracking()
+            .Where(x => x.Id == submissionId)
+            .Select(x => new ValidationResultsViewModel
+            {
+                SubmissionId =
+                    x.Id,
+
+                RespondentCaseId =
+                    x.RespondentCaseId,
+
+                SubmissionNumber =
+                    x.SubmissionNumber,
+
+                SubmissionStatusName =
+                    x.Status.ToString(),
+
+                IsCurrentSubmission =
+                    x.IsCurrent,
+
+                FileName =
+                    x.FileName,
+
+                SubmittedDate =
+                    x.SubmittedDate,
+
+                SubmittedBy =
+                    x.SubmittedBy,
+
+                CaseReference =
+                    x.RespondentCase.CaseReference,
+
+                RespondentCode =
+                    x.RespondentCase.Respondent.Code,
+
+                RespondentName =
+                    x.RespondentCase.Respondent.Name,
+
+                StatisticalProcessName =
+                    x.RespondentCase.ReportingCycle
+                        .StatisticalProcess.Name,
+
+                ReportingCycleName =
+                    x.RespondentCase.ReportingCycle.Name,
+
+                ReportingPeriod =
+                    $"{x.RespondentCase.ReportingCycle.PeriodStartDate:dd MMM yyyy} - " +
+                    $"{x.RespondentCase.ReportingCycle.PeriodEndDate:dd MMM yyyy}",
+
+                TemplateName =
+                    x.DataCollectionTemplateVersion
+                        .DataCollectionTemplate.Name,
+
+                TemplateVersionLabel =
+                    x.DataCollectionTemplateVersion.VersionLabel,
+
+                ValidationRuns =
+                    x.ValidationRuns
+                        .OrderByDescending(run =>
+                            run.RunNumber)
+                        .Select(run =>
+                            new ValidationRunViewModel
+                            {
+                                Id =
+                                    run.Id,
+
+                                RunNumber =
+                                    run.RunNumber,
+
+                                StatusName =
+                                    run.Status.ToString(),
+
+                                StartedDate =
+                                    run.StartedDate,
+
+                                CompletedDate =
+                                    run.CompletedDate,
+
+                                TotalChecks =
+                                    run.TotalChecks,
+
+                                PassedChecks =
+                                    run.PassedChecks,
+
+                                WarningChecks =
+                                    run.WarningChecks,
+
+                                FailedChecks =
+                                    run.FailedChecks,
+
+                                Summary =
+                                    run.Summary,
+
+                                ExecutedBy =
+                                    run.ExecutedBy,
+
+                                Findings =
+                                    run.Findings
+                                        .OrderByDescending(finding =>
+                                            finding.Severity)
+                                        .ThenBy(finding =>
+                                            finding.RuleCode)
+                                        .Select(finding =>
+                                            new ValidationFindingViewModel
+                                            {
+                                                Id =
+                                                    finding.Id,
+
+                                                RuleCode =
+                                                    finding.RuleCode,
+
+                                                RuleName =
+                                                    finding.RuleName,
+
+                                                SeverityName =
+                                                    finding.Severity.ToString(),
+
+                                                StatusName =
+                                                    finding.Status.ToString(),
+
+                                                Message =
+                                                    finding.Message,
+
+                                                SheetName =
+                                                    finding.SheetName,
+
+                                                FieldName =
+                                                    finding.FieldName,
+
+                                                CellReference =
+                                                    finding.CellReference,
+
+                                                RecordReference =
+                                                    finding.RecordReference,
+
+                                                ObservedValue =
+                                                    finding.ObservedValue,
+
+                                                ExpectedValue =
+                                                    finding.ExpectedValue,
+
+                                                ResolutionNotes =
+                                                    finding.ResolutionNotes,
+
+                                                ResolvedDate =
+                                                    finding.ResolvedDate,
+
+                                                ResolvedBy =
+                                                    finding.ResolvedBy
+                                            })
+                                        .ToList()
+                            })
+                        .ToList()
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (model == null)
+        {
+            return NotFound();
+        }
+
+        return View(model);
     }
 
     private async Task<RespondentCase?> GetRespondentCaseAsync(

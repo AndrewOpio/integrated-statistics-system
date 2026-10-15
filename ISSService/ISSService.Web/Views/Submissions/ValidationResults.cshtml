@@ -1,0 +1,513 @@
+@model ISSService.Web.Models.Validation.ValidationResultsViewModel
+
+@{
+    ViewData["Title"] = "Validation Results";
+}
+
+<h1 class="mb-3">Validation Results</h1>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">
+        @TempData["Success"]
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">
+        @TempData["Error"]
+    </div>
+}
+
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+                <h5 class="card-title mb-1">
+                    Submission #@Model.SubmissionNumber
+                </h5>
+
+                <div class="text-muted">
+                    @Model.FileName
+                </div>
+            </div>
+
+            <div>
+                @if (Model.SubmissionStatusName == "Validated")
+                {
+                    <span class="badge bg-success">
+                        Validated
+                    </span>
+                }
+                else if (Model.SubmissionStatusName == "ValidationFailed")
+                {
+                    <span class="badge bg-danger">
+                        Validation Failed
+                    </span>
+                }
+                else if (Model.SubmissionStatusName == "Validating")
+                {
+                    <span class="badge bg-warning text-dark">
+                        Validating
+                    </span>
+                }
+                else
+                {
+                    <span class="badge bg-secondary">
+                        @Model.SubmissionStatusName
+                    </span>
+                }
+
+                @if (Model.IsCurrentSubmission)
+                {
+                    <span class="badge bg-primary">
+                        Current
+                    </span>
+                }
+                else
+                {
+                    <span class="badge bg-secondary">
+                        Historical
+                    </span>
+                }
+            </div>
+        </div>
+
+        <dl class="row mb-0">
+            <dt class="col-sm-3">
+                Case Reference
+            </dt>
+            <dd class="col-sm-9">
+                @Model.CaseReference
+            </dd>
+
+            <dt class="col-sm-3">
+                Respondent
+            </dt>
+            <dd class="col-sm-9">
+                @Model.RespondentCode - @Model.RespondentName
+            </dd>
+
+            <dt class="col-sm-3">
+                Statistical Process
+            </dt>
+            <dd class="col-sm-9">
+                @Model.StatisticalProcessName
+            </dd>
+
+            <dt class="col-sm-3">
+                Reporting Cycle
+            </dt>
+            <dd class="col-sm-9">
+                @Model.ReportingCycleName
+            </dd>
+
+            <dt class="col-sm-3">
+                Reporting Period
+            </dt>
+            <dd class="col-sm-9">
+                @Model.ReportingPeriod
+            </dd>
+
+            <dt class="col-sm-3">
+                Template
+            </dt>
+            <dd class="col-sm-9">
+                @Model.TemplateName
+                <span class="text-muted">
+                    (@Model.TemplateVersionLabel)
+                </span>
+            </dd>
+
+            <dt class="col-sm-3">
+                Submitted
+            </dt>
+            <dd class="col-sm-9">
+                @Model.SubmittedDate.ToString("dd MMM yyyy HH:mm")
+            </dd>
+
+            <dt class="col-sm-3">
+                Submitted By
+            </dt>
+            <dd class="col-sm-9">
+                @Model.SubmittedBy
+            </dd>
+        </dl>
+    </div>
+</div>
+
+<div class="d-flex gap-2 mb-4">
+    <a asp-action="Index"
+       asp-route-respondentCaseId="@Model.RespondentCaseId"
+       class="btn btn-outline-secondary">
+        Back to Submission History
+    </a>
+
+    @if (Model.IsCurrentSubmission &&
+         Model.SubmissionStatusName != "Accepted" &&
+         Model.SubmissionStatusName != "Validating")
+    {
+        <form asp-action="Validate"
+              method="post"
+              class="d-inline">
+            <input type="hidden"
+                   name="submissionId"
+                   value="@Model.SubmissionId" />
+
+            <button type="submit"
+                    class="btn btn-outline-primary">
+                Validate Again
+            </button>
+        </form>
+    }
+</div>
+
+@if (Model.ValidationRuns.Count == 0)
+{
+    <div class="alert alert-info">
+        No validation runs have been recorded for this submission.
+    </div>
+}
+else
+{
+    @foreach (var run in Model.ValidationRuns)
+    {
+        <div class="card mb-4">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <strong>
+                        Validation Run #@run.RunNumber
+                    </strong>
+
+                    <div>
+                        @if (run.StatusName == "Passed")
+                        {
+                            <span class="badge bg-success">
+                                Passed
+                            </span>
+                        }
+                        else if (run.StatusName == "PassedWithWarnings")
+                        {
+                            <span class="badge bg-warning text-dark">
+                                Passed with Warnings
+                            </span>
+                        }
+                        else if (run.StatusName == "Failed")
+                        {
+                            <span class="badge bg-danger">
+                                Failed
+                            </span>
+                        }
+                        else if (run.StatusName == "Error")
+                        {
+                            <span class="badge bg-dark">
+                                Error
+                            </span>
+                        }
+                        else if (run.StatusName == "Running")
+                        {
+                            <span class="badge bg-info text-dark">
+                                Running
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">
+                                @run.StatusName
+                            </span>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <div class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 h-100">
+                            <div class="text-muted small">
+                                Total Checks
+                            </div>
+                            <div class="fs-4 fw-semibold">
+                                @run.TotalChecks
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 h-100">
+                            <div class="text-muted small">
+                                Passed
+                            </div>
+                            <div class="fs-4 fw-semibold text-success">
+                                @run.PassedChecks
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 h-100">
+                            <div class="text-muted small">
+                                Warnings
+                            </div>
+                            <div class="fs-4 fw-semibold text-warning">
+                                @run.WarningChecks
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 h-100">
+                            <div class="text-muted small">
+                                Failed
+                            </div>
+                            <div class="fs-4 fw-semibold text-danger">
+                                @run.FailedChecks
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <dl class="row">
+                    <dt class="col-sm-3">
+                        Started
+                    </dt>
+                    <dd class="col-sm-9">
+                        @run.StartedDate.ToString("dd MMM yyyy HH:mm:ss")
+                    </dd>
+
+                    <dt class="col-sm-3">
+                        Completed
+                    </dt>
+                    <dd class="col-sm-9">
+                        @if (run.CompletedDate.HasValue)
+                        {
+                            @run.CompletedDate.Value.ToString(
+                                "dd MMM yyyy HH:mm:ss")
+                        }
+                        else
+                        {
+                            <span class="text-muted">
+                                Not completed
+                            </span>
+                        }
+                    </dd>
+
+                    <dt class="col-sm-3">
+                        Executed By
+                    </dt>
+                    <dd class="col-sm-9">
+                        @run.ExecutedBy
+                    </dd>
+
+                    @if (!string.IsNullOrWhiteSpace(run.Summary))
+                    {
+                        <dt class="col-sm-3">
+                            Summary
+                        </dt>
+                        <dd class="col-sm-9">
+                            @run.Summary
+                        </dd>
+                    }
+                </dl>
+
+                @if (run.Findings.Count == 0)
+                {
+                    <div class="alert alert-success mb-0">
+                        No validation findings were recorded for this run.
+                    </div>
+                }
+                else
+                {
+                    <h6 class="mt-4 mb-3">
+                        Validation Findings
+                    </h6>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered align-middle">
+                            <thead>
+                                <tr>
+                                    <th>
+                                        Rule
+                                    </th>
+                                    <th>
+                                        Severity
+                                    </th>
+                                    <th>
+                                        Location
+                                    </th>
+                                    <th>
+                                        Finding
+                                    </th>
+                                    <th>
+                                        Observed
+                                    </th>
+                                    <th>
+                                        Expected
+                                    </th>
+                                    <th>
+                                        Status
+                                    </th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                @foreach (var finding in run.Findings)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div class="fw-semibold">
+                                                @finding.RuleCode
+                                            </div>
+
+                                            <small class="text-muted">
+                                                @finding.RuleName
+                                            </small>
+                                        </td>
+
+                                        <td>
+                                            @if (finding.SeverityName == "Critical")
+                                            {
+                                                <span class="badge bg-dark">
+                                                    Critical
+                                                </span>
+                                            }
+                                            else if (finding.SeverityName == "Error")
+                                            {
+                                                <span class="badge bg-danger">
+                                                    Error
+                                                </span>
+                                            }
+                                            else if (finding.SeverityName == "Warning")
+                                            {
+                                                <span class="badge bg-warning text-dark">
+                                                    Warning
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-info text-dark">
+                                                    Information
+                                                </span>
+                                            }
+                                        </td>
+
+                                        <td>
+                                            @if (!string.IsNullOrWhiteSpace(
+                                                finding.SheetName))
+                                            {
+                                                <div>
+                                                    @finding.SheetName
+                                                </div>
+                                            }
+
+                                            @if (!string.IsNullOrWhiteSpace(
+                                                finding.CellReference))
+                                            {
+                                                <small class="text-muted">
+                                                    Cell @finding.CellReference
+                                                </small>
+                                            }
+
+                                            @if (!string.IsNullOrWhiteSpace(
+                                                finding.FieldName))
+                                            {
+                                                <div>
+                                                    <small class="text-muted">
+                                                        @finding.FieldName
+                                                    </small>
+                                                </div>
+                                            }
+
+                                            @if (!string.IsNullOrWhiteSpace(
+                                                finding.RecordReference))
+                                            {
+                                                <div>
+                                                    <small class="text-muted">
+                                                        @finding.RecordReference
+                                                    </small>
+                                                </div>
+                                            }
+                                        </td>
+
+                                        <td>
+                                            @finding.Message
+                                        </td>
+
+                                        <td>
+                                            @if (!string.IsNullOrWhiteSpace(
+                                                finding.ObservedValue))
+                                            {
+                                                <code>
+                                                    @finding.ObservedValue
+                                                </code>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">
+                                                    -
+                                                </span>
+                                            }
+                                        </td>
+
+                                        <td>
+                                            @if (!string.IsNullOrWhiteSpace(
+                                                finding.ExpectedValue))
+                                            {
+                                                <code>
+                                                    @finding.ExpectedValue
+                                                </code>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">
+                                                    -
+                                                </span>
+                                            }
+                                        </td>
+
+                                        <td>
+                                            @finding.StatusName
+                                        </td>
+                                    </tr>
+
+                                    @if (!string.IsNullOrWhiteSpace(
+                                        finding.ResolutionNotes))
+                                    {
+                                        <tr>
+                                            <td colspan="7"
+                                                class="bg-light">
+                                                <strong>
+                                                    Resolution:
+                                                </strong>
+
+                                                @finding.ResolutionNotes
+
+                                                @if (finding.ResolvedDate.HasValue)
+                                                {
+                                                    <span class="text-muted">
+                                                        —
+                                                        @finding.ResolvedDate.Value.ToString(
+                                                            "dd MMM yyyy HH:mm")
+                                                    </span>
+                                                }
+
+                                                @if (!string.IsNullOrWhiteSpace(
+                                                    finding.ResolvedBy))
+                                                {
+                                                    <span class="text-muted">
+                                                        by @finding.ResolvedBy
+                                                    </span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+}
