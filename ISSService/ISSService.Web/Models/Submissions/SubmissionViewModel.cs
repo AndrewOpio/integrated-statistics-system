@@ -70,6 +70,18 @@ public class SubmissionViewModel
     [Display(Name = "Validation History")]
     public bool HasValidationRuns { get; set; }
 
+    [Display(Name = "Operational Dataset")]
+    public bool HasOperationalDataset { get; set; }
+
+    [Display(Name = "Operational Dataset")]
+    public int? OperationalDatasetId { get; set; }
+
+    [Display(Name = "Extracted Observations")]
+    public int OperationalObservationCount { get; set; }
+
+    [Display(Name = "Extraction Status")]
+    public string? OperationalDatasetStatusName { get; set; }
+
     [StringLength(
         2000,
         ErrorMessage = "Notes cannot exceed 2,000 characters.")]

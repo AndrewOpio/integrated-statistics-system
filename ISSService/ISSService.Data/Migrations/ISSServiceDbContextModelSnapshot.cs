@@ -198,6 +198,63 @@ namespace ISSService.Data.Migrations
                     b.ToTable("DataCollectionTemplateVersions", (string)null);
                 });
 
+            modelBuilder.Entity("ISSService.Data.Entities.OperationalDataset", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ExtractedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("ExtractionCompletedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ExtractionStartedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsCurrent")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ModifiedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("ObservationCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SubmissionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Summary")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SubmissionId");
+
+                    b.HasIndex("SubmissionId", "IsCurrent");
+
+                    b.ToTable("OperationalDatasets", (string)null);
+                });
+
             modelBuilder.Entity("ISSService.Data.Entities.ReportingCycle", b =>
                 {
                     b.Property<int>("Id")
@@ -471,6 +528,89 @@ namespace ISSService.Data.Migrations
                     b.HasIndex("RespondentCaseId", "ChangedDate");
 
                     b.ToTable("RespondentCaseStatusHistories", (string)null);
+                });
+
+            modelBuilder.Entity("ISSService.Data.Entities.StatisticalObservation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<bool?>("BooleanValue")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("CellReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DateValue")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("IndicatorCode")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("IndicatorName")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<decimal?>("NumericValue")
+                        .HasPrecision(28, 6)
+                        .HasColumnType("decimal(28,6)");
+
+                    b.Property<DateTime?>("ObservationDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("OperationalDatasetId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RecordReference")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<string>("SectionCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("SectionName")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<string>("SheetName")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<string>("TextValue")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("UnitOfMeasure")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("ValueType")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OperationalDatasetId");
+
+                    b.HasIndex("OperationalDatasetId", "IndicatorCode");
+
+                    b.HasIndex("OperationalDatasetId", "ObservationDate");
+
+                    b.ToTable("StatisticalObservations", (string)null);
                 });
 
             modelBuilder.Entity("ISSService.Data.Entities.StatisticalProcess", b =>
@@ -805,6 +945,17 @@ namespace ISSService.Data.Migrations
                     b.Navigation("DataCollectionTemplate");
                 });
 
+            modelBuilder.Entity("ISSService.Data.Entities.OperationalDataset", b =>
+                {
+                    b.HasOne("ISSService.Data.Entities.Submission", "Submission")
+                        .WithMany("OperationalDatasets")
+                        .HasForeignKey("SubmissionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Submission");
+                });
+
             modelBuilder.Entity("ISSService.Data.Entities.ReportingCycle", b =>
                 {
                     b.HasOne("ISSService.Data.Entities.StatisticalProcess", "StatisticalProcess")
@@ -844,6 +995,17 @@ namespace ISSService.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("RespondentCase");
+                });
+
+            modelBuilder.Entity("ISSService.Data.Entities.StatisticalObservation", b =>
+                {
+                    b.HasOne("ISSService.Data.Entities.OperationalDataset", "OperationalDataset")
+                        .WithMany("Observations")
+                        .HasForeignKey("OperationalDatasetId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("OperationalDataset");
                 });
 
             modelBuilder.Entity("ISSService.Data.Entities.Submission", b =>
@@ -897,6 +1059,11 @@ namespace ISSService.Data.Migrations
                     b.Navigation("CycleAssignments");
                 });
 
+            modelBuilder.Entity("ISSService.Data.Entities.OperationalDataset", b =>
+                {
+                    b.Navigation("Observations");
+                });
+
             modelBuilder.Entity("ISSService.Data.Entities.ReportingCycle", b =>
                 {
                     b.Navigation("RespondentCases");
@@ -925,6 +1092,8 @@ namespace ISSService.Data.Migrations
 
             modelBuilder.Entity("ISSService.Data.Entities.Submission", b =>
                 {
+                    b.Navigation("OperationalDatasets");
+
                     b.Navigation("ValidationRuns");
                 });
 

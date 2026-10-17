@@ -1,7 +1,8 @@
-﻿using ISSService.Data.Configurations;
+using ISSService.Data.Configurations;
 using ISSService.Data.Entities;
 using ISSService.Web.Models.Submissions;
 using ISSService.Web.Models.Validation;
+using ISSService.Web.Services.Extraction;
 using ISSService.Web.Services.Submissions;
 using ISSService.Web.Services.Validation;
 using Microsoft.AspNetCore.Mvc;
@@ -14,17 +15,20 @@ public class SubmissionsController : Controller
     private readonly ISSServiceDbContext _db;
     private readonly IScannedSubmissionStorageService _storageService;
     private readonly ISubmissionValidationService _validationService;
+    private readonly ISaccoDataExtractionService _dataExtractionService;
     private readonly ILogger<SubmissionsController> _logger;
 
     public SubmissionsController(
         ISSServiceDbContext db,
         IScannedSubmissionStorageService storageService,
         ISubmissionValidationService validationService,
+        ISaccoDataExtractionService dataExtractionService,
         ILogger<SubmissionsController> logger)
     {
         _db = db;
         _storageService = storageService;
         _validationService = validationService;
+        _dataExtractionService = dataExtractionService;
         _logger = logger;
     }
 
@@ -91,6 +95,42 @@ public class SubmissionsController : Controller
                     x.IsCurrent,
                 HasValidationRuns =
                     x.ValidationRuns.Any(),
+                HasOperationalDataset =
+                    x.OperationalDatasets.Any(dataset =>
+                        dataset.IsCurrent &&
+                        dataset.Status ==
+                            OperationalDatasetStatus.Extracted),
+                OperationalDatasetId =
+                    x.OperationalDatasets
+                        .Where(dataset =>
+                            dataset.IsCurrent &&
+                            dataset.Status ==
+                                OperationalDatasetStatus.Extracted)
+                        .OrderByDescending(dataset =>
+                            dataset.Id)
+                        .Select(dataset =>
+                            (int?)dataset.Id)
+                        .FirstOrDefault(),
+                OperationalObservationCount =
+                    x.OperationalDatasets
+                        .Where(dataset =>
+                            dataset.IsCurrent &&
+                            dataset.Status ==
+                                OperationalDatasetStatus.Extracted)
+                        .OrderByDescending(dataset =>
+                            dataset.Id)
+                        .Select(dataset =>
+                            dataset.ObservationCount)
+                        .FirstOrDefault(),
+                OperationalDatasetStatusName =
+                    x.OperationalDatasets
+                        .Where(dataset =>
+                            dataset.IsCurrent)
+                        .OrderByDescending(dataset =>
+                            dataset.Id)
+                        .Select(dataset =>
+                            dataset.Status.ToString())
+                        .FirstOrDefault(),
                 Notes =
                     x.Notes
             })
@@ -445,6 +485,83 @@ public class SubmissionsController : Controller
                             submission.Id
                     });
             }
+        }
+        else
+        {
+            TempData["Error"] =
+                result.Message;
+        }
+
+        return RedirectToAction(
+            nameof(Index),
+            new
+            {
+                respondentCaseId =
+                    submission.RespondentCaseId
+            });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Extract(
+        int submissionId,
+        CancellationToken cancellationToken)
+    {
+        var submission = await _db.Submissions
+            .AsNoTracking()
+            .Where(x => x.Id == submissionId)
+            .Select(x => new
+            {
+                x.Id,
+                x.RespondentCaseId
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (submission == null)
+        {
+            return NotFound();
+        }
+
+        SaccoDataExtractionResult result;
+
+        try
+        {
+            result = await _dataExtractionService.ExtractAsync(
+                submission.Id,
+                GetCurrentUsername(),
+                cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Unexpected error extracting operational data from " +
+                "submission {SubmissionId}.",
+                submission.Id);
+
+            TempData["Error"] =
+                "An unexpected error occurred while extracting " +
+                "operational data from the validated return.";
+
+            return RedirectToAction(
+                nameof(Index),
+                new
+                {
+                    respondentCaseId =
+                        submission.RespondentCaseId
+                });
+        }
+
+        if (result.Success)
+        {
+            TempData["Success"] =
+                result.Message +
+                $" {result.ObservationCount} operational observations " +
+                "are available for downstream processing.";
         }
         else
         {

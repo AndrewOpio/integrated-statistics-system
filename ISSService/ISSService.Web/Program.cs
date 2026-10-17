@@ -1,6 +1,8 @@
 using ISSService.Core.Services.Workflows;
 using ISSService.Data.Configurations;
 using ISSService.Data.Services.Workflows;
+using ISSService.Web.Services.Extraction;
+using ISSService.Web.Services.Sacco;
 using ISSService.Web.Services.Submissions;
 using ISSService.Web.Services.Templates;
 using ISSService.Web.Services.Validation;
@@ -51,6 +53,13 @@ builder.Services.AddScoped<
     IScannedSubmissionStorageService,
     ScannedSubmissionStorageService>();
 
+// Register the shared SACCO workbook reader.
+// Validation and operational-data extraction use the same
+// low-level Open XML workbook interpretation.
+builder.Services.AddScoped<
+    ISaccoWorkbookReader,
+    SaccoWorkbookReader>();
+
 // Register SACCO workbook validation.
 // The validator independently evaluates the submitted workbook
 // rather than relying on the workbook's own validation formulas.
@@ -64,6 +73,13 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     ISubmissionValidationService,
     SubmissionValidationService>();
+
+// Register SACCO operational-data extraction.
+// Successfully validated SACCO returns are transformed into the
+// generic operational dataset and statistical observation model.
+builder.Services.AddScoped<
+    ISaccoDataExtractionService,
+    SaccoDataExtractionService>();
 
 var app = builder.Build();
 

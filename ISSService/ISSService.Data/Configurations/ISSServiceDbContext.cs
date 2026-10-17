@@ -43,6 +43,12 @@ public class ISSServiceDbContext : DbContext
     public DbSet<ValidationFinding> ValidationFindings =>
         Set<ValidationFinding>();
 
+    public DbSet<OperationalDataset> OperationalDatasets =>
+        Set<OperationalDataset>();
+
+    public DbSet<StatisticalObservation> StatisticalObservations =>
+        Set<StatisticalObservation>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -405,6 +411,11 @@ public class ISSServiceDbContext : DbContext
                 .WithOne(x => x.Submission)
                 .HasForeignKey(x => x.SubmissionId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasMany(x => x.OperationalDatasets)
+                .WithOne(x => x.Submission)
+                .HasForeignKey(x => x.SubmissionId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<ValidationRun>(entity =>
@@ -492,6 +503,94 @@ public class ISSServiceDbContext : DbContext
             {
                 x.ValidationRunId,
                 x.RuleCode
+            });
+        });
+
+        modelBuilder.Entity<OperationalDataset>(entity =>
+        {
+            entity.ToTable("OperationalDatasets");
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Summary)
+                .HasMaxLength(2000);
+
+            entity.Property(x => x.ExtractedBy)
+                .HasMaxLength(200);
+
+            entity.Property(x => x.CreatedBy)
+                .HasMaxLength(200);
+
+            entity.Property(x => x.ModifiedBy)
+                .HasMaxLength(200);
+
+            entity.HasIndex(x => x.SubmissionId);
+
+            entity.HasIndex(x => new
+            {
+                x.SubmissionId,
+                x.IsCurrent
+            });
+
+            entity.HasMany(x => x.Observations)
+                .WithOne(x => x.OperationalDataset)
+                .HasForeignKey(x => x.OperationalDatasetId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<StatisticalObservation>(entity =>
+        {
+            entity.ToTable("StatisticalObservations");
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.IndicatorCode)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            entity.Property(x => x.IndicatorName)
+                .IsRequired()
+                .HasMaxLength(250);
+
+            entity.Property(x => x.SectionCode)
+                .HasMaxLength(100);
+
+            entity.Property(x => x.SectionName)
+                .HasMaxLength(250);
+
+            entity.Property(x => x.RecordReference)
+                .HasMaxLength(250);
+
+            entity.Property(x => x.NumericValue)
+                .HasPrecision(28, 6);
+
+            entity.Property(x => x.TextValue)
+                .HasMaxLength(4000);
+
+            entity.Property(x => x.UnitOfMeasure)
+                .HasMaxLength(100);
+
+            entity.Property(x => x.SheetName)
+                .HasMaxLength(250);
+
+            entity.Property(x => x.CellReference)
+                .HasMaxLength(100);
+
+            entity.Property(x => x.CreatedBy)
+                .HasMaxLength(200);
+
+            entity.HasIndex(x => x.OperationalDatasetId);
+
+            entity.HasIndex(x => new
+            {
+                x.OperationalDatasetId,
+                x.IndicatorCode
+            });
+
+            entity.HasIndex(x => new
+            {
+                x.OperationalDatasetId,
+                x.ObservationDate
             });
         });
     }

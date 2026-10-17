@@ -2,10 +2,12 @@ using System.Globalization;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
 using ISSService.Data.Entities;
+using ISSService.Web.Services.Sacco;
 
 namespace ISSService.Web.Services.Validation;
 
 public sealed class SaccoWorkbookValidationService(
+    ISaccoWorkbookReader workbookReader,
     ILogger<SaccoWorkbookValidationService> logger)
     : ISaccoWorkbookValidationService
 {
@@ -97,10 +99,9 @@ public sealed class SaccoWorkbookValidationService(
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            var sheets = workbook.Sheets?
-                .Elements<Sheet>()
-                .ToList()
-                ?? new List<Sheet>();
+            var sheets = workbookReader
+                .GetSheets(workbookPart)
+                .ToList();
 
             ValidateRequiredSheets(
                 result,
@@ -108,9 +109,15 @@ public sealed class SaccoWorkbookValidationService(
 
             // The remaining checks depend on the respondent-facing
             // worksheets being available.
-            if (!HasSheet(sheets, CoverPageSheet) ||
-                !HasSheet(sheets, AssetsLiabilitiesSheet) ||
-                !HasSheet(sheets, MembershipSheet))
+            if (!workbookReader.HasSheet(
+                    sheets,
+                    CoverPageSheet) ||
+                !workbookReader.HasSheet(
+                    sheets,
+                    AssetsLiabilitiesSheet) ||
+                !workbookReader.HasSheet(
+                    sheets,
+                    MembershipSheet))
             {
                 return Task.FromResult(result);
             }
@@ -181,13 +188,15 @@ public sealed class SaccoWorkbookValidationService(
         }
     }
 
-    private static void ValidateRequiredSheets(
+    private void ValidateRequiredSheets(
         SaccoWorkbookValidationResult result,
         IReadOnlyCollection<Sheet> sheets)
     {
         var missingSheets = RequiredSheetNames
             .Where(required =>
-                !HasSheet(sheets, required))
+                !workbookReader.HasSheet(
+                    sheets,
+                    required))
             .ToList();
 
         if (missingSheets.Count == 0)
@@ -205,7 +214,7 @@ public sealed class SaccoWorkbookValidationService(
             expectedValue: string.Join(", ", RequiredSheetNames));
     }
 
-    private static void ValidateRespondentCode(
+    private void ValidateRespondentCode(
         SaccoWorkbookValidationResult result,
         WorkbookPart workbookPart,
         IReadOnlyCollection<Sheet> sheets,
@@ -213,7 +222,7 @@ public sealed class SaccoWorkbookValidationService(
     {
         const string cellReference = "B23";
 
-        var observedCode = ReadCellText(
+        var observedCode = workbookReader.ReadCellText(
             workbookPart,
             sheets,
             CoverPageSheet,
@@ -276,7 +285,7 @@ public sealed class SaccoWorkbookValidationService(
         AddPass(result);
     }
 
-    private static void ValidateAssetsEqualLiabilities(
+    private void ValidateAssetsEqualLiabilities(
         SaccoWorkbookValidationResult result,
         WorkbookPart workbookPart,
         IReadOnlyCollection<Sheet> sheets)
@@ -302,13 +311,13 @@ public sealed class SaccoWorkbookValidationService(
 
         foreach (var period in periodColumns)
         {
-            var totalAssets = ReadDecimal(
+            var totalAssets = workbookReader.ReadDecimal(
                 workbookPart,
                 sheets,
                 AssetsLiabilitiesSheet,
                 $"{period.Column}38");
 
-            var totalLiabilities = ReadDecimal(
+            var totalLiabilities = workbookReader.ReadDecimal(
                 workbookPart,
                 sheets,
                 AssetsLiabilitiesSheet,
@@ -355,7 +364,7 @@ public sealed class SaccoWorkbookValidationService(
         }
     }
 
-    private static void ValidateLoansOutstandingAgainstGrossLoans(
+    private void ValidateLoansOutstandingAgainstGrossLoans(
         SaccoWorkbookValidationResult result,
         WorkbookPart workbookPart,
         IReadOnlyCollection<Sheet> sheets)
@@ -381,7 +390,7 @@ public sealed class SaccoWorkbookValidationService(
 
         foreach (var period in periodColumns)
         {
-            var grossLoans = ReadDecimal(
+            var grossLoans = workbookReader.ReadDecimal(
                 workbookPart,
                 sheets,
                 AssetsLiabilitiesSheet,
@@ -390,7 +399,7 @@ public sealed class SaccoWorkbookValidationService(
             var sectorLoanValues = Enumerable
                 .Range(100, 11)
                 .Select(row =>
-                    ReadDecimal(
+                    workbookReader.ReadDecimal(
                         workbookPart,
                         sheets,
                         AssetsLiabilitiesSheet,
@@ -440,7 +449,7 @@ public sealed class SaccoWorkbookValidationService(
         }
     }
 
-    private static void ValidateMembershipTotals(
+    private void ValidateMembershipTotals(
         SaccoWorkbookValidationResult result,
         WorkbookPart workbookPart,
         IReadOnlyCollection<Sheet> sheets)
@@ -469,7 +478,7 @@ public sealed class SaccoWorkbookValidationService(
             var categoryValues = Enumerable
                 .Range(6, 5)
                 .Select(row =>
-                    ReadDecimal(
+                    workbookReader.ReadDecimal(
                         workbookPart,
                         sheets,
                         MembershipSheet,
@@ -496,7 +505,7 @@ public sealed class SaccoWorkbookValidationService(
             var calculatedTotal =
                 categoryValues.Sum(x => x!.Value);
 
-            var reportedTotal = ReadDecimal(
+            var reportedTotal = workbookReader.ReadDecimal(
                 workbookPart,
                 sheets,
                 MembershipSheet,
@@ -543,7 +552,7 @@ public sealed class SaccoWorkbookValidationService(
         }
     }
 
-    private static void ValidateGrossLoansByClientCategory(
+    private void ValidateGrossLoansByClientCategory(
         SaccoWorkbookValidationResult result,
         WorkbookPart workbookPart,
         IReadOnlyCollection<Sheet> sheets)
@@ -572,14 +581,14 @@ public sealed class SaccoWorkbookValidationService(
             var categoryValues = Enumerable
                 .Range(19, 5)
                 .Select(row =>
-                    ReadDecimal(
+                    workbookReader.ReadDecimal(
                         workbookPart,
                         sheets,
                         MembershipSheet,
                         $"{period.Column}{row}"))
                 .ToList();
 
-            var grossLoans = ReadDecimal(
+            var grossLoans = workbookReader.ReadDecimal(
                 workbookPart,
                 sheets,
                 AssetsLiabilitiesSheet,
@@ -628,7 +637,7 @@ public sealed class SaccoWorkbookValidationService(
         }
     }
 
-    private static List<ReportingPeriodColumn> GetReportingPeriodColumns(
+    private List<ReportingPeriodColumn> GetReportingPeriodColumns(
         WorkbookPart workbookPart,
         IReadOnlyCollection<Sheet> sheets)
     {
@@ -636,13 +645,13 @@ public sealed class SaccoWorkbookValidationService(
 
         foreach (var column in new[] { "C", "D" })
         {
-            var rawValue = ReadCellText(
+            var rawValue = workbookReader.ReadCellText(
                 workbookPart,
                 sheets,
                 AssetsLiabilitiesSheet,
                 $"{column}4");
 
-            if (TryConvertExcelDate(
+            if (workbookReader.TryConvertExcelDate(
                     rawValue,
                     out var date))
             {
@@ -656,7 +665,7 @@ public sealed class SaccoWorkbookValidationService(
         return result;
     }
 
-    private static List<ReportingPeriodColumn> GetMembershipPeriodColumns(
+    private List<ReportingPeriodColumn> GetMembershipPeriodColumns(
         WorkbookPart workbookPart,
         IReadOnlyCollection<Sheet> sheets)
     {
@@ -664,13 +673,13 @@ public sealed class SaccoWorkbookValidationService(
 
         foreach (var column in new[] { "B", "C" })
         {
-            var rawValue = ReadCellText(
+            var rawValue = workbookReader.ReadCellText(
                 workbookPart,
                 sheets,
                 MembershipSheet,
                 $"{column}5");
 
-            if (TryConvertExcelDate(
+            if (workbookReader.TryConvertExcelDate(
                     rawValue,
                     out var date))
             {
@@ -682,158 +691,6 @@ public sealed class SaccoWorkbookValidationService(
         }
 
         return result;
-    }
-
-    private static string? ReadCellText(
-        WorkbookPart workbookPart,
-        IReadOnlyCollection<Sheet> sheets,
-        string sheetName,
-        string cellReference)
-    {
-        var worksheetPart = GetWorksheetPart(
-            workbookPart,
-            sheets,
-            sheetName);
-
-        if (worksheetPart is null)
-        {
-            return null;
-        }
-
-        var worksheet = worksheetPart.Worksheet;
-
-        if (worksheet is null)
-        {
-            return null;
-        }
-
-        var cell = worksheet
-            .Descendants<Cell>()
-            .FirstOrDefault(x =>
-                string.Equals(
-                    x.CellReference?.Value,
-                    cellReference,
-                    StringComparison.OrdinalIgnoreCase));
-
-        if (cell is null)
-        {
-            return null;
-        }
-
-        var rawValue = cell.CellValue?.InnerText;
-
-        if (cell.DataType?.Value == CellValues.SharedString &&
-            int.TryParse(
-                rawValue,
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out var sharedStringIndex))
-        {
-            var sharedStringTable =
-                workbookPart.SharedStringTablePart?
-                    .SharedStringTable;
-
-            var item = sharedStringTable?
-                .Elements<SharedStringItem>()
-                .ElementAtOrDefault(sharedStringIndex);
-
-            return item?.InnerText;
-        }
-
-        if (cell.DataType?.Value == CellValues.InlineString)
-        {
-            return cell.InlineString?.InnerText;
-        }
-
-        return rawValue;
-    }
-
-    private static decimal? ReadDecimal(
-        WorkbookPart workbookPart,
-        IReadOnlyCollection<Sheet> sheets,
-        string sheetName,
-        string cellReference)
-    {
-        var value = ReadCellText(
-            workbookPart,
-            sheets,
-            sheetName,
-            cellReference);
-
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        if (decimal.TryParse(
-                value,
-                NumberStyles.Any,
-                CultureInfo.InvariantCulture,
-                out var parsed))
-        {
-            return parsed;
-        }
-
-        return null;
-    }
-
-    private static WorksheetPart? GetWorksheetPart(
-        WorkbookPart workbookPart,
-        IReadOnlyCollection<Sheet> sheets,
-        string sheetName)
-    {
-        var sheet = sheets.FirstOrDefault(x =>
-            string.Equals(
-                x.Name?.Value,
-                sheetName,
-                StringComparison.OrdinalIgnoreCase));
-
-        var relationshipId = sheet?.Id?.Value;
-
-        if (string.IsNullOrWhiteSpace(relationshipId))
-        {
-            return null;
-        }
-
-        return workbookPart.GetPartById(
-            relationshipId) as WorksheetPart;
-    }
-
-    private static bool HasSheet(
-        IEnumerable<Sheet> sheets,
-        string sheetName)
-    {
-        return sheets.Any(x =>
-            string.Equals(
-                x.Name?.Value,
-                sheetName,
-                StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static bool TryConvertExcelDate(
-        string? rawValue,
-        out DateTime date)
-    {
-        date = default;
-
-        if (!double.TryParse(
-                rawValue,
-                NumberStyles.Any,
-                CultureInfo.InvariantCulture,
-                out var serialDate))
-        {
-            return false;
-        }
-
-        try
-        {
-            date = DateTime.FromOADate(serialDate);
-            return true;
-        }
-        catch (ArgumentException)
-        {
-            return false;
-        }
     }
 
     private static string FormatDecimal(

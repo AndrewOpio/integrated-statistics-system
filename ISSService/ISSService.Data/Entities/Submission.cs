@@ -52,6 +52,13 @@ public class Submission
 
     public ICollection<ValidationRun> ValidationRuns { get; set; }
         = new List<ValidationRun>();
+
+    // Operational datasets preserve the structured statistical
+    // data extracted from this submission. Multiple datasets may
+    // be retained to preserve extraction history, while IsCurrent
+    // identifies the current operational representation.
+    public ICollection<OperationalDataset> OperationalDatasets { get; set; }
+        = new List<OperationalDataset>();
 }
 
 public enum SubmissionMethod

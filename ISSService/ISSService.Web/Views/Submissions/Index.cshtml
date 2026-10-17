@@ -111,6 +111,9 @@ else
                         Status
                     </th>
                     <th>
+                        Operational Data
+                    </th>
+                    <th>
                         Current
                     </th>
                     <th>
@@ -187,6 +190,24 @@ else
                                     Received
                                 </span>
                             }
+                            else if (item.StatusName == "UnderReview")
+                            {
+                                <span class="badge bg-primary">
+                                    Under Review
+                                </span>
+                            }
+                            else if (item.StatusName == "CorrectionRequired")
+                            {
+                                <span class="badge bg-warning text-dark">
+                                    Correction Required
+                                </span>
+                            }
+                            else if (item.StatusName == "Accepted")
+                            {
+                                <span class="badge bg-success">
+                                    Accepted
+                                </span>
+                            }
                             else if (item.StatusName == "Superseded")
                             {
                                 <span class="badge bg-secondary">
@@ -196,6 +217,39 @@ else
                             else
                             {
                                 @item.StatusName
+                            }
+                        </td>
+
+                        <td>
+                            @if (item.HasOperationalDataset)
+                            {
+                                <span class="badge bg-success">
+                                    Extracted
+                                </span>
+
+                                <div class="small mt-1">
+                                    @($"{item.OperationalObservationCount:N0} observations")
+                                </div>
+
+                                @if (item.OperationalDatasetId.HasValue)
+                                {
+                                    <div class="small text-muted">
+                                        Dataset #@item.OperationalDatasetId
+                                    </div>
+                                }
+                            }
+                            else if (!string.IsNullOrWhiteSpace(
+                                item.OperationalDatasetStatusName))
+                            {
+                                <span class="badge bg-warning text-dark">
+                                    @item.OperationalDatasetStatusName
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">
+                                    Not extracted
+                                </span>
                             }
                         </td>
 
@@ -226,8 +280,39 @@ else
                                 }
 
                                 @if (item.IsCurrent &&
-                                     item.StatusName != "Accepted" &&
-                                     item.StatusName != "Validating")
+                                     item.StatusName == "Validated" &&
+                                     !item.HasOperationalDataset)
+                                {
+                                    <form asp-action="Extract"
+                                          method="post"
+                                          class="d-inline">
+                                        <input type="hidden"
+                                               name="submissionId"
+                                               value="@item.Id" />
+
+                                        <button type="submit"
+                                                class="btn btn-sm btn-success">
+                                            Extract Data
+                                        </button>
+                                    </form>
+                                }
+                                else if (item.IsCurrent &&
+                                         item.StatusName == "Validated" &&
+                                         item.HasOperationalDataset)
+                                {
+                                    <span class="text-success small">
+                                        Operational data ready
+                                    </span>
+                                }
+                                else if (item.IsCurrent &&
+                                         item.StatusName == "Validating")
+                                {
+                                    <span class="text-muted small">
+                                        Validation in progress
+                                    </span>
+                                }
+                                else if (item.IsCurrent &&
+                                         item.StatusName != "Accepted")
                                 {
                                     <form asp-action="Validate"
                                           method="post"
@@ -242,15 +327,7 @@ else
                                         </button>
                                     </form>
                                 }
-                                else if (item.StatusName == "Validating")
-                                {
-                                    <span class="text-muted small">
-                                        Validation in progress
-                                    </span>
-                                }
-                                else if (!item.IsCurrent &&
-                                         item.StatusName != "Validated" &&
-                                         item.StatusName != "ValidationFailed")
+                                else if (!item.IsCurrent)
                                 {
                                     <span class="text-muted small">
                                         Historical
@@ -263,7 +340,7 @@ else
                     @if (!string.IsNullOrWhiteSpace(item.Notes))
                     {
                         <tr>
-                            <td colspan="8">
+                            <td colspan="9">
                                 <strong>Notes:</strong>
                                 @item.Notes
                             </td>
@@ -279,6 +356,9 @@ else
         audit history. Only the latest successfully received return
         is marked as the current submission. Validation is performed
         against the stored return and recorded as part of the
-        submission's validation history.
+        submission's validation history. Validated SACCO returns can
+        be transformed into structured operational observations for
+        downstream processing. Extraction does not constitute formal
+        review or acceptance of the return.
     </div>
 }
