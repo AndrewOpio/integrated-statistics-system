@@ -233,8 +233,12 @@ else
 
                                 @if (item.OperationalDatasetId.HasValue)
                                 {
-                                    <div class="small text-muted">
-                                        Dataset #@item.OperationalDatasetId
+                                    <div class="small">
+                                        <a asp-controller="OperationalDatasets"
+                                           asp-action="Details"
+                                           asp-route-id="@item.OperationalDatasetId.Value">
+                                            Dataset #@item.OperationalDatasetId
+                                        </a>
                                     </div>
                                 }
                             }
@@ -298,11 +302,15 @@ else
                                 }
                                 else if (item.IsCurrent &&
                                          item.StatusName == "Validated" &&
-                                         item.HasOperationalDataset)
+                                         item.HasOperationalDataset &&
+                                         item.OperationalDatasetId.HasValue)
                                 {
-                                    <span class="text-success small">
-                                        Operational data ready
-                                    </span>
+                                    <a asp-controller="OperationalDatasets"
+                                       asp-action="Details"
+                                       asp-route-id="@item.OperationalDatasetId.Value"
+                                       class="btn btn-sm btn-outline-success">
+                                        View Dataset
+                                    </a>
                                 }
                                 else if (item.IsCurrent &&
                                          item.StatusName == "Validating")

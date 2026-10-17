@@ -1,0 +1,370 @@
+@model ISSService.Web.Models.OperationalDatasets.OperationalDatasetViewModel
+
+@{
+    ViewData["Title"] = $"Operational Dataset #{Model.Id}";
+}
+
+<div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+        <h1 class="mb-1">Operational Dataset</h1>
+        <p class="text-muted mb-0">
+            Structured statistical data extracted from a validated return.
+        </p>
+    </div>
+
+    <div class="text-end">
+        @if (Model.IsCurrent)
+        {
+            <span class="badge bg-success">
+                Current Dataset
+            </span>
+        }
+        else
+        {
+            <span class="badge bg-secondary">
+                Historical Dataset
+            </span>
+        }
+
+        <span class="badge bg-primary">
+            @Model.StatusName
+        </span>
+    </div>
+</div>
+
+<div class="alert alert-light border">
+    This operational dataset represents structured data extracted from
+    Submission #@Model.SubmissionNumber. Extraction does not constitute
+    formal review or acceptance of the return.
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <strong>Dataset Summary</strong>
+    </div>
+
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">
+                        Dataset ID
+                    </dt>
+                    <dd class="col-sm-7">
+                        #@Model.Id
+                    </dd>
+
+                    <dt class="col-sm-5">
+                        Statistical Process
+                    </dt>
+                    <dd class="col-sm-7">
+                        @Model.StatisticalProcessName
+                    </dd>
+
+                    <dt class="col-sm-5">
+                        Reporting Cycle
+                    </dt>
+                    <dd class="col-sm-7">
+                        @Model.ReportingCycleName
+
+                        @if (!string.IsNullOrWhiteSpace(
+                            Model.ReportingCycleCode))
+                        {
+                            <span class="text-muted">
+                                (@Model.ReportingCycleCode)
+                            </span>
+                        }
+                    </dd>
+
+                    <dt class="col-sm-5">
+                        Reporting Period
+                    </dt>
+                    <dd class="col-sm-7">
+                        @Model.PeriodStartDate.ToString("dd MMM yyyy")
+                        -
+                        @Model.PeriodEndDate.ToString("dd MMM yyyy")
+                    </dd>
+
+                    <dt class="col-sm-5">
+                        Respondent
+                    </dt>
+                    <dd class="col-sm-7">
+                        @Model.RespondentCode - @Model.RespondentName
+                    </dd>
+
+                    <dt class="col-sm-5">
+                        Case Reference
+                    </dt>
+                    <dd class="col-sm-7">
+                        @Model.CaseReference
+                    </dd>
+
+                    <dt class="col-sm-5">
+                        Case Status
+                    </dt>
+                    <dd class="col-sm-7">
+                        @Model.CaseStatusName
+                    </dd>
+                </dl>
+            </div>
+
+            <div class="col-md-6">
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">
+                        Submission
+                    </dt>
+                    <dd class="col-sm-7">
+                        #@Model.SubmissionNumber
+                    </dd>
+
+                    <dt class="col-sm-5">
+                        Submission Status
+                    </dt>
+                    <dd class="col-sm-7">
+                        @Model.SubmissionStatusName
+                    </dd>
+
+                    <dt class="col-sm-5">
+                        Template
+                    </dt>
+                    <dd class="col-sm-7">
+                        @Model.TemplateName
+                    </dd>
+
+                    <dt class="col-sm-5">
+                        Template Version
+                    </dt>
+                    <dd class="col-sm-7">
+                        @Model.TemplateVersionLabel
+                    </dd>
+
+                    <dt class="col-sm-5">
+                        Source File
+                    </dt>
+                    <dd class="col-sm-7">
+                        @Model.FileName
+                    </dd>
+
+                    <dt class="col-sm-5">
+                        Extracted By
+                    </dt>
+                    <dd class="col-sm-7">
+                        @Model.ExtractedBy
+                    </dd>
+
+                    <dt class="col-sm-5">
+                        Extraction Completed
+                    </dt>
+                    <dd class="col-sm-7">
+                        @if (Model.ExtractionCompletedDate.HasValue)
+                        {
+                            @Model.ExtractionCompletedDate.Value.ToString(
+                                "dd MMM yyyy HH:mm")
+                        }
+                        else
+                        {
+                            <span class="text-muted">
+                                Not completed
+                            </span>
+                        }
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted">
+                    Observations
+                </div>
+
+                <div class="fs-3 fw-bold">
+                    @Model.ObservationCount.ToString("N0")
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted">
+                    Statistical Sections
+                </div>
+
+                <div class="fs-3 fw-bold">
+                    @Model.Sections.Count.ToString("N0")
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted">
+                    Dataset Status
+                </div>
+
+                <div class="fs-5 fw-bold">
+                    @Model.StatusName
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.Summary))
+{
+    <div class="card mb-4">
+        <div class="card-header">
+            <strong>Extraction Summary</strong>
+        </div>
+
+        <div class="card-body">
+            @Model.Summary
+        </div>
+    </div>
+}
+
+<h2 class="h4 mb-3">
+    Statistical Observations
+</h2>
+
+@if (!Model.Sections.Any())
+{
+    <div class="alert alert-info">
+        This dataset does not contain any statistical observations.
+    </div>
+}
+else
+{
+    @foreach (var datasetSection in Model.Sections)
+    {
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between">
+                <strong>
+                    @datasetSection.SectionName
+                </strong>
+
+                <span class="badge bg-secondary">
+                    @datasetSection.ObservationCount.ToString("N0")
+                    observations
+                </span>
+            </div>
+
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>
+                                    Ref.
+                                </th>
+                                <th>
+                                    Indicator
+                                </th>
+                                <th>
+                                    Period
+                                </th>
+                                <th class="text-end">
+                                    Value
+                                </th>
+                                <th>
+                                    Unit
+                                </th>
+                                <th>
+                                    Source
+                                </th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @foreach (var observation in datasetSection.Observations)
+                            {
+                                <tr>
+                                    <td>
+                                        @observation.RecordReference
+                                    </td>
+
+                                    <td>
+                                        <div>
+                                            @observation.IndicatorName
+                                        </div>
+
+                                        <small class="text-muted">
+                                            @observation.IndicatorCode
+                                        </small>
+                                    </td>
+
+                                    <td>
+                                        @if (observation.ObservationDate.HasValue)
+                                        {
+                                            @observation.ObservationDate.Value.ToString(
+                                                "dd MMM yyyy")
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">
+                                                -
+                                            </span>
+                                        }
+                                    </td>
+
+                                    <td class="text-end">
+                                        @observation.DisplayValue
+                                    </td>
+
+                                    <td>
+                                        @if (!string.IsNullOrWhiteSpace(
+                                            observation.UnitOfMeasure))
+                                        {
+                                            @observation.UnitOfMeasure
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">
+                                                -
+                                            </span>
+                                        }
+                                    </td>
+
+                                    <td>
+                                        @if (!string.IsNullOrWhiteSpace(
+                                            observation.SheetName))
+                                        {
+                                            <div>
+                                                @observation.SheetName
+                                            </div>
+                                        }
+
+                                        @if (!string.IsNullOrWhiteSpace(
+                                            observation.CellReference))
+                                        {
+                                            <small class="text-muted">
+                                                Cell @observation.CellReference
+                                            </small>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+<div class="d-flex gap-2 mb-4">
+    <a asp-controller="Submissions"
+       asp-action="Index"
+       asp-route-respondentCaseId="@Model.RespondentCaseId"
+       class="btn btn-outline-primary">
+        Back to Submission History
+    </a>
+</div>
