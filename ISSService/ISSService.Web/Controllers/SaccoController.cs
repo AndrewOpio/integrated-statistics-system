@@ -19,38 +19,36 @@ public class SaccoController : Controller
         _logger = logger;
     }
 
-    [HttpGet]
     public async Task<IActionResult> Index(int? cycleId = null)
     {
+        var model = new SaccoDashboardViewModel();
+
         try
         {
-            var saccoProcess = await _db.StatisticalProcesses
+            var process = await _db.StatisticalProcesses
                 .AsNoTracking()
                 .Where(x =>
                     x.IsActive &&
-                    x.ProcessType ==
-                        StatisticalProcessType.InstitutionalReturn)
-                .Where(x =>
-                    x.Code.ToUpper().Contains("SACCO") ||
-                    x.Name.ToUpper().Contains("SACCO"))
+                    (
+                        x.Code.Contains("SACCO") ||
+                        x.Name.Contains("SACCO")
+                    ))
                 .OrderBy(x => x.Id)
                 .FirstOrDefaultAsync();
 
-            var model = new SaccoDashboardViewModel
+            if (process == null)
             {
-                ProcessConfigured = saccoProcess != null,
-                ProcessName = saccoProcess?.Name ?? "SACCO Returns"
-            };
-
-            if (saccoProcess == null)
-            {
+                model.ProcessConfigured = false;
                 return View(model);
             }
+
+            model.ProcessConfigured = true;
+            model.ProcessName = process.Name;
 
             var cycles = await _db.ReportingCycles
                 .AsNoTracking()
                 .Where(x =>
-                    x.StatisticalProcessId == saccoProcess.Id)
+                    x.StatisticalProcessId == process.Id)
                 .OrderByDescending(x => x.PeriodEndDate)
                 .ThenByDescending(x => x.Id)
                 .Select(x => new SaccoCycleOptionViewModel
@@ -85,8 +83,9 @@ public class SaccoController : Controller
                         x.DataCollectionTemplateVersion)
                     .ThenInclude(x =>
                         x.DataCollectionTemplate)
-                .FirstOrDefaultAsync(
-                    x => x.Id == selectedCycleId);
+                .FirstOrDefaultAsync(x =>
+                    x.Id == selectedCycleId &&
+                    x.StatisticalProcessId == process.Id);
 
             if (cycle == null)
             {
@@ -104,6 +103,8 @@ public class SaccoController : Controller
                 .Include(x => x.Respondent)
                 .Include(x => x.Submissions)
                     .ThenInclude(x => x.ValidationRuns)
+                .Include(x => x.Submissions)
+                    .ThenInclude(x => x.OperationalDatasets)
                 .OrderBy(x => x.Respondent.Name)
                 .ToListAsync();
 
@@ -112,12 +113,14 @@ public class SaccoController : Controller
                     .Where(x =>
                         x.IsActive &&
                         x.IsPrimary)
-                    .OrderByDescending(x => x.AssignedDate)
+                    .OrderByDescending(x =>
+                        x.AssignedDate)
                     .FirstOrDefault()
                 ??
                 cycle.TemplateAssignments
                     .Where(x => x.IsActive)
-                    .OrderByDescending(x => x.AssignedDate)
+                    .OrderByDescending(x =>
+                        x.AssignedDate)
                     .FirstOrDefault();
 
             model.RespondentCases = respondentCases
@@ -131,9 +134,12 @@ public class SaccoController : Controller
                 Name = cycle.Name,
                 PeriodStartDate = cycle.PeriodStartDate,
                 PeriodEndDate = cycle.PeriodEndDate,
-                CollectionOpenDate = cycle.CollectionOpenDate,
-                SubmissionDueDate = cycle.SubmissionDueDate,
-                CollectionCloseDate = cycle.CollectionCloseDate,
+                CollectionOpenDate =
+                    cycle.CollectionOpenDate,
+                SubmissionDueDate =
+                    cycle.SubmissionDueDate,
+                CollectionCloseDate =
+                    cycle.CollectionCloseDate,
                 Status = cycle.Status,
 
                 TemplateName =
@@ -147,23 +153,36 @@ public class SaccoController : Controller
                         .DataCollectionTemplateVersion
                         .VersionLabel,
 
-                TotalCases = respondentCases.Count,
+                TotalCases =
+                    model.RespondentCases.Count,
 
                 DistributedCases =
-                    respondentCases.Count(x =>
+                    model.RespondentCases.Count(x =>
                         x.DistributedDate.HasValue),
 
                 CasesWithSubmissions =
-                    respondentCases.Count(x =>
-                        x.Submissions.Any()),
+                    model.RespondentCases.Count(x =>
+                        x.HasCurrentSubmission),
 
-                AcceptedCases =
-                    respondentCases.Count(x =>
-                        x.AcceptedDate.HasValue),
+                OutstandingCases =
+                    model.RespondentCases.Count(x =>
+                        x.IsOutstanding),
+
+                ValidatedCases =
+                    model.RespondentCases.Count(x =>
+                        x.IsValidated),
 
                 CasesWithValidationFailures =
-                    respondentCases.Count(
-                        HasCurrentValidationFailure)
+                    model.RespondentCases.Count(x =>
+                        x.HasValidationFailure),
+
+                ExtractedCases =
+                    model.RespondentCases.Count(x =>
+                        x.HasExtractedOperationalDataset),
+
+                AcceptedCases =
+                    model.RespondentCases.Count(x =>
+                        x.AcceptedDate.HasValue)
             };
 
             return View(model);
@@ -177,11 +196,7 @@ public class SaccoController : Controller
             TempData["Error"] =
                 "The SACCO reporting dashboard could not be loaded.";
 
-            return View(
-                new SaccoDashboardViewModel
-                {
-                    ProcessName = "SACCO Returns"
-                });
+            return View(model);
         }
     }
 
@@ -189,21 +204,45 @@ public class SaccoController : Controller
         CreateRespondentCaseViewModel(
             RespondentCase respondentCase)
     {
-        var latestSubmission = respondentCase.Submissions
-            .OrderByDescending(x => x.SubmissionNumber)
-            .ThenByDescending(x => x.SubmittedDate)
-            .FirstOrDefault();
+        var currentSubmission =
+            respondentCase.Submissions
+                .Where(x => x.IsCurrent)
+                .OrderByDescending(x =>
+                    x.SubmissionNumber)
+                .ThenByDescending(x =>
+                    x.SubmittedDate)
+                .FirstOrDefault();
 
-        var latestValidation = latestSubmission?
-            .ValidationRuns
-            .OrderByDescending(x => x.RunNumber)
-            .ThenByDescending(x => x.StartedDate)
-            .FirstOrDefault();
+        var latestValidation =
+            currentSubmission?
+                .ValidationRuns
+                .Where(x =>
+                    x.CompletedDate.HasValue)
+                .OrderByDescending(x =>
+                    x.RunNumber)
+                .ThenByDescending(x =>
+                    x.CompletedDate)
+                .FirstOrDefault();
+
+        var currentOperationalDataset =
+            currentSubmission?
+                .OperationalDatasets
+                .Where(x => x.IsCurrent)
+                .OrderByDescending(x =>
+                    x.ExtractionCompletedDate ??
+                    x.ExtractionStartedDate ??
+                    x.CreatedDate)
+                .ThenByDescending(x =>
+                    x.Id)
+                .FirstOrDefault();
 
         return new SaccoRespondentCaseViewModel
         {
-            RespondentCaseId = respondentCase.Id,
-            CaseReference = respondentCase.CaseReference,
+            RespondentCaseId =
+                respondentCase.Id,
+
+            CaseReference =
+                respondentCase.CaseReference,
 
             RespondentCode =
                 respondentCase.Respondent.Code,
@@ -227,7 +266,7 @@ public class SaccoController : Controller
                 respondentCase.DistributedDate,
 
             LatestSubmissionDate =
-                respondentCase.LatestSubmissionDate,
+                currentSubmission?.SubmittedDate,
 
             AcceptedDate =
                 respondentCase.AcceptedDate,
@@ -235,37 +274,27 @@ public class SaccoController : Controller
             SubmissionCount =
                 respondentCase.Submissions.Count,
 
+            CurrentSubmissionId =
+                currentSubmission?.Id,
+
+            CurrentSubmissionNumber =
+                currentSubmission?.SubmissionNumber,
+
             LatestSubmissionStatus =
-                latestSubmission?.Status,
+                currentSubmission?.Status,
 
             LatestValidationStatus =
-                latestValidation?.Status
+                latestValidation?.Status,
+
+            OperationalDatasetId =
+                currentOperationalDataset?.Id,
+
+            OperationalObservationCount =
+                currentOperationalDataset?
+                    .ObservationCount ?? 0,
+
+            OperationalDatasetStatus =
+                currentOperationalDataset?.Status
         };
-    }
-
-    private static bool HasCurrentValidationFailure(
-        RespondentCase respondentCase)
-    {
-        var latestSubmission = respondentCase.Submissions
-            .Where(x => x.IsCurrent)
-            .OrderByDescending(x => x.SubmissionNumber)
-            .ThenByDescending(x => x.SubmittedDate)
-            .FirstOrDefault();
-
-        if (latestSubmission == null)
-        {
-            return false;
-        }
-
-        var latestValidation = latestSubmission
-            .ValidationRuns
-            .OrderByDescending(x => x.RunNumber)
-            .ThenByDescending(x => x.StartedDate)
-            .FirstOrDefault();
-
-        return latestValidation?.Status ==
-                   ValidationRunStatus.Failed ||
-               latestValidation?.Status ==
-                   ValidationRunStatus.Error;
     }
 }

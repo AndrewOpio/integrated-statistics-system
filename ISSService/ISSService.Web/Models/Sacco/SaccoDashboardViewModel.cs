@@ -62,15 +62,42 @@ public class SaccoCycleSummaryViewModel
 
     public int CasesWithSubmissions { get; set; }
 
-    public int AcceptedCases { get; set; }
+    public int OutstandingCases { get; set; }
+
+    public int ValidatedCases { get; set; }
 
     public int CasesWithValidationFailures { get; set; }
+
+    public int ExtractedCases { get; set; }
+
+    public int AcceptedCases { get; set; }
 
     public decimal SubmissionRate =>
         TotalCases == 0
             ? 0
             : Math.Round(
                 CasesWithSubmissions * 100m / TotalCases,
+                1);
+
+    public decimal OutstandingRate =>
+        TotalCases == 0
+            ? 0
+            : Math.Round(
+                OutstandingCases * 100m / TotalCases,
+                1);
+
+    public decimal ValidationRate =>
+        CasesWithSubmissions == 0
+            ? 0
+            : Math.Round(
+                ValidatedCases * 100m / CasesWithSubmissions,
+                1);
+
+    public decimal ExtractionRate =>
+        ValidatedCases == 0
+            ? 0
+            : Math.Round(
+                ExtractedCases * 100m / ValidatedCases,
                 1);
 
     public decimal AcceptanceRate =>
@@ -107,7 +134,35 @@ public class SaccoRespondentCaseViewModel
 
     public int SubmissionCount { get; set; }
 
+    public int? CurrentSubmissionId { get; set; }
+
+    public int? CurrentSubmissionNumber { get; set; }
+
     public SubmissionStatus? LatestSubmissionStatus { get; set; }
 
     public ValidationRunStatus? LatestValidationStatus { get; set; }
+
+    public bool HasCurrentSubmission =>
+        CurrentSubmissionId.HasValue;
+
+    public bool IsOutstanding =>
+        !HasCurrentSubmission;
+
+    public bool IsValidated =>
+        LatestSubmissionStatus == SubmissionStatus.Validated;
+
+    public bool HasValidationFailure =>
+        LatestValidationStatus == ValidationRunStatus.Failed ||
+        LatestValidationStatus == ValidationRunStatus.Error;
+
+    public int? OperationalDatasetId { get; set; }
+
+    public int OperationalObservationCount { get; set; }
+
+    public OperationalDatasetStatus? OperationalDatasetStatus { get; set; }
+
+    public bool HasExtractedOperationalDataset =>
+        OperationalDatasetId.HasValue &&
+        OperationalDatasetStatus ==
+            ISSService.Data.Entities.OperationalDatasetStatus.Extracted;
 }
